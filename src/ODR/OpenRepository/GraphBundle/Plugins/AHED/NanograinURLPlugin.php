@@ -24,28 +24,13 @@ class NanograinURLPlugin implements DatafieldPluginInterface
 {
 
     /**
-     * @var DatarecordInfoService
-     */
-    private $datarecord_info_service;
-
-    /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-
-    /**
      * Nanograin URLPlugin constructor.
      *
      * @param DatarecordInfoService $datarecord_info_service
      * @param EngineInterface $templating
      */
-    public function __construct(
-        DatarecordInfoService $datarecord_info_service,
-        EngineInterface $templating
-    ) {
-        $this->datarecord_info_service = $datarecord_info_service;
-        $this->templating = $templating;
+    public function __construct(private readonly DatarecordInfoService $datarecord_info_service, private readonly EngineInterface $templating)
+    {
     }
 
 
@@ -140,13 +125,13 @@ class NanograinURLPlugin implements DatafieldPluginInterface
             if ( $rendering_options['context'] === 'display' || $rendering_options['context'] === 'edit' ) {
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:AHED:NanograinURL/nanograinurl_display_datafield.html.twig',
-                    array(
+                    [
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,
 
                         'button_text' => $button_text,
                         'url' => $str,
-                    )
+                    ]
                 );
             }
 

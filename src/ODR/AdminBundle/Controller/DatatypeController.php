@@ -74,10 +74,10 @@ class DatatypeController extends ODRCustomController
      */
     public function update_propertiesAction($datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
-        $return['d'] = array();
+        $return['d'] = [];
 
         try {
             // Grab necessary objects
@@ -112,7 +112,7 @@ class DatatypeController extends ODRCustomController
                         throw new ODRException('Incorrect datatype.  Must be properties datatype.');
                     }
 
-                    $datatype_array = $repo_datatype->findBy(array('template_group' => $datatype->getTemplateGroup()));
+                    $datatype_array = $repo_datatype->findBy(['template_group' => $datatype->getTemplateGroup()]);
 
                     /** @var DataType $dt */
                     foreach($datatype_array as $dt) {
@@ -153,24 +153,24 @@ class DatatypeController extends ODRCustomController
                     // Should edit the properties type and the datatype itself...
                     $em->refresh($datatype);
                     $new_datatype_meta = $datatype->getDataTypeMeta();
-                    $params = array(
-                        'form_settings' => array(
-                        )
-                    );
+                    $params = [
+                        'form_settings' => [
+                        ]
+                    ];
                     $form = $this->createForm(UpdateDatatypePropertiesForm::class, $new_datatype_meta, $params);
 
                     $html = $templating->render(
                         'ODRAdminBundle:Datatype:update_datatype_properties_form.html.twig',
-                        array(
+                        [
                             'datatype' => $datatype,
                             'form' => $form->createView(),
-                        )
+                        ]
                     );
 
-                    $return['d'] = array(
+                    $return['d'] = [
                         'datatype_id' => $datatype->getId(),
                         'html' => $html,
-                    );
+                    ];
                 }
             }
         }
@@ -200,7 +200,7 @@ class DatatypeController extends ODRCustomController
      */
     public function propertiesAction($datatype_id, $wizard, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -235,14 +235,14 @@ class DatatypeController extends ODRCustomController
             else if ($datatype->getSetupStep() == DataType::STATE_INITIAL && $datatype->getMasterDataType() != null) {
                 // The database is still in the process of being created...return the HTML for the page that'll periodically check for progress
                 $return['t'] = "html";
-                $return['d'] = array(
+                $return['d'] = [
                     'html' => $templating->render(
                         'ODRAdminBundle:Datatype:create_status_checker.html.twig',
-                        array(
+                        [
                             "datatype" => $datatype
-                        )
+                        ]
                     )
-                );
+                ];
             }
             else {
 
@@ -269,9 +269,9 @@ class DatatypeController extends ODRCustomController
 
                 // Retrieve what should be the first and only datarecord...
                 $results = $em->getRepository('ODRAdminBundle:DataRecord')->findBy(
-                    array(
+                    [
                         'dataType' => $properties_datatype->getId()
-                    )
+                    ]
                 );
 
                 if ( count($results) == 0 ) {
@@ -288,7 +288,7 @@ class DatatypeController extends ODRCustomController
                         $event = new DatarecordCreatedEvent($datarecord, $user, null);
                         $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
                     }
-                    catch (\Exception $e) {
+                    catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after
                         //  this event.  In this case, a datarecord gets created, but the rest of
                         //  the values aren't saved and the provisioned flag never gets changed to
@@ -314,9 +314,9 @@ class DatatypeController extends ODRCustomController
                 // Need to create a form for editing datatype metadata
                 // Should edit the properties type and the datatype itself...
                 $new_datatype_data = $properties_datatype->getDataTypeMeta();
-                $params = array(
-                    'form_settings' => array()
-                );
+                $params = [
+                    'form_settings' => []
+                ];
                 $form = $this->createForm(UpdateDatatypePropertiesForm::class, $new_datatype_data, $params);
 
                 // $redirect_path = $router->generate('odr_record_edit', array('datarecord_id' => 0));
@@ -325,31 +325,31 @@ class DatatypeController extends ODRCustomController
 
                 $record_header_html = $templating->render(
                     'ODRAdminBundle:Edit:properties_edit_header.html.twig',
-                    array(
+                    [
                         'datatype_permissions' => $datatype_permissions,
                         'datarecord' => $datarecord,
                         'datatype' => $datatype,
 
                         // values used by search_header.html.twig
                         'redirect_path' => $redirect_path,
-                    )
+                    ]
                 );
 
                 $html = $templating->render(
                     'ODRAdminBundle:Datatype:properties.html.twig',
-                    array(
+                    [
                         'wizard' => $wizard,
                         'datatype' => $datatype,
                         'user' => $user,
                         'form' => $form->createView(),
                         'edit_html' => $edit_html
-                    )
+                    ]
                 );
 
-                $return['d'] = array(
+                $return['d'] = [
                     'datatype_id' => $datatype->getId(),
                     'html' => $record_header_html . $html,
-                );
+                ];
             }
         }
         catch (\Exception $e) {
@@ -377,7 +377,7 @@ class DatatypeController extends ODRCustomController
      */
     public function landingAction($datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -414,14 +414,14 @@ class DatatypeController extends ODRCustomController
             else if ($datatype->getSetupStep() == DataType::STATE_INITIAL && $datatype->getMasterDataType() != null) {
                 // The database is still in the process of being created...return the HTML for the page that'll periodically check for progress
                 $return['t'] = "html";
-                $return['d'] = array(
+                $return['d'] = [
                     'html' => $templating->render(
                         'ODRAdminBundle:Datatype:create_status_checker.html.twig',
-                        array(
+                        [
                             "datatype" => $datatype
-                        )
+                        ]
                     )
-                );
+                ];
             }
             else {
                 // Ensure user has permissions to be doing this
@@ -434,13 +434,13 @@ class DatatypeController extends ODRCustomController
                 // ----------------------------------------
                 // Need to locate all datatypes that link to the requested datatype
                 $datatree_array = $datatree_info_service->getDatatreeArray();
-                $linked_ancestors = $datatree_info_service->getLinkedAncestors( array($grandparent_datatype->getId()), $datatree_array );
+                $linked_ancestors = $datatree_info_service->getLinkedAncestors( [$grandparent_datatype->getId()], $datatree_array );
 
                 // Need to also locate every linked descendants...first step is to get all children
                 //  of this datatype
-                $child_descendants = $datatree_info_service->getChildDescendants( array($grandparent_datatype->getId()), $datatree_array, true);
+                $child_descendants = $datatree_info_service->getChildDescendants( [$grandparent_datatype->getId()], $datatree_array, true);
                 // ...and then combine those ids with the requested datatype...
-                $tmp = array_merge(array($grandparent_datatype->getId()), $child_descendants);
+                $tmp = array_merge([$grandparent_datatype->getId()], $child_descendants);
                 // ...so that all linked datatypes can be located
                 $linked_descendants = $datatree_info_service->getLinkedDescendants( $tmp, $datatree_array, true );
 
@@ -460,18 +460,18 @@ class DatatypeController extends ODRCustomController
                     AND (dt.template_group LIKE :template_group OR dt.id IN (:linked_datatypes))
                     AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND gp.deletedAt IS NULL'
                 )->setParameters(
-                    array(
+                    [
                         'template_group' => $datatype->getTemplateGroup(),
                         'linked_datatypes' => $linked_datatypes,
                         'setup_steps' => DataType::STATE_VIEWABLE
-                    )
+                    ]
                 );
                 // AND dt.is_master_type = (:is_master_type)
                 // 'is_master_type' => $is_master_type
 
                 $results = $query->getArrayResult();
 
-                $datatypes = array();
+                $datatypes = [];
                 foreach ($results as $result) {
                     $dt_id = $result['id'];
 
@@ -499,7 +499,7 @@ class DatatypeController extends ODRCustomController
                 $related_metadata = $database_info_service->getDatarecordCounts($datatype_ids, $datatype_permissions);
 
                 // Only want to display recent changes for the top-level datatypes...
-                $datatype_names = array();
+                $datatype_names = [];
                 foreach ($datatypes as $dt_id => $dt) {
                     if ( $dt['id'] === $dt['grandparent']['id'] ) {
                         // ...don't want to display changes for the metadata datatypes
@@ -516,7 +516,7 @@ class DatatypeController extends ODRCustomController
                 // Render the required version of the page
                 $html = $templating->render(
                     'ODRAdminBundle:Datatype:landing.html.twig',
-                    array(
+                    [
                         'user' => $user,
                         'initial_datatype_id' => $datatype->getId(),
                         'datatype_permissions' => $datatype_permissions,
@@ -526,13 +526,13 @@ class DatatypeController extends ODRCustomController
                         'site_baseurl' => $this->getParameter('site_baseurl'),
                         'wordpress_site_baseurl' => $this->getParameter('wordpress_site_baseurl'),
                         'dashboard_graphs' => $dashboard_graphs,
-                    )
+                    ]
                 );
 
-                $return['d'] = array(
+                $return['d'] = [
                     'datatype_id' => $datatype->getId(),
                     'html' => $html,
-                );
+                ];
             }
         }
         catch (\Exception $e) {
@@ -572,9 +572,9 @@ class DatatypeController extends ODRCustomController
             $str = $cache_service->get('dashboard_'.$dt_id);
             if ( $str === false || $str === ''  ) {
                 // Going to need to run queries to figure out these values...
-                $created = array();
+                $created = [];
                 $total_created = 0;
-                $updated = array();
+                $updated = [];
                 $total_updated = 0;
 
                 // Going to need to know whether the user can view non-public datarecords in order
@@ -655,12 +655,12 @@ class DatatypeController extends ODRCustomController
 
                 $graph = $templating->render(
                     'ODRAdminBundle:Datatype:dashboard_graphs.html.twig',
-                    array(
+                    [
                         'datatype_name' => $dt_name,
                         'created_str' => $created_str,
                         'updated_str' => $updated_str,
                         'value_str' => $value_str,
-                    )
+                    ]
                 );
 
                 // Cache this, because it does make a difference on large datasets...
@@ -688,7 +688,7 @@ class DatatypeController extends ODRCustomController
      */
     public function listAction($section, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -750,17 +750,17 @@ class DatatypeController extends ODRCustomController
 
             $query = $em->createQuery($query_sql);
             $query->setParameters(
-                array(
+                [
                     'datatypes' => $top_level_datatypes,
                     'is_master_type' => $is_master_type
-                )
+                ]
             );
 
             $results = $query->getArrayResult();
 
             // TODO This whole loop seems superfluous
-            $datatypes = array();
-            $metadata_datatype_ids = array();
+            $datatypes = [];
+            $metadata_datatype_ids = [];
             foreach ($results as $result) {
                 $dt_id = $result['id'];
 
@@ -790,18 +790,18 @@ class DatatypeController extends ODRCustomController
 
 
             // Render and return the html for the datatype list
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Datatype:type_list.html.twig',
-                    array(
+                    [
                         'user' => $user,
                         'datatype_permissions' => $datatype_permissions,
                         'section' => $section,
                         'datatypes' => $datatypes,
                         'metadata' => $metadata,
-                    )
+                    ]
                 )
-            );
+            ];
 
             // Clear the previously viewed datarecord since the user is probably pulling up a new list if he looks at this
             $session = $request->getSession();
@@ -840,9 +840,9 @@ class DatatypeController extends ODRCustomController
             AND drf_drm.internal_reference_name LIKE \'datatype_name\'';
         $query = $em->createQuery($query_sql);
         $query->setParameters(
-            array(
+            [
                 'datatype_ids' => $datatype_ids
-            )
+            ]
         );
 
         $datatype_results = $query->getArrayResult();
@@ -888,7 +888,7 @@ class DatatypeController extends ODRCustomController
      */
     public function createAction($create_master, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -932,7 +932,7 @@ class DatatypeController extends ODRCustomController
                 LEFT JOIN dt.updatedBy AS dt_ub
                 WHERE dt.id IN (:datatypes) AND dt.is_master_type = 1
                 AND md.id IS NOT NULL AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
-            )->setParameters(array('datatypes' => $top_level_datatypes));
+            )->setParameters(['datatypes' => $top_level_datatypes]);
             $master_templates = $query->getArrayResult();
 
             // Sort the templates by name
@@ -943,17 +943,17 @@ class DatatypeController extends ODRCustomController
             });
 
             // Render and return the html
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Datatype:create_type_choose_template.html.twig',
-                    array(
+                    [
                         'user' => $user,
                         'datatype_permissions' => $datatype_permissions,
                         'master_templates' => $master_templates,
                         'create_master' => $create_master
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x1bb84021;
@@ -983,7 +983,7 @@ class DatatypeController extends ODRCustomController
      */
     public function choosemetaAction($datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1041,24 +1041,24 @@ class DatatypeController extends ODRCustomController
                 LEFT JOIN dt.updatedBy AS dt_ub
                 WHERE dt.id IN (:datatypes) AND dt.is_master_type = 1
                 AND md.id IS NOT NULL AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
-            )->setParameters( array('datatypes' => $top_level_datatypes) );
+            )->setParameters( ['datatypes' => $top_level_datatypes] );
             $master_templates = $query->getArrayResult();
 
             // TODO - modify this so that you can create a metadata entry that isn't based on a template
 
             // Render and return the html
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Datatype:create_type_choose_template.html.twig',
-                    array(
+                    [
                         'user' => $user,
                         'datatype_permissions' => $datatype_permissions,
                         'master_templates' => $master_templates,
                         'create_master' => $create_master,
                         'datatype_id' => $datatype_id
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x72002e34;
@@ -1090,7 +1090,7 @@ class DatatypeController extends ODRCustomController
      */
     public function createinfoAction($template_choice, $creating_master_template, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1129,12 +1129,12 @@ class DatatypeController extends ODRCustomController
             else {
                 // Build a form for creating a new datatype, if needed
                 $new_datatype_data = new DataTypeMeta();
-                $params = array(
-                    'form_settings' => array(
+                $params = [
+                    'form_settings' => [
                         'is_master_type' => $creating_master_template,
                         'master_type_id' => $template_choice,
-                    )
-                );
+                    ]
+                ];
                 $form = $this->createForm(CreateDatatypeForm::class, $new_datatype_data, $params);
 
                 // Grab a list of top top-level datatypes
@@ -1150,14 +1150,14 @@ class DatatypeController extends ODRCustomController
                     JOIN dt.updatedBy AS dt_ub
                     WHERE dt.id IN (:datatypes) AND dt.is_master_type = 1
                     AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
-                )->setParameters(array('datatypes' => $top_level_datatypes));
+                )->setParameters(['datatypes' => $top_level_datatypes]);
                 $master_templates = $query->getArrayResult();
 
                 // Render and return the html
-                $return['d'] = array(
+                $return['d'] = [
                     'html' => $templating->render(
                         'ODRAdminBundle:Datatype:create_type_database_info.html.twig',
-                        array(
+                        [
                             'user' => $user,
                             'form' => $form->createView(),
 
@@ -1166,9 +1166,9 @@ class DatatypeController extends ODRCustomController
                             'master_templates' => $master_templates,
                             'master_type_id' => $template_choice,
                             'create_master' => $create_master,
-                        )
+                        ]
                     )
-                );
+                ];
 
             }
         }
@@ -1197,7 +1197,7 @@ class DatatypeController extends ODRCustomController
      */
     public function addmetadataAction($template_choice, $datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1261,10 +1261,10 @@ class DatatypeController extends ODRCustomController
      */
     public function direct_add_datatype($master_datatype_id, $datatype_id = 0, $admin = null, $bypass_queue = false)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
-        $return['d'] = array();
+        $return['d'] = [];
 
         // TODO - can this be removed?
 
@@ -1310,10 +1310,10 @@ class DatatypeController extends ODRCustomController
             // Forward to database properties page.
             $url = $this->generateUrl(
                 'odr_datatype_properties',
-                array(
+                [
                     'datatype_id' => $datatype->getId(),
                     'wizard' => 1
-                ),
+                ],
                 false
             );
             $redirect = $this->redirect($url);
@@ -1339,10 +1339,10 @@ class DatatypeController extends ODRCustomController
      */
     public function addAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
-        $return['d'] = array();
+        $return['d'] = [];
 
         try {
             // Grab necessary objects
@@ -1365,12 +1365,12 @@ class DatatypeController extends ODRCustomController
 
             // Create new DataType form
             $submitted_data = new DataTypeMeta();
-            $params = array(
-                'form_settings' => array(
+            $params = [
+                'form_settings' => [
                     'is_master_type' => false,
                     'master_type_id' => 0,
-                )
-            );
+                ]
+            ];
             $form = $this->createForm(CreateDatatypeForm::class, $submitted_data, $params);
 
             $form->handleRequest($request);
@@ -1494,7 +1494,7 @@ class DatatypeController extends ODRCustomController
                     $em->flush();
 
 
-                    $datatypes_to_process = array();
+                    $datatypes_to_process = [];
                     array_push($datatypes_to_process, $datatype);
 
                     /*
@@ -1607,13 +1607,13 @@ class DatatypeController extends ODRCustomController
                             // Insert the new job into the queue
                             $priority = 1024;   // should be roughly default priority
                             $payload = json_encode(
-                                array(
+                                [
                                     "user_id" => $admin->getId(),
                                     "datatype_id" => $datatype->getId(),
 
                                     "redis_prefix" => $redis_prefix,    // debug purposes only
                                     "api_key" => $api_key,
-                                )
+                                ]
                             );
 
                             $delay = 0;
@@ -1656,7 +1656,7 @@ class DatatypeController extends ODRCustomController
                                 $event = new DatatypeCreatedEvent($datatype, $admin);
                                 $dispatcher->dispatch(DatatypeCreatedEvent::NAME, $event);
                             }
-                            catch (\Exception $e) {
+                            catch (\Exception) {
                                 // ...don't want to rethrow the error since it'll interrupt everything after this
                                 //  event
 //                                if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -1687,8 +1687,8 @@ class DatatypeController extends ODRCustomController
                     // the user edit their metadata template first as it is the last thing set to $datatype above.
                     // Perhaps this should be more explicitly chosen.
                     // TODO - This is not good.  A long copy above may not be finished by the time the time the user arrives at design system.
-                    $baseurl = $this->generateUrl('odr_search', array('search_slug' => $datatype->getUniqueId()), UrlGeneratorInterface::ABSOLUTE_URL);
-                    $url = $this->generateUrl('odr_design_master_theme', array('datatype_id' => $datatype->getId()));
+                    $baseurl = $this->generateUrl('odr_search', ['search_slug' => $datatype->getUniqueId()], UrlGeneratorInterface::ABSOLUTE_URL);
+                    $url = $this->generateUrl('odr_design_master_theme', ['datatype_id' => $datatype->getId()]);
                     $return['d']['redirect_url'] = $baseurl.'#'.$url;
                 }
                 else {
@@ -1701,9 +1701,9 @@ class DatatypeController extends ODRCustomController
                 // Otherwise, this was a GET request
                 $return['d'] = $templating->render(
                     'ODRAdminBundle:Datatype:create_datatype_info_form.html.twig',
-                    array(
+                    [
                         'form' => $form->createView()
-                    )
+                    ]
                 );
             }
         }
@@ -1734,7 +1734,7 @@ class DatatypeController extends ODRCustomController
      */
     public function createblankmetaAction($datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1859,7 +1859,7 @@ class DatatypeController extends ODRCustomController
      */
     public function listcopydatabasesAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1916,16 +1916,16 @@ class DatatypeController extends ODRCustomController
                 AND dt.setup_step IN (:setup_steps) AND dt.metadata_for IS NULL
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'datatypes' => $top_level_datatypes,
                     'is_master_type' => false,
                     'setup_steps' => DataType::STATE_VIEWABLE
-                )
+                ]
             );
             $results = $query->getArrayResult();
 
             // Flatten the returned array slightly
-            $datatypes = array();
+            $datatypes = [];
             foreach ($results as $result) {
                 $dt_id = $result['id'];
 
@@ -1935,9 +1935,7 @@ class DatatypeController extends ODRCustomController
             }
 
             // Sort the datatypes by name so they're easier to locate...
-            uasort($datatypes, function ($a, $b) {
-                return strnatcasecmp($a['dataTypeMeta']['shortName'], $b['dataTypeMeta']['shortName']);
-            });
+            uasort($datatypes, fn($a, $b) => strnatcasecmp((string) $a['dataTypeMeta']['shortName'], (string) $b['dataTypeMeta']['shortName']));
 
 
             // ----------------------------------------
@@ -1945,18 +1943,18 @@ class DatatypeController extends ODRCustomController
             $csrf_token = $token_generator->getToken('CopyDatatypeForm_'.$admin->getId())->getValue();
 
             // Render and return the html for the datatype list
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Datatype:type_list_copy_databases.html.twig',
-                    array(
+                    [
                         'admin' => $admin,
 
                         'user_list' => $user_list,
                         'datatypes' => $datatypes,
                         'csrf_token' => $csrf_token,
-                    )
+                    ]
                 )
-            );
+            ];
 
         }
         catch (\Exception $e) {
@@ -1986,7 +1984,7 @@ class DatatypeController extends ODRCustomController
      */
     public function copynormaldatabaseAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -2030,7 +2028,7 @@ class DatatypeController extends ODRCustomController
                 throw new ODRBadRequestException('Not allowed to copy a non-operational datatype');
 
             /** @var ODRUser $user */
-            $user = $user_manager->findUserBy( array('id' => $user_id) );
+            $user = $user_manager->findUserBy( ['id' => $user_id] );
             if ( is_null($user) )
                 throw new ODRNotFoundException('User');
 
@@ -2108,7 +2106,7 @@ class DatatypeController extends ODRCustomController
             if ( !is_null($source_datatype->getMetadataDatatype()) ) {
                 // ...then ensure it gets copied first to avoid it get cached incorrectly
                 $payload = json_encode(
-                    array(
+                    [
                         "user_id" => $user->getId(),
                         "datatype_id" => $new_metadata_dt->getId(),
                         "template_group" => $new_dt->getUniqueId(),
@@ -2118,14 +2116,14 @@ class DatatypeController extends ODRCustomController
                         "api_key" => $api_key,
 
                         "clone_and_link" => false,    // ?
-                    )
+                    ]
                 );
                 $pheanstalk->useTube('create_datatype_from_master')->put($payload, $priority, $delay);
             }
 
             // Copy the desired datatype
             $payload = json_encode(
-                array(
+                [
                     "user_id" => $user->getId(),
                     "datatype_id" => $new_dt->getId(),
                     "template_group" => $new_dt->getUniqueId(),
@@ -2135,15 +2133,15 @@ class DatatypeController extends ODRCustomController
                     "api_key" => $api_key,
 
                     "clone_and_link" => false,    // ?
-                )
+                ]
             );
             $pheanstalk->useTube('create_datatype_from_master')->put($payload, $priority, $delay);
 
 
             // ----------------------------------------
             // Redirect the user to what will be the new datatype's landing page
-            $url = $this->generateUrl('odr_datatype_landing', array('datatype_id' => $new_dt->getId()), false);
-            $return['d'] = array('redirect_url' => $url);
+            $url = $this->generateUrl('odr_datatype_landing', ['datatype_id' => $new_dt->getId()], false);
+            $return['d'] = ['redirect_url' => $url];
 
         }
         catch (\Exception $e) {

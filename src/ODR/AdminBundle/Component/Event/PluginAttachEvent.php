@@ -27,16 +27,6 @@ class PluginAttachEvent extends Event implements ODREventInterface
     // Best practice is apparently to have the Event class define the event name
     const NAME = 'odr.event.plugin_attach_event';
 
-    /**
-     * @var RenderPluginInstance
-     */
-    private $render_plugin_instance;
-
-    /**
-     * @var ODRUser
-     */
-    private $user;
-
 
     /**
      * PluginAttachEvent constructor.
@@ -44,12 +34,8 @@ class PluginAttachEvent extends Event implements ODREventInterface
      * @param RenderPluginInstance $render_plugin_instance
      * @param ODRUser $user
      */
-    public function __construct(
-        RenderPluginInstance $render_plugin_instance,
-        ODRUser $user
-    ) {
-        $this->render_plugin_instance = $render_plugin_instance;
-        $this->user = $user;
+    public function __construct(private readonly RenderPluginInstance $render_plugin_instance, private readonly ODRUser $user)
+    {
     }
 
 
@@ -88,9 +74,9 @@ class PluginAttachEvent extends Event implements ODREventInterface
      */
     public function getErrorInfo()
     {
-        return array(
+        return [
             self::NAME,
             'rpi '.$this->render_plugin_instance->getId(),
-        );
+        ];
     }
 }

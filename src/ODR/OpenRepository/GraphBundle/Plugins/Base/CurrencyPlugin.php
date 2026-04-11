@@ -30,25 +30,13 @@ class CurrencyPlugin implements DatafieldPluginInterface, TableResultsOverrideIn
 {
 
     /**
-     * @var DatarecordInfoService
-     */
-    private $dri_service;
-
-    /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-
-    /**
      * CurrencyPlugin constructor.
      *
      * @param DatarecordInfoService $dri_service
      * @param EngineInterface $templating
      */
-    public function __construct(DatarecordInfoService $dri_service, EngineInterface $templating) {
-        $this->dri_service = $dri_service;
-        $this->templating = $templating;
+    public function __construct(private readonly DatarecordInfoService $dri_service, private readonly EngineInterface $templating)
+    {
     }
 
 
@@ -103,19 +91,12 @@ class CurrencyPlugin implements DatafieldPluginInterface, TableResultsOverrideIn
             if ( isset($datarecord['dataRecordFields'][ $datafield['id'] ]) ) {
                 $drf = $datarecord['dataRecordFields'][ $datafield['id'] ];
                 $entity = '';
-                switch ( $datafield['dataFieldMeta']['fieldType']['typeClass'] ) {
-                    case 'IntegerValue':
-                        $entity = $drf['integerValue'];
-                        break;
-                    case 'DecimalValue':
-                        $entity = $drf['decimalValue'];
-                        break;
-
-                    default:
-                        throw new \Exception('Invalid Fieldtype');
-                        break;
-                }
-                $value = trim( $entity[0]['value'] );
+                $entity = match ($datafield['dataFieldMeta']['fieldType']['typeClass']) {
+                    'IntegerValue' => $drf['integerValue'],
+                    'DecimalValue' => $drf['decimalValue'],
+                    default => throw new \Exception('Invalid Fieldtype'),
+                };
+                $value = trim( (string) $entity[0]['value'] );
             }
             else {
                 // No datarecordfield entry for this datarecord/datafield pair...because of the
@@ -139,12 +120,12 @@ class CurrencyPlugin implements DatafieldPluginInterface, TableResultsOverrideIn
             else if ( $rendering_options['context'] === 'display' ) {
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:Base:Currency/currency_display_datafield.html.twig',
-                    array(
+                    [
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,
 
                         'value' => $str,
-                    )
+                    ]
                 );
             }
 
@@ -212,7 +193,7 @@ class CurrencyPlugin implements DatafieldPluginInterface, TableResultsOverrideIn
         $df_id = $datafield['id'];
 
         // Still need to find the value for this datafield in the given datarecord...
-        $value = array();
+        $value = [];
         if ( isset($datarecord['dataRecordFields'][$df_id]) ) {
             $drf = $datarecord['dataRecordFields'][$df_id];
 

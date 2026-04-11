@@ -78,55 +78,16 @@ class EntityMetaModifyService
 {
 
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var CacheService
-     */
-    private $cache_service;
-
-    /**
-     * @var DatatreeInfoService
-     */
-    private $datatree_info_service;
-
-    /**
-     * @var EventDispatcherInterface
-     */
-    private $event_dispatcher;
-
-    // NOTE - $event_dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * EntityMetaModifyService constructor.
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param CacheService $cache_service
      * @param DatatreeInfoService $datatree_info_service
      * @param EventDispatcherInterface $event_dispatcher
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        CacheService $cache_service,
-        DatatreeInfoService $datatree_info_service,
-        EventDispatcherInterface $event_dispatcher,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->cache_service = $cache_service;
-        $this->datatree_info_service = $datatree_info_service;
-        $this->event_dispatcher = $event_dispatcher;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly DatatreeInfoService $datatree_info_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly Logger $logger)
+    {
     }
 
 
@@ -180,9 +141,9 @@ class EntityMetaModifyService
         // ...if this Datafield is not currently scheduled to receive a new DatafieldMeta entry,
         //  then it's safe to call self::updateDatafieldMeta() to update the "master_revision" property
         if ( !$found) {
-            $props = array(
+            $props = [
                 'master_revision' => $datafield->getMasterRevision() + 1
-            );
+            ];
             self::updateDatafieldMeta($user, $datafield, $props, $delay_flush);
         }
     }
@@ -220,9 +181,9 @@ class EntityMetaModifyService
         // ...if this Datafield is not currently scheduled to receive a new DatatypeMeta entry,
         //  then it's safe to call self::updateDatatypeMeta() to update the "master_revision" property
         if ( !$found ) {
-            $props = array(
+            $props = [
                 'master_revision' => $datatype->getMasterRevision() + 1
-            );
+            ];
             self::updateDatatypeMeta($user, $datatype, $props, $delay_flush);
         }
     }
@@ -295,14 +256,14 @@ class EntityMetaModifyService
         // Load the old meta entry
         /** @var DataFieldsMeta $old_meta_entry */
         $old_meta_entry = $this->em->getRepository('ODRAdminBundle:DataFieldsMeta')->findOneBy(
-            array(
+            [
                 'dataField' => $datafield->getId()
-            )
+            ]
         );
 
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
-        $existing_values = array(
+        $existing_values = [
             // These entities can be set here since they're never null
             'fieldType' => $old_meta_entry->getFieldType(),
 
@@ -335,7 +296,7 @@ class EntityMetaModifyService
             'master_revision' => $old_meta_entry->getMasterRevision(),
             'tracking_master_revision' => $old_meta_entry->getTrackingMasterRevision(),
             'master_published_revision' => $old_meta_entry->getMasterPublishedRevision(),
-        );
+        ];
 
 
         // ----------------------------------------
@@ -589,7 +550,7 @@ class EntityMetaModifyService
                 WHERE ro.dataField = :datafield_id AND rom.isDefault = 1
                 AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL
                 ORDER BY rom.displayOrder'
-            )->setParameters(array('datafield_id' => $datafield->getId()));
+            )->setParameters(['datafield_id' => $datafield->getId()]);
             $results = $query->getResult();
 
             $count = 0;
@@ -602,9 +563,9 @@ class EntityMetaModifyService
                     continue;
 
                 // Otherwise, mark the radio option as "not default"
-                $props = array(
+                $props = [
                     'isDefault' => false
-                );
+                ];
                 self::updateRadioOptionsMeta($user, $ro, $props, true, $created);    // don't flush immediately
             }
 
@@ -624,7 +585,7 @@ class EntityMetaModifyService
                'UPDATE ODRAdminBundle:SidebarLayoutMap slm
                 SET slm.deletedAt = :now
                 WHERE slm.dataField = :datafield_id AND slm.deletedAt IS NULL'
-            )->setParameters( array('now' => new \DateTime(), 'datafield_id' => $datafield->getId()) );
+            )->setParameters( ['now' => new \DateTime(), 'datafield_id' => $datafield->getId()] );
             $rows = $query->execute();
         }
 
@@ -655,17 +616,17 @@ class EntityMetaModifyService
         // Load the old meta entry
         /** @var DataRecordMeta $old_meta_entry */
         $old_meta_entry = $this->em->getRepository('ODRAdminBundle:DataRecordMeta')->findOneBy(
-            array(
+            [
                 'dataRecord' => $datarecord->getId()
-            )
+            ]
         );
 
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
-        $existing_values = array(
+        $existing_values = [
             'publicDate' => $old_meta_entry->getPublicDate(),
             'prevent_user_edits' => $old_meta_entry->getPreventUserEdits(),
-        );
+        ];
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
                 $changes_made = true;
@@ -755,18 +716,18 @@ class EntityMetaModifyService
         // Load the old meta entry
         /** @var DataTreeMeta $old_meta_entry */
         $old_meta_entry = $this->em->getRepository('ODRAdminBundle:DataTreeMeta')->findOneBy(
-            array(
+            [
                 'dataTree' => $datatree->getId()
-            )
+            ]
         );
 
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
-        $existing_values = array(
+        $existing_values = [
             'multiple_allowed' => $old_meta_entry->getMultipleAllowed(),
             'is_link' => $old_meta_entry->getIsLink(),
             'edit_behavior' => $old_meta_entry->getEditBehavior(),
-        );
+        ];
 
         // These datatree entries could be null to begin with
         if ( !is_null($old_meta_entry->getSecondaryDataTree()) )
@@ -905,14 +866,14 @@ class EntityMetaModifyService
         // Load the old meta entry
         /** @var DataTypeMeta $old_meta_entry */
         $old_meta_entry = $this->em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy(
-            array(
+            [
                 'dataType' => $datatype->getId()
-            )
+            ]
         );
 
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
-        $existing_values = array(
+        $existing_values = [
             'searchSlug' => $old_meta_entry->getSearchSlug(),
             'shortName' => $old_meta_entry->getShortName(),
             'longName' => $old_meta_entry->getLongName(),
@@ -929,7 +890,7 @@ class EntityMetaModifyService
             'master_published_revision' => $old_meta_entry->getMasterPublishedRevision(),
             'master_revision' => $old_meta_entry->getMasterRevision(),
             'tracking_master_revision' => $old_meta_entry->getTrackingMasterRevision(),
-        );
+        ];
 
         // These datafield entries could be null to begin with
         if ( !is_null($old_meta_entry->getExternalIdField()) )
@@ -1072,7 +1033,7 @@ class EntityMetaModifyService
             else {
                 // This is currently a top-level template datatype...check whether it's a linked
                 //  descendant of other template datatypes...
-                $linked_ancestors = $this->datatree_info_service->getLinkedAncestors(array($datatype->getId()));
+                $linked_ancestors = $this->datatree_info_service->getLinkedAncestors([$datatype->getId()]);
                 if ( !empty($linked_ancestors) ) {
                     // ...because if it is, all linked ancestors of this datatype also need to have
                     //  their "master_revision" value updated
@@ -1136,10 +1097,10 @@ class EntityMetaModifyService
         // ----------------------------------------
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
-        $existing_values = array(
+        $existing_values = [
             // Not allowed to change datatype/datafield, or purpose
             'displayOrder' => $dtsf->getDisplayOrder(),
-        );
+        ];
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
                 $changes_made = true;
@@ -1209,20 +1170,20 @@ class EntityMetaModifyService
         // Load the old meta entry
         /** @var FileMeta $old_meta_entry */
         $old_meta_entry = $this->em->getRepository('ODRAdminBundle:FileMeta')->findOneBy(
-            array(
+            [
                 'file' => $file->getId()
-            )
+            ]
         );
 
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
-        $existing_values = array(
+        $existing_values = [
             'description' => $old_meta_entry->getDescription(),
             'original_filename' => $old_meta_entry->getOriginalFileName(),
             'quality' => $old_meta_entry->getQuality(),
             'external_id' => $old_meta_entry->getExternalId(),
             'publicDate' => $old_meta_entry->getPublicDate(),
-        );
+        ];
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
                 $changes_made = true;
@@ -1269,7 +1230,7 @@ class EntityMetaModifyService
             if ( preg_match(ValidUtility::FILENAME_ILLEGAL_CHARACTERS_REGEX_B, $new_filename) === 1 )
                 throw new ODRBadRequestException('"'.$new_filename.'" is not a legal filename', $exception_source);
             // ...and filenames starting with a dash are also bad
-            if ( strpos($new_filename, '-') === 0 )
+            if ( str_starts_with($new_filename, '-') )
                 throw new ODRBadRequestException('"'.$new_filename.'" is not a legal filename', $exception_source);
 
             $new_file_meta->setOriginalFileName( mb_scrub($new_filename) );
@@ -1330,7 +1291,7 @@ class EntityMetaModifyService
     {
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
-        $existing_values = array(
+        $existing_values = [
             'can_view_datatype' => $permission->getCanViewDatatype(),
             'can_view_datarecord' => $permission->getCanViewDatarecord(),
             'can_add_datarecord' => $permission->getCanAddDatarecord(),
@@ -1338,7 +1299,7 @@ class EntityMetaModifyService
             'can_change_public_status' => $permission->getCanChangePublicStatus(),
             'can_design_datatype' => $permission->getCanDesignDatatype(),
             'is_datatype_admin' => $permission->getIsDatatypeAdmin(),
-        );
+        ];
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
                 $changes_made = true;
@@ -1420,10 +1381,10 @@ class EntityMetaModifyService
     {
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
-        $existing_values = array(
+        $existing_values = [
             'can_view_datafield' => $permission->getCanViewDatafield(),
             'can_edit_datafield' => $permission->getCanEditDatafield(),
-        );
+        ];
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
                 $changes_made = true;
@@ -1494,18 +1455,18 @@ class EntityMetaModifyService
         // Load the old meta entry
         /** @var GroupMeta $old_meta_entry */
         $old_meta_entry = $this->em->getRepository('ODRAdminBundle:GroupMeta')->findOneBy(
-            array(
+            [
                 'group' => $group->getId()
-            )
+            ]
         );
 
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
-        $existing_values = array(
+        $existing_values = [
             'groupName' => $old_meta_entry->getGroupName(),
             'groupDescription' => $old_meta_entry->getGroupDescription(),
             'datarecord_restriction' => $old_meta_entry->getDatarecordRestriction(),
-        );
+        ];
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
                 $changes_made = true;
@@ -1590,21 +1551,21 @@ class EntityMetaModifyService
         // Load the old meta entry
         /** @var ImageMeta $old_meta_entry */
         $old_meta_entry = $this->em->getRepository('ODRAdminBundle:ImageMeta')->findOneBy(
-            array(
+            [
                 'image' => $image->getId()
-            )
+            ]
         );
 
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
-        $existing_values = array(
+        $existing_values = [
             'caption' => $old_meta_entry->getCaption(),
             'original_filename' => $old_meta_entry->getOriginalFileName(),
             'quality' => $old_meta_entry->getQuality(),
             'external_id' => $old_meta_entry->getExternalId(),
             'publicDate' => $old_meta_entry->getPublicDate(),
             'display_order' => $old_meta_entry->getDisplayorder()
-        );
+        ];
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value)
                 $changes_made = true;
@@ -1651,7 +1612,7 @@ class EntityMetaModifyService
             if ( preg_match(ValidUtility::FILENAME_ILLEGAL_CHARACTERS_REGEX_B, $new_filename) === 1 )
                 throw new ODRBadRequestException('"'.$new_filename.'" is not a legal filename', $exception_source);
             // ...and filenames starting with a dash are also bad
-            if ( strpos($new_filename, '-') === 0 )
+            if ( str_starts_with($new_filename, '-') )
                 throw new ODRBadRequestException('"'.$new_filename.'" is not a legal filename', $exception_source);
 
             $new_image_meta->setOriginalFileName( mb_scrub($new_filename) );
@@ -1713,19 +1674,19 @@ class EntityMetaModifyService
         // Load the old meta entry
         /** @var RadioOptionsMeta $old_meta_entry */
         $old_meta_entry = $this->em->getRepository('ODRAdminBundle:RadioOptionsMeta')->findOneBy(
-            array(
+            [
                 'radioOption' => $radio_option->getId()
-            )
+            ]
         );
 
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
-        $existing_values = array(
+        $existing_values = [
             'optionName' => $old_meta_entry->getOptionName(),
             'xml_optionName' => $old_meta_entry->getXmlOptionName(),
             'displayOrder' => $old_meta_entry->getDisplayOrder(),
             'isDefault' => $old_meta_entry->getIsDefault(),
-        );
+        ];
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
                 $changes_made = true;
@@ -1820,9 +1781,9 @@ class EntityMetaModifyService
     {
         // No point making new entry if nothing is getting changed
         $changes_made = false;
-        $existing_values = array(
+        $existing_values = [
             'selected' => $radio_selection->getSelected()
-        );
+        ];
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
                 $changes_made = true;
@@ -1904,9 +1865,9 @@ class EntityMetaModifyService
         // ----------------------------------------
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
-        $existing_values = array(
+        $existing_values = [
             'dataField' => $render_plugin_map->getDataField(),
-        );
+        ];
 
         // This entry could be null to begin with
         if ( !is_null($render_plugin_map->getDataField()) )
@@ -1996,9 +1957,9 @@ class EntityMetaModifyService
     {
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
-        $existing_values = array(
+        $existing_values = [
             'value' => $render_plugin_options_map->getValue(),
-        );
+        ];
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
                 $changes_made = true;
@@ -2070,9 +2031,9 @@ class EntityMetaModifyService
     {
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
-        $existing_values = array(
+        $existing_values = [
             'value' => $render_plugin_theme_options_map->getValue(),
-        );
+        ];
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
                 $changes_made = true;
@@ -2156,21 +2117,21 @@ class EntityMetaModifyService
         // Load the old meta entry
         /** @var SidebarLayoutMeta $old_meta_entry */
         $old_meta_entry = $this->em->getRepository('ODRAdminBundle:SidebarLayoutMeta')->findOneBy(
-            array(
+            [
                 'sidebarLayout' => $sidebar_layout->getId()
-            )
+            ]
         );
 
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
-        $existing_values = array(
+        $existing_values = [
             'layoutName' => $old_meta_entry->getLayoutName(),
             'layoutDescription' => $old_meta_entry->getLayoutDescription(),
             'shared' => $old_meta_entry->getShared(),
 
             'defaultFor' => $old_meta_entry->getDefaultFor(),
             'displayOrder' => $old_meta_entry->getDisplayOrder(),
-        );
+        ];
 
         // These entries could be null to begin with
         if ( !is_null($old_meta_entry->getInverseDataType()) )
@@ -2279,10 +2240,10 @@ class EntityMetaModifyService
         // ----------------------------------------
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
-        $existing_values = array(
+        $existing_values = [
             'category' => $sidebar_layout_map->getCategory(),
             'displayOrder' => $sidebar_layout_map->getDisplayOrder(),
-        );
+        ];
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
                 $changes_made = true;
@@ -2360,9 +2321,9 @@ class EntityMetaModifyService
 
         // No point making new entry if nothing is getting changed
         $changes_made = false;
-        $existing_values = array(
+        $existing_values = [
             'value' => $entity->getValue()
-        );
+        ];
 
         // Change current values stored in IntegerValue or DecimalValue entities to strings...all
         //  values in $properties are already strings, and php does odd compares between strings
@@ -2389,7 +2350,7 @@ class EntityMetaModifyService
 
                     // TODO - callers of this function can't access $event, so they can't get a reference to any derived storage entity...
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     // ...the event stuff is likely going to "disappear" any error it encounters, but
                     //  might as well rethrow anything caught here since there shouldn't be a critical
                     //  process downstream anyways
@@ -2446,7 +2407,7 @@ class EntityMetaModifyService
         if ( $typeclass === 'DatetimeValue' )
             $new_entity->setValue( $properties['value'] );
         else
-            $new_entity->setValue( mb_scrub($properties['value']) );
+            $new_entity->setValue( mb_scrub((string) $properties['value']) );
 
         // NOTE: intentionally does NOT handle the 'convertedValue' property
 
@@ -2473,7 +2434,7 @@ class EntityMetaModifyService
 
                 // TODO - callers of this function can't access $event, so they can't get a reference to any derived storage entity...
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 // ...the event stuff is likely going to "disappear" any error it encounters, but
                 //  might as well rethrow anything caught here since there shouldn't be a critical
                 //  process downstream anyways
@@ -2503,14 +2464,14 @@ class EntityMetaModifyService
         // ----------------------------------------
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
-        $existing_values = array(
+        $existing_values = [
             // Not allowed to change datatype
             'storageLabel' => $ssk->getStorageLabel(),
             'searchKey' => $ssk->getSearchKey(),
             'isDefault' => $ssk->getIsDefault(),
             'isPublic' => $ssk->getIsPublic(),
             'defaultFor' => $ssk->getDefaultFor(),
-        );
+        ];
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
                 $changes_made = true;
@@ -2589,18 +2550,18 @@ class EntityMetaModifyService
         // Load the old meta entry
         /** @var TagMeta $old_meta_entry */
         $old_meta_entry = $this->em->getRepository('ODRAdminBundle:TagMeta')->findOneBy(
-            array(
+            [
                 'tag' => $tag->getId()
-            )
+            ]
         );
 
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
-        $existing_values = array(
+        $existing_values = [
             'tagName' => $old_meta_entry->getTagName(),
             'xml_tagName' => $old_meta_entry->getXmlTagName(),
             'displayOrder' => $old_meta_entry->getDisplayOrder(),
-        );
+        ];
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
                 $changes_made = true;
@@ -2697,9 +2658,9 @@ class EntityMetaModifyService
     {
         // No point making new entry if nothing is getting changed
         $changes_made = false;
-        $existing_values = array(
+        $existing_values = [
             'selected' => $tag_selection->getSelected()
-        );
+        ];
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
                 $changes_made = true;
@@ -2776,7 +2737,7 @@ class EntityMetaModifyService
         // ----------------------------------------
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
-        $existing_values = array(
+        $existing_values = [
             // This entity can be set here since it's never null
             'themeElement' => $theme_datafield->getThemeElement(),
 
@@ -2786,7 +2747,7 @@ class EntityMetaModifyService
             'hidden' => $theme_datafield->getHidden(),
             'hideHeader' => $theme_datafield->getHideHeader(),
             'useIconInTables' => $theme_datafield->getUseIconInTables(),
-        );
+        ];
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
                 $changes_made = true;
@@ -2870,9 +2831,9 @@ class EntityMetaModifyService
     {
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
-        $existing_values = array(
+        $existing_values = [
             'display_type' => $theme_datatype->getDisplayType(),
-        );
+        ];
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
                 $changes_made = true;
@@ -2944,20 +2905,20 @@ class EntityMetaModifyService
         // Load the old meta entry
         /** @var ThemeElementMeta $old_meta_entry */
         $old_meta_entry = $this->em->getRepository('ODRAdminBundle:ThemeElementMeta')->findOneBy(
-            array(
+            [
                 'themeElement' => $theme_element->getId()
-            )
+            ]
         );
 
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
-        $existing_values = array(
+        $existing_values = [
             'displayOrder' => $old_meta_entry->getDisplayOrder(),
             'hidden' => $old_meta_entry->getHidden(),
             'hideBorder' => $old_meta_entry->getHideBorder(),
             'cssWidthMed' => $old_meta_entry->getCssWidthMed(),
             'cssWidthXL' => $old_meta_entry->getCssWidthXL(),
-        );
+        ];
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
                 $changes_made = true;
@@ -3042,14 +3003,14 @@ class EntityMetaModifyService
         // Load the old meta entry
         /** @var ThemeMeta $old_meta_entry */
         $old_meta_entry = $this->em->getRepository('ODRAdminBundle:ThemeMeta')->findOneBy(
-            array(
+            [
                 'theme' => $theme->getId()
-            )
+            ]
         );
 
         // No point making a new entry if nothing is getting changed
         $changes_made = false;
-        $existing_values = array(
+        $existing_values = [
             'templateName' => $old_meta_entry->getTemplateName(),
             'templateDescription' => $old_meta_entry->getTemplateDescription(),
             'defaultFor' => $old_meta_entry->getDefaultFor(),
@@ -3061,7 +3022,7 @@ class EntityMetaModifyService
             'isTableTheme' => $old_meta_entry->getIsTableTheme(),
             'displaysAllResults' => $old_meta_entry->getDisplaysAllResults(),
             'enableHorizontalScrolling' => $old_meta_entry->getEnableHorizontalScrolling(),
-        );
+        ];
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
                 $changes_made = true;
@@ -3179,7 +3140,7 @@ class EntityMetaModifyService
 
         // No point making new entry if nothing is getting changed
         $changes_made = false;
-        $existing_values = array();
+        $existing_values = [];
 
         // These entries could all be null to begin with
         if ( !is_null($entity->getXValue()) )

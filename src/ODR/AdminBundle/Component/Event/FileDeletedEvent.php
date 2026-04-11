@@ -28,26 +28,6 @@ class FileDeletedEvent extends Event implements ODREventInterface
     // Best practice is apparently to have the Event class define the event name
     const NAME = 'odr.event.file_deleted_event';
 
-    /**
-     * @var int
-     */
-    private $file_id;
-
-    /**
-     * @var DataFields
-     */
-    private $datafield;
-
-    /**
-     * @var DataRecord
-     */
-    private $datarecord;
-
-    /**
-     * @var ODRUser
-     */
-    private $user;
-
 
     /**
      * FileDeletedEvent constructor.
@@ -57,16 +37,8 @@ class FileDeletedEvent extends Event implements ODREventInterface
      * @param DataRecord $datarecord
      * @param ODRUser $user
      */
-    public function __construct(
-        int $file_id,
-        DataFields $datafield,
-        DataRecord $datarecord,
-        ODRUser $user
-    ) {
-        $this->file_id = $file_id;
-        $this->datafield = $datafield;
-        $this->datarecord = $datarecord;
-        $this->user = $user;
+    public function __construct(private readonly int $file_id, private readonly DataFields $datafield, private readonly DataRecord $datarecord, private readonly ODRUser $user)
+    {
     }
 
 
@@ -127,11 +99,11 @@ class FileDeletedEvent extends Event implements ODREventInterface
      */
     public function getErrorInfo()
     {
-        return array(
+        return [
             self::NAME,
             'file '.$this->file_id,
             'df '.$this->datafield->getId(),
             'dr '.$this->datarecord->getId(),
-        );
+        ];
     }
 }

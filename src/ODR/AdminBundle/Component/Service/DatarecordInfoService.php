@@ -34,60 +34,17 @@ class DatarecordInfoService
 {
 
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var CacheService
-     */
-    private $cache_service;
-
-    /**
-     * @var DatatreeInfoService
-     */
-    private $datatree_info_service;
-
-    /**
-     * @var TagHelperService
-     */
-    private $tag_helper_service;
-
-    /**
-     * @var CsrfTokenManager
-     */
-    private $token_manager;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * DatarecordInfoService constructor.
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param CacheService $cache_service
      * @param DatatreeInfoService $datatree_info_service
      * @param TagHelperService $tag_helper_service
      * @param CsrfTokenManager $token_manager
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        CacheService $cache_service,
-        DatatreeInfoService $datatree_info_service,
-        TagHelperService $tag_helper_service,
-        CsrfTokenManager $token_manager,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->cache_service = $cache_service;
-        $this->datatree_info_service = $datatree_info_service;
-        $this->tag_helper_service = $tag_helper_service;
-        $this->token_manager = $token_manager;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly DatatreeInfoService $datatree_info_service, private readonly TagHelperService $tag_helper_service, private readonly CsrfTokenManager $token_manager, private readonly Logger $logger)
+    {
     }
 
 
@@ -114,10 +71,10 @@ class DatarecordInfoService
             WHERE e.dataField = :datafield AND e.value = :datafield_value
             AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'datafield' => $external_id_field->getId(),
                 'datafield_value' => $external_id_value
-            )
+            ]
         );
         $results = $query->getResult();
 
@@ -164,12 +121,12 @@ class DatarecordInfoService
             AND e_1.deletedAt IS NULL AND drf_1.deletedAt IS NULL AND dr.deletedAt IS NULL
             AND parent.deletedAt IS NULL AND drf_2.deletedAt IS NULL AND e_2.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'child_datafield' => $child_external_id_field->getId(),
                 'child_datafield_value' => $child_external_id_value,
                 'parent_datafield' => $parent_external_id_field->getId(),
                 'parent_datafield_value' => $parent_external_id_value
-            )
+            ]
         );
         $results = $query->getResult();
 
@@ -211,11 +168,11 @@ class DatarecordInfoService
             AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL
             AND drf.deletedAt IS NULL AND e.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'child_datatype_id' => $child_datatype->getId(),
                 'parent_datafield_value' => $parent_external_id_value,
                 'parent_datafield' => $parent_external_id_field->getId()
-            )
+            ]
         );
         $results = $query->getResult();
 
@@ -245,7 +202,7 @@ class DatarecordInfoService
      */
     public function getDatarecordArray($grandparent_datarecord_id, $include_links = true)
     {
-        $associated_datarecords = array();
+        $associated_datarecords = [];
         if ($include_links) {
             // Need to locate all linked datarecords for the provided datarecord
             $associated_datarecords = $this->datatree_info_service->getAssociatedDatarecords($grandparent_datarecord_id);
@@ -257,7 +214,7 @@ class DatarecordInfoService
 
         // Grab the cached versions of all of the associated datarecords, and store them all at the
         //  same level in a single array
-        $datarecord_array = array();
+        $datarecord_array = [];
         foreach ($associated_datarecords as $num => $dr_id) {
             $datarecord_data = $this->cache_service->get('cached_datarecord_'.$dr_id);
             if ($datarecord_data == false)
@@ -376,7 +333,7 @@ class DatarecordInfoService
                 dr.grandparent = :grandparent_id
                 AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND df.deletedAt IS NULL
                 AND (e_i.id IS NULL OR e_i.original = 0)'
-        )->setParameters( array('grandparent_id' => $grandparent_datarecord_id) );
+        )->setParameters( ['grandparent_id' => $grandparent_datarecord_id] );
 
         $datarecord_data = $query->getArrayResult();
 
@@ -385,11 +342,11 @@ class DatarecordInfoService
         // The datarecordField entry returned by the preceeding query will have quite a few blank
         //  subarrays...all but the following keys should be unset in order to reduce the amount of
         //  memory that php needs to allocate to store a cached datarecord entry...it adds up.
-        $drf_keys_to_keep = array(
+        $drf_keys_to_keep = [
             'dataField',
             'id', 'created',
             'file', 'image',       // keeping these for now because multiple pieces of code assume they exist
-        );
+        ];
 
         // If this datarecord has tag datafields, then a list of "child tag selections" needs to be
         //  stored with the cached data...Display mode can't follow "display_unselected_radio_options"
@@ -431,10 +388,10 @@ class DatarecordInfoService
             $datarecord_data[$dr_num]['updatedBy'] = UserUtility::cleanUserData( $dr['updatedBy'] );
 
             // Need to also flatten the grandparent's meta entry
-            $datarecord_data[$dr_num]['grandparent'] = array(
+            $datarecord_data[$dr_num]['grandparent'] = [
                 'id' => $dr['grandparent']['id'],
                 'prevent_user_edits' => $dr['grandparent']['dataRecordMeta'][0]['prevent_user_edits'],
-            );
+            ];
 
             // Since only one datafield is allowed for a datatype's external_id_datafield, it doesn't
             //  need to be handled like a name/sort field
@@ -483,14 +440,14 @@ class DatarecordInfoService
 
 
             // Need to store a list of child/linked datarecords by their respective datatype ids
-            $dr['children'] = array();
-            $dr['linkedDatarecords'] = array();
+            $dr['children'] = [];
+            $dr['linkedDatarecords'] = [];
             if ( isset($descendants[$dr_id]) ) {
                 $dr['children'] = $descendants[$dr_id]['children'];
                 $dr['linkedDatarecords'] = $descendants[$dr_id]['linkedDatarecords'];
             }
 
-            $child_datarecords = array();
+            $child_datarecords = [];
             foreach ($dr['children'] as $child_num => $cdr) {
                 $cdr_id = $cdr['id'];
 
@@ -506,7 +463,7 @@ class DatarecordInfoService
 
                     // Store that this datarecord is a child of its parent
                     if ( !isset($child_datarecords[$cdr_dt_id]) )
-                        $child_datarecords[$cdr_dt_id] = array();
+                        $child_datarecords[$cdr_dt_id] = [];
                     $child_datarecords[$cdr_dt_id][] = $cdr_id;
                 }
             }
@@ -519,7 +476,7 @@ class DatarecordInfoService
 
                     // Store this linked datarecord as a "child" of the datarecord that links to it
                     if ( !isset($child_datarecords[$ldr_dt_id]) )
-                        $child_datarecords[$ldr_dt_id] = array();
+                        $child_datarecords[$ldr_dt_id] = [];
                     $child_datarecords[$ldr_dt_id][] = $ldr_id;
                 }
             }
@@ -529,7 +486,7 @@ class DatarecordInfoService
 
             // Flatten datafield_meta of each datarecordfield, and organize by datafield id instead
             //  of some random number
-            $new_drf_array = array();
+            $new_drf_array = [];
             foreach ($dr['dataRecordFields'] as $drf_num => $drf) {
                 // Not going to end up saving datafield/datafieldmeta...but need to verify it exists
                 if ( !is_array($drf['dataField']) || count($drf['dataField']) == 0 ) {
@@ -551,7 +508,7 @@ class DatarecordInfoService
 
                 // Going to delete most of the sub arrays inside $drf that are empty...
                 $expected_fieldtype = $drf['dataField']['dataFieldMeta']['fieldType']['typeClass'];
-                $expected_fieldtype = lcfirst($expected_fieldtype);
+                $expected_fieldtype = lcfirst((string) $expected_fieldtype);
                 if ($expected_fieldtype == 'radio')
                     $expected_fieldtype = 'radioSelection';
                 else if ($expected_fieldtype == 'tag')
@@ -577,7 +534,7 @@ class DatarecordInfoService
                 }
 
                 // Flatten image metadata
-                $ordered_images = array();
+                $ordered_images = [];
                 foreach ($drf['image'] as $image_num => $image) {
                     // Get rid of both the thumbnail's and the parent's encrypt keys
                     unset( $image['encrypt_key'] );
@@ -612,7 +569,7 @@ class DatarecordInfoService
                 }
 
                 // Scrub all user information from the rest of the array
-                $keys = array('boolean', 'integerValue', 'decimalValue', 'longText', 'longVarchar', 'mediumVarchar', 'shortVarchar', 'datetimeValue');
+                $keys = ['boolean', 'integerValue', 'decimalValue', 'longText', 'longVarchar', 'mediumVarchar', 'shortVarchar', 'datetimeValue'];
                 foreach ($keys as $typeclass) {
                     if ( count($drf[$typeclass]) > 0 ) {
                         $drf[$typeclass][0]['updatedBy'] = UserUtility::cleanUserData( $drf[$typeclass][0]['updatedBy'] );
@@ -628,7 +585,7 @@ class DatarecordInfoService
                 if ( isset($radio_selections[$dr_id][$df_id]) ) {
                     $drf['radioSelection'] = $radio_selections[$dr_id][$df_id];
 
-                    $new_rs_array = array();
+                    $new_rs_array = [];
                     foreach ($drf['radioSelection'] as $rs_num => $rs) {
                         $rs['updatedBy'] = UserUtility::cleanUserData( $rs['updatedBy'] );
 
@@ -642,7 +599,7 @@ class DatarecordInfoService
                 if ( isset($tag_selections[$dr_id][$df_id]) ) {
                     $drf['tagSelection'] = $tag_selections[$dr_id][$df_id];
 
-                    $new_ts_array = array();
+                    $new_ts_array = [];
                     foreach ($drf['tagSelection'] as $ts_num => $ts) {
                         $ts['updatedBy'] = UserUtility::cleanUserData( $ts['updatedBy'] );
 
@@ -685,7 +642,7 @@ class DatarecordInfoService
         }
 
         // Organize by datarecord id...permissions filtering doesn't work if the array isn't flat
-        $formatted_datarecord_data = array();
+        $formatted_datarecord_data = [];
         foreach ($datarecord_data as $num => $dr_data) {
             $dr_id = $dr_data['id'];
             $formatted_datarecord_data[$dr_id] = $dr_data;
@@ -724,10 +681,10 @@ class DatarecordInfoService
             AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL AND drf.deletedAt IS NULL
             AND df.deletedAt IS NULL AND dr.deletedAt IS NULL
             ORDER BY dr.id, df.id'
-        )->setParameters( array('grandparent_datarecord_id' => $grandparent_datarecord_id) );
+        )->setParameters( ['grandparent_datarecord_id' => $grandparent_datarecord_id] );
         $results = $query->getArrayResult();
 
-        $radio_selections = array();
+        $radio_selections = [];
         foreach ($results as $result) {
             // Need these ids out of the array...
             $ro_id = $result['radioOption']['id'];
@@ -739,9 +696,9 @@ class DatarecordInfoService
             // Only want selected options in the array
             if ( $result['selected'] == 1 ) {
                 if ( !isset($radio_selections[$dr_id]) )
-                    $radio_selections[$dr_id] = array();
+                    $radio_selections[$dr_id] = [];
                 if ( !isset($radio_selections[$dr_id][$df_id]) )
-                    $radio_selections[$dr_id][$df_id] = array();
+                    $radio_selections[$dr_id][$df_id] = [];
                 $radio_selections[$dr_id][$df_id][$ro_id] = $result;
             }
         }
@@ -774,10 +731,10 @@ class DatarecordInfoService
             AND ts.deletedAt IS NULL AND t.deletedAt IS NULL AND drf.deletedAt IS NULL
             AND df.deletedAt IS NULL AND dr.deletedAt IS NULL
             ORDER BY dr.id, df.id'
-        )->setParameters( array('grandparent_datarecord_id' => $grandparent_datarecord_id) );
+        )->setParameters( ['grandparent_datarecord_id' => $grandparent_datarecord_id] );
         $results = $query->getArrayResult();
 
-        $tag_selections = array();
+        $tag_selections = [];
         foreach ($results as $result) {
             // Need these ids out of the array...
             $t_id = $result['tag']['id'];
@@ -789,9 +746,9 @@ class DatarecordInfoService
             // Only want selected tags in the cached array
             if ( $result['selected'] == 1 ) {
                 if ( !isset($tag_selections[$dr_id]) )
-                    $tag_selections[$dr_id] = array();
+                    $tag_selections[$dr_id] = [];
                 if ( !isset($tag_selections[$dr_id][$df_id]) )
-                    $tag_selections[$dr_id][$df_id] = array();
+                    $tag_selections[$dr_id][$df_id] = [];
                 $tag_selections[$dr_id][$df_id][$t_id] = $result;
             }
         }
@@ -823,10 +780,10 @@ class DatarecordInfoService
             AND xyz.deletedAt IS NULL AND drf.deletedAt IS NULL
             AND df.deletedAt IS NULL AND dr.deletedAt IS NULL
             ORDER BY dr.id, df.id, xyz.x_value'
-        )->setParameters( array('grandparent_datarecord_id' => $grandparent_datarecord_id) );
+        )->setParameters( ['grandparent_datarecord_id' => $grandparent_datarecord_id] );
         $results = $query->getArrayResult();
 
-        $xyz_values = array();
+        $xyz_values = [];
         foreach ($results as $result) {
             // Need these ids out of the array...
             $df_id = $result['dataRecordFields']['dataField']['id'];
@@ -835,9 +792,9 @@ class DatarecordInfoService
             unset( $result['dataRecordFields'] );
 
             if ( !isset($xyz_values[$dr_id]) )
-                $xyz_values[$dr_id] = array();
+                $xyz_values[$dr_id] = [];
             if ( !isset($xyz_values[$dr_id][$df_id]) )
-                $xyz_values[$dr_id][$df_id] = array();
+                $xyz_values[$dr_id][$df_id] = [];
             $xyz_values[$dr_id][$df_id][] = $result;
         }
 
@@ -866,10 +823,10 @@ class DatarecordInfoService
             LEFT JOIN ldr.dataType AS ldr_dt
             WHERE dr.grandparent = :grandparent_datarecord_id
             AND dr.deletedAt IS NULL'
-        )->setParameters( array('grandparent_datarecord_id' => $grandparent_datarecord_id) );
+        )->setParameters( ['grandparent_datarecord_id' => $grandparent_datarecord_id] );
         $results = $query->getArrayResult();
 
-        $descendants = array();
+        $descendants = [];
         foreach ($results as $result) {
             $dr_id = $result['id'];
 
@@ -901,10 +858,10 @@ class DatarecordInfoService
 
             // Going to determine what the "name" and the "sort value" of the datarecord are, so
             //  they can be cached
-            $name_fields = array();
-            $sort_fields = array();
+            $name_fields = [];
+            $sort_fields = [];
             // Also need to track which datatype the special field came from
-            $dt_lookup = array();
+            $dt_lookup = [];
 
             foreach ($special_fields as $num => $dtsf) {
                 $df_id = $dtsf['dataField']['id'];
@@ -981,7 +938,7 @@ class DatarecordInfoService
      */
     private function findSpecialFieldValues_worker($dt_lookup, $dr, $fields, &$fields_are_numeric)
     {
-        $field_values = array();
+        $field_values = [];
 
         foreach ($fields as $display_order => $df_id) {
             // Determine whether the values should be in this datarecord or not
@@ -1006,7 +963,7 @@ class DatarecordInfoService
 
                 // At this point, the datarecord array will contain the ids of all of its
                 //  child/linked descedant records, organized by datatype id...
-                $tmp_dr_list = array();
+                $tmp_dr_list = [];
                 if ( isset($dr['children'][$descendant_dt_id]) )
                     $tmp_dr_list = $dr['children'][$descendant_dt_id];
 
@@ -1043,7 +1000,7 @@ class DatarecordInfoService
                             LEFT JOIN ODRAdminBundle:FieldType ft WITH dfm.fieldType = ft
                             WHERE dfm.dataField = :datafield_id
                             AND dfm.deletedAt IS NULL AND ft.deletedAt IS NULL'
-                        )->setParameters( array('datafield_id' => $df_id) );
+                        )->setParameters( ['datafield_id' => $df_id] );
                         $results = $query->getArrayResult();
 
                         // Should only be one row
@@ -1061,7 +1018,7 @@ class DatarecordInfoService
                                 WHERE drf.dataRecord = :datarecord_id AND drf.dataField = :datafield_id
                                 AND rs.selected = 1
                                 AND drf.deletedAt IS NULL AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL'
-                            )->setParameters( array('datarecord_id' => $tmp_dr_id, 'datafield_id' => $df_id) );
+                            )->setParameters( ['datarecord_id' => $tmp_dr_id, 'datafield_id' => $df_id] );
                         }
                         else {
                             $query = $this->em->createQuery(
@@ -1070,7 +1027,7 @@ class DatarecordInfoService
                                 LEFT JOIN ODRAdminBundle:'.$typeclass.' e WITH e.dataRecordFields = drf
                                 WHERE drf.dataRecord = :datarecord_id AND drf.dataField = :datafield_id
                                 AND drf.deletedAt IS NULL AND e.deletedAt IS NULL'
-                            )->setParameters( array('datarecord_id' => $tmp_dr_id, 'datafield_id' => $df_id) );
+                            )->setParameters( ['datarecord_id' => $tmp_dr_id, 'datafield_id' => $df_id] );
                         }
                         $results = $query->getArrayResult();
 
@@ -1104,14 +1061,14 @@ class DatarecordInfoService
     private function getValue($drf)
     {
         $df = $drf['dataField'];
-        $typeclass = lcfirst($df['dataFieldMeta']['fieldType']['typeClass']);
+        $typeclass = lcfirst((string) $df['dataFieldMeta']['fieldType']['typeClass']);
 
         if ( $typeclass === 'radio' ) {
             // Radio fields need to dig through the radioSelections...
             if ( isset($drf['radioSelection']) ) {
                 foreach ($drf['radioSelection'] as $rs_num => $rs) {
                     if ( $rs['selected'] === 1 )
-                        return trim($rs['radioOption']['optionName']);
+                        return trim((string) $rs['radioOption']['optionName']);
                 }
             }
         }
@@ -1144,7 +1101,7 @@ class DatarecordInfoService
      */
     public function stackDatarecordArray($datarecord_array, $initial_datarecord_id)
     {
-        $current_datarecord = array();
+        $current_datarecord = [];
         if ( isset($datarecord_array[$initial_datarecord_id]) ) {
             $current_datarecord = $datarecord_array[$initial_datarecord_id];
 
@@ -1153,16 +1110,14 @@ class DatarecordInfoService
                 foreach ($current_datarecord['children'] as $dt_id => $dr_list) {
 
                     // ...stack each child individually
-                    $tmp = array();
+                    $tmp = [];
                     foreach ($dr_list as $num => $dr_id) {
                         if ( isset($datarecord_array[$dr_id]) )
                             $tmp[$dr_id] = self::stackDatarecordArray($datarecord_array, $dr_id);
                     }
 
                     // ...sort array of child datarecords by their respective sortvalue
-                    uasort($tmp, function ($a, $b) {
-                        return strnatcmp($a['sortField_value'], $b['sortField_value']);
-                    });
+                    uasort($tmp, fn($a, $b) => strnatcmp((string) $a['sortField_value'], (string) $b['sortField_value']));
 
                     // ...store child datarecords under their parent
                     $current_datarecord['children'][$dt_id] = $tmp;
@@ -1189,7 +1144,7 @@ class DatarecordInfoService
             FROM ODRAdminBundle:DataRecord AS dr
             WHERE dr.dataType = :datatype_id
             AND dr.deletedAt IS NULL'
-        )->setParameters( array('datatype_id' => $grandparent_datatype_id) );
+        )->setParameters( ['datatype_id' => $grandparent_datatype_id] );
         $results = $query->getArrayResult();
 
         foreach ($results as $result)
@@ -1207,11 +1162,11 @@ class DatarecordInfoService
      */
     public function generateCSRFTokens($datatype_array, $datarecord_array)
     {
-        $token_list = array();
+        $token_list = [];
 
         foreach ($datarecord_array as $dr_id => $dr) {
             if (!isset($token_list[$dr_id]))
-                $token_list[$dr_id] = array();
+                $token_list[$dr_id] = [];
 
             $dt_id = $dr['dataType']['id'];
 
@@ -1248,7 +1203,7 @@ class DatarecordInfoService
      *
      * @return array
      */
-    public function createFakeDatarecordEntry($datatype_array, $target_datatype_id, $fake_dr_id = '', $datafield_values = array())
+    public function createFakeDatarecordEntry($datatype_array, $target_datatype_id, $fake_dr_id = '', $datafield_values = [])
     {
         if ( !isset($datatype_array[$target_datatype_id]) )
             throw new ODRBadRequestException('Unable to generate a fake record of datatype '.$target_datatype_id, 0x00ba0e84);
@@ -1269,7 +1224,7 @@ class DatarecordInfoService
                 $fake_dr_id = UniqueUtility::uniqueIdReal();
         }
 
-        $entry = array(
+        $entry = [
             'id' => $fake_dr_id,
             'is_fake' => true,
 
@@ -1277,17 +1232,17 @@ class DatarecordInfoService
             'provisioned' => true,
             'unique_id' => '',
 
-            'dataRecordMeta' => array(
+            'dataRecordMeta' => [
                 'id' => null,    // TODO - is this a problem?  it shouldn't be, since drf_id should never be used...
                 'publicDate' => new \DateTime('2200-01-01 00:00:00'),
-            ),
+            ],
 
-            'parent' => array(
+            'parent' => [
                 'id' => $fake_dr_id,
-            ),
-            'grandparent' => array(
+            ],
+            'grandparent' => [
                 'id' => $fake_dr_id,
-            ),
+            ],
             'dataType' => $dt_entry,
 
             // These null values shouldn't cause a problem...
@@ -1297,7 +1252,7 @@ class DatarecordInfoService
             'updatedBy' => null,
             'deletedAt' => null,
 
-            'children' => array(),
+            'children' => [],
             'externalIdField_value' => '',
             'nameField_value' => $fake_dr_id,    // Get Edit mode to render the datatype name instead of a blank
             'sortField_value' => '',
@@ -1305,8 +1260,8 @@ class DatarecordInfoService
 
             // Don't actually need to create entries here, twig effectively assumes all fields
             //  have no value in this case
-            'dataRecordFields' => array()
-        );
+            'dataRecordFields' => []
+        ];
 
         // If this was a request to create a "fake" record with some non-blank values...
         if ( !empty($datafield_values) ) {
@@ -1336,14 +1291,14 @@ class DatarecordInfoService
      */
     private function createFakeDatarecordFieldEntry($datatype_array, $df_id, $value)
     {
-        $fake_drf = array();
+        $fake_drf = [];
 
         // Need to determine the fieldtype of the requested datafield, but there could be multiple
         //  datatypes in the cached datatype array...
         foreach ($datatype_array as $dt_id => $dt) {
             if ( isset($dt['dataFields'][$df_id]) ) {
                 $df = $dt['dataFields'][$df_id];
-                $typeclass = strtolower( $df['dataFieldMeta']['fieldType']['typeClass'] );
+                $typeclass = strtolower( (string) $df['dataFieldMeta']['fieldType']['typeClass'] );
 
                 switch ($typeclass) {
                     // FakeEdit doesn't allow uploads of files/images...
@@ -1356,7 +1311,7 @@ class DatarecordInfoService
                     case 'markdown':
                     case 'xyzdata':
                         // TODO - modify to fill out non-markdown fields?
-                        return array();
+                        return [];
                 }
 
                 // Need to check whether the datafield has the "no_user_edits" or "is_derived"
@@ -1371,7 +1326,7 @@ class DatarecordInfoService
                             ) {
                                 // ...the user isn't supposed to be able to change this datafield's
                                 //  value
-                                return array();
+                                return [];
                             }
                         }
                     }
@@ -1387,7 +1342,7 @@ class DatarecordInfoService
                                     || isset($rpf['properties']['is_derived'])
                                 ) {
                                     // ...and the user isn't supposed to be able to change its value
-                                    return array();
+                                    return [];
                                 }
                             }
                         }
@@ -1395,11 +1350,11 @@ class DatarecordInfoService
                 }
 
                 // Otherwise, there's nothing preventing FakeEdit from displaying this value
-                $fake_drf[$typeclass] = array(
-                    0 => array(
+                $fake_drf[$typeclass] = [
+                    0 => [
                         'value' => $value
-                    )
-                );
+                    ]
+                ];
                 break;
             }
         }
@@ -1431,7 +1386,7 @@ class DatarecordInfoService
     {
         $conn = $this->em->getConnection();
 
-        $all_datarecord_ids = array();
+        $all_datarecord_ids = [];
         foreach ($datarecords_to_process as $num => $dr_id)
             $all_datarecord_ids[$dr_id] = 0;
 
@@ -1444,11 +1399,11 @@ class DatarecordInfoService
                 WHERE ddr.id IN (?)';
             if ( !$include_deleted )
                 $query .= ' AND ddr.deletedAt IS NULL';
-            $parameters = array(1 => $datarecords_to_process);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $parameters = [1 => $datarecords_to_process];
+            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
             $results = $conn->executeQuery($query, $parameters, $types);  // change to fetchAll() for debugging
 
-            $datarecords_to_process = array();
+            $datarecords_to_process = [];
             foreach ($results as $result) {
                 $ddr_id = intval($result['ddr_id']);
                 $all_datarecord_ids[$ddr_id] = 0;
@@ -1492,7 +1447,7 @@ class DatarecordInfoService
     {
         $conn = $this->em->getConnection();
 
-        $all_datarecord_ids = array();
+        $all_datarecord_ids = [];
         while ( !empty($datarecords_to_process) ) {
             // Need two queries to do this...first is to get all child descendants of these records
             $query =
@@ -1502,11 +1457,11 @@ class DatarecordInfoService
             if ( !$include_deleted )
                 $query .= ' AND dr.deletedAt IS NULL';
 
-            $parameters = array(1 => $datarecords_to_process);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $parameters = [1 => $datarecords_to_process];
+            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
             $results = $conn->executeQuery($query, $parameters, $types);  // change to fetchAll() for debugging
 
-            $datarecords_to_process = array();
+            $datarecords_to_process = [];
             foreach ($results as $result) {
                 $dr_id = intval($result['dr_id']);
 
@@ -1525,11 +1480,11 @@ class DatarecordInfoService
             if ( !$include_deleted )
                 $query .= ' AND ldt.deletedAt IS NULL';
 
-            $parameters = array(1 => $datarecords_to_process);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $parameters = [1 => $datarecords_to_process];
+            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
             $results = $conn->executeQuery($query, $parameters, $types);
 
-            $datarecords_to_process = array();
+            $datarecords_to_process = [];
             foreach ($results as $result) {
                 $ddr_id = intval($result['ddr_id']);
 

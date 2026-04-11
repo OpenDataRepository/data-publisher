@@ -89,60 +89,9 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
 {
 
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var CryptoService
-     */
-    private $crypto_service;
-
-    /**
-     * @var DatabaseInfoService
-     */
-    private $database_info_service;
-
-    /**
-     * @var DatarecordInfoService
-     */
-    private $datarecord_info_service;
-
-    /**
-     * @var DatatreeInfoService
-     */
-    private $datatree_info_service;
-
-    /**
-     * @var EntityDeletionService
-     */
-    private $entity_deletion_service;
-
-    /**
-     * @var ODRUploadService
-     */
-    private $upload_service;
-
-    /**
-     * @var string
-     */
-    private $odr_tmp_directory;
-
-    /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * File Header Inserter Plugin constructor.
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param CryptoService $crypto_service
      * @param DatabaseInfoService $database_info_service
      * @param DatarecordInfoService $datarecord_info_service
@@ -153,28 +102,8 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
      * @param EngineInterface $templating
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        CryptoService $crypto_service,
-        DatabaseInfoService $database_info_service,
-        DatarecordInfoService $datarecord_info_service,
-        DatatreeInfoService $datatree_info_service,
-        EntityDeletionService $entity_deletion_service,
-        ODRUploadService $upload_service,
-        string $odr_tmp_directory,
-        EngineInterface $templating,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->crypto_service = $crypto_service;
-        $this->database_info_service = $database_info_service;
-        $this->datarecord_info_service = $datarecord_info_service;
-        $this->datatree_info_service = $datatree_info_service;
-        $this->entity_deletion_service = $entity_deletion_service;
-        $this->upload_service = $upload_service;
-        $this->odr_tmp_directory = $odr_tmp_directory;
-        $this->templating = $templating;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly CryptoService $crypto_service, private readonly DatabaseInfoService $database_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly DatatreeInfoService $datatree_info_service, private readonly EntityDeletionService $entity_deletion_service, private readonly ODRUploadService $upload_service, private readonly string $odr_tmp_directory, private readonly EngineInterface $templating, private readonly Logger $logger)
+    {
     }
 
 
@@ -243,10 +172,10 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
             else if ( $rendering_options['context'] === 'edit' ) {
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:Base:FileHeaderInserter/file_header_inserter_edit_addon.html.twig',
-                    array(
+                    [
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,
-                    )
+                    ]
                 );
             }
 
@@ -350,7 +279,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
     private function getCurrentPluginConfig($datafield)
     {
         // Going to try to create an array of datafield uuids and string constants...
-        $config = array();
+        $config = [];
 
         // Events don't have access to the renderPluginInstance, so might as well just always get
         //  the data from the cached datatype array
@@ -410,7 +339,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
 
                     // ----------------------------------------
                     // Need to also get the semi-encoded option containing the header data
-                    $header_data = trim($rpi['renderPluginOptionsMap']['header_data']);
+                    $header_data = trim((string) $rpi['renderPluginOptionsMap']['header_data']);
 
                     // If the plugin is supposed to only use "\n", then need to ensure there are
                     //  no "\r" characters in the header data...browsers tend to submit them as part
@@ -423,7 +352,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
                     //  into individual lines
                     $prefix = '';
                     $header_text = '';
-                    if ( strpos($header_data, $newline_separator) !== false ) {
+                    if ( str_contains($header_data, $newline_separator) ) {
                         $first_newline = strpos($header_data, $newline_separator);
                         $prefix = substr($header_data, 0, $first_newline);
                         $header_text = substr($header_data, $first_newline + strlen($newline_separator));
@@ -438,11 +367,11 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
 
                     // Need to get extract the datafield ids out of the header, and the easiest way
                     //  to do that is to regexp the header itself
-                    $matches = array();
+                    $matches = [];
                     $ret = preg_match_all($datafield_id_regex, $header_text, $matches);
 
                     // The header might not have had any datafield ids...
-                    $field_ids = array();
+                    $field_ids = [];
                     if ( $ret !== false ) {
                         // ...but if it does, then extract them from the regex results and convert
                         //  into integers
@@ -454,7 +383,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
                         $field_ids = array_keys($field_ids);
                     }
 
-                    $config = array(
+                    $config = [
                         'prefix' => $prefix,
                         'comment_prefix' => $comment_prefix,
                         'allowed_extensions' => $allowed_extensions,
@@ -464,7 +393,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
                         'replace_existing_files' => $replace_existing_files,
                         'fields' => $field_ids,
                         'header' => $header_text,
-                    );
+                    ];
                 }
             }
         }
@@ -520,8 +449,8 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
         );
         $results = $query->getArrayResult();
 
-        $by_ancestors = array();
-        $by_descendants = array();
+        $by_ancestors = [];
+        $by_descendants = [];
         foreach ($results as $result) {
             $ancestor_id = $result['ancestor_id'];
             $descendant_id = $result['descendant_id'];
@@ -529,11 +458,11 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
             // Don't care about whether it's a link or not
 
             if ( !isset($by_ancestors[$ancestor_id]) )
-                $by_ancestors[$ancestor_id] = array();
+                $by_ancestors[$ancestor_id] = [];
             $by_ancestors[$ancestor_id][$descendant_id] = $multiple_allowed;
 
             if ( !isset($by_descendants[$descendant_id]) )
-                $by_descendants[$descendant_id] = array();
+                $by_descendants[$descendant_id] = [];
             $by_descendants[$descendant_id][$ancestor_id] = $multiple_allowed;
         }
 
@@ -541,17 +470,17 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
         // ----------------------------------------
         // The reason for making two arrays out of the datatree table is because this problem needs
         //  to solved in two steps...
-        $all_valid_datatypes = array();
-        $prefix_data = array();
+        $all_valid_datatypes = [];
+        $prefix_data = [];
 
         // The first step is to take this datatype and find every single ancestor it has
         $dt_id = $datafield->getDataType()->getId();
         $all_valid_datatypes[$dt_id] = 1;
         $prefix_data[$dt_id] = '';
 
-        $datatypes_to_check = array($dt_id);
+        $datatypes_to_check = [$dt_id];
         while ( !empty($datatypes_to_check) ) {
-            $tmp = array();
+            $tmp = [];
             foreach ($datatypes_to_check as $num => $descendant_dt_id) {
                 if ( isset($by_descendants[$descendant_dt_id]) ) {
                     foreach ($by_descendants[$descendant_dt_id] as $ancestor_id => $multiple_allowed) {
@@ -562,7 +491,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
 
                         if ( !isset($prefix_data[$ancestor_id]) ) {
                             // This is the first time this ancestor has been seen
-                            $prefix_data[$ancestor_id] = array($descendant_dt_id => $prefix_data[$descendant_dt_id]);
+                            $prefix_data[$ancestor_id] = [$descendant_dt_id => $prefix_data[$descendant_dt_id]];
                         }
                         else {
                             // This descendant has multiple paths to reach the same ancestor...
@@ -594,7 +523,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
 
         $datatypes_to_check = array_keys($all_valid_datatypes);
         while ( !empty($datatypes_to_check) ) {
-            $tmp = array();
+            $tmp = [];
             foreach ($datatypes_to_check as $num => $ancestor_dt_id) {
                 if ( isset($by_ancestors[$ancestor_dt_id]) ) {
                     foreach ($by_ancestors[$ancestor_dt_id] as $descendant_id => $multiple_allowed) {
@@ -623,7 +552,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
         $all_fieldtypes = $this->em->getRepository('ODRAdminBundle:FieldType')->findAll();
 
         // Only datafields with certain fieldtypes are valid for this application
-        $valid_fieldtypes = array();
+        $valid_fieldtypes = [];
         foreach ($all_fieldtypes as $ft) {
             switch ($ft->getTypeName()) {
                 // These fieldtypes can be converted into a string
@@ -660,17 +589,17 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
             JOIN ODRAdminBundle:DataTypeMeta dtm WITH dtm.dataType = dt
             WHERE dt.id IN (:datatype_ids)
             AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
-        )->setParameters( array('datatype_ids' => $all_valid_datatypes) );
+        )->setParameters( ['datatype_ids' => $all_valid_datatypes] );
         $results = $query->getArrayResult();
 
-        $name_data = array();
+        $name_data = [];
         foreach ($results as $result) {
             $dt_id = $result['dt_id'];
             $dt_name = $result['dt_name'];
 
             // Want the names of all the valid datatypes, hence the separate query
             if ( !isset($name_data[$dt_id]) )
-                $name_data[$dt_id] = array('name' => $dt_name, 'fields' => array());
+                $name_data[$dt_id] = ['name' => $dt_name, 'fields' => []];
         }
 
         // ...then use a second query to determine the ids/names of the relevant datafields
@@ -684,11 +613,11 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
             AND dfm.publicDate != :public_date
             AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'datatype_ids' => $all_valid_datatypes,
                 'fieldtype_ids' => $valid_fieldtypes,
                 'public_date' => "2200-01-01 00:00:00",
-            )
+            ]
         );
         $results = $query->getArrayResult();
 
@@ -710,21 +639,21 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
         // In an attempt to assist users, the list of "valid datatypes" on the left side of the
         //  renderplugin settings dialog should attempt to display only the datatypes that the
         //  currently selected prefix would provide access to
-        $descendants_by_prefix = array();
+        $descendants_by_prefix = [];
 
         foreach ($prefixes as $prefix_string => $name_string) {
             // ...the easiest way to do this is to explode each prefix again, and find all "valid"
             //  datatypes descended from them
-            $descendants_by_prefix[$prefix_string] = array();
+            $descendants_by_prefix[$prefix_string] = [];
 
-            $valid_datatypes = explode('_', $prefix_string);
+            $valid_datatypes = explode('_', (string) $prefix_string);
 
             // Keep track of all valid datatypes for this prefix
             foreach ($valid_datatypes as $num => $dt_id)
                 $descendants_by_prefix[$prefix_string][$dt_id] = 1;
 
             while ( !empty($valid_datatypes) ) {
-                $tmp = array();
+                $tmp = [];
                 foreach ($valid_datatypes as $num => $ancestor_dt_id) {
                     if ( isset($by_ancestors[$ancestor_dt_id]) ) {
                         foreach ($by_ancestors[$ancestor_dt_id] as $descendant_id => $multiple_allowed) {
@@ -750,11 +679,11 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
 
 
         // ----------------------------------------
-        return array(
+        return [
             'prefixes' => $prefixes,
             'name_data' => $name_data,
             'allowed_datatypes' => $descendants_by_prefix,
-        );
+        ];
     }
 
 
@@ -768,7 +697,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
      */
     private function buildPrefixes($prefix_data, $fields)
     {
-        $prefixes = array();
+        $prefixes = [];
 
         foreach ($prefix_data as $ancestor_id => $descendants) {
             if ( !is_array($descendants) ) {
@@ -863,7 +792,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
         //  render plugin is concerned at least.
         $ancestor_dr_id = null;
         // Also will be useful to get all the intermediate ids
-        $intermediate_dr_ids = array();
+        $intermediate_dr_ids = [];
         // The "prefix" string...an underscore-separated list of datatype ids...indicates how far
         //  to go looking for this "ultimate ancestor".
         $split_prefix = explode('_', $prefix);
@@ -890,12 +819,12 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
             $cached_datatree_array = $this->datatree_info_service->getDatatreeArray();
 
             // Due to doctrine's querybuilder being a pain, I'm going to duplicate it's work instead
-            $select_array = array('dr_0.id AS dr_0_id');
+            $select_array = ['dr_0.id AS dr_0_id'];
             $from_str = 'FROM odr_data_record dr_0';
-            $join_array = array();
-            $where_array = array('dr_0.data_type_id = :dr_0_dt');
-            $deleted_array = array('dr_0.deletedAt IS NULL');
-            $params = array('dr_0_dt' => intval($split_prefix[0]));
+            $join_array = [];
+            $where_array = ['dr_0.data_type_id = :dr_0_dt'];
+            $deleted_array = ['dr_0.deletedAt IS NULL'];
+            $params = ['dr_0_dt' => intval($split_prefix[0])];
 
             $dr_num = 1;
             $ldt_num = 1;
@@ -966,7 +895,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
             $conn = $this->em->getConnection();
             $tmp = $conn->executeQuery($query, $params);
 
-            $results = array();
+            $results = [];
             foreach ($tmp as $key => $value)
                 $results[$key] = $value;
 
@@ -1006,7 +935,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
             JOIN ODRAdminBundle:DataRecord gp WITH dr.grandparent = gp
             WHERE dr.id = :datarecord_id
             AND dr.deletedAt IS NULL AND gp.deletedAt IS NULL'
-        )->setParameters( array('datarecord_id' => $ancestor_dr_id) );
+        )->setParameters( ['datarecord_id' => $ancestor_dr_id] );
         $results = $query->getArrayResult();
         $grandparent_dr_id = $results[0]['id'];
 
@@ -1023,7 +952,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
         //  is simple enough to check...
         /** @var FieldType[] $fieldtypes */
         $fieldtypes = $this->em->getRepository('ODRAdminBundle:FieldType')->findAll();
-        $valid_fieldtypes = array();
+        $valid_fieldtypes = [];
         foreach ($fieldtypes as $ft) {
             switch ($ft->getTypeName()) {
                 // These fieldtypes can be converted into a string
@@ -1058,7 +987,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
         //  a child/linked descendant of a particular datatype, then this array won't have the datatype
         //  id...but that also means that there's no possible value for datafields of that datatype,
         //  so it ends up meaning the same thing in the long run
-        $valid_datatypes = array();
+        $valid_datatypes = [];
         foreach ($dr_array as $dr_id => $dr) {
             $dt_id = $dr['dataType']['id'];
             $valid_datatypes[$dt_id] = 1;
@@ -1075,16 +1004,16 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
             AND dfm.fieldType IN (:fieldtype_ids) AND dfm.publicDate != :public_date
             AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'datatype_ids' => $valid_datatypes,
                 'datafield_ids' => $fields,
                 'fieldtype_ids' => $valid_fieldtypes,
                 'public_date' => '2200-01-01 00:00:00',
-            )
+            ]
         );
         $results = $query->getArrayResult();
 
-        $datafield_names = array();
+        $datafield_names = [];
         foreach ($results as $result) {
             $id = $result['id'];
             $field_name = $result['fieldName'];
@@ -1102,13 +1031,13 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
         //  queried here, it would either have to be done with a massive really slow query like the
         //  one in DatarecordInfoService, or a potentially large number of simple queries...
 
-        $original_mapping = array();
+        $original_mapping = [];
         foreach ($datafield_names as $df_id => $df_name) {
             // In theory, the header is supposed to receive a single value from the datarecords that
             //  are related via the config_prefix.  However, since this plugin intentionally allows
             //  multiple descendant records, it is very likely that there will be multiple values
             //  for each datafield
-            $original_mapping[$df_id] = array();
+            $original_mapping[$df_id] = [];
 
             // ...so we need to iterate over all records in the cached array and hope we find the
             //  correct/desired value
@@ -1116,10 +1045,10 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
                 if ( isset($dr['dataRecordFields'][$df_id]) ) {
                     $drf = $dr['dataRecordFields'][$df_id];
 
-                    $typeclasses = array(
+                    $typeclasses = [
                         'boolean', 'integerValue', 'decimalValue', 'shortVarchar', 'mediumVarchar',
                         'longVarchar', 'longText', 'datetimeValue', 'radioSelection'
-                    );
+                    ];
                     foreach ($typeclasses as $typeclass) {
                         if ( isset($drf[$typeclass]) ) {
                             if ( $typeclass !== 'radioSelection' ) {
@@ -1145,14 +1074,14 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
         //  entire process is called on the 532nm spectra, then the values for the 785nm spectra will
         //  also be in here as a sibling record of sorts.
         // These sibling records can be filtered out using $intermediate_dr_ids.
-        $filtered_mapping = array();
+        $filtered_mapping = [];
         foreach ($original_mapping as $df_id => $data) {
             foreach ($data as $dr_id => $value) {
                 // Only want to keep values from datarecords in $intermediate_dr_ids for this
                 //  particular array
                 if ( isset($intermediate_dr_ids[$dr_id]) ) {
                     if ( !isset($filtered_mapping[$df_id]) )
-                        $filtered_mapping[$df_id] = array();
+                        $filtered_mapping[$df_id] = [];
                     $filtered_mapping[$df_id][$dr_id] = $value;
                 }
             }
@@ -1182,8 +1111,8 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
         // NOTE: intentionally using $fields here despite it potentially containing illegal
         //  datafields, primarily to prevent placeholders from remaining in the header text
 
-        $searches = array();
-        $replacements = array();
+        $searches = [];
+        $replacements = [];
         foreach ($fields as $num => $df_id) {
             $searches[] = $placeholder.$df_id;
 
@@ -1193,7 +1122,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
                     // While there should only be one value in here, there's no way to know the
                     //  $dr_id beforehand
                     if ( $config_info['replace_newlines_in_fields'] )
-                        $replacements[] = str_replace(array("\r", "\n"), " ", $value);
+                        $replacements[] = str_replace(["\r", "\n"], " ", $value);
                     else
                         $replacements[] = $value;
                     break;
@@ -1203,7 +1132,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
                 // ...but fall back to the $original_mapping array if a filtered value doesn't exist
                 foreach ($original_mapping[$df_id] as $dr_id => $value) {
                     if ( $config_info['replace_newlines_in_fields'] )
-                        $replacements[] = str_replace(array("\r", "\n"), " ", $value);
+                        $replacements[] = str_replace(["\r", "\n"], " ", $value);
                     else
                         $replacements[] = $value;
                     // Might as well just use the first value, since there's no way to determine
@@ -1260,22 +1189,22 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
             FROM ODRAdminBundle:File f
             WHERE f.dataRecordFields = :drf
             AND f.deletedAt IS NULL'
-        )->setParameters( array('drf' => $drf->getId()) );
+        )->setParameters( ['drf' => $drf->getId()] );
         $results = $query->getResult();
 
         // There could be nothing uploaded to the field, or there could be multiple files
         /** @var File[] $results */
-        $entities = array();
+        $entities = [];
         foreach ($results as $num => $entity)
             $entities[ $entity->getId() ] = $entity;
         /** @var File[] $entities */
 
         // If nothing is uploaded, then do not continue
         if ( empty($entities) ) {
-            $this->logger->debug('No files to rebuild the file headers for in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
+            $this->logger->debug('No files to rebuild the file headers for in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), [self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()]);
             return $change_made;
         }
-        $this->logger->debug('Attempting to rebuild the file headers for files in datafield '.$datafield->getId().' datarecord '.$datarecord->getId().'...', array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
+        $this->logger->debug('Attempting to rebuild the file headers for files in datafield '.$datafield->getId().' datarecord '.$datarecord->getId().'...', [self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()]);
 
 
         // ----------------------------------------
@@ -1327,22 +1256,22 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
 
                         // Have the upload service create a new file
                         $this->upload_service->uploadNewFile($tmp_filepath, $user, $drf, null, $prev_public_date, $prev_quality, false);
-                        $this->logger->debug('...finished dealing with what used to be File '.$file->getId().'...', array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
+                        $this->logger->debug('...finished dealing with what used to be File '.$file->getId().'...', [self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()]);
                     }
                     else {
                         // Update the headers in the decrypted version of the file
                         self::insertNewHeader($tmp_filepath, $new_header, $plugin_config);
-                        $this->logger->debug('...replaced header for File '.$file->getId().'...', array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
+                        $this->logger->debug('...replaced header for File '.$file->getId().'...', [self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()]);
 
                         // Have the upload service replace the existing file with the modified version
                         $this->upload_service->replaceExistingFile($file, $tmp_filepath, $user);
-                        $this->logger->debug('...re-encrypted File '.$file->getId().'...', array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
+                        $this->logger->debug('...re-encrypted File '.$file->getId().'...', [self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()]);
 
                         // replaceExistingFile() will end up triggering the required events
                     }
                 }
                 else {
-                    $this->logger->debug('...existing header already matches desired header for File '.$file->getId().'...', array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
+                    $this->logger->debug('...existing header already matches desired header for File '.$file->getId().'...', [self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()]);
                 }
 
                 // If there's no difference between the headers, then delete the decrypted version of
@@ -1357,7 +1286,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
             return $change_made;
         }
         catch (\Exception $e) {
-            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
+            $this->logger->debug('-- (ERROR) '.$e->getMessage(), [self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()]);
 
             if ( $notify_user ) {
                 // Since this isn't a background job or an event, however, the suspected reason
@@ -1542,7 +1471,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
             $is_event_relevant = self::isEventRelevant($datafield);
             if ( $is_event_relevant ) {
                 // This file was uploaded to the correct field, so it now needs to be processed
-                $this->logger->debug('Received request to update headers for a newly uploaded file in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), array(self::class, 'onFilePreEncrypt()', 'drf '.$drf->getId()));
+                $this->logger->debug('Received request to update headers for a newly uploaded file in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), [self::class, 'onFilePreEncrypt()', 'drf '.$drf->getId()]);
 
 
                 // ----------------------------------------
@@ -1568,7 +1497,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
                 if ( $new_header !== $existing_header ) {
                     // ...then rewrite it to have the new header
                     self::insertNewHeader($local_filepath, $new_header, $plugin_config);
-                    $this->logger->debug('...replaced header for File '.$entity->getId().'...', array(self::class, 'onFilePreEncrypt()', 'drf' .$drf->getId()));
+                    $this->logger->debug('...replaced header for File '.$entity->getId().'...', [self::class, 'onFilePreEncrypt()', 'drf' .$drf->getId()]);
 
                     // Inserting a header almost certainly changed the filesize...need to update that
                     //  value in the database so that encryption and future decryption attempts aren't
@@ -1579,13 +1508,13 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
                     $this->em->flush($entity);
                 }
                 else {
-                    $this->logger->debug('...existing header already matches desired header for File '.$entity->getId().'...', array(self::class, 'onFilePreEncrypt()', 'drf '.$drf->getId()));
+                    $this->logger->debug('...existing header already matches desired header for File '.$entity->getId().'...', [self::class, 'onFilePreEncrypt()', 'drf '.$drf->getId()]);
                 }
             }
         }
         catch (\Exception $e) {
             // Can't really display the error to the user yet, but can log it...
-            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId(), 'drf '.$drf->getId()));
+            $this->logger->debug('-- (ERROR) '.$e->getMessage(), [self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId(), 'drf '.$drf->getId()]);
 
             // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
             //  any additional subscribers won't run either
@@ -1593,7 +1522,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
         finally {
             // Would prefer if these happened regardless of success/failure...
             if ( $is_event_relevant )
-                $this->logger->debug('finished header insertion attempt for File '.$entity->getId(), array(self::class, 'onFilePreEncrypt()', 'drf '.$drf->getId()));
+                $this->logger->debug('finished header insertion attempt for File '.$entity->getId(), [self::class, 'onFilePreEncrypt()', 'drf '.$drf->getId()]);
 
             // Don't need to clear any caches or fire any events here, since the file encryption
             //  should handle it
@@ -1626,7 +1555,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
             if ( $is_event_relevant ) {
                 // Since there are at least three places where this can be called from,
                 //  it's better to have the render plugin do all the work
-                $this->logger->debug('Received request to update headers for files in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), array(self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()));
+                $this->logger->debug('Received request to update headers for files in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), [self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()]);
 
                 // This particular place, however, is NOT allowed to throw exceptions to notify
                 //  the user of issues
@@ -1636,7 +1565,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
         }
         catch (\Exception $e) {
             // Can't really display the error to the user yet, but can log it...
-            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()));
+            $this->logger->debug('-- (ERROR) '.$e->getMessage(), [self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()]);
 
             // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
             //  any additional subscribers won't run either
@@ -1644,7 +1573,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
         finally {
             // Would prefer if these happened regardless of success/failure...
             if ( $is_event_relevant )
-                $this->logger->debug('finished header insertion attempt for the files in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), array(self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()));
+                $this->logger->debug('finished header insertion attempt for the files in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), [self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()]);
 
             // Don't need to clear caches here, since the mass update process will always do it
         }
@@ -1665,7 +1594,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
      */
     public function getRenderPluginOptionsOverride($user, $is_datatype_admin, $render_plugin, $datatype, $datafield = null, $render_plugin_instance = null)
     {
-        $custom_rpo_html = array();
+        $custom_rpo_html = [];
         foreach ($render_plugin->getRenderPluginOptionsDef() as $rpo) {
             // Only the "header_data" option needs to use a custom render for the dialog...
             /** @var RenderPluginOptionsDef $rpo */
@@ -1691,7 +1620,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
                     $current_header = $current_plugin_config['header'];
 
                 // ...to create a mapping from "df_uuid" => "df_name"...
-                $field_mapping = array();
+                $field_mapping = [];
                 foreach ($available_fields as $dt_id => $dt_data) {
                     foreach ($dt_data['fields'] as $df_id => $df_name) {
                         if ( isset($current_fields[$df_id]) )
@@ -1702,7 +1631,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
                 // ...which allows a template to be rendered
                 $custom_rpo_html[$rpo->getId()] = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:Base:FileHeaderInserter/plugin_settings_dialog_field_list_override.html.twig',
-                    array(
+                    [
                         'rpo_id' => $rpo->getId(),
 
                         'available_prefixes' => $available_prefixes,
@@ -1713,7 +1642,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
 
                         'allowed_datatypes' => $allowed_datatypes,
                         'field_mapping' => $field_mapping,
-                    )
+                    ]
                 );
             }
         }
@@ -1740,12 +1669,12 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
         // Since this is a datafield plugin, there will only be the one datafield...want it to
         //  always display this option
         foreach ($render_plugin_instance['renderPluginMap'] as $rpf_name => $rpf) {
-            return array(
+            return [
                 $rpf['id']
-            );
+            ];
         }
 
-        return array();
+        return [];
     }
 
 
@@ -1765,7 +1694,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
     {
         // This datafield plugin does not care whether the user entered a value or not...the plugin's
         //  activation is independent of the user changing public status of the file field
-        $trigger_fields = array();
+        $trigger_fields = [];
         foreach ($render_plugin_instance['renderPluginMap'] as $rpf_name => $rpf) {
             // Since this is a datafield plugin, it only has one entry in renderPluginMap
             $trigger_fields[ $rpf['id'] ] = true;

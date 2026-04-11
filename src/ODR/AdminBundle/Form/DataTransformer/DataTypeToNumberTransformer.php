@@ -25,14 +25,11 @@ use Symfony\Component\Form\Exception\TransformationFailedException;
 class DataTypeToNumberTransformer implements DataTransformerInterface
 {
 
-    private $om;
-
     /**
      * @param ObjectManager $om
      */
-    public function __construct(ObjectManager $om)
+    public function __construct(private readonly ObjectManager $om)
     {
-        $this->om = $om;
     }
 
 

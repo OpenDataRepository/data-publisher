@@ -25,20 +25,12 @@ class UUIDService
 {
 
     /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * UUIDService constructor.
      *
      * @param Logger $logger
      */
-    public function __construct(
-        Logger $logger
-    ) {
-        $this->logger = $logger;
+    public function __construct(private readonly Logger $logger)
+    {
     }
 
 

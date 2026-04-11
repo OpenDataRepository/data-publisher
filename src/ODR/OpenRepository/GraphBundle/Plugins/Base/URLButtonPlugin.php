@@ -26,18 +26,12 @@ class URLButtonPlugin implements DatafieldPluginInterface
 {
 
     /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-
-    /**
      * URLButtonPlugin constructor.
      *
      * @param EngineInterface $templating
      */
-    public function __construct(EngineInterface $templating) {
-        $this->templating = $templating;
+    public function __construct(private readonly EngineInterface $templating)
+    {
     }
 
 
@@ -131,10 +125,10 @@ class URLButtonPlugin implements DatafieldPluginInterface
                 ) {
                     $output = $this->templating->render(
                         'ODROpenRepositoryGraphBundle:Base:URLButton/url_button_error.html.twig',
-                        array(
+                        [
                             'problem_option' => $problem_option,
                             'is_datatype_admin' => $is_datatype_admin,
-                        )
+                        ]
                     );
                 }
                 else {
@@ -148,27 +142,27 @@ class URLButtonPlugin implements DatafieldPluginInterface
             else if ( $rendering_options['context'] === 'display' ) {
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:Base:URLButton/url_button_display_datafield.html.twig',
-                    array(
+                    [
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,
 
                         'button_label' => $button_label,
                         'target_url' => $target_url,
                         'render_in_display' => $render_in_display,
-                    )
+                    ]
                 );
             }
             else if ( $rendering_options['context'] === 'edit' ) {
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:Base:URLButton/url_button_edit_datafield.html.twig',
-                    array(
+                    [
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,
 
                         'button_label' => $button_label,
                         'target_url' => $target_url,
                         'render_in_edit' => $render_in_edit,
-                    )
+                    ]
                 );
             }
             else {

@@ -28,27 +28,6 @@ class PaginationHelperService
 {
 
     /**
-     * @var ODRTabHelperService
-     */
-    private $odr_tab_service;
-
-    /**
-     * @var SearchKeyService
-     */
-    private $search_key_service;
-
-    /**
-     * @var SearchAPIService
-     */
-    private $search_api_service;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * Pagination Helper Service constructor
      *
      * @param ODRTabHelperService $odr_tab_service
@@ -56,17 +35,8 @@ class PaginationHelperService
      * @param SearchAPIService $search_api_service
      * @param Logger $logger
      */
-    public function __construct(
-        ODRTabHelperService $odr_tab_service,
-        SearchKeyService $search_key_service,
-        SearchAPIService $search_api_service,
-        Logger $logger
-    ) {
-        $this->odr_tab_service = $odr_tab_service;
-        $this->search_key_service = $search_key_service;
-        $this->search_api_service = $search_api_service;
-
-        $this->logger = $logger;
+    public function __construct(private readonly ODRTabHelperService $odr_tab_service, private readonly SearchKeyService $search_key_service, private readonly SearchAPIService $search_api_service, private readonly Logger $logger)
+    {
     }
 
 
@@ -87,7 +57,7 @@ class PaginationHelperService
     {
         // If no search key provided, then nothing to do here
         if ( $search_key === '' )
-            return array();
+            return [];
 
         // Ensure the search key is valid
         $search_params = $this->search_key_service->validateSearchKey($search_key);
@@ -105,8 +75,8 @@ class PaginationHelperService
 
         // Need to ensure a sort criteria is set for this tab, otherwise the table plugin
         //  will display stuff in a different order
-        $sort_datafields = array();
-        $sort_directions = array();
+        $sort_datafields = [];
+        $sort_directions = [];
 
         $sort_criteria = $this->odr_tab_service->getSortCriteria($odr_tab_id);
         if ( !is_null($sort_criteria) ) {

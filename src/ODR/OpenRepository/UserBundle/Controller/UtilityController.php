@@ -60,11 +60,11 @@ class UtilityController extends Controller
         // Generate a bare baseurl from the site_baseurl
         $bare_url = preg_replace('/^(\/\/)/', '', $site_baseurl);
         // Remove any portion after the domain
-        $bare_url_parts = preg_split('/\//', $bare_url);
+        $bare_url_parts = preg_split('/\//', (string) $bare_url);
         $check_url =  $bare_url_parts[0];
 
         // Strip http:// & https:// from incoming URL
-        $test_url = preg_replace('/^(?:https?:\/\/)?/', '', $url);
+        $test_url = preg_replace('/^(?:https?:\/\/)?/', '', (string) $url);
 
         if (
             !preg_match("/^$check_url/", $test_url)
@@ -110,9 +110,9 @@ class UtilityController extends Controller
         //  route matching will fail otherwise
         $fragment = $request->query->get('fragment');
         $has_appdev = false;
-        if ( strpos($fragment, '/app_dev.php') !== false ) {
+        if ( str_contains((string) $fragment, '/app_dev.php') ) {
             $has_appdev = true;
-            $fragment = substr($fragment, 12);
+            $fragment = substr((string) $fragment, 12);
         }
 
         // The fragment should be an actual route...
@@ -140,11 +140,11 @@ class UtilityController extends Controller
                 // Regenerate the route, but set the search_theme_id to "0"
                 $fragment = $router->generate(
                     'odr_search_render',
-                    array(
+                    [
                         'search_key' => $route['search_key'],
                         'offset' => $route['offset'],
                         'search_theme_id' => 0
-                    )
+                    ]
                 );
 
                 // Remove "/app_dev.php" from the beginning of the route, if it exists

@@ -78,7 +78,7 @@ class TrackingController extends ODRCustomController
      */
     public function trackdatarecordchangesAction($datarecord_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -139,7 +139,7 @@ class TrackingController extends ODRCustomController
             //  can edit
             $dt_array = $database_info_service->getDatatypeArray($grandparent_datatype->getId());    // do want links
 
-            $datafield_ids = array();
+            $datafield_ids = [];
             foreach ($dt_array as $dt_id => $dt_data) {
                 foreach ($dt_data['dataFields'] as $df_id => $df_data) {
                     // No sense having markdown fields in this
@@ -156,7 +156,7 @@ class TrackingController extends ODRCustomController
             // All linked descendants of this grandparent datatype start out selected, so need
             //  their names
             $datatree_array = $datatree_info_service->getDatatreeArray();
-            $target_datatype_names = array();
+            $target_datatype_names = [];
             foreach ($dt_array as $dt_id => $dt) {
                 if ( !isset($datatree_array['descendant_of'][$dt_id]) || $datatree_array['descendant_of'][$dt_id] === '' )
                     $target_datatype_names[] = $dt['dataTypeMeta']['longName'];
@@ -168,10 +168,10 @@ class TrackingController extends ODRCustomController
             $datarecord_name = $dr_array[$grandparent_datarecord->getId()]['nameField_value'];
 
             // Generate the HTML required for a header
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Tracking:tracking_wrapper.html.twig',
-                    array(
+                    [
                         'grandparent_datatype_name' => $grandparent_datatype->getLongName(),
                         'target_datatype_id' => $target_datatype_id,
                         'target_datatype_names' => $target_datatype_names,
@@ -186,9 +186,9 @@ class TrackingController extends ODRCustomController
                         'today' => $today->format("Y-m-d"),
 
                         'display_datarecord_metadata' => $display_datarecord_metadata,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x369e24dc;
@@ -215,7 +215,7 @@ class TrackingController extends ODRCustomController
      */
     public function tracksearchresultchangesAction($search_key, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -264,7 +264,7 @@ class TrackingController extends ODRCustomController
 
             // Technically doesn't need to be this restricted, but it matches with the rest of the
             //  controller actions this way
-            $editable_datatypes = array();
+            $editable_datatypes = [];
             foreach ($datatype_permissions as $dt_id => $dt_permission) {
                 if ( isset($dt_permission['dr_edit']) && $dt_permission['dr_edit'] == 1 ) {
                     $editable_datatypes[] = $dt_id;
@@ -296,7 +296,7 @@ class TrackingController extends ODRCustomController
             //  can edit
             $dt_array = $database_info_service->getDatatypeArray($grandparent_datatype->getId());    // need to have linked datatypes
 
-            $datafield_ids = array();
+            $datafield_ids = [];
             foreach ($dt_array as $dt_id => $dt_data) {
                 foreach ($dt_data['dataFields'] as $df_id => $df_data) {
                     // No sense having markdown fields in this
@@ -315,7 +315,7 @@ class TrackingController extends ODRCustomController
             // All linked descendants of this grandparent datatype start out selected, so need
             //  their names
             $datatree_array = $datatree_info_service->getDatatreeArray();
-            $target_datatype_names = array();
+            $target_datatype_names = [];
             foreach ($dt_array as $dt_id => $dt) {
                 if ( !isset($datatree_array['descendant_of'][$dt_id]) || $datatree_array['descendant_of'][$dt_id] === '' )
                     $target_datatype_names[] = $dt['dataTypeMeta']['longName'];
@@ -326,10 +326,10 @@ class TrackingController extends ODRCustomController
             $readable_search_key = $search_key_service->getReadableSearchKey($search_key);
 
             // Generate the HTML required for a header
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Tracking:tracking_wrapper.html.twig',
-                    array(
+                    [
                         'search_key' => $search_key,
                         'readable_search_key' => $readable_search_key,
 
@@ -345,9 +345,9 @@ class TrackingController extends ODRCustomController
                         'today' => $today->format("Y-m-d"),
 
                         'display_datarecord_metadata' => $display_datarecord_metadata,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x1e9ed213;
@@ -374,7 +374,7 @@ class TrackingController extends ODRCustomController
      */
     public function trackdatatypechangesAction($datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -426,7 +426,7 @@ class TrackingController extends ODRCustomController
             //  can edit
             $dt_array = $database_info_service->getDatatypeArray($grandparent_datatype->getId());    // do want links
 
-            $datafield_ids = array();
+            $datafield_ids = [];
             foreach ($dt_array as $dt_id => $dt_data) {
                 foreach ($dt_data['dataFields'] as $df_id => $df_data) {
                     // No sense having markdown fields in this
@@ -443,7 +443,7 @@ class TrackingController extends ODRCustomController
             // All linked descendants of this grandparent datatype start out selected, so need
             //  their names
             $datatree_array = $datatree_info_service->getDatatreeArray();
-            $target_datatype_names = array();
+            $target_datatype_names = [];
             foreach ($dt_array as $dt_id => $dt) {
                 if ( !isset($datatree_array['descendant_of'][$dt_id]) || $datatree_array['descendant_of'][$dt_id] === '' )
                     $target_datatype_names[] = $dt['dataTypeMeta']['longName'];
@@ -451,10 +451,10 @@ class TrackingController extends ODRCustomController
 
 
             // Generate the HTML required for a header
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Tracking:tracking_wrapper.html.twig',
-                    array(
+                    [
                         'grandparent_datatype_name' => $grandparent_datatype->getLongName(),
                         'target_datatype_id' => $target_datatype_id,
                         'target_datatype_names' => $target_datatype_names,
@@ -467,9 +467,9 @@ class TrackingController extends ODRCustomController
                         'today' => $today->format("Y-m-d"),
 
                         'display_datarecord_metadata' => $display_datarecord_metadata,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0xe40edc75;
@@ -496,7 +496,7 @@ class TrackingController extends ODRCustomController
      */
     public function trackuserchangesAction($target_user_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -524,7 +524,7 @@ class TrackingController extends ODRCustomController
             $datatype_permissions = $permissions_service->getDatatypePermissions($admin);
 
             // Determine whether the user is an admin for any datatype
-            $valid_datatype_ids = array();
+            $valid_datatype_ids = [];
             foreach ($datatype_permissions as $dt_id => $dt_permission) {
                 if ( isset($dt_permission['dt_admin']) && $dt_permission['dt_admin'] == 1 )
                     $valid_datatype_ids[$dt_id] = 1;
@@ -545,7 +545,7 @@ class TrackingController extends ODRCustomController
                     FROM odr_user_group AS ug
                     JOIN odr_group AS g ON ug.group_id = g.id
                     WHERE ug.user_id = :user_id';
-                $params = array('user_id' => $target_user->getId());
+                $params = ['user_id' => $target_user->getId()];
 
                 $conn = $em->getConnection();
                 $results = $conn->executeQuery($query, $params);
@@ -577,10 +577,10 @@ class TrackingController extends ODRCustomController
             $week_ago = (new \DateTime())->sub(new \DateInterval("P7D"));
 
             // Generate the HTML required for a header
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Tracking:tracking_wrapper.html.twig',
-                    array(
+                    [
                         // Intentionally not providing any default target datatype/datafield info
 
                         'target_user_id' => $target_user->getId(),
@@ -591,9 +591,9 @@ class TrackingController extends ODRCustomController
                         'today' => $today->format("Y-m-d"),
 
                         'display_datarecord_metadata' => $display_datarecord_metadata,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0xd264cd70;
@@ -620,7 +620,7 @@ class TrackingController extends ODRCustomController
      */
     public function trackchangesAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -766,7 +766,7 @@ class TrackingController extends ODRCustomController
             $datafield_permissions = $user_permissions['datafields'];
 
             // Need to determine which datatypes the user is allowed to edit...
-            $editable_datatypes = array();
+            $editable_datatypes = [];
             foreach ($datatype_permissions as $dt_id => $dt_permission) {
                 if ( isset($dt_permission['dr_edit']) && $dt_permission['dr_edit'] == 1 ) {
                     $editable_datatypes[] = $dt_id;
@@ -800,21 +800,21 @@ class TrackingController extends ODRCustomController
             // Only perform a search when there's some criteria set...just a date range is unacceptable
             $no_criteria = true;
 
-            $history = array();
-            $dr_created_deleted_history = array();
-            $names = array();
-            $child_dr_lookup = array();
+            $history = [];
+            $dr_created_deleted_history = [];
+            $names = [];
+            $child_dr_lookup = [];
 
             if ( !is_null($target_datarecord_id) || !is_null($target_search_key)
                 || !is_null($target_user_ids) || !is_null($target_datafield_ids)
             ) {
                 // Build an array of all the criteria that got passed in...
                 $no_criteria = false;
-                $criteria = array();
+                $criteria = [];
 
                 // Need to save datatype ids so that the datarecord created/deleted/public_status
                 //  changes are found...
-                $datatype_ids = array();
+                $datatype_ids = [];
 
                 // Save the date range that contains the changes the user is interested in...
                 if ( !is_null($start) ) {
@@ -824,7 +824,7 @@ class TrackingController extends ODRCustomController
 
                 // If a single datarecord was specified, save that
                 if ( !is_null($grandparent_datarecord) ) {
-                    $criteria['grandparent_datarecord_ids'] = array($grandparent_datarecord->getId());
+                    $criteria['grandparent_datarecord_ids'] = [$grandparent_datarecord->getId()];
                 }
                 // If a search key was specified, load all grandparent datarecords that match the
                 //  search...
@@ -848,14 +848,14 @@ class TrackingController extends ODRCustomController
                     $criteria['target_user_ids'] = $target_user_ids;
 
                 // Save which datafields the results shold be filtered by
-                $datafield_ids = array();
+                $datafield_ids = [];
                 if ( !is_null($target_datafield_ids) )
                     $datafield_ids = $target_datafield_ids;
 
                 if ( !is_null($grandparent_datatype) ) {
                     // If no datafields were specified, then default to all datafields of this datatype
                     //  when possible
-                    $datatype_ids = array( $grandparent_datatype->getId() );
+                    $datatype_ids = [ $grandparent_datatype->getId() ];
                 }
                 else {
                     // Otherwise, run a query to load which datatypes those datafields belong to
@@ -887,7 +887,7 @@ class TrackingController extends ODRCustomController
                 }
                 else {
                     // If no, then ensure there's nothing in $criteria['datatype_ids']
-                    $criteria['datatype_ids'] = array();
+                    $criteria['datatype_ids'] = [];
                 }
 
 
@@ -938,20 +938,20 @@ class TrackingController extends ODRCustomController
             if ( $simple )
                 $template_name = 'ODRAdminBundle:Tracking:tracking_data_simple.html.twig';
 
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     $template_name,
-                    array(
+                    [
                         'no_criteria' => $no_criteria,
                         'history' => $history,
                         'dr_history' => $dr_created_deleted_history,
 
                         'names' => $names,
                         'child_dr_lookup' => $child_dr_lookup,
-                    )
+                    ]
                 ),
                 'rows_exceeded' => $rows_exceeded,
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x8db8f8f5;
@@ -978,28 +978,28 @@ class TrackingController extends ODRCustomController
      *
      * @return array
      */
-    private function getDatafieldTypeclasses($em, $datafield_permissions, $datafield_ids, $datatype_ids = array())
+    private function getDatafieldTypeclasses($em, $datafield_permissions, $datafield_ids, $datatype_ids = [])
     {
         // If datafields are listed, then ignore anything in the datatype list
         if ( !empty($datafield_ids) )
-            $datatype_ids = array();
+            $datatype_ids = [];
 
         // These are the only fieldtypes that can be searched like this...
-        $datafields_by_typeclass = array(
-            'Boolean' => array(),
-            'IntegerValue' => array(),
-            'DecimalValue' => array(),
-            'ShortVarchar' => array(),
-            'MediumVarchar' => array(),
-            'LongVarchar' => array(),
-            'LongText' => array(),
-            'DatetimeValue' => array(),
-            'File' => array(),
-            'Image' => array(),
-            'Radio' => array(),
-            'Tag' => array(),
-            'XYZData' => array(),
-        );
+        $datafields_by_typeclass = [
+            'Boolean' => [],
+            'IntegerValue' => [],
+            'DecimalValue' => [],
+            'ShortVarchar' => [],
+            'MediumVarchar' => [],
+            'LongVarchar' => [],
+            'LongText' => [],
+            'DatetimeValue' => [],
+            'File' => [],
+            'Image' => [],
+            'Radio' => [],
+            'Tag' => [],
+            'XYZData' => [],
+        ];
 
         // Load all datafields in the datafield/datatype list, excluding those which belong to
         //  template or metadata datatypes
@@ -1016,8 +1016,8 @@ class TrackingController extends ODRCustomController
         if ( !empty($datatype_ids) )
             $query .= ' AND dt.grandparent_id IN (:datatype_ids)';
 
-        $params = array();
-        $types = array();
+        $params = [];
+        $types = [];
 
         if ( !empty($datafield_ids) ) {
             $params['datafield_ids'] = $datafield_ids;
@@ -1063,17 +1063,17 @@ class TrackingController extends ODRCustomController
            'SELECT DISTINCT df.data_type_id AS dt_id
             FROM odr_data_fields df
             WHERE df.id IN (:datafield_ids)';
-        $params = array(
+        $params = [
             'datafield_ids' => $datafield_ids
-        );
-        $types = array(
+        ];
+        $types = [
             'datafield_ids' => \Doctrine\DBAL\Connection::PARAM_INT_ARRAY
-        );
+        ];
 
         $conn = $em->getConnection();
         $results = $conn->executeQuery($query, $params, $types);
 
-        $datatype_ids = array();
+        $datatype_ids = [];
         foreach ($results as $result) {
             $dt_id = intval($result['dt_id']);
             $datatype_ids[] = $dt_id;
@@ -1098,7 +1098,7 @@ class TrackingController extends ODRCustomController
     private function getTextNumberChanges($em, $datafields_by_typeclass, $criteria, &$row_count)
     {
         // For every text/number/boolean field...
-        $typeclass_map = array(
+        $typeclass_map = [
             'Boolean' => 'odr_boolean',
             'IntegerValue' => 'odr_integer_value',
             'DecimalValue' => 'odr_decimal_value',
@@ -1107,11 +1107,11 @@ class TrackingController extends ODRCustomController
             'LongVarchar' => 'odr_long_varchar',
             'LongText' => 'odr_long_text',
             'DatetimeValue' => 'odr_datetime_value'
-        );
+        ];
 
         $conn = $em->getConnection();
 
-        $history = array();
+        $history = [];
         foreach ($datafields_by_typeclass as $typeclass => $df_list) {
             // Don't do anything if no datafields are listed...
             if ( empty($df_list) )
@@ -1143,12 +1143,12 @@ class TrackingController extends ODRCustomController
 
 
             // Always going to have a list of datafield ids...
-            $params = array(
+            $params = [
                 'datafield_ids' => $df_list,
-            );
-            $types = array(
+            ];
+            $types = [
                 'datafield_ids' => \Doctrine\DBAL\Connection::PARAM_INT_ARRAY,
-            );
+            ];
 
             if ( isset($criteria['start_date']) ) {
                 $params['start_date'] = ($criteria['start_date'])->format("Y-m-d H:i:s");
@@ -1181,18 +1181,18 @@ class TrackingController extends ODRCustomController
                 $updatedBy = $result['updatedBy'];
 
                 if ( !isset($history[$dt_id]) )
-                    $history[$dt_id] = array();
+                    $history[$dt_id] = [];
                 if ( !isset($history[$dt_id][$dr_id]) )
-                    $history[$dt_id][$dr_id] = array();
+                    $history[$dt_id][$dr_id] = [];
                 if ( !isset($history[$dt_id][$dr_id][$df_id]) )
-                    $history[$dt_id][$dr_id][$df_id] = array();
+                    $history[$dt_id][$dr_id][$df_id] = [];
                 if ( !isset($history[$dt_id][$dr_id][$df_id][$id]) )
-                    $history[$dt_id][$dr_id][$df_id][$id] = array();
+                    $history[$dt_id][$dr_id][$df_id][$id] = [];
 
-                $history[$dt_id][$dr_id][$df_id][$id][$updated] = array(
+                $history[$dt_id][$dr_id][$df_id][$id][$updated] = [
                     'value' => $value,
                     'updatedBy' => $updatedBy,
-                );
+                ];
 
                 // Increment the number of rows that have been processed
                 $row_count++;
@@ -1221,14 +1221,14 @@ class TrackingController extends ODRCustomController
     private function getFileImageChanges($em, $datafields_by_typeclass, $criteria, &$row_count)
     {
         // For every file/image field...
-        $typeclass_map = array(
+        $typeclass_map = [
             'File' => 'odr_file',
             'Image' => 'odr_image',
-        );
+        ];
 
         $conn = $em->getConnection();
 
-        $history = array();
+        $history = [];
         foreach ($datafields_by_typeclass as $typeclass => $df_list) {
             // Don't do anything if no datafields are listed...
             if ( empty($df_list) )
@@ -1317,12 +1317,12 @@ class TrackingController extends ODRCustomController
 
             // ----------------------------------------
             // Always going to have a list of datafield ids...
-            $params = array(
+            $params = [
                 'datafield_ids' => $df_list,
-            );
-            $types = array(
+            ];
+            $types = [
                 'datafield_ids' => \Doctrine\DBAL\Connection::PARAM_INT_ARRAY,
-            );
+            ];
 
             if ( isset($criteria['start_date']) ) {
                 $params['start_date'] = ($criteria['start_date'])->format("Y-m-d H:i:s");
@@ -1342,11 +1342,11 @@ class TrackingController extends ODRCustomController
 
             // ----------------------------------------
             //
-            $queries = array(
+            $queries = [
                 'created' => $query_created,
                 'updated' => $query_updated,
                 'deleted' => $query_deleted,
-            );
+            ];
 
             foreach ($queries as $query_type => $query) {
                 // Don't execute this query if the previous queries have processed more than the soft
@@ -1381,13 +1381,13 @@ class TrackingController extends ODRCustomController
                     }
 
                     if ( !isset($history[$dt_id]) )
-                        $history[$dt_id] = array();
+                        $history[$dt_id] = [];
                     if ( !isset($history[$dt_id][$dr_id]) )
-                        $history[$dt_id][$dr_id] = array();
+                        $history[$dt_id][$dr_id] = [];
                     if ( !isset($history[$dt_id][$dr_id][$df_id]) )
-                        $history[$dt_id][$dr_id][$df_id] = array();
+                        $history[$dt_id][$dr_id][$df_id] = [];
                     if ( !isset($history[$dt_id][$dr_id][$df_id][$file_id]) )
-                        $history[$dt_id][$dr_id][$df_id][$file_id] = array();
+                        $history[$dt_id][$dr_id][$df_id][$file_id] = [];
 
                     switch ($query_type) {
                         case 'created':
@@ -1433,14 +1433,14 @@ class TrackingController extends ODRCustomController
     private function getRadioTagChanges($em, $datafields_by_typeclass, $criteria, &$row_count)
     {
         // For every radio/tag field...
-        $typeclass_map = array(
+        $typeclass_map = [
             'Radio' => '',
             'Tag' => '',
-        );
+        ];
 
         $conn = $em->getConnection();
 
-        $history = array();
+        $history = [];
         foreach ($datafields_by_typeclass as $typeclass => $df_list) {
             // Don't do anything if no datafields are listed...
             if ( empty($df_list) )
@@ -1495,12 +1495,12 @@ class TrackingController extends ODRCustomController
 
             // ----------------------------------------
             // Always going to have a list of datafield ids...
-            $params = array(
+            $params = [
                 'datafield_ids' => $df_list,
-            );
-            $types = array(
+            ];
+            $types = [
                 'datafield_ids' => \Doctrine\DBAL\Connection::PARAM_INT_ARRAY,
-            );
+            ];
 
             if ( isset($criteria['start_date']) ) {
                 $params['start_date'] = ($criteria['start_date'])->format("Y-m-d H:i:s");
@@ -1537,19 +1537,19 @@ class TrackingController extends ODRCustomController
                 $updatedBy = $result['updatedBy'];
 
                 if ( !isset($history[$dt_id]) )
-                    $history[$dt_id] = array();
+                    $history[$dt_id] = [];
                 if ( !isset($history[$dt_id][$dr_id]) )
-                    $history[$dt_id][$dr_id] = array();
+                    $history[$dt_id][$dr_id] = [];
                 if ( !isset($history[$dt_id][$dr_id][$df_id]) )
-                    $history[$dt_id][$dr_id][$df_id] = array();
+                    $history[$dt_id][$dr_id][$df_id] = [];
                 if ( !isset($history[$dt_id][$dr_id][$df_id][$id]) )
-                    $history[$dt_id][$dr_id][$df_id][$id] = array();
+                    $history[$dt_id][$dr_id][$df_id][$id] = [];
 
-                $history[$dt_id][$dr_id][$df_id][$id][$updated] = array(
+                $history[$dt_id][$dr_id][$df_id][$id][$updated] = [
                     'name' => $name,
                     'selected' => $selected,
                     'selectedBy' => $updatedBy,
-                );
+                ];
 
                 // Increment the number of rows that have been processed
                 $row_count++;
@@ -1579,7 +1579,7 @@ class TrackingController extends ODRCustomController
     {
         $conn = $em->getConnection();
 
-        $history = array();
+        $history = [];
         foreach ($datafields_by_typeclass as $typeclass => $df_list) {
             // Don't do anything if no datafields are listed...
             if ( empty($df_list) )
@@ -1609,12 +1609,12 @@ class TrackingController extends ODRCustomController
 
             // ----------------------------------------
             // Always going to have a list of datafield ids...
-            $params = array(
+            $params = [
                 'datafield_ids' => $df_list,
-            );
-            $types = array(
+            ];
+            $types = [
                 'datafield_ids' => \Doctrine\DBAL\Connection::PARAM_INT_ARRAY,
-            );
+            ];
 
             if ( isset($criteria['start_date']) ) {
                 $params['start_date'] = ($criteria['start_date'])->format("Y-m-d H:i:s");
@@ -1652,21 +1652,21 @@ class TrackingController extends ODRCustomController
                 $updatedBy = $result['updatedBy'];
 
                 if ( !isset($history[$dt_id]) )
-                    $history[$dt_id] = array();
+                    $history[$dt_id] = [];
                 if ( !isset($history[$dt_id][$dr_id]) )
-                    $history[$dt_id][$dr_id] = array();
+                    $history[$dt_id][$dr_id] = [];
                 if ( !isset($history[$dt_id][$dr_id][$df_id]) )
-                    $history[$dt_id][$dr_id][$df_id] = array();
+                    $history[$dt_id][$dr_id][$df_id] = [];
                 if ( !isset($history[$dt_id][$dr_id][$df_id][$e_id]) )
-                    $history[$dt_id][$dr_id][$df_id][$e_id] = array();
+                    $history[$dt_id][$dr_id][$df_id][$e_id] = [];
 
-                $history[$dt_id][$dr_id][$df_id][$e_id][$updated] = array(
+                $history[$dt_id][$dr_id][$df_id][$e_id][$updated] = [
                     'x_value' => $x_value,
                     'y_value' => $y_value,
                     'z_value' => $z_value,
                     'updated' => $updated,
                     'updatedBy' => $updatedBy,
-                );
+                ];
 
                 // Increment the number of rows that have been processed
                 $row_count++;
@@ -1692,7 +1692,7 @@ class TrackingController extends ODRCustomController
      */
     private function getDatarecordChanges($em, $criteria, &$row_count)
     {
-        $history = array();
+        $history = [];
 
         // ----------------------------------------
         $created_query =
@@ -1740,12 +1740,12 @@ class TrackingController extends ODRCustomController
 
         // ----------------------------------------
         //
-        $params = array(
+        $params = [
             'datatype_ids' => $criteria['datatype_ids'],
-        );
-        $types = array(
+        ];
+        $types = [
             'datatype_ids' => \Doctrine\DBAL\Connection::PARAM_INT_ARRAY,
-        );
+        ];
 
         if ( isset($criteria['start_date']) ) {
             $params['start_date'] = ($criteria['start_date'])->format("Y-m-d H:i:s");
@@ -1765,11 +1765,11 @@ class TrackingController extends ODRCustomController
 
         // ----------------------------------------
         //
-        $queries = array(
+        $queries = [
             'created' => $created_query,
             'deleted' => $deleted_query,
             'public' => $public_query,
-        );
+        ];
 
         $conn = $em->getConnection();
         foreach ($queries as $query_type => $query) {
@@ -1785,32 +1785,32 @@ class TrackingController extends ODRCustomController
                 $dr_id = $result['dr_id'];
 
                 if ( !isset($history[$dt_id]) )
-                    $history[$dt_id] = array();
+                    $history[$dt_id] = [];
                 if ( !isset($history[$dt_id][$dr_id]) )
-                    $history[$dt_id][$dr_id] = array();
+                    $history[$dt_id][$dr_id] = [];
 
                 switch ($query_type) {
                     case 'created':
-                        $history[$dt_id][$dr_id]['created'] = array(
+                        $history[$dt_id][$dr_id]['created'] = [
                             'date' => $result['created'],
                             'createdBy' => $result['createdBy']
-                        );
+                        ];
                         break;
                     case 'public':
                         if ( !isset($history[$dt_id][$dr_id]['updated']) )
-                            $history[$dt_id][$dr_id]['updated'] = array();
+                            $history[$dt_id][$dr_id]['updated'] = [];
 
                         $date = $result['updated'];
-                        $history[$dt_id][$dr_id]['updated'][$date] = array(
+                        $history[$dt_id][$dr_id]['updated'][$date] = [
                             'public_date' => $result['public_date'],
                             'updatedBy' => $result['updatedBy']
-                        );
+                        ];
                         break;
                     case 'deleted':
-                        $history[$dt_id][$dr_id]['deleted'] = array(
+                        $history[$dt_id][$dr_id]['deleted'] = [
                             'date' => $result['deletedAt'],
                             'deletedBy' => $result['deletedBy']
-                        );
+                        ];
                         break;
                 }
 
@@ -1837,7 +1837,7 @@ class TrackingController extends ODRCustomController
     {
         // Most fields can filter out the empty string if it's their first entry
         // Boolean fields need to filter out "0" if it's the first entry
-        $boolean_fields = array();
+        $boolean_fields = [];
         foreach ($datafields_by_typeclass['Boolean'] as $num => $df_id)
             $boolean_fields[$df_id] = 1;
 
@@ -1981,7 +1981,7 @@ class TrackingController extends ODRCustomController
     {
         // Due to XYZData having a pile of entities for a single datarecordfield, the array structure
         //  kind of becomes excessive...
-        $new_history = array();
+        $new_history = [];
 
         foreach ($history as $dt_id => $dt_data) {
             foreach ($dt_data as $dr_id => $dr_data) {
@@ -1999,13 +1999,13 @@ class TrackingController extends ODRCustomController
                             else {
                                 // First entry is not all null, save it
                                 if ( !isset($new_history[$dt_id]) )
-                                    $new_history[$dt_id] = array();
+                                    $new_history[$dt_id] = [];
                                 if ( !isset($new_history[$dt_id][$dr_id]) )
-                                    $new_history[$dt_id][$dr_id] = array();
+                                    $new_history[$dt_id][$dr_id] = [];
                                 if ( !isset($new_history[$dt_id][$dr_id][$df_id]) )
-                                    $new_history[$dt_id][$dr_id][$df_id] = array(0 => array());  // not saving entity ids, so automatically create an entry
+                                    $new_history[$dt_id][$dr_id][$df_id] = [0 => []];  // not saving entity ids, so automatically create an entry
                                 if ( !isset($new_history[$dt_id][$dr_id][$df_id][0][$updated]) )
-                                    $new_history[$dt_id][$dr_id][$df_id][0][$updated] = array('updatedBy' => $data['updatedBy']);
+                                    $new_history[$dt_id][$dr_id][$df_id][0][$updated] = ['updatedBy' => $data['updatedBy']];
                             }
                         }
 
@@ -2114,17 +2114,17 @@ class TrackingController extends ODRCustomController
      */
     private function combineArrays($text_number_changes, $file_image_changes, $radio_tag_changes, $xyz_changes)
     {
-        $history = array();
+        $history = [];
 
         foreach ($text_number_changes as $dt_id => $dt_data) {
             // Create an entry for the datatype if it doesn't exist...
             if ( !isset($history[$dt_id]) )
-                $history[$dt_id] = array();
+                $history[$dt_id] = [];
 
             foreach ($dt_data as $dr_id => $dr_data) {
                 // Create an entry for the datarecord if it doesn't exist...
                 if ( !isset($history[$dt_id][$dr_id]) )
-                    $history[$dt_id][$dr_id] = array();
+                    $history[$dt_id][$dr_id] = [];
 
                 // Copy all the history data into this datarecord entry
                 foreach ($dr_data as $df_id => $data)
@@ -2134,12 +2134,12 @@ class TrackingController extends ODRCustomController
         foreach ($file_image_changes as $dt_id => $dt_data) {
             // Create an entry for the datatype if it doesn't exist...
             if ( !isset($history[$dt_id]) )
-                $history[$dt_id] = array();
+                $history[$dt_id] = [];
 
             foreach ($dt_data as $dr_id => $dr_data) {
                 // Create an entry for the datarecord if it doesn't exist...
                 if ( !isset($history[$dt_id][$dr_id]) )
-                    $history[$dt_id][$dr_id] = array();
+                    $history[$dt_id][$dr_id] = [];
 
                 // Copy all the history data into this datarecord entry
                 foreach ($dr_data as $df_id => $data)
@@ -2149,12 +2149,12 @@ class TrackingController extends ODRCustomController
         foreach ($radio_tag_changes as $dt_id => $dt_data) {
             // Create an entry for the datatype if it doesn't exist...
             if ( !isset($history[$dt_id]) )
-                $history[$dt_id] = array();
+                $history[$dt_id] = [];
 
             foreach ($dt_data as $dr_id => $dr_data) {
                 // Create an entry for the datarecord if it doesn't exist...
                 if ( !isset($history[$dt_id][$dr_id]) )
-                    $history[$dt_id][$dr_id] = array();
+                    $history[$dt_id][$dr_id] = [];
 
                 // Copy all the history data into this datarecord entry
                 foreach ($dr_data as $df_id => $data)
@@ -2164,12 +2164,12 @@ class TrackingController extends ODRCustomController
         foreach ($xyz_changes as $dt_id => $dt_data) {
             // Create an entry for the datatype if it doesn't exist...
             if ( !isset($history[$dt_id]) )
-                $history[$dt_id] = array();
+                $history[$dt_id] = [];
 
             foreach ($dt_data as $dr_id => $dr_data) {
                 // Create an entry for the datarecord if it doesn't exist...
                 if ( !isset($history[$dt_id][$dr_id]) )
-                    $history[$dt_id][$dr_id] = array();
+                    $history[$dt_id][$dr_id] = [];
 
                 // Copy all the history data into this datarecord entry
                 foreach ($dr_data as $df_id => $data)
@@ -2194,23 +2194,23 @@ class TrackingController extends ODRCustomController
      */
     private function combineArraysSimple($text_number_changes, $file_image_changes, $radio_tag_changes, $xyz_changes)
     {
-        $history = array();
+        $history = [];
 
         foreach ($text_number_changes as $dt_id => $dt_data) {
             // Create an entry for the datatype if it doesn't exist...
             if ( !isset($history[$dt_id]) )
-                $history[$dt_id] = array();
+                $history[$dt_id] = [];
 
             foreach ($dt_data as $dr_id => $dr_data) {
                 // Create an entry for the datarecord if it doesn't exist...
                 if ( !isset($history[$dt_id][$dr_id]) )
-                    $history[$dt_id][$dr_id] = array();
+                    $history[$dt_id][$dr_id] = [];
 
                 // Copy just the date into the history entry
                 foreach ($dr_data as $df_id => $df_data) {
                     foreach ($df_data as $entity_id => $entity_data) {
                         foreach ($entity_data as $date => $data) {
-                            $date = explode(' ', $date)[0];
+                            $date = explode(' ', (string) $date)[0];
                             $history[$dt_id][$dr_id][$date] = $data['updatedBy'];
                         }
                     }
@@ -2220,18 +2220,18 @@ class TrackingController extends ODRCustomController
         foreach ($file_image_changes as $dt_id => $dt_data) {
             // Create an entry for the datatype if it doesn't exist...
             if ( !isset($history[$dt_id]) )
-                $history[$dt_id] = array();
+                $history[$dt_id] = [];
 
             foreach ($dt_data as $dr_id => $dr_data) {
                 // Create an entry for the datarecord if it doesn't exist...
                 if ( !isset($history[$dt_id][$dr_id]) )
-                    $history[$dt_id][$dr_id] = array();
+                    $history[$dt_id][$dr_id] = [];
 
                 // Copy just the date into the history entry
                 foreach ($dr_data as $df_id => $df_data) {
                     foreach ($df_data as $entity_id => $entity_data) {
                         foreach ($entity_data as $date => $data) {
-                            $date = explode(' ', $date)[0];
+                            $date = explode(' ', (string) $date)[0];
                             if ( isset($data['updatedBy']) )
                                 $history[$dt_id][$dr_id][$date] = $data['updatedBy'];
                             else if ( isset($data['deletedBy']) )
@@ -2244,18 +2244,18 @@ class TrackingController extends ODRCustomController
         foreach ($radio_tag_changes as $dt_id => $dt_data) {
             // Create an entry for the datatype if it doesn't exist...
             if ( !isset($history[$dt_id]) )
-                $history[$dt_id] = array();
+                $history[$dt_id] = [];
 
             foreach ($dt_data as $dr_id => $dr_data) {
                 // Create an entry for the datarecord if it doesn't exist...
                 if ( !isset($history[$dt_id][$dr_id]) )
-                    $history[$dt_id][$dr_id] = array();
+                    $history[$dt_id][$dr_id] = [];
 
                 // Copy just the date into the history entry
                 foreach ($dr_data as $df_id => $df_data) {
                     foreach ($df_data as $entity_id => $entity_data) {
                         foreach ($entity_data as $date => $data) {
-                            $date = explode(' ', $date)[0];
+                            $date = explode(' ', (string) $date)[0];
                             $history[$dt_id][$dr_id][$date] = $data['selectedBy'];
                         }
                     }
@@ -2265,18 +2265,18 @@ class TrackingController extends ODRCustomController
         foreach ($xyz_changes as $dt_id => $dt_data) {
             // Create an entry for the datatype if it doesn't exist...
             if ( !isset($history[$dt_id]) )
-                $history[$dt_id] = array();
+                $history[$dt_id] = [];
 
             foreach ($dt_data as $dr_id => $dr_data) {
                 // Create an entry for the datarecord if it doesn't exist...
                 if ( !isset($history[$dt_id][$dr_id]) )
-                    $history[$dt_id][$dr_id] = array();
+                    $history[$dt_id][$dr_id] = [];
 
                 // Copy just the date into the history entry
                 foreach ($dr_data as $df_id => $df_data) {
                     foreach ($df_data as $entity_id => $entity_data) {
                         foreach ($entity_data as $date => $data) {
-                            $date = explode(' ', $date)[0];
+                            $date = explode(' ', (string) $date)[0];
                             $history[$dt_id][$dr_id][$date] = $data['updatedBy'];
                         }
                     }
@@ -2302,12 +2302,12 @@ class TrackingController extends ODRCustomController
      */
     private function getNames($em, $history, $datarecord_created_deleted_history, $child_dr_lookup)
     {
-        $ids = array(
-            'dt_ids' => array(),
-            'dr_ids' => array(),
-            'df_ids' => array(),
-            'user_ids' => array()
-        );
+        $ids = [
+            'dt_ids' => [],
+            'dr_ids' => [],
+            'df_ids' => [],
+            'user_ids' => []
+        ];
 
         // Locate all ids from the main changes array...
         foreach ($history as $dt_id => $dt_data) {
@@ -2378,10 +2378,10 @@ class TrackingController extends ODRCustomController
 
 
         // ----------------------------------------
-        $names = array();
+        $names = [];
 
         // datatypes...
-        $grandparent_datatype_ids = array();
+        $grandparent_datatype_ids = [];
         $query = $em->createQuery(
            'SELECT dt.id AS dt_id, dtm.longName AS dt_name,
                 gdt.id AS gdt_id, gdtm.longName AS gdt_name
@@ -2391,7 +2391,7 @@ class TrackingController extends ODRCustomController
             JOIN ODRAdminBundle:DataTypeMeta AS gdtm WITH gdtm.dataType = gdt
             WHERE dt IN (:datatype_ids)
             AND dtm.deletedAt IS NULL AND gdtm.deletedAt IS NULL'
-        )->setParameters( array('datatype_ids' => array_keys($ids['dt_ids'])) );
+        )->setParameters( ['datatype_ids' => array_keys($ids['dt_ids'])] );
         $results = $query->getArrayResult();
         foreach ($results as $result) {
             $dt_id = $result['dt_id'];
@@ -2415,7 +2415,7 @@ class TrackingController extends ODRCustomController
             FROM ODRAdminBundle:DataFields AS df
             JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
             WHERE df IN (:datafield_ids) AND dfm.deletedAt IS NULL'
-        )->setParameters( array('datafield_ids' => array_keys($ids['df_ids'])) );
+        )->setParameters( ['datafield_ids' => array_keys($ids['df_ids'])] );
         $results = $query->getArrayResult();
         foreach ($results as $result) {
             $df_id = $result['df_id'];
@@ -2429,7 +2429,7 @@ class TrackingController extends ODRCustomController
            'SELECT u
             FROM ODROpenRepositoryUserBundle:User AS u
             WHERE u IN (:user_ids)'
-        )->setParameters( array('user_ids' => array_keys($ids['user_ids'])) );
+        )->setParameters( ['user_ids' => array_keys($ids['user_ids'])] );
         $results = $query->getResult();    // intentionally NOT getArrayResult()
         foreach ($results as $user) {
             /** @var ODRUser $user */
@@ -2468,7 +2468,7 @@ class TrackingController extends ODRCustomController
      */
     private function getChildDrLookup($em, $history)
     {
-        $dr_list = array();
+        $dr_list = [];
         foreach ($history as $dt_id => $dt_data) {
             foreach ($dt_data as $dr_id => $dr_data) {
                 $dr_list[] = $dr_id;
@@ -2482,13 +2482,13 @@ class TrackingController extends ODRCustomController
             FROM odr_data_record dr
             WHERE dr.id IN (?) AND dr.id != dr.grandparent_id
             AND dr.deletedAt IS NULL';
-        $parameters = array(1 => $dr_list);
-        $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+        $parameters = [1 => $dr_list];
+        $types = [1 => DBALConnection::PARAM_INT_ARRAY];
 
         $conn = $em->getConnection();
         $results = $conn->executeQuery($query, $parameters, $types);
 
-        $dr_lookup = array();
+        $dr_lookup = [];
         foreach ($results as $result) {
             $dr_id = $result['dr_id'];
             $gdr_id = $result['gdr_id'];
@@ -2511,7 +2511,7 @@ class TrackingController extends ODRCustomController
      */
     public function getdatafieldselectorAction($datatype_id_restriction, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -2544,7 +2544,7 @@ class TrackingController extends ODRCustomController
             $datatype_permissions = $permissions_service->getDatatypePermissions($admin);
             $datafield_permissions = $permissions_service->getDatafieldPermissions($admin);
 
-            $editable_datatypes = array();
+            $editable_datatypes = [];
             if ( is_null($datatype_restriction) ) {
                 // No datatype restriction provided, determine which datatypes the user is allowed
                 //  to edit...
@@ -2589,13 +2589,13 @@ class TrackingController extends ODRCustomController
                 AND gdt.deletedAt IS NULL AND gdtm.deletedAt IS NULL
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
                 AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL';
-            $params = array( 'datatype_ids' => $editable_datatypes );
-            $types = array( 'datatype_ids' => \Doctrine\DBAL\Connection::PARAM_INT_ARRAY );
+            $params = [ 'datatype_ids' => $editable_datatypes ];
+            $types = [ 'datatype_ids' => \Doctrine\DBAL\Connection::PARAM_INT_ARRAY ];
 
             $conn = $em->getConnection();
             $results = $conn->executeQuery($query, $params, $types);
 
-            $list = array();
+            $list = [];
             foreach ($results as $result) {
                 $top_level_dt_name = $result['gdt_name'];
                 $dt_name = $result['dt_name'];
@@ -2610,9 +2610,9 @@ class TrackingController extends ODRCustomController
                 // Only save datafields that the user can edit
                 if ( isset($datafield_permissions[$df_id]['edit']) ) {
                     if ( !isset($list[$top_level_dt_name]) )
-                        $list[$top_level_dt_name] = array();
+                        $list[$top_level_dt_name] = [];
                     if ( !isset($list[$top_level_dt_name][$dt_name]) )
-                        $list[$top_level_dt_name][$dt_name] = array();
+                        $list[$top_level_dt_name][$dt_name] = [];
 
                     $list[$top_level_dt_name][$dt_name][$df_id] = $df_name;
                 }
@@ -2641,15 +2641,15 @@ class TrackingController extends ODRCustomController
 
             // ----------------------------------------
             // Render the list of users
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Tracking:tracking_dialog_datafield_selection.html.twig',
-                    array(
+                    [
                         'list' => $list,
                         'datatype_restriction' => $datatype_restriction,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x399f2e50;
@@ -2675,7 +2675,7 @@ class TrackingController extends ODRCustomController
      */
     public function getuserselectorAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -2699,7 +2699,7 @@ class TrackingController extends ODRCustomController
             $datatype_permissions = $permissions_service->getDatatypePermissions($user);
 
             // Need to determine which datatypes the user is allowed to edit...
-            $editable_datatypes = array();
+            $editable_datatypes = [];
             foreach ($datatype_permissions as $dt_id => $dt_permission) {
                 if ( isset($dt_permission['dr_edit']) && $dt_permission['dr_edit'] == 1 ) {
                     $editable_datatypes[] = $dt_id;
@@ -2730,13 +2730,13 @@ class TrackingController extends ODRCustomController
                     JOIN odr_group AS g ON ug.group_id = g.id
                     JOIN odr_group_datafield_permissions AS gdfp ON gdfp.group_id = g.id
                     WHERE gdfp.can_edit_datafield = 1 AND g.data_type_id IN (:datatype_ids)';
-                $params = array('datatype_ids' => $editable_datatypes);
-                $types = array('datatype_ids' => \Doctrine\DBAL\Connection::PARAM_INT_ARRAY);
+                $params = ['datatype_ids' => $editable_datatypes];
+                $types = ['datatype_ids' => \Doctrine\DBAL\Connection::PARAM_INT_ARRAY];
 
                 $conn = $em->getConnection();
                 $results = $conn->executeQuery($query, $params, $types);
 
-                $allowed_users = array();
+                $allowed_users = [];
                 foreach ($results as $result)
                     $allowed_users[ $result['user_id'] ] = 1;
 
@@ -2751,14 +2751,14 @@ class TrackingController extends ODRCustomController
 
             // ----------------------------------------
             // Render the list of users
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Tracking:tracking_dialog_user_selection.html.twig',
-                    array(
+                    [
                         'user_list' => $user_list,
-                    )
+                    ]
                 )
-            );
+            ];
 
         }
         catch (\Exception $e) {
@@ -2785,7 +2785,7 @@ class TrackingController extends ODRCustomController
      */
     public function tracklayoutchangesAction($datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';

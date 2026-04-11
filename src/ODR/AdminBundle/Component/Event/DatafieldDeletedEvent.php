@@ -27,26 +27,6 @@ class DatafieldDeletedEvent extends Event implements ODREventInterface
     // Best practice is apparently to have the Event class define the event name
     const NAME = 'odr.event.datafield_deleted_event';
 
-    /**
-     * @var int
-     */
-    private $datafield_id;
-
-    /**
-     * @var string
-     */
-    private $datafield_uuid;
-
-    /**
-     * @var DataType
-     */
-    private $datatype;
-
-    /**
-     * @var ODRUser
-     */
-    private $user;
-
 
     /**
      * DatafieldDeletedEvent constructor.
@@ -56,16 +36,8 @@ class DatafieldDeletedEvent extends Event implements ODREventInterface
      * @param DataType $datatype
      * @param ODRUser $user
      */
-    public function __construct(
-        $datafield_id,
-        $datafield_uuid,
-        DataType $datatype,
-        ODRUser $user
-    ) {
-        $this->datafield_id = $datafield_id;
-        $this->datafield_uuid = $datafield_uuid;
-        $this->datatype = $datatype;
-        $this->user = $user;
+    public function __construct(private $datafield_id, private $datafield_uuid, private readonly DataType $datatype, private readonly ODRUser $user)
+    {
     }
 
 
@@ -127,11 +99,11 @@ class DatafieldDeletedEvent extends Event implements ODREventInterface
      */
     public function getErrorInfo()
     {
-        return array(
+        return [
             self::NAME,
             'df_id '.$this->datafield_id,
             'df_uuid '.$this->datafield_uuid,
             'dt '.$this->datatype->getId()
-        );
+        ];
     }
 }

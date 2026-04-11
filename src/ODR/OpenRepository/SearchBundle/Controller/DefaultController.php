@@ -97,7 +97,7 @@ class DefaultController extends Controller
                     // print $odr_wordpress_user . ' ';
                     $user_manager = $this->container->get('fos_user.user_manager');
                     /** @var ODRUser $admin_user */
-                    $admin_user = $user_manager->findUserBy(array('email' => $odr_wordpress_user));
+                    $admin_user = $user_manager->findUserBy(['email' => $odr_wordpress_user]);
                 }
             }
 
@@ -117,16 +117,16 @@ class DefaultController extends Controller
                     $search_slug = $cookies->get('prev_searched_datatype');
                     return $this->redirectToRoute(
                         'odr_search',
-                        array(
+                        [
                             'search_slug' => $search_slug
-                        )
+                        ]
                     );
                 }
                 else {
                     if ($logged_in) {
                         // Instead of displaying a "page not found", redirect to the datarecord list
                         $baseurl = $this->generateUrl('odr_admin_homepage');
-                        $hash = $this->generateUrl('odr_list_types', array( 'section' => 'databases') );
+                        $hash = $this->generateUrl('odr_list_types', [ 'section' => 'databases'] );
 
                         return $this->redirect( $baseurl.'#'.$hash );
                     }
@@ -145,17 +145,17 @@ class DefaultController extends Controller
 
             /** @var DataTypeMeta $meta_entry */
             $meta_entry = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy(
-                array(
+                [
                     'searchSlug' => $search_slug
-                )
+                ]
             );
             if ( is_null($meta_entry) ) {
                 // Couldn't find a datatypeMeta entry with that search slug, so check whether the
                 //  search slug is actually a database uuid instead
                 $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
-                    array(
+                    [
                         'unique_id' => $search_slug
-                    )
+                    ]
                 );
 
                 if ( is_null($target_datatype) ) {
@@ -166,9 +166,9 @@ class DefaultController extends Controller
                     // Redirect so the page uses the search slug instead of the uuid
                     return $this->redirectToRoute(
                         'odr_search',
-                        array(
+                        [
                             'search_slug' => $target_datatype->getSearchSlug()
-                        )
+                        ]
                     );
                 }
             }
@@ -220,7 +220,7 @@ class DefaultController extends Controller
             // ----------------------------------------
             // If this datatype has a default search key...
             $default_search_key = '';
-            $default_search_params = array();
+            $default_search_params = [];
 
             // If the datatype has any stored search keys...
             foreach ($target_datatype->getStoredSearchKeys() as $ssk) {
@@ -284,7 +284,7 @@ class DefaultController extends Controller
 
             $html = $this->renderView(
                 'ODROpenRepositorySearchBundle:Default:index.html.twig',
-                array(
+                [
                     // required twig/javascript parameters
                     'user' => $admin_user,
                     'datatype_permissions' => $datatype_permissions,
@@ -317,7 +317,7 @@ class DefaultController extends Controller
                     // theme selection
 //                    'available_themes' => $available_themes,
                     'preferred_theme' => $preferred_theme,
-                )
+                ]
             );
 
             // print "WP Header: " . $request->wordpress_header; exit();
@@ -400,16 +400,16 @@ class DefaultController extends Controller
                     $search_slug = $cookies->get('prev_searched_datatype');
                     return $this->redirectToRoute(
                         'odr_search',
-                        array(
+                        [
                             'search_slug' => $search_slug
-                        )
+                        ]
                     );
                 }
                 else {
                     if ($logged_in) {
                         // Instead of displaying a "page not found", redirect to the datarecord list
                         $baseurl = $this->generateUrl('odr_admin_homepage');
-                        $hash = $this->generateUrl('odr_list_types', array( 'section' => 'databases') );
+                        $hash = $this->generateUrl('odr_list_types', [ 'section' => 'databases'] );
 
                         return $this->redirect( $baseurl.'#'.$hash );
                     }
@@ -428,17 +428,17 @@ class DefaultController extends Controller
 
             /** @var DataTypeMeta $meta_entry */
             $meta_entry = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy(
-                array(
+                [
                     'searchSlug' => $search_slug
-                )
+                ]
             );
             if ( is_null($meta_entry) ) {
                 // Couldn't find a datatypeMeta entry with that search slug, so check whether the
                 //  search slug is actually a database uuid instead
                 $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
-                    array(
+                    [
                         'unique_id' => $search_slug
-                    )
+                    ]
                 );
 
                 if ( is_null($target_datatype) ) {
@@ -449,9 +449,9 @@ class DefaultController extends Controller
                     // Redirect so the page uses the search slug instead of the uuid
                     return $this->redirectToRoute(
                         'odr_search',
-                        array(
+                        [
                             'search_slug' => $target_datatype->getSearchSlug()
-                        )
+                        ]
                     );
                 }
             }
@@ -503,7 +503,7 @@ class DefaultController extends Controller
             // ----------------------------------------
             // If this datatype has a default search key...
             $default_search_key = '';
-            $default_search_params = array();
+            $default_search_params = [];
 
             // If the datatype has any stored search keys...
             foreach ($target_datatype->getStoredSearchKeys() as $ssk) {
@@ -574,7 +574,7 @@ class DefaultController extends Controller
 
                 $html = $this->renderView(
                     'ODROpenRepositorySearchBundle:Default:home.html.twig',
-                    array(
+                    [
                         // required twig/javascript parameters
                         'user' => $admin_user,
                         'datatype_permissions' => $datatype_permissions,
@@ -607,7 +607,7 @@ class DefaultController extends Controller
                         // theme selection
 //                        'available_themes' => $available_themes,
                         'preferred_theme' => $preferred_theme,
-                    )
+                    ]
                 );
                 // Prepend/append the wordpress header and footer
                 $html = $request->wordpress_header . $html . $request->wordpress_footer;
@@ -615,7 +615,7 @@ class DefaultController extends Controller
             else {
                 $html = $this->renderView(
                     'ODROpenRepositorySearchBundle:Default:index.html.twig',
-                    array(
+                    [
                         // required twig/javascript parameters
                         'user' => $admin_user,
                         'datatype_permissions' => $datatype_permissions,
@@ -647,7 +647,7 @@ class DefaultController extends Controller
                         // theme selection
 //                    'available_themes' => $available_themes,
                         'preferred_theme' => $preferred_theme,
-                    )
+                    ]
                 );
             }
 
@@ -686,7 +686,7 @@ class DefaultController extends Controller
     public function legacy_searchAction($search_key, Request $request)
     {
         // Convert legacy render to new render and run
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -699,8 +699,8 @@ class DefaultController extends Controller
 
             // Need to reformat to create proper search key and forward internally to view controller
 
-            $search_param_elements = preg_split("/\|/",$search_key);
-            $search_params = array();
+            $search_param_elements = preg_split("/\|/",(string) $search_key);
+            $search_params = [];
             foreach($search_param_elements as $search_param_element) {
                 $search_param_data = preg_split("/\=/",$search_param_element);
                 $search_params[$search_param_data[0]] = $search_param_data[1];
@@ -828,10 +828,10 @@ class DefaultController extends Controller
             }
 
             // Need at least these two properties to create the 'odr_search_render' route
-            $props = array(
+            $props = [
                 'search_theme_id' => $search_theme_id,    // semi-intentionally not validating this...
                 'search_key' => $search_key,
-            );
+            ];
             if ($intent !== 'searching')
                 $props['intent'] = $intent;
 
@@ -862,7 +862,7 @@ class DefaultController extends Controller
 
             // NOTE: can't use a RedirectResponse or "manually" create a 303, because the result
             //  won't work in a browser
-            $response = new Response( json_encode(array('url' => $new_url)) );
+            $response = new Response( json_encode(['url' => $new_url]) );
             $response->headers->set('Content-Type', 'application/json');
             return $response;
         }
@@ -890,10 +890,10 @@ class DefaultController extends Controller
      *
      * @return Response
      */
-    public function legacy_renderAction($search_key, $offset, $source = "searching", Request $request)
+    public function legacy_renderAction($search_key, $offset, $source = "searching", ?Request $request = null)
     {
         // Convert legacy render to new render and run
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -903,8 +903,8 @@ class DefaultController extends Controller
             $search_key_service = $this->container->get('odr.search_key_service');
             // Need to reformat to create proper search key and forward internally to view controller
 
-            $search_param_elements = preg_split("/\|/",$search_key);
-            $search_params = array();
+            $search_param_elements = preg_split("/\|/",(string) $search_key);
+            $search_params = [];
             foreach($search_param_elements as $search_param_element) {
                 $search_param_data = preg_split("/\=/",$search_param_element);
                 $search_params[$search_param_data[0]] = $search_param_data[1];
@@ -914,12 +914,12 @@ class DefaultController extends Controller
             // Generate new style search key from passed search key
             return $this->redirectToRoute(
                 "odr_search_render",
-                array(
+                [
                     'search_key' => $new_search_key,
                     'search_theme_id' => 0,    // Use whatever default search_theme the datatype has
                     'offset' => $offset,
                     'source' => $source
-                )
+                ]
             );
         }
         catch (\Exception $e) {
@@ -946,7 +946,7 @@ class DefaultController extends Controller
     public function renderAction($search_theme_id, $search_key, $offset, $intent, Request $request)
     {
         $start = microtime(true);
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -971,7 +971,7 @@ class DefaultController extends Controller
 
 
             /** @var ODRCustomController $odrcc */
-            $odrcc = $this->get('odr_custom_controller', $request);
+            $odrcc = $this->get('odr_custom_controller');
             $odrcc->setContainer($this->container);
 
 
@@ -1062,10 +1062,10 @@ class DefaultController extends Controller
             // Render and return the page
             $path_str = $this->generateUrl(
                 'odr_search_render',
-                array(
+                [
                     'search_theme_id' => $search_theme_id,
                     'search_key' => $search_key,
-                )
+                ]
             );
 
             // print  count($datarecords) . " -- ";
@@ -1082,10 +1082,10 @@ class DefaultController extends Controller
                 $offset,
                 $request
             );
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $html,
                 'search_key' => $search_key,
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x66d3804b;
@@ -1111,7 +1111,7 @@ class DefaultController extends Controller
      */
     public function defaultrenderAction($datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1131,17 +1131,17 @@ class DefaultController extends Controller
 
             // TODO - change to use search_redirect_service?
             // Encode the default search key for this datatype, and generate a route for it
-            $search_key = $search_key_service->encodeSearchKey(array('dt_id' => $datatype_id));
+            $search_key = $search_key_service->encodeSearchKey(['dt_id' => $datatype_id]);
             $url = $this->generateUrl(
                 'odr_search_render',
-                array(
+                [
                     'search_theme_id' => 0,     // use whatever default theme this datatype has
                     'search_key' => $search_key
-                )
+                ]
             );
 
             // Return the URL to redirect to
-            $return['d'] = array('search_slug' => $datatype->getSearchSlug(), 'url' => $url);
+            $return['d'] = ['search_slug' => $datatype->getSearchSlug(), 'url' => $url];
         }
         catch (\Exception $e) {
             $source = 0xc49e75eb;
@@ -1168,7 +1168,7 @@ class DefaultController extends Controller
      */
     public function inlinelinksearchAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1207,7 +1207,7 @@ class DefaultController extends Controller
                 throw new ODRNotFoundException('Datatype');
 
             // Find the first/single datafield in the post
-            $search_params = array('dt_id' => $datatype_id);
+            $search_params = ['dt_id' => $datatype_id];
             foreach ($post as $key => $value) {
                 if ( $key === 'dt_id' || $key === 'ajax_request' )
                     continue;
@@ -1216,14 +1216,14 @@ class DefaultController extends Controller
                     throw new ODRBadRequestException();
 
                 // TODO - modify so the search can handle radio options and tags?
-                $search_params[ intval($key) ] = trim($value);
+                $search_params[ intval($key) ] = trim((string) $value);
             }
 
             // Need to unescape these values if they're coming from a wordpress install...
             $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
             if ( $is_wordpress_integrated ) {
                 foreach ($search_params as $key => $value)
-                    $search_params[$key] = stripslashes($value);
+                    $search_params[$key] = stripslashes((string) $value);
             }
 
             // Verify the posted search request
@@ -1252,8 +1252,8 @@ class DefaultController extends Controller
             );    // this only returns grandparent datarecord ids
 
             // Load the cached versions of the first couple datarecords matching the search
-            $dr_array = array();
-            $output = array();
+            $dr_array = [];
+            $output = [];
             foreach ($grandparent_datarecord_list as $num => $dr_id) {
                 $dr = $datarecord_info_service->getDatarecordArray($dr_id, false);
 
@@ -1263,7 +1263,7 @@ class DefaultController extends Controller
                     $dr_array[$dr_id] = $dr[$dr_id];
 
                     // Also initialize an output container for each datarecord
-                    $output[$dr_id] = array();
+                    $output[$dr_id] = [];
                 }
 
                 // Continue loading datarecord entries until the limit is reached
@@ -1279,14 +1279,14 @@ class DefaultController extends Controller
 
             // ----------------------------------------
             // Only interested in these typeclasses...
-            $typeclasses = array(
+            $typeclasses = [
                 'IntegerValue' => 1,
                 'DecimalValue' => 1,
                 'ShortVarchar' => 1,
                 'MediumVarchar' => 1,
                 'LongVarchar' => 1,
                 'LongText' => 1,
-            );
+            ];
 
             // datarecordFields use the same typeclass name, but the first character is lowercase
             foreach ($typeclasses as $typeclass => $num)
@@ -1306,7 +1306,7 @@ class DefaultController extends Controller
                         foreach ($dr_array as $dr_id => $dr) {
                             // Entries for each datafield aren't guaranteed to exist in the array...
                             if ( isset($dr['dataRecordFields'][$df_id]) ) {
-                                $field_value = trim($dr['dataRecordFields'][$df_id][$drf_typeclass][0]['value']);
+                                $field_value = trim((string) $dr['dataRecordFields'][$df_id][$drf_typeclass][0]['value']);
                                 if ($field_value !== '')
                                     $output[$dr_id][$df_id] = $field_value;
                             }
@@ -1319,37 +1319,37 @@ class DefaultController extends Controller
             // ----------------------------------------
             // TODO - convert $output into a string here so .autocomplete( "instance" )._renderItem
             // TODO -  in edit_ajax.html.twig doesn't have to?
-            $final_output = array();
+            $final_output = [];
             foreach ($output as $dr_id => $data) {
-                $final_output[$dr_id] = array(
+                $final_output[$dr_id] = [
                     'record_id' => $dr_id,
-                    'fields' => array()
-                );
+                    'fields' => []
+                ];
 
                 foreach ($data as $df_id => $value) {
-                    $final_output[$dr_id]['fields'][] = array(
+                    $final_output[$dr_id]['fields'][] = [
                         'field_id' => $df_id,
                         'field_value' => $value,
-                    );
+                    ];
                 }
             }
 
             if ( $can_add_datarecord ) {
                 // Always want the ability to make a new datarecord even if other records were found
                 $dr_id = -1;
-                $final_output[$dr_id] = array(
+                $final_output[$dr_id] = [
                     'record_id' => $dr_id,
-                    'fields' => array(),
-                );
+                    'fields' => [],
+                ];
             }
             else if ( empty($output) ) {
                 // If the user can't make new records, then they need a message when their search
                 //  didn't match anything
                 $dr_id = -2;
-                $final_output[$dr_id] = array(
+                $final_output[$dr_id] = [
                     'record_id' => $dr_id,
-                    'fields' => array(),
-                );
+                    'fields' => [],
+                ];
             }
 
             $return['d'] = $final_output;

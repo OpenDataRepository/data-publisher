@@ -26,60 +26,17 @@ class DatarecordExportService
 {
 
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var DatarecordInfoService
-     */
-    private $dri_service;
-
-    /**
-     * @var DatabaseInfoService
-     */
-    private $dbi_service;
-
-    /**
-     * @var PermissionsManagementService
-     */
-    private $pm_service;
-
-    /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * DatarecordExportService constructor.
      *
-     * @param EntityManager $entity_manager
-     * @param DatabaseInfoService $database_info_service
-     * @param DatarecordInfoService $datarecord_info_service
-     * @param PermissionsManagementService $permissions_service
+     * @param EntityManager $em
+     * @param DatabaseInfoService $dbi_service
+     * @param DatarecordInfoService $dri_service
+     * @param PermissionsManagementService $pm_service
      * @param EngineInterface $templating
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        DatabaseInfoService $database_info_service,
-        DatarecordInfoService $datarecord_info_service,
-        PermissionsManagementService $permissions_service,
-        EngineInterface $templating,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->dbi_service = $database_info_service;
-        $this->dri_service = $datarecord_info_service;
-        $this->pm_service = $permissions_service;
-        $this->templating = $templating;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly DatabaseInfoService $dbi_service, private readonly DatarecordInfoService $dri_service, private readonly PermissionsManagementService $pm_service, private readonly EngineInterface $templating, private readonly Logger $logger)
+    {
     }
 
 
@@ -109,19 +66,19 @@ class DatarecordExportService
             AND t.themeType = :theme_type AND t = t.sourceTheme
             AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL AND t.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'datarecord_ids' => $datarecord_ids,
                 'theme_type' => 'master'
-            )
+            ]
         );
         $results = $query->getArrayResult();
 
 
         // Need unique lists of all ids...
-        $top_level_dr_ids = array();
-        $top_level_dt_ids = array();
+        $top_level_dr_ids = [];
+        $top_level_dt_ids = [];
         // Also need to store these ids in a slightly different format to make twig's life easier
-        $lookup_array = array();
+        $lookup_array = [];
 
         foreach ($results as $result) {
             $dr_id = $result['dr_id'];
@@ -130,9 +87,9 @@ class DatarecordExportService
             $top_level_dr_ids[$dr_id] = 1;
             $top_level_dt_ids[$dt_id] = 1;
 
-            $lookup_array[$dr_id] = array(
+            $lookup_array[$dr_id] = [
                 'datatype' => $dt_id
-            );
+            ];
         }
 
 
@@ -140,7 +97,7 @@ class DatarecordExportService
         // Grab all datarecords and datatypes for rendering purposes
         $include_links = true;
 
-        $datarecord_array = array();
+        $datarecord_array = [];
         foreach ($top_level_dr_ids as $dr_id => $num) {
             $dr_data = $this->dri_service->getDatarecordArray($dr_id, $include_links);
 
@@ -148,7 +105,7 @@ class DatarecordExportService
                 $datarecord_array[$local_dr_id] = $data;
         }
 
-        $datatype_array = array();
+        $datatype_array = [];
         foreach ($top_level_dt_ids as $dt_id => $num) {
             $dt_data = $this->dbi_service->getDatatypeArray($dt_id, $include_links);
 
@@ -162,20 +119,20 @@ class DatarecordExportService
 
         // "Inflate" the currently flattened arrays so that render plugins for a datatype can also
         //  correctly render that datatype's child/linked datatypes
-        $stacked_datarecord_array = array();
+        $stacked_datarecord_array = [];
         foreach ($top_level_dr_ids as $dr_id => $num) {
             // Double-stacking the ids like this allows this service to export datarecords across
             //  multiple datatypes
-            $stacked_datarecord_array[$dr_id] = array(
+            $stacked_datarecord_array[$dr_id] = [
                 $dr_id => $this->dri_service->stackDatarecordArray($datarecord_array, $dr_id)
-            );
+            ];
         }
 
-        $stacked_datatype_array = array();
+        $stacked_datatype_array = [];
         foreach ($top_level_dt_ids as $dt_id => $num) {
-            $stacked_datatype_array[$dt_id] = array(
+            $stacked_datatype_array[$dt_id] = [
                 $dt_id => $this->dbi_service->stackDatatypeArray($datatype_array, $dt_id)
-            );
+            ];
         }
 
         // print json_encode($stacked_datarecord_array);exit();
@@ -186,7 +143,7 @@ class DatarecordExportService
         // Render the DataRecord
         $str = $this->templating->render(
             $template,
-            array(
+            [
                 'sorted_datarecord_ids' => $datarecord_ids,    // Use the given array of datarecord ids to as the output order
 
                 'datatype_array' => $datatype_array,
@@ -199,7 +156,7 @@ class DatarecordExportService
                 'baseurl' => $baseurl,
                 'version' => $version,
                 'show_records' => $show_records
-            )
+            ]
         );
 
         // If returning as json, reformat the data because twig can't correctly format this type of data

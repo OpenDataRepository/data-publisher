@@ -35,33 +35,33 @@ class UpdateDataTreeForm extends AbstractType
     {
         $is_link = $options['is_link'];
 
-        $choices = array(
+        $choices = [
             'Edit directly' => DataTreeMeta::ALWAYS_EDIT,
             'Edit opens in new tab' => DataTreeMeta::LINK_EDIT,
             'Toggle Edit Lock' => DataTreeMeta::TOGGLE_EDIT_INACTIVE,
-        );
+        ];
 
         $builder->add(
             'multiple_allowed',
             CheckboxType::class,
-            array(
+            [
                 'required' => false,
                 'label'  => 'Multiple Allowed',
-            )
+            ]
         );
 
         if ( $is_link ) {
             $builder->add(
                 'edit_behavior',
                 ChoiceType::class,
-                array(
+                [
                     'choices' => $choices,
                     'choices_as_values' => true,
                     'label'  => 'Edit Behavior',
                     'expanded' => false,
                     'multiple' => false,
                     'placeholder' => false
-                )
+                ]
             );
         }
     }
@@ -85,6 +85,7 @@ class UpdateDataTreeForm extends AbstractType
      *
      * @return string The prefix of the template block name
      */
+    #[\Override]
     public function getBlockPrefix()
     {
         return 'UpdateDataTreeForm';
@@ -96,7 +97,7 @@ class UpdateDataTreeForm extends AbstractType
      */
     public function configureOptions(OptionsResolver $resolver)
     {
-        $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\DataTreeMeta'));
+        $resolver->setDefaults(['data_class' => \ODR\AdminBundle\Entity\DataTreeMeta::class]);
 
         // Required options should not have defaults set
         $resolver->setRequired('is_link');

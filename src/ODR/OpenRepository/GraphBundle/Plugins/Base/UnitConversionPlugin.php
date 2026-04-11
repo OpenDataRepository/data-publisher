@@ -73,53 +73,9 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
 {
 
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var EventDispatcherInterface
-     */
-    private $event_dispatcher;
-
-    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-
-    /**
-     * @var CacheService
-     */
-    private $cache_service;
-
-    /**
-     * @var DatabaseInfoService
-     */
-    private $database_info_service;
-
-    /**
-     * @var SearchService
-     */
-    private $search_service;
-
-    /**
-     * @var SearchQueryService
-     */
-    private $search_query_service;
-
-    /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * UnitConversion Plugin constructor.
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param EventDispatcherInterface $event_dispatcher
      * @param CacheService $cache_service
      * @param DatabaseInfoService $database_info_service
@@ -128,24 +84,8 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
      * @param EngineInterface $templating
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        EventDispatcherInterface $event_dispatcher,
-        CacheService $cache_service,
-        DatabaseInfoService $database_info_service,
-        SearchService $search_service,
-        SearchQueryService $search_query_service,
-        EngineInterface $templating,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->event_dispatcher = $event_dispatcher;
-        $this->cache_service = $cache_service;
-        $this->database_info_service = $database_info_service;
-        $this->search_service = $search_service;
-        $this->search_query_service = $search_query_service;
-        $this->templating = $templating;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly EventDispatcherInterface $event_dispatcher, private readonly CacheService $cache_service, private readonly DatabaseInfoService $database_info_service, private readonly SearchService $search_service, private readonly SearchQueryService $search_query_service, private readonly EngineInterface $templating, private readonly Logger $logger)
+    {
     }
 
 
@@ -193,20 +133,12 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
             else if ( isset($datarecord['dataRecordFields'][ $datafield['id'] ]) ) {
                 $drf = $datarecord['dataRecordFields'][ $datafield['id'] ];
                 $entity = null;
-                switch ( $datafield['dataFieldMeta']['fieldType']['typeClass'] ) {
-                    case 'ShortVarchar':
-                        $entity = $drf['shortVarchar'][0];
-                        break;
-                    // TODO - implement this...
-//                    case 'DecimalValue':
-//                        $entity = $drf['decimalValue'][0];
-//                        break;
-
-                    default:
-                        throw new \Exception('Invalid Fieldtype');
-                }
-                $original_value = trim( $entity['value'] );
-                $converted_value = trim( $entity['converted_value'] );
+                $entity = match ($datafield['dataFieldMeta']['fieldType']['typeClass']) {
+                    'ShortVarchar' => $drf['shortVarchar'][0],
+                    default => throw new \Exception('Invalid Fieldtype'),
+                };
+                $original_value = trim( (string) $entity['value'] );
+                $converted_value = trim( (string) $entity['converted_value'] );
             }
             else {
                 // No datarecordfield entry for this datarecord/datafield pair...because of the
@@ -226,14 +158,14 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
             else if ( $context === 'display' ) {
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:Base:UnitConversion/unit_conversion_display_datafield.html.twig',
-                    array(
+                    [
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,
 
                         'plugin_options' => $options,
                         'original_value' => $original_value,
                         'converted_value' => $converted_value,
-                    )
+                    ]
                 );
             }
             else if ( $context === 'edit' ) {
@@ -244,7 +176,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
 
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:Base:UnitConversion/unit_conversion_edit_datafield.html.twig',
-                    array(
+                    [
                         'is_datatype_admin' => $is_datatype_admin,
 
                         'datafield' => $datafield,
@@ -253,17 +185,17 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
                         'plugin_options' => $options,
                         'original_value' => $original_value,
                         'converted_value' => $converted_value,
-                    )
+                    ]
                 );
             }
             else if ( $context === 'csv_export' ) {
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:Base:UnitConversion/unit_conversion_csvexport_datafield.html.twig',
-                    array(
+                    [
                         'datafield' => $datafield,
 
                         'plugin_options' => $options,
-                    )
+                    ]
                 );
             }
             else if ( $context === 'api_export' ) {
@@ -301,7 +233,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
         $plugin_options = $render_plugin_instance['renderPluginOptionsMap'];
 
         if ( $preset_value !== '' ) {
-            if ( strpos($preset_value, ':') === false ) {
+            if ( !str_contains($preset_value, ':') ) {
                 // If the delimiter isn't in a given preset value, then the preset value always goes
                 //  into the "main" input...whether that's actually to search on the "original" or
                 //  the "converted" value depends on how the plugin was configured
@@ -322,7 +254,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
         // Render the datafield for the search sidebar
         $output = $this->templating->render(
             'ODROpenRepositoryGraphBundle:Base:UnitConversion/unit_conversion_search_datafield.html.twig',
-            array(
+            [
                 'datatype' => $datatype,
                 'datafield' => $datafield,
 
@@ -331,7 +263,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
                 'preset_value_alt' => $preset_value_alt,
 
                 'plugin_options' => $plugin_options,
-            )
+            ]
         );
 
         return $output;
@@ -346,7 +278,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
         // Since this is a datafield plugin, there should always be a single field here...don't
         //  need to dig through the renderPluginInstance array for it
         $df_id = $datafield['id'];
-        $typeclass = lcfirst( $datafield['dataFieldMeta']['fieldType']['typeClass'] );
+        $typeclass = lcfirst( (string) $datafield['dataFieldMeta']['fieldType']['typeClass'] );
 
         // Need to extract both the original and the converted values from the datarecord array
         $original_value = $converted_value = '';
@@ -364,7 +296,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
         }
 
         // The plugin has a config option for whether to display the converted value or not
-        $values = array();
+        $values = [];
         $options = $render_plugin_instance['renderPluginOptionsMap'];
         if ( $options['display_converted'] === 'yes' )
             $values[$df_id] = $converted_value;
@@ -382,7 +314,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
     public function getMassEditOverrideFields($render_plugin_instance)
     {
         // Should only be one datafield in here, and it should always have the trigger available
-        $ret = array();
+        $ret = [];
         foreach ($render_plugin_instance['renderPluginMap'] as $rpf_name => $rpf)
             $ret[] = $rpf['id'];
 
@@ -395,7 +327,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
      */
     public function getMassEditTriggerFields($render_plugin_instance)
     {
-        $trigger_fields = array();
+        $trigger_fields = [];
         foreach ($render_plugin_instance['renderPluginMap'] as $rpf_name => $rpf) {
             // The field should only activate the MassEditTrigger event when the user didn't also
             //  specify a new value
@@ -414,11 +346,11 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
      */
     private function getAvailableConversions()
     {
-        $tmp = array();
+        $tmp = [];
         foreach (UnitConversionsDef::$conversions as $category => $conversions) {
             // Need to preserve the category, since units are technically not unique across all
             //  applications...
-            $tmp[$category] = array();
+            $tmp[$category] = [];
             foreach ($conversions as $unit => $factor) {
                 // The conversions array contains almost everything that is going to be in the
                 //  <select> element, but it lacks a convenient long-form label...
@@ -448,7 +380,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
      */
     private function getCurrentPluginConfig($datafield)
     {
-        $config = array();
+        $config = [];
 
         // Events don't have access to the renderPluginInstance, so might as well just always get
         //  the data from the cached datatype array
@@ -466,18 +398,18 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
                 if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.unit_conversion' ) {
                     // Don't care about the standard renderPluginOptions, just the one that requires
                     //  custom rendering
-                    $conversion_data = trim( $rpi['renderPluginOptionsMap']['conversion_type'] );
+                    $conversion_data = trim( (string) $rpi['renderPluginOptionsMap']['conversion_type'] );
 
                     // If this option is empty, then the plugin isn't properly configured
                     if ( $conversion_data === '' )
-                        return array();
+                        return [];
 
 
                     // ----------------------------------------
                     // The conversion data is somewhat encoded...
                     $conversion_data = explode(':', $conversion_data);
                     if ( count($conversion_data) !== 3 )
-                        return array();
+                        return [];
 
                     $conversion_type = $conversion_data[0];
                     $target_units = $conversion_data[1];
@@ -486,14 +418,14 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
                     // If the requested conversion type isn't defined, then the plugin isn't
                     //  properly configured
                     if ( !isset(UnitConversionsDef::$conversions[$conversion_type][$target_units]) )
-                        return array();
+                        return [];
 
 
                     // The precision type needs to be one of several values...
                     $precision_type = $original_precision_type;
                     if ( $original_precision_type === '' )
                         $precision_type = '';
-                    else if ( strpos($original_precision_type, 'decimal') !== false )
+                    else if ( str_contains($original_precision_type, 'decimal') )
                         $precision_type = 'decimal';    // Don't care how many decimal places at the moment
 
                     switch ($precision_type) {
@@ -505,15 +437,15 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
 
                         default:
                             // ...if it's not one of the above, then the plugin isn't properly configured
-                            return array();
+                            return [];
                     }
 
-                    $config = array(
+                    $config = [
                         'conversion_type' => $conversion_type,
                         'target_units' => $target_units,
 
                         'precision_type' => $original_precision_type,
-                    );
+                    ];
                 }
             }
         }
@@ -528,7 +460,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
      */
     public function getRenderPluginOptionsOverride($user, $is_datatype_admin, $render_plugin, $datatype, $datafield = null, $render_plugin_instance = null)
     {
-        $custom_rpo_html = array();
+        $custom_rpo_html = [];
         foreach ($render_plugin->getRenderPluginOptionsDef() as $rpo) {
             // Only the "conversion_type" option needs to use a custom render for the dialog...
             /** @var RenderPluginOptionsDef $rpo */
@@ -539,12 +471,12 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
                 // ...which allows a template to be rendered
                 $custom_rpo_html[$rpo->getId()] = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:Base:UnitConversion/plugin_settings_dialog_field_list_override.html.twig',
-                    array(
+                    [
                         'rpo_id' => $rpo->getId(),
 
                         'available_conversions' => $available_conversions,
                         'current_plugin_config' => $current_plugin_config,
-                    )
+                    ]
                 );
             }
         }
@@ -574,10 +506,10 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
     {
         // ----------------------------------------
         // Don't continue if somehow called on the wrong type of datafield
-        $allowed_typeclasses = array(
+        $allowed_typeclasses = [
 //            'DecimalValue',    // TODO - implement this
             'ShortVarchar',
-        );
+        ];
         $typeclass = $datafield->getFieldType()->getTypeClass();
         if ( !in_array($typeclass, $allowed_typeclasses) )
             throw new ODRBadRequestException('UnitConversionPlugin::searchPluginField() called with '.$typeclass.' datafield', 0x7a7d1906);
@@ -587,11 +519,11 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
         // See if this search result is already cached...
         $cached_searches = $this->cache_service->get('cached_search_df_'.$datafield->getId());
         if ( !$cached_searches )
-            $cached_searches = array();
+            $cached_searches = [];
 
         // Since MYSQL's collation is case-insensitive, the php caching should treat it the same
         $value = $search_term['value'];
-        $cache_key = mb_strtolower($value);
+        $cache_key = mb_strtolower((string) $value);
         if ( isset($cached_searches[$cache_key]) )
             return $cached_searches[$cache_key];
 
@@ -604,8 +536,8 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
             $search_converted = true;
 
         // How to recache the search depends on what the user searched for...
-        $end_result = array();
-        if ( strpos($value, ':') === false ) {
+        $end_result = [];
+        if ( !str_contains((string) $value, ':') ) {
             // If the user is only searching with the "main" input, then only need to run one query
             $result = $this->search_query_service->searchTextOrNumberDatafield(
                 $datafield->getDataType()->getId(),
@@ -616,17 +548,17 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
                 $search_converted    // get whichever value the user wants by default
             );
 
-            $end_result = array(
+            $end_result = [
                 'dt_id' => $datafield->getDataType()->getId(),
                 'records' => $result['records'],
                 'guard' => $result['guard'],
-            );
+            ];
         }
         else {
             // If the user is not searching with just the "alt" input, then need to get a bit fancier
             // The search term is given in "<'main' input value>:<'alt' input value>", where either
             //  input value might be blank (but theoretically not both)
-            $values = explode(':', $value);
+            $values = explode(':', (string) $value);
 
             $original_value = $converted_value = '';
             if ( $search_converted ) {
@@ -674,10 +606,10 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
             }
 
             // Need to combine the two results together
-            $result = array();
+            $result = [];
             if ( is_null($original_result) && is_null($converted_result) ) {
                 // If neither search was run, then nothing can be matched
-                $result = array();
+                $result = [];
             }
             else if ( !is_null($original_result) && is_null($converted_result) ) {
                 // Only searched on the original value
@@ -689,14 +621,14 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
             }
             else {
                 // Searched on both...take the intersection of both arrays
-                $result = array('records' => array_intersect_key($original_result['records'], $converted_result['records']));
+                $result = ['records' => array_intersect_key($original_result['records'], $converted_result['records'])];
             }
 
-            $end_result = array(
+            $end_result = [
                 'dt_id' => $datafield->getDataType()->getId(),
                 'records' => $result['records'],
                 'guard' => $original_involves_empty_string | $converted_involves_empty_string,
-            );
+            ];
         }
 
 
@@ -824,12 +756,12 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
             SET e.converted_value = :new_value, e.updated = :now, e.updatedBy = :user_id
             WHERE e.dataField = :datafield_id'
         )->setParameters(
-            array(
+            [
                 'new_value' => '',
                 'datafield_id' => $datafield->getId(),
                 'now' => new \DateTime(),
                 'user_id' => $user->getId()
-            )
+            ]
         );
         $rows = $query->execute();
 
@@ -905,7 +837,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
                 // Only continue when stuff isn't null
                 if ( !is_null($entity) ) {
                     $source_value = $entity->getValue();
-                    $this->logger->debug('Attempting to convert a value from dt '.$datatype->getId().', dr '.$datarecord->getId().', df '.$datafield->getId().' ('.$typeclass.'): "'.$source_value.'"...', array(self::class, 'onPostUpdate()'));
+                    $this->logger->debug('Attempting to convert a value from dt '.$datatype->getId().', dr '.$datarecord->getId().', df '.$datafield->getId().' ('.$typeclass.'): "'.$source_value.'"...', [self::class, 'onPostUpdate()']);
 
                     // Determine what the value should be converted into
                     $current_config = self::getCurrentPluginConfig($datafield);
@@ -922,13 +854,13 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
 
                     $this->em->persist($entity);
                     $this->em->flush();
-                    $this->logger->debug(' -- updating converted_value to "'.$converted_value.'"...', array(self::class, 'onPostUpdate()'));
+                    $this->logger->debug(' -- updating converted_value to "'.$converted_value.'"...', [self::class, 'onPostUpdate()']);
                 }
             }
         }
         catch (\Exception $e) {
             // Can't really display the error to the user yet, but can log it...
-            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'onPostUpdate()', 'user '.$user->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()));
+            $this->logger->debug('-- (ERROR) '.$e->getMessage(), [self::class, 'onPostUpdate()', 'user '.$user->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()]);
 
             if ( !is_null($destination_entity) ) {
                 // If an error was thrown, attempt to ensure any derived fields are blank
@@ -941,7 +873,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
         finally {
             // Would prefer if these happened regardless of success/failure...
             if ( !is_null($destination_entity) ) {
-                $this->logger->debug('All changes saved', array(self::class, 'onPostUpdate()', 'dt '.$datatype->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()));
+                $this->logger->debug('All changes saved', [self::class, 'onPostUpdate()', 'dt '.$datatype->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()]);
                 self::clearCacheEntries($datarecord, $user, $destination_entity);
 
                 // Provide a reference to the entity that got changed
@@ -991,7 +923,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
                 // Only continue when stuff isn't null
                 if ( !is_null($entity) ) {
                     $source_value = $entity->getValue();
-                    $this->logger->debug('Attempting to convert a value from dt '.$datatype->getId().', dr '.$datarecord->getId().', df '.$datafield->getId().' ('.$typeclass.'): "'.$source_value.'"...', array(self::class, 'onMassEditTrigger()'));
+                    $this->logger->debug('Attempting to convert a value from dt '.$datatype->getId().', dr '.$datarecord->getId().', df '.$datafield->getId().' ('.$typeclass.'): "'.$source_value.'"...', [self::class, 'onMassEditTrigger()']);
 
                     // Determine what the value should be converted into
                     $current_config = self::getCurrentPluginConfig($datafield);
@@ -1009,13 +941,13 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
                     $entity->setConvertedValue($converted_value);
                     $this->em->persist($entity);
                     $this->em->flush();
-                    $this->logger->debug(' -- updating converted_value to "'.$converted_value.'"...', array(self::class, 'onMassEditTrigger()'));
+                    $this->logger->debug(' -- updating converted_value to "'.$converted_value.'"...', [self::class, 'onMassEditTrigger()']);
                 }
             }
         }
         catch (\Exception $e) {
             // Can't really display the error to the user yet, but can log it...
-            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'onMassEditTrigger()', 'user '.$user->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()));
+            $this->logger->debug('-- (ERROR) '.$e->getMessage(), [self::class, 'onMassEditTrigger()', 'user '.$user->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()]);
 
             if ( !is_null($destination_entity) ) {
                 // If an error was thrown, attempt to ensure any derived fields are blank
@@ -1028,7 +960,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
         finally {
             // Would prefer if these happened regardless of success/failure...
             if ( !is_null($destination_entity) ) {
-                $this->logger->debug('All changes saved', array(self::class, 'onMassEditTrigger()', 'dt '.$datatype->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()));
+                $this->logger->debug('All changes saved', [self::class, 'onMassEditTrigger()', 'dt '.$datatype->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()]);
                 self::clearCacheEntries($datarecord, $user, $destination_entity);
             }
         }
@@ -1077,12 +1009,12 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
                 $this->em->persist($destination_storage_entity);
                 $this->em->flush();
 
-                $this->logger->debug('-- -- updating dr '.$dr->getId().', df '.$df->getId().' to have the converted_value ""...', array(self::class, 'saveOnError()'));
+                $this->logger->debug('-- -- updating dr '.$dr->getId().', df '.$df->getId().' to have the converted_value ""...', [self::class, 'saveOnError()']);
             }
         }
         catch (\Exception $e) {
             // Some other error...no way to recover from it
-            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'saveOnError()', 'user '.$user->getId(), 'dr '.$dr->getId(), 'df '.$df->getId()));
+            $this->logger->debug('-- (ERROR) '.$e->getMessage(), [self::class, 'saveOnError()', 'user '.$user->getId(), 'dr '.$dr->getId(), 'df '.$df->getId()]);
         }
     }
 
@@ -1113,7 +1045,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
             $event = new DatarecordModifiedEvent($datarecord, $user);
             $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             // ...don't want to rethrow the error since it'll interrupt everything after this
             //  event
 //            if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -1129,9 +1061,9 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
     {
         // Only want to override the contents of this field for CSVExport if the config option is set
         if ($render_plugin_instance['renderPluginOptionsMap']['export_converted'] === 'yes' )
-            return array(0 => $render_plugin_instance['renderPluginMap']['Field']['id']);
+            return [0 => $render_plugin_instance['renderPluginMap']['Field']['id']];
 
-        return array();
+        return [];
     }
 
 
@@ -1147,17 +1079,17 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
         // ...unfortunately, since this interface needs to share with datatype plugins, that means
         //  datafield plugins have to do more work to locate their relevant cache entry
         if ( isset($datatype_array['dataFields'][$df_id]) ) {
-            $typeclass = lcfirst( $datatype_array['dataFields'][$df_id]['dataFieldMeta']['fieldType']['typeClass'] );
+            $typeclass = lcfirst( (string) $datatype_array['dataFields'][$df_id]['dataFieldMeta']['fieldType']['typeClass'] );
 
             if ( isset($datarecord_array['dataRecordFields'][$df_id][$typeclass][0]) ) {
                 $drf = $datarecord_array['dataRecordFields'][$df_id][$typeclass][0];
 
                 // Since this is getting called, we can assume the export wants the converted value
-                return array($df_id => $drf['converted_value']);
+                return [$df_id => $drf['converted_value']];
             }
         }
 
         // If something went wrong, just return the empty string
-        return array($df_id => '');
+        return [$df_id => ''];
     }
 }

@@ -54,7 +54,7 @@ class ClearXMLImportValidateCommand extends ContainerAwareCommand
             else
                 $job = $pheanstalk->watch('validate_import')->ignore('default')->reserve(); 
 
-            $data = json_decode($job->getData());
+            $data = json_decode((string) $job->getData());
             $datatype_id = $data->datatype_id;
 
             // Dealt with the job

@@ -55,7 +55,7 @@ class ClearTemplateSyncCommand extends ContainerAwareCommand
             else
                 $job = $pheanstalk->watch('synch_template')->ignore('default')->reserve();
 
-            $data = json_decode($job->getData());
+            $data = json_decode((string) $job->getData());
             $datatype_id = $data->datatype_id;
             $job_source = $data->redis_prefix;
 

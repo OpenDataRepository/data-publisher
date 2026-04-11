@@ -16,11 +16,12 @@ class GraphExtension extends \Twig_Extension
      * 
      * @return TODO
      */
+    #[\Override]
     public function getFilters()
     {
-        return array(
-            new \Twig_SimpleFilter('graph', array($this, 'graphFilter')),
-        );
+        return [
+            new \Twig_SimpleFilter('graph', $this->graphFilter(...)),
+        ];
     }
 
     /**

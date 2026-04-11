@@ -35,6 +35,7 @@ class ODRForbiddenException extends ODRException
     /**
      * @inheritdoc
      */
+    #[\Override]
     public function getStatusCode()
     {
         return 403;

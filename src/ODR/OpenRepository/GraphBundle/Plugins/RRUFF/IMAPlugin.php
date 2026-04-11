@@ -60,68 +60,9 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 {
 
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var DatabaseInfoService
-     */
-    private $database_info_service;
-
-    /**
-     * @var DatarecordInfoService
-     */
-    private $datarecord_info_service;
-
-    /**
-     * @var EntityCreationService
-     */
-    private $entity_create_service;
-
-    /**
-     * @var EntityMetaModifyService
-     */
-    private $entity_modify_service;
-
-    /**
-     * @var LockService
-     */
-    private $lock_service;
-
-    /**
-     * @var SearchService
-     */
-    private $search_service;
-
-    /**
-     * @var EventDispatcherInterface
-     */
-    private $event_dispatcher;
-
-    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-
-    /**
-     * @var CsrfTokenManager
-     */
-    private $token_manager;
-
-    /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * IMAPlugin constructor.
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param DatabaseInfoService $database_info_service
      * @param DatarecordInfoService $datarecord_info_service
      * @param EntityCreationService $entity_create_service
@@ -133,30 +74,8 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
      * @param EngineInterface $templating
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        DatabaseInfoService $database_info_service,
-        DatarecordInfoService $datarecord_info_service,
-        EntityCreationService $entity_create_service,
-        EntityMetaModifyService $entity_modify_service,
-        LockService $lock_service,
-        SearchService $search_service,
-        EventDispatcherInterface $event_dispatcher,
-        CsrfTokenManager $token_manager,
-        EngineInterface $templating,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->database_info_service = $database_info_service;
-        $this->datarecord_info_service = $datarecord_info_service;
-        $this->entity_create_service = $entity_create_service;
-        $this->entity_modify_service = $entity_modify_service;
-        $this->lock_service = $lock_service;
-        $this->search_service = $search_service;
-        $this->event_dispatcher = $event_dispatcher;
-        $this->token_manager = $token_manager;
-        $this->templating = $templating;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly DatabaseInfoService $database_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly EntityCreationService $entity_create_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly LockService $lock_service, private readonly SearchService $search_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly CsrfTokenManager $token_manager, private readonly EngineInterface $templating, private readonly Logger $logger)
+    {
     }
 
 
@@ -189,7 +108,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
     /**
      * @inheritDoc
      */
-    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
+    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = [], $datatype_permissions = [], $datafield_permissions = [], $token_list = [])
     {
         try {
             // ----------------------------------------
@@ -208,7 +127,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             $options = $render_plugin_instance['renderPluginOptionsMap'];
 
             // Retrieve mapping between datafields and render plugin fields
-            $plugin_fields = array();
+            $plugin_fields = [];
             foreach ($fields as $rpf_name => $rpf_df) {
                 // Need to find the real datafield entry in the primary datatype array
                 $rpf_df_id = $rpf_df['id'];
@@ -251,7 +170,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                 $initial_theme_id = $t_id;
 
             // There *should* only be a single datarecord in $datarecords...
-            $datarecord = array();
+            $datarecord = [];
             foreach ($datarecords as $dr_id => $dr)
                 $datarecord = $dr;
 
@@ -263,7 +182,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             //  to the user
             $relevant_fields = self::getRelevantFields($datatype, $datarecord);
 
-            $problem_fields = array();
+            $problem_fields = [];
             if ( $rendering_options['context'] === 'display' || $rendering_options['context'] === 'edit' ) {
                 $derivation_problems = self::findDerivationProblems($relevant_fields);
 
@@ -293,8 +212,8 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                 // TODO - should this also try to take over display mode of Chemistry Plugin?
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:RRUFF:IMA/ima_display_fieldarea.html.twig',
-                    array(
-                        'datatype_array' => array($initial_datatype_id => $datatype),
+                    [
+                        'datatype_array' => [$initial_datatype_id => $datatype],
                         'datarecord' => $datarecord,
                         'theme_array' => $theme_array,
 
@@ -313,7 +232,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
                         'plugin_fields' => $plugin_fields,
                         'problem_fields' => $problem_fields,
-                    )
+                    ]
                 );
             }
             else if ( $rendering_options['context'] === 'edit' ) {
@@ -323,9 +242,9 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:RRUFF:IMA/ima_edit_fieldarea.html.twig',
-                    array(
-                        'datatype_array' => array($initial_datatype_id => $datatype),
-                        'datarecord_array' => array($datarecord['id'] => $datarecord),
+                    [
+                        'datatype_array' => [$initial_datatype_id => $datatype],
+                        'datarecord_array' => [$datarecord['id'] => $datarecord],
                         'theme_array' => $theme_array,
 
                         'target_datatype_id' => $initial_datatype_id,
@@ -346,7 +265,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
                         'plugin_fields' => $plugin_fields,
                         'problem_fields' => $problem_fields,
-                    )
+                    ]
                 );
             }
             else if ( $rendering_options['context'] === 'fake_edit' ) {
@@ -359,9 +278,9 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:RRUFF:IMA/ima_fakeedit_fieldarea.html.twig',
-                    array(
-                        'datatype_array' => array($initial_datatype_id => $datatype),
-                        'datarecord_array' => array($datarecord['id'] => $datarecord),
+                    [
+                        'datatype_array' => [$initial_datatype_id => $datatype],
+                        'datarecord_array' => [$datarecord['id'] => $datarecord],
                         'theme_array' => $theme_array,
 
                         'target_datatype_id' => $initial_datatype_id,
@@ -380,7 +299,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                         'special_tokens' => $special_tokens,
 
                         'plugin_fields' => $plugin_fields,
-                    )
+                    ]
                 );
             }
 
@@ -404,15 +323,15 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
      */
     private function getRelevantFields($datatype, $datarecord)
     {
-        $relevant_datafields = array(
-            'Mineral ASCII Name' => array(),
-            'Mineral Display Name' => array(),
-            'Mineral Display Abbreviation' => array(),
-            'Chemistry Elements' => array(),
-            'IMA Formula' => array(),
-            'Valence Elements' => array(),
-            'RRUFF Formula' => array(),
-        );
+        $relevant_datafields = [
+            'Mineral ASCII Name' => [],
+            'Mineral Display Name' => [],
+            'Mineral Display Abbreviation' => [],
+            'Chemistry Elements' => [],
+            'IMA Formula' => [],
+            'Valence Elements' => [],
+            'RRUFF Formula' => [],
+        ];
 
         // Locate the relevant render plugin instance
         $rpm_entries = null;
@@ -473,12 +392,12 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
     private function findDerivationProblems($relevant_datafields)
     {
         // Only interested in the contents of datafields mapped to these rpf entries
-        $derivations = array(
+        $derivations = [
             'IMA Formula' => 'Chemistry Elements',
             'RRUFF Formula' => 'Valence Elements',
-        );
+        ];
 
-        $problems = array();
+        $problems = [];
         foreach ($derivations as $source_rpf_name => $dest_rpf_name) {
             if ( $relevant_datafields[$source_rpf_name]['value'] !== ''
                 && $relevant_datafields[$dest_rpf_name]['value'] === ''
@@ -521,11 +440,11 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             AND rp.deletedAt IS NULL AND rpi.deletedAt IS NULL AND rpm.deletedAt IS NULL
             AND df.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'plugin_classname' => 'odr_plugins.rruff.ima',
                 'datatype' => $datatype->getId(),
                 'field_name' => 'Mineral ID'
-            )
+            ]
         );
         $results = $query->getResult();
         if ( count($results) !== 1 )
@@ -553,7 +472,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
         // Create a new storage entity with the new value
         $this->entity_create_service->createStorageEntity($user, $datarecord, $datafield, $new_value, false);    // guaranteed to not need a PostUpdate event
-        $this->logger->debug('Setting df '.$datafield->getId().' "Mineral ID" of new dr '.$datarecord->getId().' to "'.$new_value.'"...', array(self::class, 'onDatarecordCreate()'));
+        $this->logger->debug('Setting df '.$datafield->getId().' "Mineral ID" of new dr '.$datarecord->getId().' to "'.$new_value.'"...', [self::class, 'onDatarecordCreate()']);
 
         // No longer need the lock
         $lockHandler->release();
@@ -565,7 +484,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             $event = new DatafieldModifiedEvent($datafield, $user);
             $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             // ...don't want to rethrow the error since it'll interrupt everything after this
             //  event
 //            if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -597,9 +516,9 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             WHERE e.data_field_id = :datafield AND e.deletedAt IS NULL
             ORDER BY e.value DESC
             LIMIT 0,1';
-        $params = array(
+        $params = [
             'datafield' => $datafield_id,
-        );
+        ];
         $conn = $this->em->getConnection();
         $results = $conn->executeQuery($query, $params);
 
@@ -655,7 +574,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                 $source_value = $source_entity->getValue();
                 if ($typeclass === 'DatetimeValue')
                     $source_value = $source_value->format('Y-m-d H:i:s');
-                $this->logger->debug('Attempting to derive a value from dt '.$datatype->getId().', dr '.$datarecord->getId().', df '.$datafield->getId().' ('.$rpf_name.'): "'.$source_value.'"...', array(self::class, 'onPostUpdate()'));
+                $this->logger->debug('Attempting to derive a value from dt '.$datatype->getId().', dr '.$datarecord->getId().', df '.$datafield->getId().' ('.$rpf_name.'): "'.$source_value.'"...', [self::class, 'onPostUpdate()']);
 
                 // Store the renderpluginfield name that will be modified
                 $dest_rpf_name = null;
@@ -678,11 +597,11 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                 $this->entity_modify_service->updateStorageEntity(
                     $user,
                     $destination_entity,
-                    array('value' => $derived_value),
+                    ['value' => $derived_value],
                     false,    // no sense trying to delay flush
                     false    // don't fire PostUpdate event...nothing depends on these fields
                 );
-                $this->logger->debug(' -- updating datafield '.$destination_entity->getDataField()->getId().' ('.$dest_rpf_name.'), '.$typeclass.' '.$destination_entity->getId().' with the value "'.$derived_value.'"...', array(self::class, 'onPostUpdate()'));
+                $this->logger->debug(' -- updating datafield '.$destination_entity->getDataField()->getId().' ('.$dest_rpf_name.'), '.$typeclass.' '.$destination_entity->getId().' with the value "'.$derived_value.'"...', [self::class, 'onPostUpdate()']);
 
                 // This only works because the datafields getting updated aren't files/images or
                 //  radio/tag fields
@@ -690,7 +609,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         }
         catch (\Exception $e) {
             // Can't really display the error to the user yet, but can log it...
-            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'onPostUpdate()', 'user '.$user->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()));
+            $this->logger->debug('-- (ERROR) '.$e->getMessage(), [self::class, 'onPostUpdate()', 'user '.$user->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()]);
 
             if ( !is_null($destination_entity) ) {
                 // If an error was thrown, attempt to ensure any derived fields are blank
@@ -703,7 +622,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         finally {
             // Would prefer if these happened regardless of success/failure...
             if ( !is_null($destination_entity) ) {
-                $this->logger->debug('All changes saved', array(self::class, 'onPostUpdate()', 'dt '.$datatype->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()));
+                $this->logger->debug('All changes saved', [self::class, 'onPostUpdate()', 'dt '.$datatype->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()]);
                 self::clearCacheEntries($datarecord, $user, $destination_entity);
 
                 // Provide a reference to the entity that got changed
@@ -771,7 +690,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                     $source_value = $source_entity->getValue();
                     if ($typeclass === 'DatetimeValue')
                         $source_value = $source_value->format('Y-m-d H:i:s');
-                    $this->logger->debug('Attempting to derive a value from dt '.$datatype->getId().', dr '.$datarecord->getId().', df '.$datafield->getId().' ('.$rpf_name.'): "'.$source_value.'"...', array(self::class, 'onMassEditTrigger()'));
+                    $this->logger->debug('Attempting to derive a value from dt '.$datatype->getId().', dr '.$datarecord->getId().', df '.$datafield->getId().' ('.$rpf_name.'): "'.$source_value.'"...', [self::class, 'onMassEditTrigger()']);
 
                     // Store the renderpluginfield name that will be modified
                     $dest_rpf_name = null;
@@ -794,11 +713,11 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                     $this->entity_modify_service->updateStorageEntity(
                         $user,
                         $destination_entity,
-                        array('value' => $derived_value),
+                        ['value' => $derived_value],
                         false,    // no sense trying to delay flush
                         false    // don't fire PostUpdate event...nothing depends on these fields
                     );
-                    $this->logger->debug(' -- updating datafield '.$destination_entity->getDataField()->getId().' ('.$dest_rpf_name.'), '.$typeclass.' '.$destination_entity->getId().' with the value "'.$derived_value.'"...', array(self::class, 'onMassEditTrigger()'));
+                    $this->logger->debug(' -- updating datafield '.$destination_entity->getDataField()->getId().' ('.$dest_rpf_name.'), '.$typeclass.' '.$destination_entity->getId().' with the value "'.$derived_value.'"...', [self::class, 'onMassEditTrigger()']);
 
                     // This only works because the datafields getting updated aren't files/images or
                     //  radio/tag fields
@@ -807,7 +726,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         }
         catch (\Exception $e) {
             // Can't really display the error to the user yet, but can log it...
-            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'onMassEditTrigger()', 'user '.$user->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()));
+            $this->logger->debug('-- (ERROR) '.$e->getMessage(), [self::class, 'onMassEditTrigger()', 'user '.$user->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()]);
 
             if ( !is_null($destination_entity) ) {
                 // If an error was thrown, attempt to ensure any derived fields are blank
@@ -820,7 +739,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         finally {
             // Would prefer if these happened regardless of success/failure...
             if ( !is_null($destination_entity) ) {
-                $this->logger->debug('All changes saved', array(self::class, 'onMassEditTrigger()', 'dt '.$datatype->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()));
+                $this->logger->debug('All changes saved', [self::class, 'onMassEditTrigger()', 'dt '.$datatype->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()]);
                 self::clearCacheEntries($datarecord, $user, $destination_entity);
             }
         }
@@ -844,10 +763,10 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             return null;
 
         // Only interested in changes made to the datafields mapped to these rpf entries
-        $relevant_datafields = array(
+        $relevant_datafields = [
             'IMA Formula' => 'Chemistry Elements',
             'RRUFF Formula' => 'Valence Elements',
-        );
+        ];
 
         foreach ($dt_array[$datatype->getId()]['renderPluginInstances'] as $rpi_id => $rpi) {
             if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.ima' ) {
@@ -918,11 +837,11 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
     {
         // Locate the elements in the IMA formula
         $ima_pattern = '/(REE|[A-Z][a-z]?)/';    // Attempt to locate 'REE' first, then fallback to a capital letter followed by an optional lowercase letter
-        $ima_matches = array();
+        $ima_matches = [];
         preg_match_all($ima_pattern, $ima_formula, $ima_matches);
 
         // Create a unique list of tokens from the array of elements
-        $ima_elements = array();
+        $ima_elements = [];
         foreach ($ima_matches[1] as $num => $elem)
             $ima_elements[$elem] = 1;
         $ima_elements = array_keys($ima_elements);
@@ -951,7 +870,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
     {
         // Locate the elements and the valences in the RRUFF formula...valences look like "^6+^" or "^2-^"
         $rruff_pattern = '/(REE|[A-Z][a-z]?|\^\d[\+\-]\^)/';    // Attempt to locate 'REE' first, then fallback to a capital letter followed by an optional lowercase letter, then fallback to a valence indicator
-        $rruff_matches = array();
+        $rruff_matches = [];
         preg_match_all($rruff_pattern, $rruff_formula, $rruff_matches, PREG_OFFSET_CAPTURE);
 
         // There are mineral formulas that have stuff like  (AsS)^3-^  or  (C_2_)^6+^O_4_)_2_
@@ -960,7 +879,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             $elem = $elem_pos[0];
             $pos = $elem_pos[1];
 
-            if ( strpos($elem, '^') !== false ) {
+            if ( str_contains($elem, '^') ) {
                 $previous_char = $rruff_formula[$pos-1];
 
                 // Recombine valence states with the immediately preceeding element, if it exists
@@ -978,7 +897,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         }
 
         // Create a unique list of tokens from the modified array
-        $rruff_elements = array();
+        $rruff_elements = [];
         foreach ($rruff_matches[1] as $num => $elem_pos) {
             $elem = $elem_pos[0];
             $rruff_elements[$elem] = 1;
@@ -1008,16 +927,16 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                 $this->entity_modify_service->updateStorageEntity(
                     $user,
                     $destination_storage_entity,
-                    array('value' => ''),
+                    ['value' => ''],
                     false,    // no point delaying flush
                     false    // don't fire PostUpdate event...nothing depends on these fields
                 );
-                $this->logger->debug('-- -- updating dr '.$dr->getId().', df '.$df->getId().' to have the value ""...', array(self::class, 'saveOnError()'));
+                $this->logger->debug('-- -- updating dr '.$dr->getId().', df '.$df->getId().' to have the value ""...', [self::class, 'saveOnError()']);
             }
         }
         catch (\Exception $e) {
             // Some other error...no way to recover from it
-            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'saveOnError()', 'user '.$user->getId(), 'dr '.$dr->getId(), 'df '.$df->getId()));
+            $this->logger->debug('-- (ERROR) '.$e->getMessage(), [self::class, 'saveOnError()', 'user '.$user->getId(), 'dr '.$dr->getId(), 'df '.$df->getId()]);
         }
     }
 
@@ -1048,7 +967,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             $event = new DatarecordModifiedEvent($datarecord, $user);
             $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             // ...don't want to rethrow the error since it'll interrupt everything after this
             //  event
 //            if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -1065,16 +984,16 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         // Only override when called from the 'display' or 'edit' contexts...though at the moment,
         //  ODR only calls this via the 'edit' context
         if ( $rendering_context !== 'edit' && $rendering_context !== 'display' )
-            return array();
+            return [];
 
         // Sanity checks
         if ( $render_plugin_instance->getRenderPlugin()->getPluginClassName() !== 'odr_plugins.rruff.ima' )
-            return array();
+            return [];
         $datatype = $datafield->getDataType();
         if ( $datatype->getId() !== $datarecord->getDataType()->getId() )
-            return array();
+            return [];
         if ( $render_plugin_instance->getDataType()->getId() !== $datatype->getId() )
-            return array();
+            return [];
 
 
         // Want the derived fields in IMA to complain if they're blank, but their source field isn't
@@ -1098,16 +1017,16 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             if ( isset($derivation_problems[$datafield->getId()]) ) {
                 // The derived field does not have a value, but the source field does...render the
                 //  plugin's template instead of the default
-                return array(
-                    'token_list' => array(),    // so ODRRenderService generates CSRF tokens
+                return [
+                    'token_list' => [],    // so ODRRenderService generates CSRF tokens
                     'template_name' => 'ODROpenRepositoryGraphBundle:RRUFF:IMA/ima_edit_datafield_reload.html.twig',
                     'problem_fields' => $derivation_problems,
-                );
+                ];
             }
         }
 
         // Otherwise, don't want to override the default reloading for this field
-        return array();
+        return [];
     }
 
 
@@ -1118,7 +1037,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
     {
         // Don't execute on instances of other render plugins
         if ( $render_plugin_instance['renderPlugin']['pluginClassName'] !== 'odr_plugins.rruff.ima' )
-            return array();
+            return [];
         $render_plugin_map = $render_plugin_instance['renderPluginMap'];
 
         // The IMA plugin has two derived fields...
@@ -1132,10 +1051,10 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
         // Since a datafield could be derived from multiple datafields, the source datafields need
         //  to be in an array (even though that's not the case for the IMA Plugin)
-        return array(
-            $chemistry_elements_df_id => array($ima_formula_df_id),
-            $valence_elements_df_id => array($rruff_formula_df_id),
-        );
+        return [
+            $chemistry_elements_df_id => [$ima_formula_df_id],
+            $valence_elements_df_id => [$rruff_formula_df_id],
+        ];
     }
 
 
@@ -1148,12 +1067,12 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             throw new ODRException('Invalid plugin config');
 
         // Only interested in overriding datafields mapped to these rpf entries
-        $relevant_datafields = array(
+        $relevant_datafields = [
             'IMA Formula' => 'Chemistry Elements',
             'RRUFF Formula' => 'Valence Elements',
-        );
+        ];
 
-        $ret = array();
+        $ret = [];
         foreach ($render_plugin_instance['renderPluginMap'] as $rpf_name => $rpf) {
             if ( isset($relevant_datafields[$rpf_name]) )
                 $ret[] = $rpf['id'];
@@ -1169,12 +1088,12 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
     public function getMassEditTriggerFields($render_plugin_instance)
     {
         // Only interested in overriding datafields mapped to these rpf entries
-        $relevant_datafields = array(
+        $relevant_datafields = [
             'IMA Formula' => 'Chemistry Elements',
             'RRUFF Formula' => 'Valence Elements',
-        );
+        ];
 
-        $trigger_fields = array();
+        $trigger_fields = [];
         foreach ($render_plugin_instance['renderPluginMap'] as $rpf_name => $rpf) {
             if ( isset($relevant_datafields[$rpf_name]) ) {
                 // The relevant fields should only have the MassEditTrigger event activated when the
@@ -1193,7 +1112,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
     public function canExecuteSearchPlugin($render_plugin_instance, $datatype, $datafield, $rendering_options)
     {
         // Don't want to override any part of the search sidebar specifically
-        return array();
+        return [];
     }
 
 
@@ -1215,9 +1134,9 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         // The array entry for 'Mineral Display Name' will only exist if the search system needs to
         //  run a search on the field
         if ( isset($df_list['Mineral Display Name']) )
-            return array( 'Mineral Display Name' => $df_list['Mineral Display Name'] );
+            return [ 'Mineral Display Name' => $df_list['Mineral Display Name'] ];
         else
-            return array();
+            return [];
     }
 
 
@@ -1235,8 +1154,8 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
         // ----------------------------------------
         // Not going to fundamentally change how the searches are done...
-        $mineral_aliases_search_results = array('records' => array());
-        $mineral_ascii_name_search_results = array('records' => array());
+        $mineral_aliases_search_results = ['records' => []];
+        $mineral_ascii_name_search_results = ['records' => []];
 
         $search_value = $search_term['value'];
         $mineral_name_search_results = $this->search_service->searchTextOrNumberDatafield($mineral_name_df, $search_value);
@@ -1264,11 +1183,11 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             $final_dr_list[$dr_id] = 1;
 
         // ...and then returned as if it was any other search result
-        return array(
+        return [
             'dt_id' => $mineral_name_search_results['dt_id'],
             'records' => $final_dr_list,
             'guard' => $involves_empty_string,
-        );
+        ];
     }
 
 
@@ -1305,8 +1224,8 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
 
         // Only need to return values for the datafields getting overridden
-        return array(
+        return [
             $valence_elements_df_id => $valence_elements_df_value,
-        );
+        ];
     }
 }

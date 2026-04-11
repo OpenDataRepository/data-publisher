@@ -25,26 +25,6 @@ class PluginOptionsChangedEvent extends Event implements ODREventInterface
     // Best practice is apparently to have the Event class define the event name
     const NAME = 'odr.event.plugin_options_changed_event';
 
-    /**
-     * @var RenderPluginInstance
-     */
-    private $render_plugin_instance;
-
-    /**
-     * @var ODRUser
-     */
-    private $user;
-
-    /**
-     * @var array
-     */
-    private $changed_fields;
-
-    /**
-     * @var array
-     */
-    private $changed_options;
-
 
     /**
      * PluginOptionsChangedEvent constructor.
@@ -54,16 +34,8 @@ class PluginOptionsChangedEvent extends Event implements ODREventInterface
      * @param array $changed_fields
      * @param array $changed_options
      */
-    public function __construct(
-        RenderPluginInstance $render_plugin_instance,
-        ODRUser $user,
-        $changed_fields,
-        $changed_options
-    ) {
-        $this->render_plugin_instance = $render_plugin_instance;
-        $this->user = $user;
-        $this->changed_fields = $changed_fields;
-        $this->changed_options = $changed_options;
+    public function __construct(private readonly RenderPluginInstance $render_plugin_instance, private readonly ODRUser $user, private $changed_fields, private $changed_options)
+    {
     }
 
 
@@ -121,9 +93,9 @@ class PluginOptionsChangedEvent extends Event implements ODREventInterface
      */
     public function getErrorInfo()
     {
-        return array(
+        return [
             self::NAME,
             'rpi '.$this->render_plugin_instance->getId(),
-        );
+        ];
     }
 }

@@ -34,25 +34,13 @@ class URLPlugin implements DatafieldPluginInterface, TableResultsOverrideInterfa
 {
 
     /**
-     * @var DatarecordInfoService
-     */
-    private $dri_service;
-
-    /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-
-    /**
      * URLPlugin constructor.
      *
      * @param DatarecordInfoService $dri_service
      * @param EngineInterface $templating
      */
-    public function __construct(DatarecordInfoService $dri_service, EngineInterface $templating) {
-        $this->dri_service = $dri_service;
-        $this->templating = $templating;
+    public function __construct(private readonly DatarecordInfoService $dri_service, private readonly EngineInterface $templating)
+    {
     }
 
 
@@ -107,28 +95,15 @@ class URLPlugin implements DatafieldPluginInterface, TableResultsOverrideInterfa
             if ( isset($datarecord['dataRecordFields'][ $datafield['id'] ]) ) {
                 $drf = $datarecord['dataRecordFields'][ $datafield['id'] ];
                 $entity = '';
-                switch ( $datafield['dataFieldMeta']['fieldType']['typeClass'] ) {
-                    case 'IntegerValue':
-                        $entity = $drf['integerValue'];
-                        break;
-                    case 'ShortVarchar':
-                        $entity = $drf['shortVarchar'];
-                        break;
-                    case 'MediumVarchar':
-                        $entity = $drf['mediumVarchar'];
-                        break;
-                    case 'LongVarchar':
-                        $entity = $drf['longVarchar'];
-                        break;
-                    case 'LongText':
-                        $entity = $drf['longText'];
-                        break;
-
-                    default:
-                        throw new \Exception('Invalid Fieldtype');
-                        break;
-                }
-                $value = trim( $entity[0]['value'] );
+                $entity = match ($datafield['dataFieldMeta']['fieldType']['typeClass']) {
+                    'IntegerValue' => $drf['integerValue'],
+                    'ShortVarchar' => $drf['shortVarchar'],
+                    'MediumVarchar' => $drf['mediumVarchar'],
+                    'LongVarchar' => $drf['longVarchar'],
+                    'LongText' => $drf['longText'],
+                    default => throw new \Exception('Invalid Fieldtype'),
+                };
+                $value = trim( (string) $entity[0]['value'] );
             }
             else {
                 // No datarecordfield entry for this datarecord/datafield pair...because of the
@@ -164,12 +139,12 @@ class URLPlugin implements DatafieldPluginInterface, TableResultsOverrideInterfa
             else if ( $rendering_options['context'] === 'display' ) {
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:Base:URL/url_display_datafield.html.twig',
-                    array(
+                    [
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,
 
                         'value' => $str,
-                    )
+                    ]
                 );
             }
 
@@ -295,7 +270,7 @@ class URLPlugin implements DatafieldPluginInterface, TableResultsOverrideInterfa
         $df_id = $datafield['id'];
 
         // Still need to find the value for this datafield in the given datarecord...
-        $value = array();
+        $value = [];
         if ( isset($datarecord['dataRecordFields'][$df_id]) ) {
             $drf = $datarecord['dataRecordFields'][$df_id];
 

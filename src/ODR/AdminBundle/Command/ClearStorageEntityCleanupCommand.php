@@ -54,7 +54,7 @@ class ClearStorageEntityCleanupCommand extends ContainerAwareCommand
             else
                 $job = $pheanstalk->watch('storage_entity_cleanup')->ignore('default')->reserve();
 
-            $data = json_decode($job->getData());
+            $data = json_decode((string) $job->getData());
             $job_source = $data->redis_prefix;
 
             $str = 'deleted job for table "'.$data->table.'" for datafield '.$data->datafield_id;

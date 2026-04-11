@@ -24,20 +24,12 @@ class TrackedPathService
 {
 
     /**
-     * @var RequestStack
-     */
-    private $requestStack;
-
-
-    /**
      * TrackedPathService constructor.
      *
-     * @param RequestStack $request_stack
+     * @param RequestStack $requestStack
      */
-    public function __construct(
-        RequestStack $request_stack
-    ) {
-        $this->requestStack = $request_stack;
+    public function __construct(private readonly RequestStack $requestStack)
+    {
     }
 
 

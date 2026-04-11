@@ -30,11 +30,6 @@ class PlugExtension extends \Twig_Extension
 {
 
     /**
-     * @var \Symfony\Component\DependencyInjection\Container
-     */
-    private $container;
-
-    /**
      * @var array
      */
     private $plugin_types;
@@ -45,17 +40,15 @@ class PlugExtension extends \Twig_Extension
      *
      * @param \Symfony\Component\DependencyInjection\Container $container
      */
-    public function __construct($container)
+    public function __construct(private $container)
     {
-        $this->container = $container;
-
-        $this->plugin_types = array(
+        $this->plugin_types = [
             RenderPlugin::DATATYPE_PLUGIN => 'datatype',
             RenderPlugin::THEME_ELEMENT_PLUGIN => 'themeElement',
             RenderPlugin::DATAFIELD_PLUGIN => 'datafield',
             RenderPlugin::DATAFIELD_HEADER_PLUGIN => 'datafieldHeader',
             RenderPlugin::ARRAY_PLUGIN => 'array',
-        );
+        ];
     }
 
     /**
@@ -63,38 +56,39 @@ class PlugExtension extends \Twig_Extension
      *
      * @return array An array of filters
      */
+    #[\Override]
     public function getFilters()
     {
-        return array(
-            new \Twig\TwigFilter('get_field_value', array($this, 'getFieldValueFilter')),
-            new \Twig\TwigFilter('get_value', array($this, 'getValueFilter')),
+        return [
+            new \Twig\TwigFilter('get_field_value', $this->getFieldValueFilter(...)),
+            new \Twig\TwigFilter('get_value', $this->getValueFilter(...)),
 
-            new \Twig\TwigFilter('can_execute_array_plugin', array($this, 'canExecuteArrayPluginFilter')),
-            new \Twig\TwigFilter('can_execute_datatype_plugin', array($this, 'canExecuteDatatypePluginFilter')),
-            new \Twig\TwigFilter('can_execute_theme_element_plugin', array($this, 'canExecuteThemeElementPluginFilter')),
-            new \Twig\TwigFilter('can_execute_datafield_plugin', array($this, 'canExecuteDatafieldPluginFilter')),
-            new \Twig\TwigFilter('can_execute_datafield_header_plugin', array($this, 'canExecuteDatafieldHeaderPluginFilter')),
-            new \Twig\TwigFilter('can_execute_search_plugin', array($this, 'canExecuteSearchPluginFilter')),
+            new \Twig\TwigFilter('can_execute_array_plugin', $this->canExecuteArrayPluginFilter(...)),
+            new \Twig\TwigFilter('can_execute_datatype_plugin', $this->canExecuteDatatypePluginFilter(...)),
+            new \Twig\TwigFilter('can_execute_theme_element_plugin', $this->canExecuteThemeElementPluginFilter(...)),
+            new \Twig\TwigFilter('can_execute_datafield_plugin', $this->canExecuteDatafieldPluginFilter(...)),
+            new \Twig\TwigFilter('can_execute_datafield_header_plugin', $this->canExecuteDatafieldHeaderPluginFilter(...)),
+            new \Twig\TwigFilter('can_execute_search_plugin', $this->canExecuteSearchPluginFilter(...)),
 
-            new \Twig\TwigFilter('array_plugin', array($this, 'arrayPluginFilter')),
-            new \Twig\TwigFilter('datatype_plugin', array($this, 'datatypePluginFilter')),
-            new \Twig\TwigFilter('theme_element_plugin_placeholder', array($this, 'themeElementPluginPlaceholderFilter')),
-            new \Twig\TwigFilter('theme_element_plugin', array($this, 'themeElementPluginFilter')),
-            new \Twig\TwigFilter('datafield_plugin', array($this, 'datafieldPluginFilter')),
-            new \Twig\TwigFilter('datafield_header_plugin', array($this, 'datafieldHeaderPluginFilter')),
-            new \Twig\TwigFilter('search_plugin', array($this, 'searchPluginFilter')),
+            new \Twig\TwigFilter('array_plugin', $this->arrayPluginFilter(...)),
+            new \Twig\TwigFilter('datatype_plugin', $this->datatypePluginFilter(...)),
+            new \Twig\TwigFilter('theme_element_plugin_placeholder', $this->themeElementPluginPlaceholderFilter(...)),
+            new \Twig\TwigFilter('theme_element_plugin', $this->themeElementPluginFilter(...)),
+            new \Twig\TwigFilter('datafield_plugin', $this->datafieldPluginFilter(...)),
+            new \Twig\TwigFilter('datafield_header_plugin', $this->datafieldHeaderPluginFilter(...)),
+            new \Twig\TwigFilter('search_plugin', $this->searchPluginFilter(...)),
 
-            new \Twig\TwigFilter('comma', array($this, 'commaFilter')),
-            new \Twig\TwigFilter('xml', array($this, 'xmlFilter')),
-            new \Twig\TwigFilter('is_public', array($this, 'isPublicFilter')),
-            new \Twig\TwigFilter('user_string', array($this, 'userStringFilter')),
-            new \Twig\TwigFilter('filesize', array($this, 'filesizeFilter')),
-            new \Twig\TwigFilter('is_empty', array($this, 'isEmptyFilter')),
-            new \Twig\TwigFilter('is_filtered', array($this, 'isFilteredDivFilter')),
-            new \Twig\TwigFilter('quality_json_decode', array($this, 'qualityJsonFilter')),
+            new \Twig\TwigFilter('comma', $this->commaFilter(...)),
+            new \Twig\TwigFilter('xml', $this->xmlFilter(...)),
+            new \Twig\TwigFilter('is_public', $this->isPublicFilter(...)),
+            new \Twig\TwigFilter('user_string', $this->userStringFilter(...)),
+            new \Twig\TwigFilter('filesize', $this->filesizeFilter(...)),
+            new \Twig\TwigFilter('is_empty', $this->isEmptyFilter(...)),
+            new \Twig\TwigFilter('is_filtered', $this->isFilteredDivFilter(...)),
+            new \Twig\TwigFilter('quality_json_decode', $this->qualityJsonFilter(...)),
 
-            new \Twig\TwigFilter('escape_namefield', array($this, 'nameFieldValueFilter')),
-        );
+            new \Twig\TwigFilter('escape_namefield', $this->nameFieldValueFilter(...)),
+        ];
     }
 
     /**
@@ -444,7 +438,7 @@ class PlugExtension extends \Twig_Extension
      * @return ArrayPluginReturn|string
      * @throws \Exception
      */
-    public function arrayPluginFilter($datarecord_array, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array())
+    public function arrayPluginFilter($datarecord_array, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = [])
     {
         try {
             // Ensure this only is run on a render plugin for a datatype
@@ -482,7 +476,7 @@ class PlugExtension extends \Twig_Extension
      * @return string
      * @throws \Exception
      */
-    public function datatypePluginFilter($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
+    public function datatypePluginFilter($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = [], $datatype_permissions = [], $datafield_permissions = [], $token_list = [])
     {
         try {
             // Ensure this only is run on a render plugin for a datatype
@@ -516,7 +510,7 @@ class PlugExtension extends \Twig_Extension
      * @return string
      * @throws \Exception
      */
-    public function themeElementPluginFilter($datarecord, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $datatype_permissions = array(), $datafield_permissions = array())
+    public function themeElementPluginFilter($datarecord, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $datatype_permissions = [], $datafield_permissions = [])
     {
         try {
             // Ensure this only is run on a render plugin for a datatype
@@ -706,7 +700,7 @@ class PlugExtension extends \Twig_Extension
             $pos = strripos($str, "}");
             return substr($str, 0, $pos + 1);
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             throw new \Exception("Error executing COMMA filter: [[[" . $str . "]]]");
         }
     }
@@ -723,12 +717,12 @@ class PlugExtension extends \Twig_Extension
     public function xmlFilter($str)
     {
         try {
-            $str = str_replace( array('&'), array('&amp;'), $str);
-            $str = str_replace( array('>', '<', '"'), array('&gt;', '&lt;', '&quot;') , $str);
+            $str = str_replace( ['&'], ['&amp;'], $str);
+            $str = str_replace( ['>', '<', '"'], ['&gt;', '&lt;', '&quot;'] , $str);
 
             return $str;
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             throw new \Exception("Error executing XML filter");
         }
     }
@@ -755,7 +749,7 @@ class PlugExtension extends \Twig_Extension
                 throw new \Exception();
             }
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             throw new \Exception("Error executing is_public filter");
         }
     }
@@ -996,21 +990,21 @@ class PlugExtension extends \Twig_Extension
      */
     public function nameFieldValueFilter($str)
     {
-        if ( strpos($str, '<') !== false || strpos($str, '>') !== false ) {
+        if ( str_contains((string) $str, '<') || str_contains((string) $str, '>') ) {
             // Due to the complicated overbar span (and maybe some other ones in the future), it's more
             //  effective to first explode the string on '<' and '>'.  Due to having two separators,
             //  it's "better" to do this "manually"
-            $pieces = array();
+            $pieces = [];
             $prev = 0;
 
-            $len = mb_strlen($str);
+            $len = mb_strlen((string) $str);
             for ($i = 0; $i < $len; $i++) {
                 // Need to use mb_substr() due to unicode characters...
-                $char = mb_substr($str, $i, 1);
+                $char = mb_substr((string) $str, $i, 1);
 
                 if ( $char === '<' || $char === '>' ) {
                     // Store the string before this symbol
-                    $piece = mb_substr($str, $prev, ($i-$prev));
+                    $piece = mb_substr((string) $str, $prev, ($i-$prev));
                     $pieces[] = $piece;
                     // Store the symbol itself
                     $pieces[] = $char;
@@ -1019,14 +1013,14 @@ class PlugExtension extends \Twig_Extension
                 }
             }
             // Get the remaining part of the string in the array
-            $piece = mb_substr($str, $prev, $i);
+            $piece = mb_substr((string) $str, $prev, $i);
             $pieces[] = $piece;
 
             // ----------------------------------------
             // Unfortunately, we kind of need to partially verify HTML structure here...leaving an
             //  unclosed <i>, <b>, etc tag is going to mess up the rest of the page.  The easiest way
             //  to do this is to partially recombine the string in the following for loop
-            $html_fragments = array();
+            $html_fragments = [];
 
             $num_pieces = count($pieces);
             for ($i = 0; $i < $num_pieces; $i++) {
@@ -1039,7 +1033,7 @@ class PlugExtension extends \Twig_Extension
                     if ( ($i+2 < $num_pieces) && $pieces[$i+2] === '>' ) {
                         // ...then it could be an HTML tag
                         $potential_tag = $pieces[$i+1];
-                        if ( strpos($potential_tag, '/') === 0 )
+                        if ( str_starts_with($potential_tag, '/') )
                             $potential_tag = substr($potential_tag, 1);
 
                         switch ($potential_tag) {
@@ -1085,7 +1079,7 @@ class PlugExtension extends \Twig_Extension
             // ----------------------------------------
             // Due to the small subset of permitted HTML tags, we should be able to verify "valid"
             //  HTML with a simple stack setup
-            $stack = array();
+            $stack = [];
 
             $num_pieces = count($html_fragments);
             for ($i = 0; $i < $num_pieces; $i++) {
@@ -1117,7 +1111,7 @@ class PlugExtension extends \Twig_Extension
                         if ( $piece !== $tmp ) {
                             // If the most recently pushed item doesn't match this piece, then
                             //  don't attempt to recover...just escape the entire string and return
-                            return str_replace(array('<', '>'), array('&lt;', '&gt;'), $str);
+                            return str_replace(['<', '>'], ['&lt;', '&gt;'], $str);
                         }
                     default:
                         /* do nothing */
@@ -1127,7 +1121,7 @@ class PlugExtension extends \Twig_Extension
             if ( count($stack) > 0 ) {
                 // If there's something left on the stack, then the opening/closing tags are mismatched
                 // Don't attempt to recover or "fix" the HTML...just escape the entire string and return
-                return str_replace(array('<', '>'), array('&lt;', '&gt;'), $str);
+                return str_replace(['<', '>'], ['&lt;', '&gt;'], $str);
             }
             else {
                 // If there's nothing left on the stack, then it's "valid enough"...recombine the

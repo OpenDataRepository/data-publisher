@@ -43,10 +43,10 @@ class ThemeInfoService
      *
      * @var string[]
      */
-    const THEME_TYPES = array(
+    const THEME_TYPES = [
         'master',
         'custom',
-    );
+    ];
 
     /**
      * This value is stored as a bitfield in the database, because the user could potentially want
@@ -54,69 +54,26 @@ class ThemeInfoService
      *
      * @var string[]
      */
-    const PAGE_TYPES = array(
+    const PAGE_TYPES = [
         1 => 'search_results',
         2 => 'display',
 //        4 => 'edit',
         8 => 'linking',    // TODO - differentiate between the "currently linked" table and the "linking search results"?
-    );
-
-
-    /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var CacheService
-     */
-    private $cache_service;
-
-    /**
-     * @var DatatreeInfoService
-     */
-    private $datatree_info_service;
-
-    /**
-     * @var PermissionsManagementService
-     */
-    private $permissions_service;
-
-    /**
-     * @var Session
-     */
-    private $session;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
+    ];
 
 
     /**
      * ThemeInfoService constructor.
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param CacheService $cache_service
      * @param DatatreeInfoService $datatree_info_service
      * @param PermissionsManagementService $permissions_service
      * @param Session $session
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        CacheService $cache_service,
-        DatatreeInfoService $datatree_info_service,
-        PermissionsManagementService $permissions_service,
-        Session $session,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->cache_service = $cache_service;
-        $this->datatree_info_service = $datatree_info_service;
-        $this->permissions_service = $permissions_service;
-        $this->session = $session;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly DatatreeInfoService $datatree_info_service, private readonly PermissionsManagementService $permissions_service, private readonly Session $session, private readonly Logger $logger)
+    {
     }
 
 
@@ -147,16 +104,16 @@ class ThemeInfoService
             AND t = t.parentTheme AND t.deletedAt IS NULL AND tp.deletedAt IS NULL
             ORDER BY tm.displayOrder, tm.templateName'
         )->setParameters(
-            array(
+            [
                 'datatype_id' => $datatype->getId(),
                 'user_id' => $user_id,    // Only get theme preference entries belonging to the user calling the function
-            )
+            ]
         );
         $results = $query->getArrayResult();
 
         // Filter the list of themes based on what the user is allowed to see
         $is_datatype_admin = $this->permissions_service->isDatatypeAdmin($user, $datatype);
-        $filtered_themes = array();
+        $filtered_themes = [];
         foreach ($results as $theme) {
             // Easier to extract some of these properties from the array...
             $theme_meta = $theme['themeMeta'][0];
@@ -177,7 +134,7 @@ class ThemeInfoService
                 || $is_datatype_admin
             ) {
                 // Themes can be defaults for multiple page_types...
-                $default_for_labels = array();
+                $default_for_labels = [];
                 $default_for = $theme_meta['defaultFor'];
                 foreach (self::PAGE_TYPES as $bit => $label) {
                     if ( $default_for & $bit )
@@ -186,7 +143,7 @@ class ThemeInfoService
 
                 // Users' preferred themes are independent of whether the theme is default for a
                 //  given page_type...
-                $user_preference_labels = array();
+                $user_preference_labels = [];
                 if ( !is_null($theme_preferences) ) {
                     $user_default_for = $theme_preferences['defaultFor'];
                     foreach (self::PAGE_TYPES as $bit => $label) {
@@ -203,7 +160,7 @@ class ThemeInfoService
                 if ($theme['themeType'] === 'master')
                     $theme_type = 'master';
 
-                $theme_record = array(
+                $theme_record = [
                     'id' => $theme['id'],
                     'name' => $theme_meta['templateName'],
                     'description' => $theme_meta['templateDescription'],
@@ -218,7 +175,7 @@ class ThemeInfoService
 
                     'default_for' => $default_for_labels,
                     'user_preference_for' => $user_preference_labels,
-                );
+                ];
 
                 $filtered_themes[] = $theme_record;
             }
@@ -341,12 +298,12 @@ class ThemeInfoService
 
 
         // Load any existing session themes
-        $session_themes = array();
+        $session_themes = [];
         if ( $this->session->has('session_themes') )
             $session_themes = $this->session->get('session_themes');
 
         if ( !isset($session_themes[$datatype_id]) )
-            $session_themes[$datatype_id] = array();
+            $session_themes[$datatype_id] = [];
 
         // Save the theme choice in the session
         $session_themes[$datatype_id][$page_type] = $theme_id;
@@ -370,7 +327,7 @@ class ThemeInfoService
         }
 
         // Load any existing session themes
-        $session_themes = array();
+        $session_themes = [];
         if ( $this->session->has('session_themes') )
             $session_themes = $this->session->get('session_themes');
 
@@ -418,11 +375,11 @@ class ThemeInfoService
             WHERE dt.id = :datatype_id
             AND tp.createdBy = :user_id AND (tp.default_for & :page_type_id)
             AND tp.deletedAt IS NULL AND t.deletedAt IS NULL AND dt.deletedAt IS NULL';
-        $params = array(
+        $params = [
             'datatype_id' => $datatype_id,
             'user_id' => $user->getId(),
             'page_type_id' => $page_type_id,
-        );
+        ];
         $conn = $this->em->getConnection();
         $results = $conn->executeQuery($query, $params);
 
@@ -473,11 +430,11 @@ class ThemeInfoService
             WHERE dt.id = :datatype_id
             AND tp.createdBy = :user_id AND (tp.default_for & :page_type_id)
             AND tp.deletedAt IS NULL AND t.deletedAt IS NULL AND dt.deletedAt IS NULL';
-        $params = array(
+        $params = [
             'datatype_id' => $theme->getDataType()->getId(),
             'user_id' => $user->getId(),
             'page_type_id' => $page_type_id,
-        );
+        ];
         $conn = $this->em->getConnection();
         $results = $conn->executeQuery($query, $params);
 
@@ -500,10 +457,10 @@ class ThemeInfoService
         // ----------------------------------------
         // Attempt to locate the ThemePreferences entry for the given Theme/User pair
         $tp = $this->em->getRepository('ODRAdminBundle:ThemePreferences')->findOneBy(
-            array(
+            [
                 'theme' => $theme->getId(),
                 'createdBy' => $user->getId(),
-            )
+            ]
         );
 
         // If one doesn't exist, create it
@@ -556,10 +513,10 @@ class ThemeInfoService
             WHERE t.data_type_id = :datatype_id AND (tm.default_for & :page_type_id)
             AND t.id = t.parent_theme_id
             AND t.deletedAt IS NULL AND tm.deletedAt IS NULL';
-        $params = array(
+        $params = [
             'datatype_id' => $datatype_id,
             'page_type_id' => $page_type_id,
-        );
+        ];
         $conn = $this->em->getConnection();
         $results = $conn->executeQuery($query, $params);
 
@@ -595,10 +552,10 @@ class ThemeInfoService
             AND t = t.sourceTheme
             AND t.deletedAt IS NULL AND tm.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'datatype_id' => $datatype_id,
                 'theme_type' => 'master',
-            )
+            ]
         );
         $result = $query->getResult();
 
@@ -628,7 +585,7 @@ class ThemeInfoService
             $theme_data = self::buildThemeData($parent_theme_id);
 
         // Organize by theme id
-        $theme_array = array();
+        $theme_array = [];
         foreach ($theme_data as $t_id => $data)
             $theme_array[$t_id] = $data;
 
@@ -696,7 +653,7 @@ class ThemeInfoService
             AND t.deletedAt IS NULL AND te.deletedAt IS NULL
 
             ORDER BY tem.displayOrder, te.id, tdf.displayOrder, df.id'
-        )->setParameters( array('parent_theme_id' => $parent_theme_id) );
+        )->setParameters( ['parent_theme_id' => $parent_theme_id] );
 
         $theme_data = $query->getArrayResult();
 
@@ -738,7 +695,7 @@ class ThemeInfoService
 
             // ----------------------------------------
             // Theme elements are ordered, so preserve $te_num
-            $new_te_array = array();
+            $new_te_array = [];
             foreach ($theme['themeElements'] as $te_num => $te) {
                 // Flatten theme_element_meta of each theme_element
                 if ( count($te['themeElementMeta']) == 0 ) {
@@ -815,7 +772,7 @@ class ThemeInfoService
 
             // ----------------------------------------
             // Going to store any RenderPluginThemeOptionMaps by their RenderPluginInstance
-            $new_rptom_array = array();
+            $new_rptom_array = [];
             foreach ($theme['renderPluginThemeOptionsMap'] as $rptom_num => $rptom) {
                 $rpi_id = $rptom['renderPluginInstance']['id'];
                 $rpo_name = $rptom['renderPluginOptionsDef']['name'];
@@ -825,7 +782,7 @@ class ThemeInfoService
                 unset( $rptom['renderPluginOptionsDef'] );
 
                 if ( !isset($new_rptom_array[$rpi_id]) )
-                    $new_rptom_array[$rpi_id] = array();
+                    $new_rptom_array[$rpi_id] = [];
                 if ( !isset($new_rptom_array[$rpi_id][$rpo_name]) )
                     $new_rptom_array[$rpi_id][$rpo_name] = $rpo_value;
             }
@@ -834,7 +791,7 @@ class ThemeInfoService
         }
 
         // Organize by theme id
-        $formatted_theme_data = array();
+        $formatted_theme_data = [];
         foreach ($theme_data as $num => $t_data) {
             $t_id = $t_data['id'];
             $formatted_theme_data[$t_id] = $t_data;
@@ -856,7 +813,7 @@ class ThemeInfoService
      */
     public function stackThemeArray($theme_array, $initial_theme_id)
     {
-        $current_theme = array();
+        $current_theme = [];
         if ( isset($theme_array[$initial_theme_id]) ) {
             $current_theme = $theme_array[$initial_theme_id];
 
@@ -866,8 +823,8 @@ class ThemeInfoService
                     foreach ($te['themeDataType'] as $tdt_num => $tdt) {
                         $child_theme_id = $tdt['childTheme']['id'];
 
-                        $tmp = array( $child_theme_id => self::stackThemeArray($theme_array, $child_theme_id) );
-                        $current_theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['childTheme'] = array('id' => $child_theme_id, 'theme' => $tmp);
+                        $tmp = [ $child_theme_id => self::stackThemeArray($theme_array, $child_theme_id) ];
+                        $current_theme['themeElements'][$te_num]['themeDataType'][$tdt_num]['childTheme'] = ['id' => $child_theme_id, 'theme' => $tmp];
                     }
                 }
             }
@@ -922,10 +879,10 @@ class ThemeInfoService
             FROM ODRAdminBundle:Theme AS t
             WHERE t.dataType IN (:datatype_ids) AND t = t.parentTheme
             AND t.deletedAt IS NULL'
-        )->setParameters( array('datatype_ids' => $top_level_datatypes) );
+        )->setParameters( ['datatype_ids' => $top_level_datatypes] );
         $results = $query->getArrayResult();
 
-        $top_level_themes = array();
+        $top_level_themes = [];
         foreach ($results as $result)
             $top_level_themes[] = $result['theme_id'];
 

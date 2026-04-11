@@ -724,52 +724,24 @@ class DataRecordFields
         $type_class = $this->getDataField()->getFieldType()->getTypeClass();
 
         $my_obj = null;
-        switch ($type_class) {
-            case 'Boolean':
-                $my_obj = $this->getBoolean();
-                break;
-            case 'File':
-                $my_obj = $this->getFile();
-                break;
-            case 'Image':
-                $my_obj = $this->getImage();
-                break;
-            case 'DecimalValue':
-                $my_obj = $this->getDecimalValue();
-                break;
-            case 'IntegerValue':
-                $my_obj = $this->getIntegerValue();
-                break;
-            case 'LongText':
-                $my_obj = $this->getLongText();
-                break;
-            case 'LongVarchar':
-                $my_obj = $this->getLongVarchar();
-                break;
-            case 'MediumVarchar':
-                $my_obj = $this->getMediumVarchar();
-                break;
-            case 'Radio':
-//                $my_obj = $this->getRadio();
-                $my_obj = array();
-                break;
-            case 'Tag':
-                $my_obj = array();
-                break;
-            case 'ShortVarchar':
-                $my_obj = $this->getShortVarchar();
-                break;
-            case 'DatetimeValue':
-                $my_obj = $this->getDatetimeValue();
-                break;
-            case 'XYZData':
-                $my_obj = $this->getXYZData();
-                break;
-
-            case 'Markdown':
-                $my_obj = null;
-                break;
-        }
+        $my_obj = match ($type_class) {
+            'Boolean' => $this->getBoolean(),
+            'File' => $this->getFile(),
+            'Image' => $this->getImage(),
+            'DecimalValue' => $this->getDecimalValue(),
+            'IntegerValue' => $this->getIntegerValue(),
+            'LongText' => $this->getLongText(),
+            'LongVarchar' => $this->getLongVarchar(),
+            'MediumVarchar' => $this->getMediumVarchar(),
+            //                $my_obj = $this->getRadio();
+            'Radio' => [],
+            'Tag' => [],
+            'ShortVarchar' => $this->getShortVarchar(),
+            'DatetimeValue' => $this->getDatetimeValue(),
+            'XYZData' => $this->getXYZData(),
+            'Markdown' => null,
+            default => $my_obj,
+        };
 
         return $my_obj;
     }

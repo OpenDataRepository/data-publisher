@@ -56,7 +56,7 @@ class FileHeaderInserterController extends ODRCustomController
      */
     public function rebuildallAction($dr_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -113,10 +113,10 @@ class FileHeaderInserterController extends ODRCustomController
 
             // Dig through what's left of the cached datatype array to find fields using the
             //  relevant plugins
-            $relevant_plugins = array('odr_plugins.base.file_header_inserter' => 1);
-            $conflicting_plugins = array('odr_plugins.rruff.file_header_inserter' => 1);
+            $relevant_plugins = ['odr_plugins.base.file_header_inserter' => 1];
+            $conflicting_plugins = ['odr_plugins.rruff.file_header_inserter' => 1];
 
-            $df_list = array();
+            $df_list = [];
             foreach ($dt_array as $dt_id => $dt) {
                 if ( !empty($dt['dataFields']) ) {
                     foreach ($dt['dataFields'] as $df_id => $df) {
@@ -137,7 +137,7 @@ class FileHeaderInserterController extends ODRCustomController
             }
 
             // Dig through the cached datarecord array to get the ids of other entities...
-            $drf_ids_list = array();
+            $drf_ids_list = [];
             foreach ($dr_array as $dr_id => $dr) {
                 if ( !empty($dr['dataRecordFields']) ) {
                     foreach ($df_list as $df_id => $num) {
@@ -159,13 +159,13 @@ class FileHeaderInserterController extends ODRCustomController
                 FROM ODRAdminBundle:DataRecordFields drf
                 WHERE drf.id IN (:drf_ids)
                 AND drf.deletedAt IS NULL'
-            )->setParameters( array('drf_ids' => array_keys($drf_ids_list)) );
+            )->setParameters( ['drf_ids' => array_keys($drf_ids_list)] );
             $drf_list = $query->getResult();
             /** @var DataRecordFields[] $drf_list */
 
 
             // ----------------------------------------
-            $updated_datafield_list = $updated_datarecord_list = array();
+            $updated_datafield_list = $updated_datarecord_list = [];
             foreach ($drf_list as $drf_id => $drf) {
                 // Shouldn't happen, but just in case...
                 if ( is_null($drf) )
@@ -195,7 +195,7 @@ class FileHeaderInserterController extends ODRCustomController
                         $event = new DatafieldModifiedEvent($df, $user);
                         $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
                     }
-                    catch (\Exception $e) {
+                    catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
                         //  event
 //                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -209,7 +209,7 @@ class FileHeaderInserterController extends ODRCustomController
                         $event = new DatarecordModifiedEvent($datarecord, $user);
                         $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
                     }
-                    catch (\Exception $e) {
+                    catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
                         //  event
 //                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -243,7 +243,7 @@ class FileHeaderInserterController extends ODRCustomController
      */
     public function rebuildAction($dr_id, $df_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -282,10 +282,10 @@ class FileHeaderInserterController extends ODRCustomController
 
             /** @var DataRecordFields $drf */
             $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
-                array(
+                [
                     'dataRecord' => $datarecord->getId(),
                     'dataField' => $datafield->getId(),
-                )
+                ]
             );
             // If no files are uploaded, then this drf entry can legitimately be null
 
@@ -353,7 +353,7 @@ class FileHeaderInserterController extends ODRCustomController
                 }
                 catch (\Exception $e) {
                     // Can't really display the error to the user yet, but can log it...
-                    $logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'rebuildAction()', 'drf '.$drf->getId()));
+                    $logger->debug('-- (ERROR) '.$e->getMessage(), [self::class, 'rebuildAction()', 'drf '.$drf->getId()]);
 
                     // Since this isn't a background job or an event, however, the suspected reason
                     //  for the problem can get displayed to the user
@@ -383,7 +383,7 @@ class FileHeaderInserterController extends ODRCustomController
                     $event = new DatarecordModifiedEvent($datarecord, $user);
                     $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
 //                        if ( $this->container->getParameter('kernel.environment') === 'dev' )

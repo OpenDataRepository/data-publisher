@@ -55,11 +55,11 @@ class SearchAPIService_templateTest extends WebTestCase
             // ----------------------------------------
             // Sanity check searches
             'IMA List: fieldstats' => [
-                array(
+                [
                     "template_uuid" => '1060f986e136779ce23576189b4c',
                     "field_stats" => 'afa7e6cb5c77cc7994630e4a6faa',
-                ),
-                array(),    // TODO - this doesn't return anything convenient to test against...
+                ],
+                [],    // TODO - this doesn't return anything convenient to test against...
                 true
             ],
         ];

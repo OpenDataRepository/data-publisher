@@ -39,60 +39,17 @@ class SortService
 {
 
     /**
-     * @var ContainerInterface
-     */
-    private $container;
-
-    /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var CacheService
-     */
-    private $cache_service;
-
-    /**
-     * @var EntityMetaModifyService
-     */
-    private $entity_modify_service;
-
-    /**
-     * @var SearchService
-     */
-    private $search_service;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * SortService constructor.
      *
      * @param ContainerInterface $container
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param CacheService $cache_service
-     * @param EntityMetaModifyService $entity_meta_modify_service
+     * @param EntityMetaModifyService $entity_modify_service
      * @param SearchService $search_service
      * @param Logger $logger
      */
-    public function __construct(
-        ContainerInterface $container,
-        EntityManager $entity_manager,
-        CacheService $cache_service,
-        EntityMetaModifyService $entity_meta_modify_service,
-        SearchService $search_service,
-        Logger $logger
-    ) {
-        $this->container = $container;
-        $this->em = $entity_manager;
-        $this->cache_service = $cache_service;
-        $this->entity_modify_service = $entity_meta_modify_service;
-        $this->search_service = $search_service;
-        $this->logger = $logger;
+    public function __construct(private readonly ContainerInterface $container, private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly SearchService $search_service, private readonly Logger $logger)
+    {
     }
 
 
@@ -114,7 +71,7 @@ class SortService
         }
         else if ($subset_str == '') {
             // User requested a sorted list but didn't specify any datarecords...return an empty array
-            return array();
+            return [];
         }
         else {
             // User specified they only wanted a subset of datarecords sorted...
@@ -241,7 +198,7 @@ class SortService
     {
         // NOTE - These fields ARE NOT GUARANTEED to belong to $datatype...it's possible that
         //  $datatype is referring to fields from one of its linked descendants
-        $datarecord_list = array();
+        $datarecord_list = [];
 
         if ( empty($fields) ) {
             // Need a list of all datarecords for this datatype
@@ -251,7 +208,7 @@ class SortService
                 WHERE dr.dataType = :datatype AND dr.provisioned = false
                 AND dr.deletedAt IS NULL
                 ORDER BY dr.id'
-            )->setParameters( array('datatype' => $datatype->getId()) );
+            )->setParameters( ['datatype' => $datatype->getId()] );
             $results = $query->getArrayResult();
 
             // The datatype doesn't have one of whatever special field, so have to use record ids
@@ -276,10 +233,10 @@ class SortService
 
             // While technically sorting ascending don't need a multisort, there are other places
             //  in ODR that need to sort in multiple directions...so this is kept similar
-            $sort_datafields = array();
-            $sort_directions = array();
-            $linked_datafields = array();
-            $numeric_datafields = array();
+            $sort_datafields = [];
+            $sort_directions = [];
+            $linked_datafields = [];
+            $numeric_datafields = [];
             foreach ($fields as $display_order => $df) {
                 $sort_datafields[$display_order] = $df->getId();
                 $sort_directions[$display_order] = 'asc';
@@ -351,7 +308,7 @@ class SortService
         // ----------------------------------------
         // This service also creates orderings of datarecords by individual datafields, which is the
         //  fastest way to get the values for a single datafield from all datarecords of a datatype
-        $datarecord_lists = array();
+        $datarecord_lists = [];
         foreach ($sort_datafields as $display_order => $sort_df_id) {
             $is_linked_datafield = $linked_datafields[$display_order];
             if ( !$is_linked_datafield )
@@ -364,10 +321,10 @@ class SortService
         //  can already be treated as individual columns for array_multisort(), but they can't be
         //  used directly because the first row in the first list likely belongs to a different
         //  datarecord as the first row from the second list...
-        $columns = array();
+        $columns = [];
         // Also might as well combine the values for each datarecord into a single string at this
         //  point, since other parts of ODR will want it
-        $combined_sortvalues = array();
+        $combined_sortvalues = [];
 
         // Using the first datarecord list to get the datarecord id...
         foreach ($datarecord_lists[0] as $dr_id => $sort_value) {
@@ -388,7 +345,7 @@ class SortService
 
         // Due to needing to handle an unknown number of sort fields, this function needs to build
         //  an array of arguments to pass to call_user_func_array()...
-        $args = array();
+        $args = [];
         foreach ($sort_directions as $display_order => $sort_dir) {
             // array_multisort() requires the data...
             $args[] = $columns[$display_order];
@@ -409,12 +366,12 @@ class SortService
         // The final argument needs to be the list of datarecord ids, otherwise array_multisort()
         //  will appear to do nothing
         $args[] = &$columns[$display_order+1];
-        call_user_func_array('array_multisort', $args);
+        call_user_func_array(array_multisort(...), $args);
 
         // array_multisort() will have modified the final argument...
         $sorted_dr_ids = array_pop($args);
         // ...which is used to rebuild the (dr_id => sort_value) array for returning
-        $datarecord_list = array();
+        $datarecord_list = [];
         foreach ($sorted_dr_ids as $num => $dr_id)
             $datarecord_list[$dr_id] = $combined_sortvalues[$dr_id];
 
@@ -497,11 +454,11 @@ class SortService
         // Check whether this list is already cached or not...
         $sorted_datarecord_list = $this->cache_service->get('cached_search_df_'.$datafield_id.'_ordering');
         if ( !$sorted_datarecord_list )
-            $sorted_datarecord_list = array();
+            $sorted_datarecord_list = [];
 
 
         // ----------------------------------------
-        $datarecord_list = array();
+        $datarecord_list = [];
         if ( !isset($sorted_datarecord_list[$sort_dir]) ) {
             // The requested list isn't in the cache...need to rebuild it
 
@@ -525,16 +482,16 @@ class SortService
                 AND rpom.deletedAt IS NULL AND rpod.deletedAt IS NULL
                 AND df.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'override_sort' => true,
                     'datafield_id' => $datafield_id,
-                )
+                ]
             );
             $results = $query->getArrayResult();
 
             // Should never be more than one result...
             $plugin_classname = null;
-            $render_plugin_options = array();
+            $render_plugin_options = [];
             foreach ($results as $result) {
                 $plugin_classname = $result['plugin_classname'];
                 $option_name = $result['rpod_name'];
@@ -577,10 +534,10 @@ class SortService
                     AND e.deletedAt IS NULL AND em.deletedAt IS NULL AND drf.deletedAt IS NULL
                     AND dr.deletedAt IS NULL'
                 )->setParameters(
-                    array(
+                    [
                         'datatype' => $datatype->getId(),
                         'datafield' => $datafield->getId(),
-                    )
+                    ]
                 );
                 $results = $query->getArrayResult();
 
@@ -604,10 +561,10 @@ class SortService
                     AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL AND rs.deletedAt IS NULL
                     AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
                 )->setParameters(
-                    array(
+                    [
                         'datatype' => $datatype->getId(),
                         'datafield' => $datafield->getId()
-                    )
+                    ]
                 );
                 $results = $query->getArrayResult();
 
@@ -621,7 +578,7 @@ class SortService
             }
             else {
                 // All other sortable fieldtypes have a value field that should be used
-                $results = array();
+                $results = [];
                 if ( !$use_converted_value ) {
                     $query = $this->em->createQuery(
                        'SELECT dr.id AS dr_id, e.value AS sort_value
@@ -631,10 +588,10 @@ class SortService
                         WHERE dr.dataType = :datatype AND e.dataField = :datafield
                         AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL'
                     )->setParameters(
-                        array(
+                        [
                             'datatype' => $datatype->getId(),
                             'datafield' => $datafield->getId()
-                        )
+                        ]
                     );
                     $results = $query->getArrayResult();
                 }
@@ -647,10 +604,10 @@ class SortService
                         WHERE dr.dataType = :datatype AND e.dataField = :datafield
                         AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL'
                     )->setParameters(
-                        array(
+                        [
                             'datatype' => $datatype->getId(),
                             'datafield' => $datafield->getId()
-                        )
+                        ]
                     );
                     $results = $query->getArrayResult();
                 }
@@ -728,10 +685,10 @@ class SortService
 
         /** @var DataFields $template_datafield */
         $template_datafield = $this->em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
-            array(
+            [
                 'fieldUuid' => $datafield_uuid,
                 'is_master_field' => true,
-            )
+            ]
         );
         if ($template_datafield == null)
             throw new ODRNotFoundException('Datafield', false, $exception_code);
@@ -785,11 +742,11 @@ class SortService
         // Check whether this list is already cached or not...
         $sorted_datarecord_list = $this->cache_service->get('cached_search_template_df_'.$datafield_uuid.'_ordering');
         if ( !$sorted_datarecord_list )
-            $sorted_datarecord_list = array();
+            $sorted_datarecord_list = [];
 
 
         // ----------------------------------------
-        $datarecord_list = array();
+        $datarecord_list = [];
         if ( !isset($sorted_datarecord_list[$sort_dir]) ) {
             // The requested list isn't in the cache...need to rebuild it
 
@@ -822,10 +779,10 @@ class SortService
                     AND e.deletedAt IS NULL AND em.deletedAt IS NULL AND drf.deletedAt IS NULL
                     AND df.deletedAt IS NULL AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL'
                 )->setParameters(
-                    array(
+                    [
                         'template_datatype' => $template_datatype->getId(),
                         'template_datafield' => $template_datafield->getId(),
-                    )
+                    ]
                 );
                 $results = $query->getArrayResult();
 
@@ -852,10 +809,10 @@ class SortService
                     AND drf.deletedAt IS NULL AND df.deletedAt IS NULL AND dr.deletedAt IS NULL
                     AND dt.deletedAt IS NULL'
                 )->setParameters(
-                    array(
+                    [
                         'template_datatype' => $template_datatype->getId(),
                         'template_datafield' => $template_datafield->getId(),
-                    )
+                    ]
                 );
                 $results = $query->getArrayResult();
 
@@ -880,10 +837,10 @@ class SortService
                     AND e.deletedAt IS NULL AND drf.deletedAt IS NULL
                     AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL'
                 )->setParameters(
-                    array(
+                    [
                         'template_datatype' => $template_datatype->getId(),
                         'template_datafield' => $template_datafield->getId(),
-                    )
+                    ]
                 );
                 $results = $query->getArrayResult();
 
@@ -1027,7 +984,7 @@ class SortService
 
 
         // ----------------------------------------
-        $datarecord_list = array();
+        $datarecord_list = [];
 //        if ( !isset($sorted_datarecord_list[$key]) ) {
             // Need a sorted list of the datarecords in $linked_datatype
             // Don't pass the subset str, it's for records of $local_datatype, not $linked_datatype
@@ -1114,24 +1071,24 @@ class SortService
             JOIN ro.radioOptionMeta AS rom
             WHERE ro.dataField = :datafield_id
             AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL'
-        )->setParameters( array('datafield_id' => $datafield->getId()) );
+        )->setParameters( ['datafield_id' => $datafield->getId()] );
         $results = $query->getArrayResult();
 
-        $radio_options = array();
+        $radio_options = [];
         foreach ($results as $result) {
             $ro_id = $result['ro_id'];
             $ro_name = $result['optionName'];
             $display_order = $result['displayOrder'];
 
-            $radio_options[$ro_id] = array('name' => $ro_name, 'order' => $display_order);
+            $radio_options[$ro_id] = ['name' => $ro_name, 'order' => $display_order];
         }
 
 
         // ----------------------------------------
         // Sort the radio options by name
-        uasort($radio_options, function($a, $b) {    // need to preserve array keys, since they're entity ids
-            return strnatcasecmp($a['name'], $b['name']);
-        });
+        uasort($radio_options, 
+            // need to preserve array keys, since they're entity ids
+            fn($a, $b) => strnatcasecmp((string) $a['name'], (string) $b['name']));
 
         // Save any changes in the sort order
         $index = 0;
@@ -1145,9 +1102,9 @@ class SortService
                 $ro = $repo_radio_options->find($option_id);
 
                 // ...so it can be updated to match the sorted list
-                $properties = array(
+                $properties = [
                     'displayOrder' => $index,
-                );
+                ];
                 $this->entity_modify_service->updateRadioOptionsMeta($user, $ro, $properties, true);    // don't flush immediately...
                 $changes_made = true;
             }
@@ -1191,10 +1148,10 @@ class SortService
             WHERE t.dataField = :datafield_id
             AND t.deletedAt IS NULL AND tm.deletedAt IS NULL
             AND tt.deletedAt IS NULL AND p_t.deletedAt IS NULL'
-        )->setParameters( array('datafield_id' => $datafield->getId()) );
+        )->setParameters( ['datafield_id' => $datafield->getId()] );
         $results = $query->getArrayResult();
 
-        $tag_groups = array();
+        $tag_groups = [];
         foreach ($results as $result) {
             $tag_id = $result['tag_id'];
             $tag_name = $result['tagName'];
@@ -1206,8 +1163,8 @@ class SortService
 
             // Each of the tags needs to be "grouped" by its parent
             if ( !isset($tag_groups[$parent_tag_id]) )
-                $tag_groups[$parent_tag_id] = array();
-            $tag_groups[$parent_tag_id][$tag_id] = array('name' => $tag_name, 'order' => $display_order);
+                $tag_groups[$parent_tag_id] = [];
+            $tag_groups[$parent_tag_id][$tag_id] = ['name' => $tag_name, 'order' => $display_order];
         }
 
 
@@ -1215,9 +1172,9 @@ class SortService
         // Each "group" of tags can then be sorted individually
         foreach ($tag_groups as $parent_tag_id => $tag_group) {
             $tmp = $tag_group;
-            uasort($tmp, function($a, $b) {    // need to preserve array keys, since they're tag ids
-                return strnatcasecmp($a['name'], $b['name']);
-            });
+            uasort($tmp, 
+                // need to preserve array keys, since they're tag ids
+                fn($a, $b) => strnatcasecmp((string) $a['name'], (string) $b['name']));
             $tag_groups[$parent_tag_id] = $tmp;
         }
 
@@ -1234,9 +1191,9 @@ class SortService
                     $tag = $repo_tags->find($tag_id);
 
                     // ...so it can be updated to match the sorted list
-                    $properties = array(
+                    $properties = [
                         'displayOrder' => $index
-                    );
+                    ];
                     $this->entity_modify_service->updateTagMeta($user, $tag, $properties, true);    // don't flush immediately...
                     $changes_made = true;
                 }
@@ -1310,7 +1267,7 @@ class SortService
         else {
             // If this is a child record, then we have to check against its sibling records, and not
             //  every single record of this childtype
-            $sibling_records = array();
+            $sibling_records = [];
             $parent_datarecord_id = $datarecord->getParent()->getId();
 
             // SearchService is the faster way to get the parents of the child records

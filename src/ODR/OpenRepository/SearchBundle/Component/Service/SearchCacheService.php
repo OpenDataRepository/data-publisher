@@ -46,26 +46,6 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 class SearchCacheService implements EventSubscriberInterface
 {
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var CacheService
-     */
-    private $cache_service;
-
-    /**
-     * @var DatatreeInfoService
-     */
-    private $datatree_info_service;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-    /**
      * @var boolean
      */
     private $debug;
@@ -74,24 +54,18 @@ class SearchCacheService implements EventSubscriberInterface
     /**
      * SearchCacheService constructor.
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param CacheService $cache_service
      * @param DatatreeInfoService $datatree_info_service
      * @param Logger $logger
      */
     public function __construct(
-        EntityManager $entity_manager,
-        CacheService $cache_service,
-        DatatreeInfoService $datatree_info_service,
-        Logger $logger
+        private readonly EntityManager $em,
+        private readonly CacheService $cache_service,
+        private readonly DatatreeInfoService $datatree_info_service,
+        private readonly Logger $logger
     ) {
-        $this->em = $entity_manager;
-        $this->cache_service = $cache_service;
-        $this->datatree_info_service = $datatree_info_service;
-        $this->logger = $logger;
-
-
-//        $this->debug = false;
+        //        $this->debug = false;
         $this->debug = true;
     }
 
@@ -101,7 +75,7 @@ class SearchCacheService implements EventSubscriberInterface
      */
     public static function getSubscribedEvents()
     {
-        return array(
+        return [
             // Datatype
             // Don't need an onDatatypeCreate() function...none of the relevant cache entries exist
 //            DatatypeCreatedEvent::NAME => 'onDatatypeCreate',
@@ -131,7 +105,7 @@ class SearchCacheService implements EventSubscriberInterface
             //  search cache
 
             // TODO - Nate is also going to eventually need events for Layout changes
-        );
+        ];
     }
 
 
@@ -155,8 +129,8 @@ class SearchCacheService implements EventSubscriberInterface
         if (!$include_deleted)
             $query .= ' AND df.deletedAt IS NULL';
 
-        $parameters = array(1 => $datatype_ids);
-        $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+        $parameters = [1 => $datatype_ids];
+        $types = [1 => DBALConnection::PARAM_INT_ARRAY];
         $results = $conn->fetchAll($query, $parameters, $types);
 
         if ( is_array($results) ) {
@@ -197,8 +171,8 @@ class SearchCacheService implements EventSubscriberInterface
         if (!$include_deleted)
             $query .= ' AND ro.deletedAt IS NULL AND df.deletedAt IS NULL';
 
-        $parameters = array(1 => $datatype_ids);
-        $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+        $parameters = [1 => $datatype_ids];
+        $types = [1 => DBALConnection::PARAM_INT_ARRAY];
         $results = $conn->fetchAll($query, $parameters, $types);
 
         if ( is_array($results) ) {
@@ -235,8 +209,8 @@ class SearchCacheService implements EventSubscriberInterface
         if (!$include_deleted)
             $query .= ' AND t.deletedAt IS NULL AND df.deletedAt IS NULL';
 
-        $parameters = array(1 => $datatype_ids);
-        $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+        $parameters = [1 => $datatype_ids];
+        $types = [1 => DBALConnection::PARAM_INT_ARRAY];
         $results = $conn->fetchAll($query, $parameters, $types);
 
         if ( is_array($results) ) {
@@ -272,8 +246,8 @@ class SearchCacheService implements EventSubscriberInterface
         if (!$include_deleted)
             $query .= ' AND ro.deletedAt IS NULL';
 
-        $parameters = array(1 => $datafield_ids);
-        $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+        $parameters = [1 => $datafield_ids];
+        $types = [1 => DBALConnection::PARAM_INT_ARRAY];
         $results = $conn->fetchAll($query, $parameters, $types);
 
         if ( is_array($results) ) {
@@ -309,8 +283,8 @@ class SearchCacheService implements EventSubscriberInterface
         if (!$include_deleted)
             $query .= ' AND t.deletedAt IS NULL';
 
-        $parameters = array(1 => $datafield_ids);
-        $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+        $parameters = [1 => $datafield_ids];
+        $types = [1 => DBALConnection::PARAM_INT_ARRAY];
         $results = $conn->fetchAll($query, $parameters, $types);
 
         if ( is_array($results) ) {
@@ -349,7 +323,7 @@ class SearchCacheService implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
@@ -381,7 +355,7 @@ class SearchCacheService implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
@@ -414,7 +388,7 @@ class SearchCacheService implements EventSubscriberInterface
         $results = $conn->fetchAll($query);
 
         $grandparent_datatype_id = null;
-        $tmp_datatree_array = array();
+        $tmp_datatree_array = [];
         foreach ($results as $result) {
             $dt_id = intval($result['dt_id']);
             $parent_dt_id = intval($result['parent_dt_id']);
@@ -425,20 +399,20 @@ class SearchCacheService implements EventSubscriberInterface
 
             if ( $dt_id !== $parent_dt_id ) {
                 if ( !isset($tmp_datatree_array[$parent_dt_id]) )
-                    $tmp_datatree_array[$parent_dt_id] = array();
+                    $tmp_datatree_array[$parent_dt_id] = [];
                 $tmp_datatree_array[$parent_dt_id][] = $dt_id;
             }
         }
 
         // Need to determine all child datatypes that are descended from the deleted child datatype
-        $deleted_datatype_ids = array($datatype_id => 0);
+        $deleted_datatype_ids = [$datatype_id => 0];
 
         // If the deleted datatype has children datatypes...
         if ( isset($tmp_datatree_array[$datatype_id]) ) {
             // ...then for each child datatype it has...
             $datatypes_to_check = $tmp_datatree_array[$datatype_id];
             while ( !empty($datatypes_to_check) ) {
-                $tmp = array();
+                $tmp = [];
                 foreach ($datatypes_to_check as $dt_id) {
                     // ...that child datatype also got deleted
                     $deleted_datatype_ids[$dt_id] = 0;
@@ -562,7 +536,7 @@ class SearchCacheService implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
@@ -602,7 +576,7 @@ class SearchCacheService implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
@@ -629,7 +603,7 @@ class SearchCacheService implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
@@ -670,7 +644,7 @@ class SearchCacheService implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
@@ -727,7 +701,7 @@ class SearchCacheService implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
@@ -760,9 +734,9 @@ class SearchCacheService implements EventSubscriberInterface
         // If the datafield is a radio options or tag datafield, then any change should also delete
         //  all of the cached radio options or tags associated with this datafield
         if ($typeclass === 'Radio')
-            self::clearCachedRadioOptionsByDatafield( array($datafield_id) );
+            self::clearCachedRadioOptionsByDatafield( [$datafield_id] );
         else if ($typeclass === 'Tag') {
-            self::clearCachedTagsByDatafield( array($datafield_id) );
+            self::clearCachedTagsByDatafield( [$datafield_id] );
 
             // Should also ensure these are cleared...
             $this->cache_service->delete('cached_tag_tree_'.$grandparent_datatype_id);
@@ -808,20 +782,20 @@ class SearchCacheService implements EventSubscriberInterface
             // Technically only need to delete datafield searches that involve the empty string
             // However, determining that takes too much effort...just delete all cached datafield
             //  entries for this datatype
-            self::clearCachedDatafieldsByDatatype( array($datatype->getId()) );
+            self::clearCachedDatafieldsByDatatype( [$datatype->getId()] );
 
             // Technically only need to delete all "unselected" entries from the cached radio option
             //  entries for this datatype, but it takes as much effort to rebuild the "unselected"
             //  section as it does to rebuild both "unselected" and "selected"
-            self::clearCachedRadioOptionsByDatatype( array($datatype->getId()) );
+            self::clearCachedRadioOptionsByDatatype( [$datatype->getId()] );
 
             // Same deal for tag datafields
-            self::clearCachedTagsByDatatype( array($datatype->getId()) );
+            self::clearCachedTagsByDatatype( [$datatype->getId()] );
         }
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
@@ -847,7 +821,7 @@ class SearchCacheService implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
@@ -911,7 +885,7 @@ class SearchCacheService implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
@@ -937,7 +911,7 @@ class SearchCacheService implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
@@ -1001,7 +975,7 @@ class SearchCacheService implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }

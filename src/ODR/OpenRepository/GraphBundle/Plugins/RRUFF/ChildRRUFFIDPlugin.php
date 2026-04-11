@@ -44,58 +44,9 @@ class ChildRRUFFIDPlugin implements DatafieldPluginInterface
 {
 
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var DatabaseInfoService
-     */
-    private $database_info_service;
-
-    /**
-     * @var DatarecordInfoService
-     */
-    private $datarecord_info_service;
-
-    /**
-     * @var EntityCreationService
-     */
-    private $entity_create_service;
-
-    /**
-     * @var LockService
-     */
-    private $lock_service;
-
-    /**
-     * @var EventDispatcherInterface
-     */
-    private $event_dispatcher;
-
-    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-
-    /**
-     * @var CsrfTokenManager
-     */
-    private $token_manager;
-
-    /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * Child RRUFF ID Plugin constructor.
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param DatabaseInfoService $database_info_service
      * @param DatarecordInfoService $datarecord_info_service
      * @param EntityCreationService $entity_create_service
@@ -105,26 +56,8 @@ class ChildRRUFFIDPlugin implements DatafieldPluginInterface
      * @param EngineInterface $templating
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        DatabaseInfoService $database_info_service,
-        DatarecordInfoService $datarecord_info_service,
-        EntityCreationService $entity_create_service,
-        LockService $lock_service,
-        EventDispatcherInterface $event_dispatcher,
-        CsrfTokenManager $token_manager,
-        EngineInterface $templating,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->database_info_service = $database_info_service;
-        $this->datarecord_info_service = $datarecord_info_service;
-        $this->entity_create_service = $entity_create_service;
-        $this->lock_service = $lock_service;
-        $this->event_dispatcher = $event_dispatcher;
-        $this->token_manager = $token_manager;
-        $this->templating = $templating;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly DatabaseInfoService $database_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly EntityCreationService $entity_create_service, private readonly LockService $lock_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly CsrfTokenManager $token_manager, private readonly EngineInterface $templating, private readonly Logger $logger)
+    {
     }
 
 
@@ -190,7 +123,7 @@ class ChildRRUFFIDPlugin implements DatafieldPluginInterface
             if ( $rendering_options['context'] === 'fake_edit' ) {
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:RRUFF:ChildRRUFFID/childrruffid_fake_edit_datafield.html.twig',
-                    array(
+                    [
                         'datarecord' => $datarecord,
                         'datafield' => $datafield,
 
@@ -198,7 +131,7 @@ class ChildRRUFFIDPlugin implements DatafieldPluginInterface
                         'token_list' => $token_list,
                         'special_tokens' => $special_tokens,
                         'is_datatype_admin' => $rendering_options['is_datatype_admin'],
-                    )
+                    ]
                 );
             }
 
@@ -236,11 +169,11 @@ class ChildRRUFFIDPlugin implements DatafieldPluginInterface
             AND rpf.field_name = :field_name
             AND rp.deletedAt IS NULL AND rpi.deletedAt IS NULL AND rpm.deletedAt IS NULL
             AND rpf.deletedAt IS NULL AND rpi_df.deletedAt IS NULL';
-        $params =  array(
+        $params =  [
             'plugin_classname' => 'odr_plugins.rruff.child_rruff_id',
             'datatype_id' => $datatype->getId(),
             'field_name' => 'Child RRUFF ID Field'
-        );
+        ];
 
         $conn = $this->em->getConnection();
         $results = $conn->executeQuery($query, $params);
@@ -272,12 +205,12 @@ class ChildRRUFFIDPlugin implements DatafieldPluginInterface
             JOIN odr_render_plugin_options_def rpod ON rpom.render_plugin_options_id = rpod.id
             WHERE rpi.id = :render_plugin_option_id
             AND rpi.deletedAt IS NULL AND rpom.deletedAt IS NULL AND rpod.deletedAt IS NULL';
-        $params =  array(
+        $params =  [
             'render_plugin_option_id' => $rpi_id
-        );
+        ];
         $results = $conn->executeQuery($query, $params);
 
-        $options = array();
+        $options = [];
         foreach ($results as $result) {
             $option_name = $result['option_name'];
             $option_value = $result['option_value'];
@@ -319,7 +252,7 @@ class ChildRRUFFIDPlugin implements DatafieldPluginInterface
                 $child_rruff_id .= $options['child_rruff_id_postfix'];
 
             $this->entity_create_service->createStorageEntity($user, $new_datarecord, $child_rruff_id_df, $child_rruff_id, false);    // guaranteed to not need a PostUpdate event
-            $this->logger->debug('Setting df '.$child_rruff_id_df->getId().' "Child RRUFF ID" of new dr '.$new_datarecord->getId().' to "'.$child_rruff_id.'"...', array(self::class, 'onDatarecordCreate()'));
+            $this->logger->debug('Setting df '.$child_rruff_id_df->getId().' "Child RRUFF ID" of new dr '.$new_datarecord->getId().' to "'.$child_rruff_id.'"...', [self::class, 'onDatarecordCreate()']);
         }
 
         // No longer need the lock
@@ -332,7 +265,7 @@ class ChildRRUFFIDPlugin implements DatafieldPluginInterface
             $event = new DatafieldModifiedEvent($child_rruff_id_df, $user);
             $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             // ...don't want to rethrow the error since it'll interrupt everything after this
             //  event
 //            if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -378,9 +311,9 @@ class ChildRRUFFIDPlugin implements DatafieldPluginInterface
 
         // These still don't guarantee that it's a valid field though...the datatype the field
         //  belongs to needs to be an ancestor of the new datarecord's datatype
-        $datatypes_to_check = array($target_datatype_id);
+        $datatypes_to_check = [$target_datatype_id];
         while ( !empty($datatypes_to_check) ) {
-            $tmp = array();
+            $tmp = [];
             foreach ($datatypes_to_check as $num => $dt_id) {
                 if ( isset($datatype_array[$dt_id]['descendants']) ) {
                     foreach ($datatype_array[$dt_id]['descendants'] as $child_dt_id => $props)

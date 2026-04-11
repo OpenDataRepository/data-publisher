@@ -10,7 +10,7 @@ class APIControllerPublshTest extends WebTestCase
     public static $client = "";
 
     public static $token = "";
-    public static $headers = array();
+    public static $headers = [];
 
     // public static $base_url = "https://ahed-dev.nasawestprime.com/ahed-api/api/v3";
     // public static $base_url = "http://office_dev/app_dev.php/api/v3";
@@ -38,14 +38,14 @@ class APIControllerPublshTest extends WebTestCase
         $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__) ? true : false);
         // $timer = (getenv("TIMER") == "1" ? true : false);
 
-        $post_data = json_encode(array(
+        $post_data = json_encode([
             'username' => 'nate@opendatarepository.org',
             'password' => 'n518se'
-        ));
+        ]);
 
         $cp = new CurlUtility(
             self::$base_url . '/token',
-            array('Content-type: application/json'),
+            ['Content-type: application/json'],
             false,
             true,
             __FUNCTION__
@@ -57,19 +57,19 @@ class APIControllerPublshTest extends WebTestCase
         // Show the actual content if debug enabled.
         ($debug ? fwrite(STDERR, 'Token Data:' . $content) : '');
 
-        $token = json_decode($content, true);
+        $token = json_decode((string) $content, true);
 
         if (!is_array($token)) {
-            ($debug ? fwrite(STDERR, $token) . "\n" : '');
+            ($debug ? fwrite(STDERR, (string) $token) . "\n" : '');
         }
 
         // Token value should be set
         $this->assertTrue(isset($token['token']));
 
         self::$token = $token['token'];
-        self::$headers = array(
+        self::$headers = [
             'HTTP_AUTHORIZATION' => "Bearer {$token['token']}",
-        );
+        ];
 
         ($debug ? fwrite(STDERR, print_r(self::$headers, true) . "\n") : '');
     }
@@ -80,11 +80,11 @@ class APIControllerPublshTest extends WebTestCase
 
         $headers[] = 'Authorization: Bearer ' . self::$token;
 
-        $post_data = array(
+        $post_data = [
             'user_email' => 'kevin.boydstun@nasa.gov',
             'dataset_uuid' => 'cedd8b4dfafc2ae1791e379b1a7f',
             'public_date' => self::$public_date
-        );
+        ];
 
         $cp = new CurlUtility(
             self::$base_url . '/dataset/publish',
@@ -97,7 +97,7 @@ class APIControllerPublshTest extends WebTestCase
         $response = $cp->post($post_data);
         ($debug ? fwrite(STDERR, 'Publish response: ' . print_r($response, true) . "\n") : '');
 
-        $updated_dataset = json_decode($response['response'], true);
+        $updated_dataset = json_decode((string) $response['response'], true);
         self::$created_dataset['dataset'] = $updated_dataset;
 
         ($debug ? fwrite(STDERR, 'Dataset: ' . print_r($updated_dataset, true) . "\n") : '');
@@ -112,11 +112,11 @@ class APIControllerPublshTest extends WebTestCase
 
         $headers[] = 'Authorization: Bearer ' . self::$token;
 
-        $post_data = array(
+        $post_data = [
             'user_email' => 'marybeth.wilhelm@nasa.gov',
             'dataset_uuid' => '72099f5',
             'public_date' => self::$public_date
-        );
+        ];
 
         $cp = new CurlUtility(
             self::$base_url . '/dataset/publish',
@@ -129,7 +129,7 @@ class APIControllerPublshTest extends WebTestCase
         $response = $cp->post($post_data);
         ($debug ? fwrite(STDERR, 'Publish response: ' . print_r($response, true) . "\n") : '');
 
-        $updated_dataset = json_decode($response['response'], true);
+        $updated_dataset = json_decode((string) $response['response'], true);
         self::$created_dataset['dataset'] = $updated_dataset;
 
         ($debug ? fwrite(STDERR, 'Dataset: ' . print_r($updated_dataset, true) . "\n") : '');
@@ -144,11 +144,11 @@ class APIControllerPublshTest extends WebTestCase
 
         $headers[] = 'Authorization: Bearer ' . self::$token;
 
-        $post_data = array(
+        $post_data = [
             'user_email' => 'barbara.lafuentevalverde@nasa.gov',
             'dataset_uuid' => '78afeb8687f2df684c4d96f16593',
             'public_date' => self::$public_date
-        );
+        ];
 
         $cp = new CurlUtility(
             self::$base_url . '/dataset/publish',
@@ -161,7 +161,7 @@ class APIControllerPublshTest extends WebTestCase
         $response = $cp->post($post_data);
         ($debug ? fwrite(STDERR, 'Publish response: ' . print_r($response, true) . "\n") : '');
 
-        $updated_dataset = json_decode($response['response'], true);
+        $updated_dataset = json_decode((string) $response['response'], true);
         self::$created_dataset['dataset'] = $updated_dataset;
 
         ($debug ? fwrite(STDERR, 'Dataset: ' . print_r($updated_dataset, true) . "\n") : '');
@@ -176,11 +176,11 @@ class APIControllerPublshTest extends WebTestCase
 
         $headers[] = 'Authorization: Bearer ' . self::$token;
 
-        $post_data = array(
+        $post_data = [
             'user_email' => 'barbara.lafuentevalverde@nasa.gov',
             'dataset_uuid' => '0fa9713',
             'public_date' => self::$public_date
-        );
+        ];
 
         $cp = new CurlUtility(
             self::$base_url . '/dataset/publish',
@@ -193,7 +193,7 @@ class APIControllerPublshTest extends WebTestCase
         $response = $cp->post($post_data);
         ($debug ? fwrite(STDERR, 'Publish response: ' . print_r($response, true) . "\n") : '');
 
-        $updated_dataset = json_decode($response['response'], true);
+        $updated_dataset = json_decode((string) $response['response'], true);
         self::$created_dataset['dataset'] = $updated_dataset;
 
         ($debug ? fwrite(STDERR, 'Dataset: ' . print_r($updated_dataset, true) . "\n") : '');
@@ -208,11 +208,11 @@ class APIControllerPublshTest extends WebTestCase
 
         $headers[] = 'Authorization: Bearer ' . self::$token;
 
-        $post_data = array(
+        $post_data = [
             'user_email' => 'barbara.lafuentevalverde@nasa.gov',
             'dataset_uuid' => 'a62bba8',
             'public_date' => self::$public_date
-        );
+        ];
 
         $cp = new CurlUtility(
             self::$base_url . '/dataset/publish',
@@ -225,7 +225,7 @@ class APIControllerPublshTest extends WebTestCase
         $response = $cp->post($post_data);
         ($debug ? fwrite(STDERR, 'Publish response: ' . print_r($response, true) . "\n") : '');
 
-        $updated_dataset = json_decode($response['response'], true);
+        $updated_dataset = json_decode((string) $response['response'], true);
         self::$created_dataset['dataset'] = $updated_dataset;
 
         ($debug ? fwrite(STDERR, 'Dataset: ' . print_r($updated_dataset, true) . "\n") : '');

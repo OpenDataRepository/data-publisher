@@ -37,63 +37,17 @@ class IMAStatusNotesPlugin implements DatatypePluginInterface
 {
 
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var EntityCreationService
-     */
-    private $entity_create_service;
-
-    /**
-     * @var LockService
-     */
-    private $lock_service;
-
-    /**
-     * @var EventDispatcherInterface
-     */
-    private $event_dispatcher;
-
-    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-
-    /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * IMAStatusNotesPlugin constructor.
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param EntityCreationService $entity_create_service
      * @param LockService $lock_service
      * @param EventDispatcherInterface $event_dispatcher
      * @param EngineInterface $templating
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        EntityCreationService $entity_create_service,
-        LockService $lock_service,
-        EventDispatcherInterface $event_dispatcher,
-        EngineInterface $templating,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->entity_create_service = $entity_create_service;
-        $this->lock_service = $lock_service;
-        $this->event_dispatcher = $event_dispatcher;
-        $this->templating = $templating;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly EntityCreationService $entity_create_service, private readonly LockService $lock_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly EngineInterface $templating, private readonly Logger $logger)
+    {
     }
 
 
@@ -120,7 +74,7 @@ class IMAStatusNotesPlugin implements DatatypePluginInterface
     /**
      * @inheritDoc
      */
-    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
+    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = [], $datatype_permissions = [], $datafield_permissions = [], $token_list = [])
     {
         try {
             // ----------------------------------------
@@ -139,12 +93,12 @@ class IMAStatusNotesPlugin implements DatatypePluginInterface
             $options = $render_plugin_instance['renderPluginOptionsMap'];
 
             // Retrieve mapping between datafields and render plugin fields
-            $plugin_fields = array();
+            $plugin_fields = [];
 
             // Want to locate the values for most of the mapped datafields
-            $optional_fields = array(
+            $optional_fields = [
                 'Display Order' => 0,    // this one can be non-public
-            );
+            ];
 
             foreach ($fields as $rpf_name => $rpf_df) {
                 // Need to find the real datafield entry in the primary datatype array
@@ -238,8 +192,8 @@ class IMAStatusNotesPlugin implements DatatypePluginInterface
             if ( $rendering_options['context'] === 'display' ) {
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:RRUFF:IMAStatusNotes/ima_status_notes_display.html.twig',
-                    array(
-                        'datatype_array' => array($initial_datatype_id => $datatype),
+                    [
+                        'datatype_array' => [$initial_datatype_id => $datatype],
                         'datarecord_array' => $datarecords,
                         'theme_array' => $theme_array,
 
@@ -259,7 +213,7 @@ class IMAStatusNotesPlugin implements DatatypePluginInterface
                         'rruff_reference_dt_id' => $rruff_reference_dt_id,
                         'rruff_reference_dt' => $rruff_reference_dt,
                         'rruff_reference_theme_array' => $rruff_reference_theme_array,
-                    )
+                    ]
                 );
             }
 
@@ -297,11 +251,11 @@ class IMAStatusNotesPlugin implements DatatypePluginInterface
             AND rp.deletedAt IS NULL AND rpi.deletedAt IS NULL AND rpm.deletedAt IS NULL
             AND df.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'plugin_classname' => 'odr_plugins.rruff.ima_status_notes',
                 'datatype' => $datatype->getId(),
                 'field_name' => 'Display Order'
-            )
+            ]
         );
         $results = $query->getResult();
         if ( count($results) !== 1 )
@@ -329,7 +283,7 @@ class IMAStatusNotesPlugin implements DatatypePluginInterface
 
         // Create a new storage entity with the new value
         $this->entity_create_service->createStorageEntity($user, $datarecord, $datafield, $new_value, false);    // guaranteed to not need a PostUpdate event
-        $this->logger->debug('Setting df '.$datafield->getId().' "Display Order" of new dr '.$datarecord->getId().' to "'.$new_value.'"...', array(self::class, 'onDatarecordCreate()'));
+        $this->logger->debug('Setting df '.$datafield->getId().' "Display Order" of new dr '.$datarecord->getId().' to "'.$new_value.'"...', [self::class, 'onDatarecordCreate()']);
 
         // No longer need the lock
         $lockHandler->release();
@@ -341,7 +295,7 @@ class IMAStatusNotesPlugin implements DatatypePluginInterface
             $event = new DatafieldModifiedEvent($datafield, $user);
             $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             // ...don't want to rethrow the error since it'll interrupt everything after this
             //  event
 //            if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -380,10 +334,10 @@ class IMAStatusNotesPlugin implements DatatypePluginInterface
             AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL
             ORDER BY e.value DESC
             LIMIT 0,1';
-        $params = array(
+        $params = [
             'parent_datarecord' => $parent_datarecord->getId(),
             'datafield' => $datafield->getId(),
-        );
+        ];
         $conn = $this->em->getConnection();
         $results = $conn->executeQuery($query, $params);
 

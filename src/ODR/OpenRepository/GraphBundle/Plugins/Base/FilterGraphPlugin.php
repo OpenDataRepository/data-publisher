@@ -49,24 +49,9 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
 {
 
     /**
-     * @var RequestStack
-     */
-    private $request_stack;
-
-    /**
      * @var EngineInterface
      */
     private $templating;
-
-    /**
-     * @var CryptoService
-     */
-    private $crypto_service;
-
-    /**
-     * @var DatabaseInfoService
-     */
-    private $database_info_service;
 
     /**
      * @var string
@@ -98,10 +83,10 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
      * @param Logger $logger
      */
     public function __construct(
-        RequestStack $request_stack,
+        private readonly RequestStack $request_stack,
         EngineInterface $templating,
-        CryptoService $crypto_service,
-        DatabaseInfoService $database_info_service,
+        private readonly CryptoService $crypto_service,
+        private readonly DatabaseInfoService $database_info_service,
         Pheanstalk $pheanstalk,
         string $site_baseurl,
         string $odr_web_directory,
@@ -109,11 +94,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
         Logger $logger
     ) {
         parent::__construct($templating, $pheanstalk, $site_baseurl, $odr_web_directory, $odr_files_directory, $logger);
-
-        $this->request_stack = $request_stack;
         $this->templating = $templating;
-        $this->crypto_service = $crypto_service;
-        $this->database_info_service = $database_info_service;
         $this->odr_web_directory = $odr_web_directory;
         $this->odr_files_directory = $odr_files_directory;
         $this->logger = $logger;
@@ -192,7 +173,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
      */
     private function findFileFields($dt, $parent_prefix, $parent_name)
     {
-        $data = array();
+        $data = [];
 
         // The given datatype array is not wrapped with its id
         $dt_id = strval($dt['id']);
@@ -211,10 +192,10 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
         }
 
         // Store the identifying info for this datatype
-        $data[$current_prefix] = array(
+        $data[$current_prefix] = [
             'label' => $current_name,
-            'fields' => array()
-        );
+            'fields' => []
+        ];
 
 
         // If this datatype has any file fields...
@@ -258,7 +239,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
      */
     private function getCurrentPluginConfig($datatype)
     {
-        $config = array();
+        $config = [];
 
         // This function could be passed either a cached array or a datatype entity, so ensure the
         //  rest of the function has a cached array to work off of...
@@ -284,31 +265,31 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
 
                     // If there aren't three entries, then the config is invalid
                     if ( count($config_tmp) !== 3 )
-                        return array();
+                        return [];
 
                     // If the primary graph file doesn't exist or isn't an integer, then it's invalid
                     if ( $config_tmp[1] === '' || !is_numeric($config_tmp[1]) )
-                        return array();
+                        return [];
                     // If the secondary graph file exists but isn't an integer, then it's invalid
                     if ( $config_tmp[2] !== '' && !is_numeric($config_tmp[2]) )
-                        return array();
+                        return [];
 
                     // Want to split up the prefix into an array too...
                     $prefix_data = explode('_', $config_tmp[0]);
                     // ...then ensure all of those values are integers
-                    $prefix = array();
+                    $prefix = [];
                     foreach ($prefix_data as $key => $value)
                         $prefix[] = intval($value);
 
                     // If the filter config has values in it, then convert into an array
-                    $filter_fields = array();
+                    $filter_fields = [];
                     if ( $filter_config_str !== '' ) {
                         $tmp = explode(',', $filter_config_str);
 
                         // If any of the datafield ids aren't numeric, then the config is invalid
                         foreach ($tmp as $num => $df_id) {
                             if ( !is_numeric($df_id) )
-                                return array();
+                                return [];
                             else
                                 $filter_fields[$df_id] = 1;
                         }
@@ -317,13 +298,13 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
                         //  to relevant datafields
                     }
 
-                    $config = array(
+                    $config = [
                         'str' => $plugin_config_str,
                         'prefix' => $prefix,
                         'graph_file_df_id' => intval($config_tmp[1]),
                         'secondary_graph_file_df_id' => intval($config_tmp[2]),
                         'hidden_filter_fields' => $filter_fields,
-                    );
+                    ];
                 }
             }
         }
@@ -343,10 +324,10 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
      */
     private function getFileData($datarecords, $current_plugin_config)
     {
-        $file_data = array();
+        $file_data = [];
 
         // The files being graphed most likely belong to descendants of the given set of datarecords...
-        $graph_datarecords = array();
+        $graph_datarecords = [];
 
         // Typically, these descendant records would require recursion to find, but the given
         //  plugin config has a "prefix" value specifically to avoid this requirement
@@ -365,7 +346,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
                 $prefix_values = array_slice($prefix_values, 1);
 
                 // Find and store all child datarecords of the given child datatype
-                $new_dr_list = array();
+                $new_dr_list = [];
                 foreach ($working_dr_list as $dr_id => $dr) {
                     if ( isset($dr['children'][$child_dt_id]) ) {
                         foreach ($dr['children'][$child_dt_id] as $child_dr_id => $child_dr) {
@@ -375,7 +356,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
                                 // $dr is a top-level datarecord, and its nameField_value will be a
                                 //  string...convert the values into an array so that sorting doesn't
                                 //  go stupid
-                                $child_dr['nameField_value'] = array($dr['nameField_value'], $child_dr['nameField_value']);
+                                $child_dr['nameField_value'] = [$dr['nameField_value'], $child_dr['nameField_value']];
                             }
                             else {
                                 // Otherwise, $dr is not a top-level datarecord, so it will already
@@ -434,17 +415,17 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
             // If any file was found...
             if ( !is_null($file) ) {
                 // ...then store its data
-                $file_data[$graph_dr_id] = array(
+                $file_data[$graph_dr_id] = [
                     'sortField_value' => $graph_dr['nameField_value'],    // NOTE: intentionally using the adjusted nameField_value as the sortField_value...
 
                     'label' => $graph_dr['nameField_value'],    // TODO - should this instead be values from datafields?
                     'file' => $file,
                     'is_public' => true,    // assume it's public for the moment...
-                );
+                ];
 
                 // Need sortField_value to be an array
                 if ( !is_array($graph_dr['nameField_value']) )
-                    $graph_dr['nameField_value'] = array($graph_dr['nameField_value']);
+                    $graph_dr['nameField_value'] = [$graph_dr['nameField_value']];
 
                 // Verify public status of the file
                 $public_date = $file['fileMeta']['publicDate'];
@@ -481,7 +462,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
      */
     private function sortFileData($graph_files)
     {
-        $values = array();
+        $values = [];
 
         // First step is to reorganize the sort values into columns so array_multisort() works
         $levels_count = 0;
@@ -492,7 +473,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
         // Intentionally using '<=' instead of '<', because this use of array_multisort() demands
         //  another column to match values to datarecord ids
         for ($i = 0; $i <= $levels_count; $i++)
-            $values[$i] = array();
+            $values[$i] = [];
 
         // Now that $values has been instantiated, transfer the values to sort on
         foreach ($graph_files as $dr_id => $data) {
@@ -506,7 +487,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
 
         // Now that $values has been initialized, need to set up an arbitrary number of arguments
         //  for array_multisort() to use...
-        $args = array();
+        $args = [];
         for ($i = 0; $i < $levels_count; $i++) {
             // array_multisort() requires the data...
             $args[] = $values[$i];
@@ -524,7 +505,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
         // The final argument needs to be the list of datarecord ids, otherwise array_multisort()
         //  will appear to do nothing
         $args[] = &$values[$levels_count];
-        call_user_func_array('array_multisort', $args);
+        call_user_func_array(array_multisort(...), $args);
 
         // array_multisort() will have modified the final argument...
         $datarecord_sortvalues = array_flip( array_pop($args) );
@@ -549,7 +530,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
+    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = [], $datatype_permissions = [], $datafield_permissions = [], $token_list = [])
     {
         try {
             // ----------------------------------------
@@ -576,7 +557,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
                     $options['x_axis_dir'] = $dir;
             }
             // The graph filename will have either an 'a' or a 'd' indicating the direction
-            $x_axis_dir = substr($options['x_axis_dir'], 0, 1);
+            $x_axis_dir = substr((string) $options['x_axis_dir'], 0, 1);
 
 
             // Should only be one element in $theme_array...
@@ -629,11 +610,11 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
 
             // ----------------------------------------
             // Initialize arrays
-            $odr_chart_ids = array();
-            $odr_chart_file_ids = array();
-            $odr_chart_files = array();
-            $odr_chart_output_files = array();
-            $legend_values = array();
+            $odr_chart_ids = [];
+            $odr_chart_file_ids = [];
+            $odr_chart_files = [];
+            $odr_chart_output_files = [];
+            $legend_values = [];
 
             // Need to locate all files that are going to be graphed
             $datatype_folder = '';
@@ -693,7 +674,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
 
             // ...this info provides a framework to determine the values (or lack thereof) in the
             //  given datarecords
-            $dr_lookup = array();
+            $dr_lookup = [];
             $available_filter_values = self::getAvailableFilterValues($filter_info, $datarecords, $current_plugin_config['prefix'], $dr_lookup);
 
             // $dr_lookup needs another pass before it's useful...
@@ -725,8 +706,8 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
             if ( isset($rendering_options['record_display_view']) )
                 $record_display_view = $rendering_options['record_display_view'];
 
-            $page_data = array(
-                'datatype_array' => array($datatype['id'] => $datatype),
+            $page_data = [
+                'datatype_array' => [$datatype['id'] => $datatype],
                 'datarecord_array' => $datarecords,
                 'theme_array' => $theme_array,
 
@@ -762,14 +743,14 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
                 // Needed for building the filter
                 'filter_data' => $reduced_filter_values,
                 'hidden_filter_fields' => $current_plugin_config['hidden_filter_fields'],
-            );
+            ];
 
 
             // ----------------------------------------
             // If the graph doesn't exist when the page is built, it makes more sense to immediately
             //  trigger a rebuild rather than having the browser do it when it figures out that the
             //  file doesn't exist...
-            $missing_output_files = array();
+            $missing_output_files = [];
             foreach ($odr_chart_output_files as $dr_id => $graph_filepath) {
                 if ( $is_rollup && $dr_id === 'rollup' ) {
                     // If the plugins options want a rollup graph, then only check that one
@@ -787,7 +768,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
                 foreach ($missing_output_files as $num => $dr_id) {
                     // Puppeteer will need the files decrypted, but it might also have to delete some
                     //  of them afterwards if any are non-public...
-                    $files_to_delete = array();
+                    $files_to_delete = [];
 
                     // Determine the final filename of this missing graph file
                     $pieces = explode('/', $odr_chart_output_files[$dr_id]);
@@ -806,7 +787,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
                     // Need to ensure each of the files that will be rendered exist on the server,
                     //  but the behavior changes slightly depending on whether it's a rollup graph
                     //  on the server
-                    $files_to_check = array();
+                    $files_to_check = [];
                     if ( !$is_rollup ) {
                         // If this isn't a rollup graph, then only need to check a single file
                         $files_to_check[$dr_id] = $odr_chart_files[$dr_id];
@@ -816,8 +797,8 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
                         $page_data['odr_chart_id'] = $odr_chart_ids[$dr_id];
 
                         $relevant_file = $odr_chart_files[$dr_id];
-                        $page_data['odr_chart_file_ids'] = array($relevant_file['id']);
-                        $page_data['odr_chart_files'] = array($dr_id => $relevant_file);
+                        $page_data['odr_chart_file_ids'] = [$relevant_file['id']];
+                        $page_data['odr_chart_files'] = [$dr_id => $relevant_file];
                     }
                     else {
                         // If this is a rollup graph, then need to check all the files that will
@@ -833,7 +814,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
                         // Due to historical reasons, the file's localFileName property includes
                         //  the contents of the symfony parameter 'odr_files_directory'
                         $local_filename = $file['localFileName'];
-                        if ( substr($local_filename, 0, 1) !== '/' )
+                        if ( !str_starts_with((string) $local_filename, '/') )
                             $local_filename = '/'.$local_filename;
 
                         if ( !file_exists($this->odr_web_directory.$local_filename) ) {
@@ -904,10 +885,10 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
      */
     private function getFilterDatafields($dt, $prefix_values)
     {
-        $filter_info = array(
-            'datafields' => array(),
-            'descendants' => array(),
-        );
+        $filter_info = [
+            'datafields' => [],
+            'descendants' => [],
+        ];
 
         if ( isset($dt['dataFields']) ) {
             foreach ($dt['dataFields'] as $df_id => $df) {
@@ -1008,8 +989,8 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
     {
         // Mostly want the actual values...but the absence of a value is important too, and needs
         //  to be handled slightly differently
-        $values = array();
-        $null_values = array();
+        $values = [];
+        $null_values = [];
 
         // Because the datatype array has already been traversed...
         foreach ($dr_list as $dr_id => $dr) {
@@ -1108,7 +1089,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
                     foreach ($tmp['values'] as $df_id => $unique_values) {
                         foreach ($unique_values as $val => $child_dr_ids) {
                             if ( !isset($values[$df_id][$val]) )
-                                $values[$df_id][$val] = array();
+                                $values[$df_id][$val] = [];
                             foreach ($child_dr_ids as $num => $child_dr_id)
                                 $values[$df_id][$val][] = $child_dr_id;
                         }
@@ -1145,12 +1126,12 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
                     // Unfortunately, this descendant datatype could have descendants of its own,
                     //  which the datarecord also wouldn't have...so this assignment could end up
                     //  needing to process multiple levels of descendants...
-                    $descendants_to_process = array($child_dt_id => $child_dt_filter_info);
+                    $descendants_to_process = [$child_dt_id => $child_dt_filter_info];
 
                     // ...don't want to do it recursively though
                     while ( !empty($descendants_to_process) ) {
                         $missing_dt_info = $descendants_to_process;
-                        $descendants_to_process = array();
+                        $descendants_to_process = [];
 
                         foreach ($missing_dt_info as $dt_id => $dt_info) {
                             // Due to the rules enforced by self::getFilterDatafields(), the current
@@ -1172,10 +1153,10 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
             }
         }
 
-        return array(
+        return [
             'values' => $values,
             'null_values' => $null_values,
-        );
+        ];
     }
 
 
@@ -1230,10 +1211,10 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
      */
     private function reduceFilterValues($available_filter_values, $dr_lookup, $only_one_file)
     {
-        $reduced_filter_values = array(
-            'values' => array(),
-            'null_values' => array(),
-        );
+        $reduced_filter_values = [
+            'values' => [],
+            'null_values' => [],
+        ];
 
         foreach ($available_filter_values['values'] as $df_id => $values) {
             if ( !$only_one_file && count($values) < 2 && !isset($available_filter_values['null_values'][$df_id]) ) {
@@ -1286,7 +1267,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
      */
     private function substituteDatarecords($dr_list, $dr_lookup)
     {
-        $tmp = array();
+        $tmp = [];
         foreach ($dr_list as $num => $dr_id) {
             if ( !isset($dr_lookup[$dr_id]) ) {
                 // This is one of the datarecords with a file...no substitution necessary
@@ -1317,7 +1298,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
         foreach ($event->getRenderPluginInstance()->getRenderPluginOptionsMap() as $rpom) {
             /** @var RenderPluginOptionsMap $rpom */
             if ( $rpom->getRenderPluginOptionsDef()->getName() === 'plugin_config' ) {
-                $plugin_config_str = trim( $rpom->getValue() );
+                $plugin_config_str = trim( (string) $rpom->getValue() );
 
                 // The config is stored as a string...three keys separated by commas
                 $config_tmp = explode(',', $plugin_config_str);
@@ -1372,7 +1353,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
         $current_plugin_config = self::getCurrentPluginConfig( $dt_array[$datatype->getId()] );
 
         $current_config_str = '';
-        $current_filter_fields = array();
+        $current_filter_fields = [];
         if ( !empty($current_plugin_config) ) {
             $current_config_str = $current_plugin_config['str'];
             $current_filter_fields = $current_plugin_config['hidden_filter_fields'];
@@ -1382,7 +1363,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
         //  don't have to
         $stacked_dt_array = self::filterStackedDatatypeArray($stacked_dt_array);
 
-        $custom_rpo_html = array();
+        $custom_rpo_html = [];
         foreach ($render_plugin->getRenderPluginOptionsDef() as $rpo) {
             // This plugin currently has several options, but only "plugin_config" and "filter_config"
             //  need to use a custom render for the dialog...
@@ -1398,7 +1379,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
                 if ( $template_name !== '' ) {
                     $custom_rpo_html[$rpo->getId()] = $this->templating->render(
                         $template_name,
-                        array(
+                        [
                             'rpo_id' => $rpo->getId(),
                             'stacked_dt_array' => $stacked_dt_array,
 
@@ -1406,7 +1387,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
                             'current_config' => $current_plugin_config,
                             'current_config_str' => $current_config_str,
                             'current_filter_fields' => $current_filter_fields,
-                        )
+                        ]
                     );
                 }
             }

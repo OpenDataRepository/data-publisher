@@ -51,7 +51,7 @@ class DebugController extends ODRCustomController
      */
     public function debugcsvexportstartAction($datatype_id, $search_key, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -82,7 +82,7 @@ class DebugController extends ODRCustomController
 
             // If the search key is blank, then silently provide the default search key to the form
             if ( trim($search_key) === '' )
-                $search_key = $search_key_service->encodeSearchKey( array('dt_id' => $datatype_id) );
+                $search_key = $search_key_service->encodeSearchKey( ['dt_id' => $datatype_id] );
 
             // Need the datatype array to be able to render datafield selection...
             $dt_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), true);    // need links
@@ -92,16 +92,16 @@ class DebugController extends ODRCustomController
             // e.g. A links to B links to C, A links to C
             $dt_array = $database_info_service->stackDatatypeArray($dt_array, $datatype_id);
 
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Debug:debug_csv_export_start.html.twig',
-                    array(
+                    [
                         'initial_datatype_id' => $datatype_id,
                         'datatype_array' => $dt_array,
                         'search_key' => $search_key,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x5c1eaf8b;
@@ -126,7 +126,7 @@ class DebugController extends ODRCustomController
      */
     public function debugcsvexportAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -215,7 +215,7 @@ class DebugController extends ODRCustomController
             foreach ($grandparent_datarecord_list as $num => $datarecord_id) {
                 // Need to use $complete_datarecord_list and $inflated_list to locate the child/linked
                 //  datarecords related to this top-level datarecord
-                $tmp_list = array($datarecord_id => $inflated_list[$datarecord_id]);
+                $tmp_list = [$datarecord_id => $inflated_list[$datarecord_id]];
                 $filtered_datarecord_list = $csv_export_helper_service->getFilteredDatarecordList($tmp_list, $complete_datarecord_list);
                 $datarecord_ids[] = $datarecord_id;
                 $complete_datarecord_list_array[] = $filtered_datarecord_list;
@@ -227,7 +227,7 @@ class DebugController extends ODRCustomController
                     $counter % 200 === 0
                     || $counter === count($grandparent_datarecord_list)
                 ) {
-                    $parameters = array(
+                    $parameters = [
                         'tracked_job_id' => -1,    // don't create database entries to track this
                         'user_id' => $user->getId(),
 
@@ -245,7 +245,7 @@ class DebugController extends ODRCustomController
                         'redis_prefix' => $redis_prefix,    // debug purposes only
                         'job_order' => $job_order,
                         'api_key' => $api_key,
-                    );
+                    ];
 
                     $csv_export_helper_service->execute($parameters);
 

@@ -67,7 +67,7 @@ class CSVExportController extends ODRCustomController
      */
     public function csvExportAction($datatype_id, $search_theme_id, $search_key, $offset, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -177,11 +177,11 @@ class CSVExportController extends ODRCustomController
             $session = $request->getSession();
             $list = $session->get('csv_export_datarecord_lists');
             if ($list == null)
-                $list = array();
+                $list = [];
 
-            $list[$odr_tab_id] = array(
+            $list[$odr_tab_id] = [
                 'filtered_search_key' => $search_key,
-            );
+            ];
             $session->set('csv_export_datarecord_lists', $list);
 
 
@@ -189,11 +189,11 @@ class CSVExportController extends ODRCustomController
             // Generate the HTML required for a header
             $header_html = $templating->render(
                 'ODRAdminBundle:CSVExport:csvexport_header.html.twig',
-                array(
+                [
                     'search_theme_id' => $search_theme_id,
                     'search_key' => $search_key,
                     'offset' => $offset,
-                )
+                ]
             );
 
             // More useful if the CSVExport page matches whatever theme the user prefers
@@ -204,7 +204,7 @@ class CSVExportController extends ODRCustomController
             // Get the CSVExport page rendered
             $page_html = $odr_render_service->getCSVExportHTML($user, $datatype, $odr_tab_id, $theme, $csvexport_shows_all_fields);
 
-            $return['d'] = array( 'html' => $header_html.$page_html );
+            $return['d'] = [ 'html' => $header_html.$page_html ];
         }
         catch (\Exception $e) {
             $source = 0x8647bcc3;
@@ -230,7 +230,7 @@ class CSVExportController extends ODRCustomController
      */
     public function newCsvExportStartAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -302,7 +302,7 @@ class CSVExportController extends ODRCustomController
 
             // Need two more variables for the beanstalk job
             $api_key = $this->container->getParameter('beanstalk_api_key');
-            $url = $this->generateUrl('odr_csv_export_worker', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+            $url = $this->generateUrl('odr_csv_export_worker', [], UrlGeneratorInterface::ABSOLUTE_URL);
 
             // --------------------
             /** @var ODRUser|null $user */
@@ -322,10 +322,10 @@ class CSVExportController extends ODRCustomController
             // ----------------------------------------
             // Check whether any jobs that are currently running would interfere with a newly
             //  created 'csv_export' job for this datatype
-            $new_job_data = array(
+            $new_job_data = [
                 'job_type' => 'csv_export',
                 'target_entity' => $datatype,
-            );
+            ];
 
             $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
@@ -369,29 +369,29 @@ class CSVExportController extends ODRCustomController
             }
 
             // Ensure that the secondary delimiters don't contain the primary delimiter...
-            if ( !is_null($file_image_delimiter) && strpos($file_image_delimiter, $delimiter) !== false )
+            if ( !is_null($file_image_delimiter) && str_contains($file_image_delimiter, $delimiter) )
                 throw new ODRBadRequestException('Invalid file/image delimiter');
-            if ( !is_null($radio_delimiter) && strpos($radio_delimiter, $delimiter) !== false )
+            if ( !is_null($radio_delimiter) && str_contains($radio_delimiter, $delimiter) )
                 throw new ODRBadRequestException('Invalid radio delimiter');
-            if ( !is_null($tag_delimiter) && strpos($tag_delimiter, $delimiter) !== false )
+            if ( !is_null($tag_delimiter) && str_contains($tag_delimiter, $delimiter) )
                 throw new ODRBadRequestException('Invalid tag delimiter');
-            if ( !is_null($tag_hierarchy_delimiter) && strpos($tag_hierarchy_delimiter, $delimiter) !== false )
+            if ( !is_null($tag_hierarchy_delimiter) && str_contains($tag_hierarchy_delimiter, $delimiter) )
                 throw new ODRBadRequestException('Invalid tag hierarchy delimiter');
             // ...or the field delimiter used by fputcsv() later on
-            if ( !is_null($file_image_delimiter) && strpos($file_image_delimiter, "\"") !== false )
+            if ( !is_null($file_image_delimiter) && str_contains($file_image_delimiter, "\"") )
                 throw new ODRBadRequestException('Invalid file/image delimiter');
-            if ( !is_null($radio_delimiter) && strpos($radio_delimiter, "\"") !== false )
+            if ( !is_null($radio_delimiter) && str_contains($radio_delimiter, "\"") )
                 throw new ODRBadRequestException('Invalid radio delimiter');
-            if ( !is_null($tag_delimiter) && strpos($tag_delimiter, "\"") !== false )
+            if ( !is_null($tag_delimiter) && str_contains($tag_delimiter, "\"") )
                 throw new ODRBadRequestException('Invalid tag delimiter');
-            if ( !is_null($tag_hierarchy_delimiter) && strpos($tag_hierarchy_delimiter, "\"") !== false )
+            if ( !is_null($tag_hierarchy_delimiter) && str_contains($tag_hierarchy_delimiter, "\"") )
                 throw new ODRBadRequestException('Invalid tag hierarchy delimiter');
 
 
             // If both tag delimiters are set, ensure that one doesn't contain the other
             if ( !is_null($tag_delimiter) && !is_null($tag_hierarchy_delimiter) ) {
-                if ( strpos($tag_delimiter, $tag_hierarchy_delimiter) !== false
-                    || strpos($tag_hierarchy_delimiter, $tag_delimiter) !== false
+                if ( str_contains($tag_delimiter, $tag_hierarchy_delimiter)
+                    || str_contains($tag_hierarchy_delimiter, $tag_delimiter)
                 ) {
                     throw new ODRBadRequestException('Invalid tag delimiters');
                 }
@@ -401,13 +401,13 @@ class CSVExportController extends ODRCustomController
             // ----------------------------------------
             // Need to validate the given datafield information...
             $dt_array = $database_info_service->getDatatypeArray($datatype->getId(), true);    // may need linked datatypes
-            $dr_array = array();
+            $dr_array = [];
             $permissions_service->filterByGroupPermissions($dt_array, $dr_array, $user_permissions);
 
-            $tmp_df_mapping = array();
+            $tmp_df_mapping = [];
             foreach ($datafields as $df_identifier => $df_id) {
                 foreach ($dt_array as $dt_id => $dt) {
-                    $pieces = explode('_', $df_identifier);
+                    $pieces = explode('_', (string) $df_identifier);
                     $prefix = $pieces[0];
                     $df_id = $pieces[1];
 
@@ -494,7 +494,7 @@ class CSVExportController extends ODRCustomController
 
             // ----------------------------------------
             // Get/create an entity to track the progress of this export job
-            $additional_data = array('description' => 'Exporting data from DataType '.$datatype_id);
+            $additional_data = ['description' => 'Exporting data from DataType '.$datatype_id];
             $restrictions = '';
             $total = count($grandparent_datarecord_list);
 
@@ -519,7 +519,7 @@ class CSVExportController extends ODRCustomController
 
             $tracked_job_id = $tracked_job->getId();
 
-            $return['d'] = array("tracked_job_id" => $tracked_job_id);
+            $return['d'] = ["tracked_job_id" => $tracked_job_id];
 
 
             // ----------------------------------------
@@ -528,7 +528,7 @@ class CSVExportController extends ODRCustomController
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
 
             $priority = 1024;   // should be roughly default priority
-            $payload = array(
+            $payload = [
                 'tracked_job_id' => $tracked_job_id,
                 'user_id' => 0,
 
@@ -540,7 +540,7 @@ class CSVExportController extends ODRCustomController
                 'redis_prefix' => $redis_prefix,    // debug purposes only
                 'url' => $url,
                 'api_key' => $api_key,
-            );
+            ];
             if ( !is_null($user) )
                 $payload['user_id'] = $user->getId();
 
@@ -558,7 +558,7 @@ class CSVExportController extends ODRCustomController
             foreach ($grandparent_datarecord_list as $num => $datarecord_id) {
                 // Need to use $complete_datarecord_list and $inflated_list to locate the child/linked
                 //  datarecords related to this top-level datarecord
-                $tmp_list = array($datarecord_id => $inflated_list[$datarecord_id]);
+                $tmp_list = [$datarecord_id => $inflated_list[$datarecord_id]];
                 $filtered_datarecord_list = $csv_export_helper_service->getFilteredDatarecordList($tmp_list, $complete_datarecord_list);
                 $datarecord_ids[] = $datarecord_id;
                 $complete_datarecord_list_array[] = $filtered_datarecord_list;
@@ -571,7 +571,7 @@ class CSVExportController extends ODRCustomController
                     || $counter === count($grandparent_datarecord_list)
                 ) {
                     $priority = 1024;   // should be roughly default priority
-                    $payload = array(
+                    $payload = [
                         'tracked_job_id' => $tracked_job_id,
                         'user_id' => 0,
 
@@ -592,7 +592,7 @@ class CSVExportController extends ODRCustomController
                         'redis_prefix' => $redis_prefix,    // debug purposes only
                         'url' => $url,
                         'api_key' => $api_key,
-                    );
+                    ];
                     if ( !is_null($user) )
                         $payload['user_id'] = $user->getId();
                     $payload = json_encode($payload);
@@ -632,7 +632,7 @@ class CSVExportController extends ODRCustomController
      */
     public function downloadCSVAction($user_id, $tracked_job_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -701,7 +701,7 @@ class CSVExportController extends ODRCustomController
 //                $response->sendHeaders();
 
                 // Use symfony's StreamedResponse to send the decrypted file back in chunks to the user
-                $response->setCallback(function() use ($handle) {
+                $response->setCallback(function() use ($handle): void {
                     while ( !feof($handle) ) {
                         $buffer = fread($handle, 65536);    // attempt to send 64Kb at a time
                         echo $buffer;

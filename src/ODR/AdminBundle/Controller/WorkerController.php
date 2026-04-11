@@ -70,7 +70,7 @@ class WorkerController extends ODRCustomController
      */
     public function migrateAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -176,10 +176,10 @@ class WorkerController extends ODRCustomController
 
                     ORDER BY rom.displayOrder, ro.id'
                 )->setParameters(
-                    array(
+                    [
                         'datarecord_id' => $datarecord->getId(),
                         'datafield_id' => $datafield->getId(),
-                    )
+                    ]
                 );
                 $results = $query->getResult();
 
@@ -199,7 +199,7 @@ class WorkerController extends ODRCustomController
                         }
 
                         // Otherwise, ensure this RadioSelection is unselected
-                        $properties = array('selected' => 0);
+                        $properties = ['selected' => 0];
                         $emm_service->updateRadioSelection($user, $rs, $properties, true);    // don't flush immediately...
                         $changes_made = true;
 
@@ -228,7 +228,7 @@ class WorkerController extends ODRCustomController
                 $conn->beginTransaction();
 
                 // Going to need to map typeclasses to actual tables, since not using Doctrine
-                $table_map = array(
+                $table_map = [
                     'IntegerValue' => 'odr_integer_value',
                     'DecimalValue' => 'odr_decimal_value',
                     'ShortVarchar' => 'odr_short_varchar',
@@ -236,7 +236,7 @@ class WorkerController extends ODRCustomController
                     'LongVarchar' => 'odr_long_varchar',
                     'LongText' => 'odr_long_text',
                     'DatetimeValue' => 'odr_datetime_value',
-                );
+                ];
 
 
                 // ----------------------------------------
@@ -307,7 +307,7 @@ class WorkerController extends ODRCustomController
 
 
                 // Each of the different migration types requires a slightly different query...
-                $select_query_fragments = $remaining_query_fragments = array();
+                $select_query_fragments = $remaining_query_fragments = [];
 
                 if ( $old_is_text && $new_is_text && $old_length < $new_length ) {
                     // Shorter text values can be inserted into longer text values without any
@@ -363,8 +363,8 @@ class WorkerController extends ODRCustomController
                     $remaining_query_fragment .= ' AND REGEXP_LIKE(e.value, "'.ValidUtility::DECIMAL_MIGRATE_REGEX_A.'")';
 
                     // This is the first of two queries
-                    $select_query_fragments = array(0 => $select_query_fragment);
-                    $remaining_query_fragments = array(0 => $remaining_query_fragment);
+                    $select_query_fragments = [0 => $select_query_fragment];
+                    $remaining_query_fragments = [0 => $remaining_query_fragment];
 
                     // ----------------------------------------
                     // The second is going to convert numbers with a spectrographic tolerance
@@ -521,7 +521,7 @@ class WorkerController extends ODRCustomController
                         $event = new DatafieldModifiedEvent($datafield, $user);
                         $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
                     }
-                    catch (\Exception $e) {
+                    catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
                         //  event
 //                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -565,7 +565,7 @@ $ret .= '  Set current to '.$count."\n";
      */
     public function syncwithtemplateAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -637,7 +637,7 @@ $ret .= '  Set current to '.$count."\n";
      */
     public function startrebuildthumbnailsAction($datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -684,7 +684,7 @@ $ret .= '  Set current to '.$count."\n";
                 JOIN ODRAdminBundle:DataRecord AS dr WITH e.dataRecord = dr
                 WHERE dr.dataType = :datatype AND e.parent IS NULL
                 AND e.deletedAt IS NULL AND dr.deletedAt IS NULL'
-            )->setParameters(array('datatype' => $datatype_id));
+            )->setParameters(['datatype' => $datatype_id]);
             $results = $query->getArrayResult();
 
 //print_r($results);
@@ -695,7 +695,7 @@ $ret .= '  Set current to '.$count."\n";
                 // Get/create an entity to track the progress of this thumbnail rebuild
                 $job_type = 'rebuild_thumbnails';
                 $target_entity = 'datatype_'.$datatype_id;
-                $additional_data = array('description' => 'Rebuild of all image thumbnails for DataType '.$datatype_id);
+                $additional_data = ['description' => 'Rebuild of all image thumbnails for DataType '.$datatype_id];
                 $restrictions = '';
                 $total = count($results);
                 $reuse_existing = false;
@@ -711,14 +711,14 @@ $ret .= '  Set current to '.$count."\n";
                     // Insert the new job into the queue
                     $priority = 1024;   // should be roughly default priority
                     $payload = json_encode(
-                        array(
+                        [
                             "tracked_job_id" => $tracked_job_id,
                             "object_type" => $object_type,
                             "object_id" => $object_id,
                             "redis_prefix" => $redis_prefix,    // debug purposes only
                             "url" => $url,
                             "api_key" => $api_key,
-                        )
+                        ]
                     );
 
                     $delay = 1;
@@ -750,7 +750,7 @@ $ret .= '  Set current to '.$count."\n";
      */
     public function rebuildthumbnailsAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = "";
         $return['d'] = "";
@@ -799,7 +799,7 @@ $ret .= '  Set current to '.$count."\n";
 
             // Ensure an ImageSizes entity exists for this image
             /** @var ImageSizes[] $image_sizes */
-            $image_sizes = $em->getRepository('ODRAdminBundle:ImageSizes')->findBy( array('dataField' => $img->getDataField()->getId()) );
+            $image_sizes = $em->getRepository('ODRAdminBundle:ImageSizes')->findBy( ['dataField' => $img->getDataField()->getId()] );
             if ( count($image_sizes) == 0 ) {
                 // Create missing ImageSizes entities for this datafield
                 $ec_service->createImageSizes($user, $img->getDataField());
@@ -807,7 +807,7 @@ $ret .= '  Set current to '.$count."\n";
                 // Reload the newly created ImageSizes for this datafield
                 while ( count($image_sizes) == 0 ) {
                     sleep(1);   // wait a second so whichever process is creating the ImageSizes entities has time to finish
-                    $image_sizes = $em->getRepository('ODRAdminBundle:ImageSizes')->findBy( array('dataField' => $img->getDataField()->getId()) );
+                    $image_sizes = $em->getRepository('ODRAdminBundle:ImageSizes')->findBy( ['dataField' => $img->getDataField()->getId()] );
                 }
 
                 // Set this image to point to the correct ImageSizes entity, since it didn't exist before
@@ -887,7 +887,7 @@ $ret .= '  Set current to '.$count."\n";
      */
     public function cryptorequestAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = "";
         $return['d'] = "";
@@ -903,7 +903,7 @@ $ret .= '  Set current to '.$count."\n";
 
             // Pull data from the post
             $crypto_type = $post['crypto_type'];
-            $object_type = strtolower( $post['object_type'] );
+            $object_type = strtolower( (string) $post['object_type'] );
             $object_id = $post['object_id'];
             $api_key = $post['api_key'];
 
@@ -1008,7 +1008,7 @@ $ret .= '  Set current to '.$count."\n";
      */
     public function startcleanupAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1023,7 +1023,7 @@ $ret .= '  Set current to '.$count."\n";
             $pheanstalk = $this->get('pheanstalk');
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
-            $url = $this->generateUrl('odr_storage_entity_cleanup_worker', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+            $url = $this->generateUrl('odr_storage_entity_cleanup_worker', [], UrlGeneratorInterface::ABSOLUTE_URL);
 
             // --------------------
             // Ensure user has permissions to be doing this
@@ -1034,7 +1034,7 @@ $ret .= '  Set current to '.$count."\n";
             // --------------------
 
             // Want to find pointless blank values in these tables...
-            $tables = array(
+            $tables = [
                 'odr_short_varchar',
 
                 // The other ones aren't as important...
@@ -1043,7 +1043,7 @@ $ret .= '  Set current to '.$count."\n";
                 'odr_long_text',
                 'odr_integer_value',
                 'odr_decimal_value',
-            );
+            ];
 
             // Need a list of all datafields...including the "deleted" ones
             $query = 'SELECT df.id AS df_id FROM odr_data_fields df';
@@ -1059,14 +1059,14 @@ $ret .= '  Set current to '.$count."\n";
                 foreach ($tables as $table) {
                     // Create a job for each datafield/table combo
                     $payload = json_encode(
-                        array(
+                        [
                             'datafield_id' => $df_id,
                             'table' => $table,
 
                             'api_key' => $beanstalk_api_key,
                             'url' => $url,
                             'redis_prefix' => $redis_prefix,    // debug purposes only
-                        )
+                        ]
                     );
 
                     $pheanstalk->useTube('storage_entity_cleanup')->put($payload);
@@ -1096,7 +1096,7 @@ $ret .= '  Set current to '.$count."\n";
      */
     public function storageentitycleanupAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1140,7 +1140,7 @@ $ret .= '  Set current to '.$count."\n";
             $results = $conn->executeQuery($query);
 
             $prev_id = $prev_drf = $prev_value = null;
-            $blank_ids = array();
+            $blank_ids = [];
 
             foreach ($results as $result) {
                 $id = $result['id'];
@@ -1217,7 +1217,7 @@ $ret .= '  Set current to '.$count."\n";
      */
     public function tagrebuildworkerAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1229,7 +1229,7 @@ $ret .= '  Set current to '.$count."\n";
 
             $tracked_job_id = $post['tracked_job_id'];
             $user_id = $post['user_id'];
-            $datarecord_list = trim($post['datarecord_list']);
+            $datarecord_list = trim((string) $post['datarecord_list']);
             $datafield_id = $post['datafield_id'];
 
             $api_key = $post['api_key'];
@@ -1297,14 +1297,14 @@ $ret .= '  Set current to '.$count."\n";
                 AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL
                 AND drf.deletedAt IS NULL AND ts.deletedAt IS NULL AND t.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'datarecord_ids' => $datarecord_list,
                     'datafield_id' => $datafield->getId(),
-                )
+                ]
             );
             $results = $query->getArrayResult();
 
-            $current_selections = array();
+            $current_selections = [];
             foreach ($results as $result) {
                 $dt_id = $result['dt_id'];
                 $dr_id = $result['dr_id'];
@@ -1315,7 +1315,7 @@ $ret .= '  Set current to '.$count."\n";
                     throw new ODRBadRequestException('Invalid Datarecord '.$dr_id);
 
                 if ( !isset($current_selections[$dr_id]) )
-                    $current_selections[$dr_id] = array();
+                    $current_selections[$dr_id] = [];
 
                 // Only want selected tags...building up an array of those and then submitting it
                 //  to the TagHelperService will end up ensuring all the tag parents get selected
@@ -1335,7 +1335,7 @@ $ret .= '  Set current to '.$count."\n";
 
             // Need to invert the provided hierarchies so that the code can look up the parent
             //  tag when given a child tag
-            $inversed_tag_hierarchy = array();
+            $inversed_tag_hierarchy = [];
             foreach ($tag_hierarchy as $parent_tag_id => $children) {
                 foreach ($children as $child_tag_id => $tmp)
                     $inversed_tag_hierarchy[$child_tag_id] = $parent_tag_id;
@@ -1343,14 +1343,14 @@ $ret .= '  Set current to '.$count."\n";
 
 
             // Keep track of which datarecords need events fired
-            $datarecord_lookup = array();
+            $datarecord_lookup = [];
             foreach ($current_selections as $dr_id => $selections) {
                 /** @var DataRecordFields $drf */
                 $drf = $repo_datarecordfields->findOneBy(
-                    array(
+                    [
                         'dataRecord' => $dr_id,
                         'dataField' => $datafield_id
-                    )
+                    ]
                 );
                 if ( is_null($drf) ) {
                     // This shouldn't happen at this point
@@ -1387,7 +1387,7 @@ $ret .= '  Set current to '.$count."\n";
                     $event = new DatafieldModifiedEvent($datafield, $user);
                     $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
 //                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -1399,7 +1399,7 @@ $ret .= '  Set current to '.$count."\n";
                         $event = new DatarecordModifiedEvent($dr, $user);
                         $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
                     }
-                    catch (\Exception $e) {
+                    catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
                         //  event
 //                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -1432,7 +1432,7 @@ $ret .= '  Set current to '.$count."\n";
      */
     public function amcsdupdatetriggerAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1477,11 +1477,11 @@ $ret .= '  Set current to '.$count."\n";
             // Insert the new job into the queue
             $priority = 1024;   // should be roughly default priority
             $payload = json_encode(
-                array(
+                [
                     "user_id" => $user->getId(),
                     "redis_prefix" => $redis_prefix,
                     "api_key" => $api_key,
-                )
+                ]
             );
 
             $delay = 1;
@@ -1507,7 +1507,7 @@ $ret .= '  Set current to '.$count."\n";
 
     public function asdfAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1541,15 +1541,15 @@ $ret .= '  Set current to '.$count."\n";
 
             print '<table border=1><tr><th>mineral id</th><th>display name</th><th>ascii name</th></tr>';
             foreach ($results as $result) {
-                $matches = array();
+                $matches = [];
                 $ascii_name = str_replace(
-                    array('Å', 'Á', 'á', 'à', 'ä', 'å', 'ã', 'ă', 'Č', 'ć', 'ç', 'č', 'É', 'é', 'ë', 'ê', 'è', 'ĕ', 'ě', 'ę', 'í', 'ï', 'ł', 'ň', 'ñ', 'ń', 'Ö', 'ö', 'ø', 'ő', 'ó', 'ô', 'ř', 'Š', 'š', 'ş', 'ţ', 'ü', 'ú', 'ý', 'Ż', 'ž', 'ż'),
-                    array('A', 'A', 'a', 'a', 'a', 'a', 'a', 'a', 'C', 'c', 'c', 'c', 'E', 'e', 'e', 'e', 'e', 'e', 'e', 'e', 'i', 'i', 'l', 'n', 'n', 'n', 'O', 'o', 'o', 'o', 'o', 'o', 'r', 'S', 's', 's', 't', 'u', 'u', 'y', 'Z', 'z', 'z'),
+                    ['Å', 'Á', 'á', 'à', 'ä', 'å', 'ã', 'ă', 'Č', 'ć', 'ç', 'č', 'É', 'é', 'ë', 'ê', 'è', 'ĕ', 'ě', 'ę', 'í', 'ï', 'ł', 'ň', 'ñ', 'ń', 'Ö', 'ö', 'ø', 'ő', 'ó', 'ô', 'ř', 'Š', 'š', 'ş', 'ţ', 'ü', 'ú', 'ý', 'Ż', 'ž', 'ż'],
+                    ['A', 'A', 'a', 'a', 'a', 'a', 'a', 'a', 'C', 'c', 'c', 'c', 'E', 'e', 'e', 'e', 'e', 'e', 'e', 'e', 'i', 'i', 'l', 'n', 'n', 'n', 'O', 'o', 'o', 'o', 'o', 'o', 'r', 'S', 's', 's', 't', 'u', 'u', 'y', 'Z', 'z', 'z'],
                     $result['display_name']
                 );
 
                 $ascii_name = str_replace(
-                    array("'", '<i>', '</i>', '_', '^'),
+                    ["'", '<i>', '</i>', '_', '^'],
                     '',
                     $ascii_name
                 );

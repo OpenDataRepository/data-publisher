@@ -26,18 +26,12 @@ class LinkPlugin implements DatatypePluginInterface
 {
 
     /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-
-    /**
      * LinkPlugin constructor.
      *
      * @param EngineInterface $templating
      */
-    public function __construct(EngineInterface $templating) {
-        $this->templating = $templating;
+    public function __construct(private readonly EngineInterface $templating)
+    {
     }
 
 
@@ -96,7 +90,7 @@ class LinkPlugin implements DatatypePluginInterface
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
+    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = [], $datatype_permissions = [], $datafield_permissions = [], $token_list = [])
     {
 
         try {
@@ -111,7 +105,7 @@ class LinkPlugin implements DatatypePluginInterface
 
             // ----------------------------------------
             // Determine which datafield's contents to use as a label for each datarecord's link button
-            $labels = array();
+            $labels = [];
             if ( isset($options['display_label']) && $options['display_label'] !== 'none' ) {
                 foreach ($datarecords as $dr_id => $dr) {
                     if ( $options['display_label'] == 'external_id' )
@@ -126,7 +120,7 @@ class LinkPlugin implements DatatypePluginInterface
             // This will only be called on a linked datatype in display mode...
             $output = $this->templating->render(
                 'ODROpenRepositoryGraphBundle:Base:Link/link.html.twig',
-                array(
+                [
                     'datatype' => $datatype,
                     'datarecord_array' => $datarecords,
                     'labels' => $labels,
@@ -134,7 +128,7 @@ class LinkPlugin implements DatatypePluginInterface
                     'is_top_level' => $rendering_options['is_top_level'],
                     'is_link' => $rendering_options['is_link'],
                     'display_type' => $rendering_options['display_type'],
-                )
+                ]
             );
 
             return $output;

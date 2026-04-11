@@ -25,16 +25,6 @@ class ODRTabHelperService
 {
 
     /**
-     * @var RequestStack
-     */
-    private $request_stack;
-
-    /**
-     * @var TokenGenerator
-     */
-    private $token_generator;
-
-    /**
      * @var int
      */
     private $default_page_length;
@@ -49,12 +39,9 @@ class ODRTabHelperService
      */
     public function __construct(
         string $default_search_results_limit,
-        RequestStack $request_stack,
-        TokenGenerator $token_generator
+        private readonly RequestStack $request_stack,
+        private readonly TokenGenerator $token_generator
     ) {
-        $this->request_stack = $request_stack;
-        $this->token_generator = $token_generator;
-
         if ( is_numeric($default_search_results_limit) )
             $this->default_page_length = intval($default_search_results_limit);
         else
@@ -114,11 +101,11 @@ class ODRTabHelperService
         // Overwrite any existing data for this tab with the new search key
         self::setTabData(
             $odr_tab_id,
-            array(
+            [
                 'search_key' => $search_key,
                 'dt_id' => $datatype_id,
                 'theme_id' => $theme_id
-            )
+            ]
         );
 
         return true;
@@ -178,13 +165,13 @@ class ODRTabHelperService
 
 
         // Return the required data
-        return array(
+        return [
             'page_length' => $page_length,
             'next_datarecord_id' => $next_datarecord_id,
             'prev_datarecord_id' => $prev_datarecord_id,
             'search_result_current' => $search_result_current,
             'search_result_count' => $search_result_count
-        );
+        ];
     }
 
 
@@ -222,12 +209,12 @@ class ODRTabHelperService
             $offset = $num_pages;
 
         // Return the required data
-        return array(
+        return [
             'num_pages' => $num_pages,
             'num_datarecords' => $num_datarecords,
             'offset' => $offset,
             'page_length' => $page_length,
-        );
+        ];
     }
 
 
@@ -258,7 +245,7 @@ class ODRTabHelperService
         $tab_data = self::getTabData($odr_tab_id);
         if ( is_null($tab_data) ) {
             // If no data exists for this tab, then create an entry for it
-            $tab_data = array();
+            $tab_data = [];
         }
 
         $dt_id = null;
@@ -319,7 +306,7 @@ class ODRTabHelperService
         $tab_data = self::getTabData($odr_tab_id);
         if ( is_null($tab_data) ) {
             // No stored tab data for this user's session...start a new one
-            self::setTabData($odr_tab_id, array($tab_key => $page_length));
+            self::setTabData($odr_tab_id, [$tab_key => $page_length]);
         }
         else {
             // NOTE: can't set cookie values here, because that has to be tied to the response
@@ -428,10 +415,10 @@ class ODRTabHelperService
 
         if ( !empty($datafield_ids) && !empty($sort_directions) ) {
             // If both datafields and sort directions are specified, then store those
-            $tab_data['sort_criteria'] = array(
+            $tab_data['sort_criteria'] = [
                 'datafield_ids' => $datafield_ids,
                 'sort_directions' => $sort_directions,
-            );
+            ];
         }
         else {
             // ...if not, then interpret it as a request to clear any existing sort criteria
@@ -535,7 +522,7 @@ class ODRTabHelperService
         $tab_data = self::getTabData($odr_tab_id);
         if ( is_null($tab_data) ) {
             // No stored tab data for this user's session...start a new one
-            self::setTabData($odr_tab_id, array('search_results' => $search_results));
+            self::setTabData($odr_tab_id, ['search_results' => $search_results]);
         }
         else {
             // Set the search_results for this tab, creating an entry if it doesn't exist
@@ -616,7 +603,7 @@ class ODRTabHelperService
 
        if ( !$session->has('stored_tab_data') ) {
            // No stored tab data for this user's session...start a new one
-           $session->set('stored_tab_data', array($odr_tab_id => $tab_data));
+           $session->set('stored_tab_data', [$odr_tab_id => $tab_data]);
        }
        else {
            $stored_tab_data = $session->get('stored_tab_data');

@@ -63,7 +63,7 @@ class MigrationController extends ODRCustomController
      */
     public function migrate_1_0_Action(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -116,7 +116,7 @@ class MigrationController extends ODRCustomController
             // 2) users with ROLE_SUPER_ADMIN are removed from all groups they were previously members of
             $ret .= '<div>Removing the following users with ROLE_SUPER_ADMIN from all groups:<br>';
             
-            $super_admins = array();
+            $super_admins = [];
             foreach ($users as $user) {
                 if ( $user->hasRole("ROLE_SUPER_ADMIN") ) {
                     $super_admins[] = $user->getId();
@@ -130,7 +130,7 @@ class MigrationController extends ODRCustomController
             $query = $em->createQuery(
                'DELETE FROM ODRAdminBundle:UserGroup AS ug
                 WHERE ug.user IN (:user_list)'
-            )->setParameters( array('user_list' => $super_admins) );
+            )->setParameters( ['user_list' => $super_admins] );
             $rows = $query->execute();
 
             $em->getFilters()->enable('softdeleteable');
@@ -156,10 +156,10 @@ class MigrationController extends ODRCustomController
                'SELECT g.id
                 FROM ODRAdminBundle:Group AS g
                 WHERE g.purpose IN (:groups)'
-            )->setParameters( array('groups' => array('admin', 'edit_all')) );
+            )->setParameters( ['groups' => ['admin', 'edit_all']] );
             $results = $query->getArrayResult();
 
-            $groups = array();
+            $groups = [];
             foreach ($results as $result)
                 $groups[] = $result['id'];
 
@@ -169,7 +169,7 @@ class MigrationController extends ODRCustomController
                'UPDATE ODRAdminBundle:GroupDatatypePermissions AS gdtp
                 SET gdtp.can_change_public_status = 1
                 WHERE gdtp.group IN (:groups)'
-            )->setParameters( array('groups' => $groups) );
+            )->setParameters( ['groups' => $groups] );
             $rows = $query->execute();
 
             $ret .= '<br>** Updated '.$rows.' rows total';
@@ -195,10 +195,10 @@ class MigrationController extends ODRCustomController
                'SELECT g.id
                 FROM ODRAdminBundle:Group AS g
                 WHERE g.purpose IN (:groups)'
-            )->setParameters( array('groups' => array('edit_all')) );
+            )->setParameters( ['groups' => ['edit_all']] );
             $results = $query->getArrayResult();
 
-            $groups = array();
+            $groups = [];
             foreach ($results as $result)
                 $groups[] = $result['id'];
 
@@ -209,10 +209,10 @@ class MigrationController extends ODRCustomController
                 SET gm.groupDescription = :new_description
                 WHERE gm.group IN (:groups)'
             )->setParameters(
-                array(
+                [
                     'new_description' => "Users in this default Group are always allowed to view, edit, and change public status of Datarecords.",
                     'groups' => $groups
-                )
+                ]
             );
             $rows = $query->execute();
 
@@ -241,7 +241,7 @@ class MigrationController extends ODRCustomController
             );
             $results = $query->getArrayResult();
 
-            $theme_element_ids = array();
+            $theme_element_ids = [];
             foreach ($results as $result)
                 $theme_element_ids[] = $result['id'];
 
@@ -252,9 +252,9 @@ class MigrationController extends ODRCustomController
                 WHERE tem.themeElement IN (:theme_elements)
                 AND tem.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'theme_elements' => $theme_element_ids
-                )
+                ]
             );
             $rows = $query->execute();
 
@@ -270,7 +270,7 @@ class MigrationController extends ODRCustomController
 
             // odr_layout is the only table that has foreign key issues...solved by having it after
             //  the rest of the tables with 'layout' in their name
-            $old_tables = array(
+            $old_tables = [
                 'odr_checkbox',
                 'odr_file_storage',
                 'odr_image_storage',
@@ -283,7 +283,7 @@ class MigrationController extends ODRCustomController
                 'odr_user_field_permissions',
                 'odr_user_permissions',
                 'odr_xyz_value',
-            );
+            ];
 
             $conn = $em->getConnection();
             foreach ($old_tables as $table_name) {
@@ -308,10 +308,10 @@ class MigrationController extends ODRCustomController
                 WHERE rp.pluginClassName = :old_classname'
             );
             $query->execute(
-                array(
+                [
                     'new_classname' => "odr_plugins.chemin.chemin_references",
                     'old_classname' => "odr_plugins.base.chemin_references"
-                )
+                ]
             );
 
             $ret .= 'success';
@@ -364,7 +364,7 @@ class MigrationController extends ODRCustomController
      */
     public function migrate_1_1_Action(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -392,10 +392,10 @@ class MigrationController extends ODRCustomController
                 SET rp.deletedAt = :now
                 WHERE rp.pluginClassName = :classname AND rp.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'now' => new \DateTime(),
                     'classname' => 'odr_plugins.base.default'
-                )
+                ]
             );
             $query->execute();
 
@@ -434,12 +434,12 @@ class MigrationController extends ODRCustomController
             $conn = $em->getConnection();
             $results = $conn->executeQuery($query);
 
-            $existing_rpo = array();
-            $check = array();
+            $existing_rpo = [];
+            $check = [];
 
             // Going to need to hydrate these
-            $rpi_ids = array();
-            $user_ids = array();
+            $rpi_ids = [];
+            $user_ids = [];
             foreach ($results as $result) {
                 $rp_id = $result['rp_id'];
                 $rpi_id = $result['rpi_id'];
@@ -470,14 +470,14 @@ class MigrationController extends ODRCustomController
 
                 // Save actual data...
                 if ( !isset($existing_rpo[$rpi_id]) )
-                    $existing_rpo[$rpi_id] = array();
-                $existing_rpo[$rpi_id][$optionName] = array(
+                    $existing_rpo[$rpi_id] = [];
+                $existing_rpo[$rpi_id][$optionName] = [
                     'value' => $optionValue,
                     'created' => $created,
                     'createdBy' => intval($createdBy),
                     'updated' => $updated,
                     'updatedBy' => intval($updatedBy),
-                );
+                ];
 
                 // Apparently there's a possibility that an rpi entry has a "leftover" rpo entry that
                 //  belongs to a different render plugin than the current rpi is using
@@ -495,13 +495,13 @@ class MigrationController extends ODRCustomController
             );
             $results = $query->getArrayResult();
 
-            $existing_rpom = array();
+            $existing_rpom = [];
             foreach ($results as $rpom) {
                 $rpi_id = $rpom['renderPluginInstance']['id'];
                 $rpod_id = $rpom['renderPluginOptionsDef']['id'];
 
                 if ( !isset($existing_rpom[$rpi_id]) )
-                    $existing_rpom[$rpi_id] = array();
+                    $existing_rpom[$rpi_id] = [];
                 $existing_rpom[$rpi_id][$rpod_id] = 0;
             }
 
@@ -533,11 +533,11 @@ class MigrationController extends ODRCustomController
                 LEFT JOIN df_gdt.dataTypeMeta AS df_gdt_dtm
 
                 WHERE rpi IN (:rpi_ids)'
-            )->setParameters(array('rpi_ids' => $rpi_ids));
+            )->setParameters(['rpi_ids' => $rpi_ids]);
             $results = $query->getArrayResult();
             $em->getFilters()->enable('softdeleteable');
 
-            $rpi_array = array();
+            $rpi_array = [];
             foreach ($results as $result) {
                 $rpi_id = $result['id'];
                 $rpi_array[$rpi_id] = $result;
@@ -549,10 +549,10 @@ class MigrationController extends ODRCustomController
                'SELECT rpi
                 FROM ODRAdminBundle:RenderPluginInstance rpi
                 WHERE rpi IN (:rpi_ids)'
-            )->setParameters(array('rpi_ids' => $rpi_ids));
+            )->setParameters(['rpi_ids' => $rpi_ids]);
             $results = $query->getResult();
 
-            $rpi_entries = array();
+            $rpi_entries = [];
             foreach ($results as $rpi)
                 $rpi_entries[$rpi->getId()] = $rpi;
             /** @var RenderPluginInstance[] $rpi_entries */
@@ -563,10 +563,10 @@ class MigrationController extends ODRCustomController
                'SELECT u
                 FROM ODROpenRepositoryUserBundle:User u
                 WHERE u IN (:user_ids)'
-            )->setParameters(array('user_ids' => $user_ids));
+            )->setParameters(['user_ids' => $user_ids]);
             $results = $query->getResult();
 
-            $user_entries = array();
+            $user_entries = [];
             foreach ($results as $u)
                 $user_entries[$u->getId()] = $u;
             /** @var ODRUser[] $user_entries */
@@ -578,7 +578,7 @@ class MigrationController extends ODRCustomController
             );
             $results = $query->getResult();
 
-            $rpod_entries = array();
+            $rpod_entries = [];
             foreach ($results as $rpo)
                 $rpod_entries[$rpo->getName()] = $rpo;
             /** @var RenderPluginOptionsDef[] $rpod_entries */
@@ -714,7 +714,7 @@ class MigrationController extends ODRCustomController
      */
     public function renderdatatypearrayAction($datatype_id, $side, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -755,29 +755,29 @@ class MigrationController extends ODRCustomController
             if ( $side === 'src' ) {
                 $return['d'] = $templating->render(
                     'ODRAdminBundle:Migration:list.html.twig',
-                    array(
+                    [
                         'datatype' => $datatype_array,
                         'side' => 'src',
-                    )
+                    ]
                 );
             }
             else {
-                $return['d'] = array(
+                $return['d'] = [
                     'datafields' => $templating->render(
                         'ODRAdminBundle:Migration:list.html.twig',
-                        array(
+                        [
                             'datatype' => $datatype_array,
                             'side' => 'fields',
-                        ),
+                        ],
                     ),
                     'datatypes' => $templating->render(
                         'ODRAdminBundle:Migration:list.html.twig',
-                        array(
+                        [
                             'datatype' => $datatype_array,
                             'side' => 'types',
-                        )
+                        ]
                     ),
-                );
+                ];
             }
         }
         catch (\Exception $e) {
@@ -804,7 +804,7 @@ class MigrationController extends ODRCustomController
      */
     public function renderradiooptionsarrayAction($src_datafield_id, $dest_datafield_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -852,29 +852,29 @@ class MigrationController extends ODRCustomController
             }
 
             $src_dt_array = $database_info_service->getDatatypeArray($src_datafield->getDataType()->getGrandparent()->getId(), false);
-            $src_ro_array = array();
+            $src_ro_array = [];
             if ( isset($src_dt_array[$src_dt_id]['dataFields'][$src_datafield_id]['radioOptions']) )
                 $src_ro_array = $src_dt_array[$src_dt_id]['dataFields'][$src_datafield_id]['radioOptions'];
 
             $dest_dt_array = $database_info_service->getDatatypeArray($dest_datafield->getDataType()->getGrandparent()->getId(), false);
-            $dest_ro_array = array();
+            $dest_ro_array = [];
             if ( isset($dest_dt_array[$dest_dt_id]['dataFields'][$dest_datafield_id]['radioOptions']) )
                 $dest_ro_array = $dest_dt_array[$dest_dt_id]['dataFields'][$dest_datafield_id]['radioOptions'];
 
             // ----------------------------------------
             // Render and return a tree structure of data
-            $return['d'] = array(
+            $return['d'] = [
                 'radio_options' => $templating->render(
                     'ODRAdminBundle:Migration:radio_option_list.html.twig',
-                    array(
+                    [
                         'src_df' => $src_dt_array[$src_dt_id]['dataFields'][$src_datafield_id],
 
                         'src_ro_array' => $src_ro_array,
                         'dest_ro_array' => $dest_ro_array,
-                    ),
+                    ],
                 ),
 
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0xcc07ffea;
@@ -899,7 +899,7 @@ class MigrationController extends ODRCustomController
      */
     public function createtemplatefromdatatypestartAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -941,7 +941,7 @@ class MigrationController extends ODRCustomController
      */
     public function createtemplatefromdatatypeAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -982,7 +982,7 @@ class MigrationController extends ODRCustomController
      */
     public function makedatatypeusetemplatestartAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1029,14 +1029,14 @@ class MigrationController extends ODRCustomController
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
                 ORDER BY dtm.shortName'
             )->setParameters(
-                array(
+                [
                     'datatype_ids' => $top_level_datatypes,
                     'template_ids' => $top_level_templates
-                )
+                ]
             );
             $results = $query->getArrayResult();
 
-            $names = array();
+            $names = [];
             foreach ($results as $result) {
                 $dt_id = $result['dt_id'];
                 $dt_name = $result['shortName'];
@@ -1056,17 +1056,17 @@ class MigrationController extends ODRCustomController
             }
 
             // Render and return a tree structure of data
-            $return['d'] = array(
+            $return['d'] = [
                 'html' =>$templating->render(
                     'ODRAdminBundle:Migration:make_datatype_use_template.html.twig',
-                    array(
+                    [
                         'datatypes' => $top_level_datatypes,
                         'templates' => $top_level_templates,
 
                         'names' => $names,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x2c644397;
@@ -1090,7 +1090,7 @@ class MigrationController extends ODRCustomController
      */
     public function makedatatypeusetemplateAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1116,7 +1116,7 @@ class MigrationController extends ODRCustomController
             $datatypes = $post['datatypes'];
             $datafields = $post['datafields'];
 
-            $radio_options = array();
+            $radio_options = [];
             if ( isset($post['radio_options']) )
                 $radio_options = $post['radio_options'];
 
@@ -1145,9 +1145,9 @@ class MigrationController extends ODRCustomController
             $src_datatype_array = $database_info_service->getDatatypeArray($src_dt_id, false);    // TODO - ...don't want links, right?
             $dest_datatype_array = $database_info_service->getDatatypeArray($dest_dt_id, false);    // TODO - ...don't want links, right?
 
-            $src_types = array();
-            $src_fields = array();
-            $src_df_lookup = array();
+            $src_types = [];
+            $src_fields = [];
+            $src_df_lookup = [];
             foreach ($src_datatype_array as $dt_id => $dt) {
                 $src_types[$dt_id] = 1;
                 if ( isset($dt['dataFields']) ) {
@@ -1161,9 +1161,9 @@ class MigrationController extends ODRCustomController
             }
 
             // These are the things that belong to the template
-            $dest_datatypes = array();
-            $dest_fields = array();
-            $dest_df_lookup = array();
+            $dest_datatypes = [];
+            $dest_fields = [];
+            $dest_df_lookup = [];
             foreach ($dest_datatype_array as $dt_id => $dt) {
                 $dest_datatypes[$dt_id] = 1;
                 if ( isset($dt['dataFields']) ) {
@@ -1198,7 +1198,7 @@ class MigrationController extends ODRCustomController
                     throw new ODRBadRequestException('dest dt '.$dest_dt_id.' not found');
             }
 
-            $dest_ro_list = array();
+            $dest_ro_list = [];
             foreach ($radio_options as $src_df_id => $ro_list) {
                 if ( !isset($src_fields[$src_df_id]) )
                     throw new ODRBadRequestException('df '.$src_df_id.' from radio option list not found');
@@ -1206,7 +1206,7 @@ class MigrationController extends ODRCustomController
                     throw new ODRBadRequestException('df '.$src_df_id.' is not a radio typeclass');
 
                 $src_df = $src_df_lookup[$src_df_id];
-                $src_ro_list = array();
+                $src_ro_list = [];
                 foreach ($src_df['radioOptions'] as $num => $src_ro)
                     $src_ro_list[ $src_ro['id'] ] = 1;
 
@@ -1237,10 +1237,10 @@ class MigrationController extends ODRCustomController
                 FROM ODRAdminBundle:DataFields df
                 WHERE df.id IN (:datafield_ids)
                 AND df.deletedAt IS NULL'
-            )->setParameters( array('datafield_ids' => $dest_df_ids) );
+            )->setParameters( ['datafield_ids' => $dest_df_ids] );
             $results = $query->getArrayResult();
 
-            $df_uuid_mapping = array();
+            $df_uuid_mapping = [];
             foreach ($results as $result) {
                 $df_id = $result['df_id'];
                 $field_uuid = $result['df_uuid'];
@@ -1253,10 +1253,10 @@ class MigrationController extends ODRCustomController
                 FROM ODRAdminBundle:RadioOptions ro
                 WHERE ro.id IN (:radio_option_ids)
                 AND ro.deletedAt IS NULL'
-            )->setParameters( array('radio_option_ids' => $dest_ro_ids) );
+            )->setParameters( ['radio_option_ids' => $dest_ro_ids] );
             $results = $query->getArrayResult();
 
-            $ro_uuid_mapping = array();
+            $ro_uuid_mapping = [];
             foreach ($results as $result) {
                 $ro_id = $result['ro_id'];
                 $ro_uuid = $result['ro_uuid'];
@@ -1266,7 +1266,7 @@ class MigrationController extends ODRCustomController
 
 
             // ----------------------------------------
-            $lines = array();
+            $lines = [];
             $lines[] = 'START TRANSACTION;';
 
             // All datatypes need to have their master_datatype_id updated
@@ -1322,7 +1322,7 @@ class MigrationController extends ODRCustomController
      */
     public function movedatatypecontentsstartAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1357,10 +1357,10 @@ class MigrationController extends ODRCustomController
                 WHERE dt.id IN (:datatype_ids) AND dt.is_master_type = 0
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
                 ORDER BY dtm.shortName'
-            )->setParameters( array('datatype_ids' => $top_level_datatypes) );
+            )->setParameters( ['datatype_ids' => $top_level_datatypes] );
             $results = $query->getArrayResult();
 
-            $datatypes = array();
+            $datatypes = [];
             foreach ($results as $result) {
                 $dt_id = $result['dt_id'];
                 $dt_name = $result['shortName'];
@@ -1369,14 +1369,14 @@ class MigrationController extends ODRCustomController
             }
 
             // Render and return a tree structure of data
-            $return['d'] = array(
+            $return['d'] = [
                 'html' =>$templating->render(
                     'ODRAdminBundle:Migration:move_datatype_contents.html.twig',
-                    array(
+                    [
                         'datatypes' => $datatypes,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0xde66f0db;
@@ -1401,7 +1401,7 @@ class MigrationController extends ODRCustomController
      */
     public function movedatatypecontentsAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1427,7 +1427,7 @@ class MigrationController extends ODRCustomController
             $datatypes = $post['datatypes'];
             $datafields = $post['datafields'];
 
-            $radio_options = array();
+            $radio_options = [];
             if ( isset($post['radio_options']) )
                 $radio_options = $post['radio_options'];
 
@@ -1456,9 +1456,9 @@ class MigrationController extends ODRCustomController
             $src_datatype_array = $database_info_service->getDatatypeArray($src_dt_id, false);    // TODO - ...don't want links, right?
             $dest_datatype_array = $database_info_service->getDatatypeArray($dest_dt_id, false);    // TODO - ...don't want links, right?
 
-            $src_types = array();
-            $src_fields = array();
-            $src_df_lookup = array();
+            $src_types = [];
+            $src_fields = [];
+            $src_df_lookup = [];
             foreach ($src_datatype_array as $dt_id => $dt) {
                 $src_types[$dt_id] = 1;
                 if ( isset($dt['dataFields']) ) {
@@ -1471,9 +1471,9 @@ class MigrationController extends ODRCustomController
                 }
             }
 
-            $dest_datatypes = array();
-            $dest_fields = array();
-            $dest_df_lookup = array();
+            $dest_datatypes = [];
+            $dest_fields = [];
+            $dest_df_lookup = [];
             foreach ($dest_datatype_array as $dt_id => $dt) {
                 $dest_datatypes[$dt_id] = 1;
                 if ( isset($dt['dataFields']) ) {
@@ -1510,12 +1510,12 @@ class MigrationController extends ODRCustomController
                     throw new ODRBadRequestException('df '.$src_df_id.' is not a radio typeclass');
 
                 $src_df = $src_df_lookup[$src_df_id];
-                $src_ro_list = array();
+                $src_ro_list = [];
                 foreach ($src_df['radioOptions'] as $num => $src_ro)
                     $src_ro_list[ $src_ro['id'] ] = 1;
 
                 $dest_df =  $dest_df_lookup[ $datafields[$src_df_id] ];
-                $dest_ro_list = array();
+                $dest_ro_list = [];
                 foreach ($dest_df['radioOptions'] as $num => $dest_ro)
                     $dest_ro_list[ $dest_ro['id'] ] = 1;
 
@@ -1537,10 +1537,10 @@ class MigrationController extends ODRCustomController
                'SELECT dt.id
                 FROM ODRAdminBundle:DataType dt
                 WHERE dt.id IN (:datatype_ids) OR dt.metadata_for IN (:datatype_ids) OR dt.grandparent IN (:datatype_ids)'
-            ) ->setParameters( array('datatype_ids' => $src_datatype_ids) );
+            ) ->setParameters( ['datatype_ids' => $src_datatype_ids] );
             $results = $query->getArrayResult();
 
-            $src_datatype_ids = array();
+            $src_datatype_ids = [];
             foreach ($results as $result)
                 $src_datatype_ids[ $result['id'] ] = 1;
             $src_datatype_ids = array_keys($src_datatype_ids);
@@ -1550,10 +1550,10 @@ class MigrationController extends ODRCustomController
                'SELECT df.id
                 FROM ODRAdminBundle:DataFields df
                 WHERE df.dataType IN (:datatype_ids)'
-            ) ->setParameters( array('datatype_ids' => $src_datatype_ids) );
+            ) ->setParameters( ['datatype_ids' => $src_datatype_ids] );
             $results = $query->getArrayResult();
 
-            $src_datafield_ids = array();
+            $src_datafield_ids = [];
             foreach ($results as $result)
                 $src_datafield_ids[ $result['id'] ] = 1;
             $src_datafield_ids = array_keys($src_datafield_ids);
@@ -1563,10 +1563,10 @@ class MigrationController extends ODRCustomController
                'SELECT ro.id
                 FROM ODRAdminBundle:RadioOptions ro
                 WHERE ro.dataField IN (:datafield_ids)'
-            ) ->setParameters( array('datafield_ids' => $src_datafield_ids) );
+            ) ->setParameters( ['datafield_ids' => $src_datafield_ids] );
             $results = $query->getArrayResult();
 
-            $src_ro_ids = array();
+            $src_ro_ids = [];
             foreach ($results as $result)
                 $src_ro_ids[ $result['id'] ] = 1;
             $src_ro_ids = array_keys($src_ro_ids);
@@ -1576,10 +1576,10 @@ class MigrationController extends ODRCustomController
                'SELECT rpi.id
                 FROM ODRAdminBundle:RenderPluginInstance rpi
                 WHERE rpi.dataType IN (:datatype_ids)'
-            ) ->setParameters( array('datatype_ids' => $src_datatype_ids) );
+            ) ->setParameters( ['datatype_ids' => $src_datatype_ids] );
             $results = $query->getArrayResult();
 
-            $src_rpi_ids = array();
+            $src_rpi_ids = [];
             foreach ($results as $result)
                 $src_rpi_ids[ $result['id'] ] = 1;
             $src_rpi_ids = array_keys($src_rpi_ids);
@@ -1589,10 +1589,10 @@ class MigrationController extends ODRCustomController
                'SELECT g.id
                 FROM ODRAdminBundle:Group g
                 WHERE g.dataType IN (:datatype_ids)'
-            ) ->setParameters( array('datatype_ids' => $src_datatype_ids) );
+            ) ->setParameters( ['datatype_ids' => $src_datatype_ids] );
             $results = $query->getArrayResult();
 
-            $src_group_ids = array();
+            $src_group_ids = [];
             foreach ($results as $result)
                 $src_group_ids[ $result['id'] ] = 1;
             $src_group_ids = array_keys($src_group_ids);
@@ -1602,10 +1602,10 @@ class MigrationController extends ODRCustomController
                'SELECT dt.id
                 FROM ODRAdminBundle:DataTree dt
                 WHERE dt.ancestor IN (:datatype_ids) OR dt.descendant IN (:datatype_ids)'
-            ) ->setParameters( array('datatype_ids' => $src_datatype_ids) );
+            ) ->setParameters( ['datatype_ids' => $src_datatype_ids] );
             $results = $query->getArrayResult();
 
-            $src_datatree_ids = array();
+            $src_datatree_ids = [];
             foreach ($results as $result)
                 $src_datatree_ids[ $result['id'] ] = 1;
             $src_datatree_ids  = array_keys($src_datatree_ids);
@@ -1615,10 +1615,10 @@ class MigrationController extends ODRCustomController
                'SELECT sl.id
                 FROM ODRAdminBundle:SidebarLayout sl
                 WHERE sl.dataType IN (:datatype_ids)'
-            ) ->setParameters( array('datatype_ids' => $src_datatype_ids) );
+            ) ->setParameters( ['datatype_ids' => $src_datatype_ids] );
             $results = $query->getArrayResult();
 
-            $src_sidebar_layout_ids = array();
+            $src_sidebar_layout_ids = [];
             foreach ($results as $result)
                 $src_sidebar_layout_ids[ $result['id'] ] = 1;
             $src_sidebar_layout_ids  = array_keys($src_sidebar_layout_ids);
@@ -1628,10 +1628,10 @@ class MigrationController extends ODRCustomController
                'SELECT t.id
                 FROM ODRAdminBundle:Theme t
                 WHERE t.dataType IN (:datatype_ids)'
-            ) ->setParameters( array('datatype_ids' => $src_datatype_ids) );
+            ) ->setParameters( ['datatype_ids' => $src_datatype_ids] );
             $results = $query->getArrayResult();
 
-            $src_theme_ids = array();
+            $src_theme_ids = [];
             foreach ($results as $result)
                 $src_theme_ids[ $result['id'] ] = 1;
             $src_theme_ids = array_keys($src_theme_ids);
@@ -1641,17 +1641,17 @@ class MigrationController extends ODRCustomController
                'SELECT te.id
                 FROM ODRAdminBundle:ThemeElement te
                 WHERE te.theme IN (:theme_ids)'
-            ) ->setParameters( array('theme_ids' => $src_theme_ids) );
+            ) ->setParameters( ['theme_ids' => $src_theme_ids] );
             $results = $query->getArrayResult();
 
-            $src_themeelement_ids = array();
+            $src_themeelement_ids = [];
             foreach ($results as $result)
                 $src_themeelement_ids[ $result['id'] ] = 1;
             $src_themeelement_ids = array_keys($src_themeelement_ids);
 
 
             // ----------------------------------------
-            $lines = array();
+            $lines = [];
             $lines[] = 'START TRANSACTION;';
 
             // All datarecords need to get moved to the destination datatypes
@@ -1666,7 +1666,7 @@ class MigrationController extends ODRCustomController
             $lines[] = '';
 
             // Each related storage entity also needs to change the datafield it points to
-            $typeclass_map = array(
+            $typeclass_map = [
                 'Boolean' => 'odr_boolean',
                 'File' => 'odr_file',
                 'Image' => 'odr_image',
@@ -1678,7 +1678,7 @@ class MigrationController extends ODRCustomController
                 'LongText' => 'odr_long_text',
                 'DatetimeValue' => 'odr_datetime_value',
                 'XYZData' => 'odr_xyz_data'
-            );
+            ];
             foreach ($src_fields as $src_df_id => $typeclass) {
                 if ( isset($typeclass_map[$typeclass]) ) {
                     $dest_df_id = $datafields[$src_df_id];
@@ -1804,7 +1804,7 @@ class MigrationController extends ODRCustomController
      */
     public function convertlinktochildtypestartAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1832,8 +1832,8 @@ class MigrationController extends ODRCustomController
             // Going to be easier to use the datatree array here...
             $datatree_array = $datatree_info_service->getDatatreeArray();
 
-            $all_datatype_ids = array();
-            $datatypes = array();
+            $all_datatype_ids = [];
+            $datatypes = [];
             foreach ($datatree_array['linked_from'] as $descendant_dt_id => $ancestor_dt_ids) {
                 // Only the datatypes that are linked to exactly once are eligible for this
                 if ( count($ancestor_dt_ids) > 1 )
@@ -1846,7 +1846,7 @@ class MigrationController extends ODRCustomController
 
                 // Need to store the datatypes in a way that's easier to understand
                 if ( !isset($datatypes[$ancestor_dt_id]) )
-                    $datatypes[$ancestor_dt_id] = array();
+                    $datatypes[$ancestor_dt_id] = [];
                 $datatypes[$ancestor_dt_id][] = $descendant_dt_id;
             }
 
@@ -1862,13 +1862,13 @@ class MigrationController extends ODRCustomController
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
                 ORDER BY dtm.shortName'
             )->setParameters(
-                array(
+                [
                     'datatype_ids' => $all_datatype_ids,
-                )
+                ]
             );
             $results = $query->getArrayResult();
 
-            $names = array();
+            $names = [];
             foreach ($results as $result) {
                 $dt_id = $result['dt_id'];
                 $dt_name = $result['shortName'];
@@ -1877,16 +1877,16 @@ class MigrationController extends ODRCustomController
             }
 
             // Render and return a tree structure of data
-            $return['d'] = array(
+            $return['d'] = [
                 'html' =>$templating->render(
                     'ODRAdminBundle:Migration:convert_link_to_childtype.html.twig',
-                    array(
+                    [
                         'datatypes' => $datatypes,
 
                         'names' => $names,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x93fbe5f5;
@@ -1910,7 +1910,7 @@ class MigrationController extends ODRCustomController
      */
     public function convertlinktochildtypeAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1965,10 +1965,10 @@ class MigrationController extends ODRCustomController
 
             /** @var DataTree $datatree */
             $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
-                array(
+                [
                     'ancestor' => $ancestor_datatype,
                     'descendant' => $target_datatype
-                )
+                ]
             );
             if ($datatree == null)
                 throw new ODRNotFoundException('DataTree');
@@ -1984,10 +1984,10 @@ class MigrationController extends ODRCustomController
                 FROM ODRAdminBundle:DataType dt
                 WHERE dt.grandparent = :target_datatype_id
                 AND dt.deletedAt IS NULL'
-            )->setParameters( array('target_datatype_id' => $target_dt_id) );
+            )->setParameters( ['target_datatype_id' => $target_dt_id] );
             $results = $query->getArrayResult();
 
-            $target_descendant_ids = array();
+            $target_descendant_ids = [];
             foreach ($results as $result) {
                 $dt_id = $result['dt_id'];
                 $target_descendant_ids[] = $dt_id;
@@ -1999,10 +1999,10 @@ class MigrationController extends ODRCustomController
                 FROM ODRAdminBundle:DataType dt
                 WHERE dt.metadata_for IN (:target_datatype_ids)
                 AND dt.deletedAt IS NULL'
-            )->setParameters( array('target_datatype_ids' => $target_descendant_ids) );
+            )->setParameters( ['target_datatype_ids' => $target_descendant_ids] );
             $results = $query->getArrayResult();
 
-            $metadata_datatype_ids = array();
+            $metadata_datatype_ids = [];
             foreach ($results as $result) {
                 $dt_id = $result['dt_id'];
                 $metadata_datatype_ids[] = $dt_id;
@@ -2018,8 +2018,8 @@ class MigrationController extends ODRCustomController
                 AND adr.deletedAt IS NULL AND ldt.deletedAt IS NULL AND ddr.deletedAt IS NULL';
             $results = $conn->executeQuery($query);
 
-            $linked_datatree_ids = array();
-            $new_parent_ids = array();
+            $linked_datatree_ids = [];
+            $new_parent_ids = [];
             foreach ($results as $result) {
                 $ldt_id = $result['ldt_id'];
                 $gp_adr_id = $result['gp_adr_id'];
@@ -2030,7 +2030,7 @@ class MigrationController extends ODRCustomController
 
                 if ( isset($new_parent_ids[$ddr_id]) )
                     throw new ODRException('descendant datarecord '.$ddr_id.' is linked to more than once...');
-                $new_parent_ids[$ddr_id] = array('parent' => $adr_id, 'grandparent' => $gp_adr_id);
+                $new_parent_ids[$ddr_id] = ['parent' => $adr_id, 'grandparent' => $gp_adr_id];
             }
 
 
@@ -2047,8 +2047,8 @@ class MigrationController extends ODRCustomController
             $results = $conn->fetchAll($query);    // fetchAll() instead of executeQuery() because the latter only allows one iteration through the results
 
             // This needs to happen in three steps though...
-            $own_themes = array();
-            $new_master_theme_ids = array();
+            $own_themes = [];
+            $new_master_theme_ids = [];
             foreach ($results as $result) {
                 $theme_id = intval($result['theme_id']);
                 $dt_id = intval($result['dt_id']);
@@ -2067,8 +2067,8 @@ class MigrationController extends ODRCustomController
                     $new_master_theme_ids[$dt_id] = $theme_id;
             }
 
-            $themes_to_delete = array();
-            $themes_to_change = array();
+            $themes_to_delete = [];
+            $themes_to_change = [];
             foreach ($results as $result) {
                 $theme_id = intval($result['theme_id']);
                 $dt_id = intval($result['dt_id']);
@@ -2078,21 +2078,21 @@ class MigrationController extends ODRCustomController
                 //  descendant "owns"...all of these are going to get deleted
                 if ( isset( $own_themes[$parent_theme_id] )) {
                     if ( !isset($themes_to_delete[$dt_id]) )
-                        $themes_to_delete[$dt_id] = array();
+                        $themes_to_delete[$dt_id] = [];
                     $themes_to_delete[$dt_id][] = $theme_id;
                 }
 
                 // ...the fourth step is to "promote" what was originally the "copy" of the master
                 //  theme for each of these datatypes
                 if ( !isset($themes_to_change[$dt_id]) )
-                    $themes_to_change[$dt_id] = array();
+                    $themes_to_change[$dt_id] = [];
                 $themes_to_change[$dt_id][$theme_id] = $new_master_theme_ids[$dt_id];
                 // Note that this will create lines for themes which $themes_to_delete is going to delete
             }
 
 
             // Since themes are getting deleted, should also delete their associated theme_elements...
-            $all_themes_to_delete = array();
+            $all_themes_to_delete = [];
             foreach ($themes_to_delete as $dt_id => $list) {
                 foreach ($list as $num => $t_id)
                     $all_themes_to_delete[] = $t_id;
@@ -2103,10 +2103,10 @@ class MigrationController extends ODRCustomController
                 FROM ODRAdminBundle:ThemeElement te
                 WHERE te.theme IN (:theme_ids)
                 AND te.deletedAt IS NULL'
-            )->setParameters( array('theme_ids' => $all_themes_to_delete) );
+            )->setParameters( ['theme_ids' => $all_themes_to_delete] );
             $results = $query->getArrayResult();
 
-            $theme_elements_to_delete = array();
+            $theme_elements_to_delete = [];
             foreach ($results as $result) {
                 $te_id = $result['te_id'];
                 $theme_elements_to_delete[] = $te_id;
@@ -2114,7 +2114,7 @@ class MigrationController extends ODRCustomController
 
 
             // ----------------------------------------
-            $lines = array();
+            $lines = [];
             $lines[] = 'START TRANSACTION;';
 
             // The descendant datatype and all of its children need to have their parent_id,
@@ -2175,13 +2175,13 @@ class MigrationController extends ODRCustomController
 
             if ( count($linked_datatree_ids) > 0 ) {
                 // The linked datatree entries need to get deleted
-                $subset = array();
+                $subset = [];
                 foreach ($linked_datatree_ids as $num => $dt_id) {
                     if ( count($subset) < 25 )
                         $subset[] = $dt_id;
                     else {
                         $lines[] = 'UPDATE odr_linked_data_tree ldt SET ldt.deletedAt = NOW(), ldt.deletedBy = '.$user->getId().' WHERE ldt.id IN ('.implode(',', $subset).');';
-                        $subset = array();
+                        $subset = [];
                     }
                 }
                 if ( count($subset) > 0 )
@@ -2204,9 +2204,9 @@ class MigrationController extends ODRCustomController
             $str = implode("\n", $lines);
             $hash = md5($str."\n");
 
-            $metadata_lines = array();
+            $metadata_lines = [];
             foreach ($metadata_datatype_ids as $num => $dt_id)
-                $metadata_lines[] = '<a target="_blank" href="#'.$router->generate('odr_datatype_landing', array('datatype_id' => $dt_id)).'">Metadata datatype: '.$dt_id.'</a>';
+                $metadata_lines[] = '<a target="_blank" href="#'.$router->generate('odr_datatype_landing', ['datatype_id' => $dt_id]).'">Metadata datatype: '.$dt_id.'</a>';
             $metadata_lines[] = $hash;
             $metadata_str = implode("</br>", $metadata_lines);
 
@@ -2218,10 +2218,10 @@ class MigrationController extends ODRCustomController
                 fwrite($handle, $line."\n");
             fclose($handle);
 
-            $return['d'] = array(
+            $return['d'] = [
                 'metadata_html' => $metadata_str,
                 'sql' => $str,
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x86786c59;
@@ -2246,7 +2246,7 @@ class MigrationController extends ODRCustomController
      */
     public function convertchildtypetolinkstartAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -2276,8 +2276,8 @@ class MigrationController extends ODRCustomController
             // Going to be easier to use the datatree array here...
             $datatree_array = $datatree_info_service->getDatatreeArray();
 
-            $all_datatype_ids = array();
-            $datatypes = array();
+            $all_datatype_ids = [];
+            $datatypes = [];
             foreach ($datatree_array['descendant_of'] as $child_dt_id => $parent_dt_id) {
                 // Top-level datatypes are not eligible for this
                 if ( $parent_dt_id == '' )
@@ -2289,7 +2289,7 @@ class MigrationController extends ODRCustomController
 
                 // Need to store the datatypes in a way that's easier to understand
                 if ( !isset($datatypes[$parent_dt_id]) )
-                    $datatypes[$parent_dt_id] = array();
+                    $datatypes[$parent_dt_id] = [];
                 $datatypes[$parent_dt_id][] = $child_dt_id;
             }
 
@@ -2305,13 +2305,13 @@ class MigrationController extends ODRCustomController
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
                 ORDER BY dtm.shortName'
             )->setParameters(
-                array(
+                [
                     'datatype_ids' => $all_datatype_ids,
-                )
+                ]
             );
             $results = $query->getArrayResult();
 
-            $names = array();
+            $names = [];
             foreach ($results as $result) {
                 $dt_id = $result['dt_id'];
                 $dt_name = $result['shortName'];
@@ -2320,16 +2320,16 @@ class MigrationController extends ODRCustomController
             }
 
             // Render and return a tree structure of data
-            $return['d'] = array(
+            $return['d'] = [
                 'html' =>$templating->render(
                     'ODRAdminBundle:Migration:convert_childtype_to_link.html.twig',
-                    array(
+                    [
                         'datatypes' => $datatypes,
 
                         'names' => $names,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0xe051cdb8;
@@ -2353,7 +2353,7 @@ class MigrationController extends ODRCustomController
      */
     public function convertchildtypetolinkAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -2395,10 +2395,10 @@ class MigrationController extends ODRCustomController
 
             /** @var DataTree $datatree_entry */
             $datatree_entry = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
-                array(
+                [
                     'ancestor' => $original_parent_dt_id,
                     'descendant' => $new_top_level_dt_id,
-                )
+                ]
             );
             if ($datatree_entry == null)
                 throw new ODRNotFoundException('dataTree entry');
@@ -2410,7 +2410,7 @@ class MigrationController extends ODRCustomController
             //  but need to also recursively get any descendants of this previous child datatype
             //  because they need grandparent id and template group updated
             // TODO
-            $all_descendant_datatypes = array($new_top_level_dt_id);
+            $all_descendant_datatypes = [$new_top_level_dt_id];
 
 
             // ----------------------------------------
@@ -2424,7 +2424,7 @@ class MigrationController extends ODRCustomController
                 WHERE dr.data_type_id IN ('.implode(',', $all_descendant_datatypes).')';
             $results = $conn->executeQuery($query);
 
-            $original_datarecord_hierarchy = array();
+            $original_datarecord_hierarchy = [];
             foreach ($results as $result) {
                 $dr_id = $result['dr_id'];
                 $parent_dr_id = $result['dr_parent_id'];
@@ -2444,18 +2444,18 @@ class MigrationController extends ODRCustomController
                 WHERE t.data_type_id IN ('.implode(',', $all_descendant_datatypes).')';
             $results = $conn->executeQuery($query);
 
-            $current_themes = array();
+            $current_themes = [];
             foreach ($results as $result) {
                 $theme_id = $result['theme_id'];
                 $parent_theme_id = $result['parent_theme_id'];
                 $soure_theme_id = $result['soure_theme_id'];
 
-                $current_themes[$theme_id] = array('parent' => $parent_theme_id, 'soure' => $soure_theme_id);
+                $current_themes[$theme_id] = ['parent' => $parent_theme_id, 'soure' => $soure_theme_id];
             }
 
-            $descendants_of_new_top_level = array();
+            $descendants_of_new_top_level = [];
 
-            $lines = array();
+            $lines = [];
 
             // ----------------------------------------
             // odr_data_type needs modification so that the previous child datatype is "independent"
@@ -2492,7 +2492,7 @@ class MigrationController extends ODRCustomController
             //  to be contained inside odr_data_record
             $lines[] = 'INSERT INTO odr_linked_data_tree (ancestor_id, descendant_id, created, deletedAt, createdBy, deletedBy) VALUES ';
 
-            $buffer = array();
+            $buffer = [];
             foreach ($original_datarecord_hierarchy as $original_child_dr_id => $original_parent_dr_id)
                 $buffer[] = '    ('.$original_parent_dr_id.', '.$original_child_dr_id.', NOW(), NULL, '.$user->getId().', NULL)';
             $buffer = implode(",\n", $buffer).';';
@@ -2508,10 +2508,10 @@ class MigrationController extends ODRCustomController
 
             // ----------------------------------------
             $str = implode("\n", $lines);
-            $return['d'] = array(
+            $return['d'] = [
 //                'metadata_html' => $metadata_str,
                 'sql' => $str,
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0xae0cf3f6;

@@ -60,83 +60,14 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
 {
 
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var CacheService
-     */
-    private $cache_service;
-
-    /**
-     * @var DatabaseInfoService
-     */
-    private $database_info_service;
-
-    /**
-     * @var DatarecordInfoService
-     */
-    private $datarecord_info_service;
-
-    /**
-     * @var EntityCreationService
-     */
-    private $entity_create_service;
-
-    /**
-     * @var EntityMetaModifyService
-     */
-    private $entity_modify_service;
-
-    /**
-     * @var LockService
-     */
-    private $lock_service;
-
-    /**
-     * @var SearchQueryService
-     */
-    private $search_query_service;
-
-    /**
-     * @var SortService
-     */
-    private $sort_service;
-
-    /**
-     * @var EventDispatcherInterface
-     */
-    private $event_dispatcher;
-
-    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-
-    /**
-     * @var CsrfTokenManager
-     */
-    private $token_manager;
-
-    /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * RRUFF References constructor
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param CacheService $cache_service
      * @param DatabaseInfoService $database_info_service
      * @param DatarecordInfoService $datarecord_info_service
      * @param EntityCreationService $entity_create_service
-     * @param EntityMetaModifyService $entity_meta_modify_service
+     * @param EntityMetaModifyService $entity_modify_service
      * @param LockService $lock_service
      * @param SearchQueryService $search_query_service
      * @param SortService $sort_service
@@ -145,34 +76,8 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
      * @param EngineInterface $templating
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        CacheService $cache_service,
-        DatabaseInfoService $database_info_service,
-        DatarecordInfoService $datarecord_info_service,
-        EntityCreationService $entity_create_service,
-        EntityMetaModifyService $entity_meta_modify_service,
-        LockService $lock_service,
-        SearchQueryService $search_query_service,
-        SortService $sort_service,
-        EventDispatcherInterface $event_dispatcher,
-        CsrfTokenManager $token_manager,
-        EngineInterface $templating,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->cache_service = $cache_service;
-        $this->database_info_service = $database_info_service;
-        $this->datarecord_info_service = $datarecord_info_service;
-        $this->entity_create_service = $entity_create_service;
-        $this->entity_modify_service = $entity_meta_modify_service;
-        $this->lock_service = $lock_service;
-        $this->search_query_service = $search_query_service;
-        $this->sort_service = $sort_service;
-        $this->event_dispatcher = $event_dispatcher;
-        $this->token_manager = $token_manager;
-        $this->templating = $templating;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly DatabaseInfoService $database_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly EntityCreationService $entity_create_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly LockService $lock_service, private readonly SearchQueryService $search_query_service, private readonly SortService $sort_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly CsrfTokenManager $token_manager, private readonly EngineInterface $templating, private readonly Logger $logger)
+    {
     }
 
 
@@ -205,7 +110,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
     /**
      * @inheritDoc
      */
-    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
+    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = [], $datatype_permissions = [], $datafield_permissions = [], $token_list = [])
     {
         try {
             // ----------------------------------------
@@ -232,7 +137,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
                 $initial_theme_id = $t_id;
 
             // There *should* only be a single datarecord in $datarecords...
-            $datarecord = array();
+            $datarecord = [];
             foreach ($datarecords as $dr_id => $dr)
                 $datarecord = $dr;
 
@@ -244,11 +149,11 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
             if ( $context === 'display' || $context === 'text' || $context === 'html' ) {
 
                 // Want to locate the values for most of the mapped datafields
-                $optional_fields = array(
+                $optional_fields = [
                     'Reference ID' => 0
-                );
+                ];
 
-                $datafield_mapping = array();
+                $datafield_mapping = [];
                 foreach ($fields as $rpf_name => $rpf_df) {
                     // Need to find the real datafield entry in the primary datatype array
                     $rpf_df_id = $rpf_df['id'];
@@ -303,10 +208,10 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
                         foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
                             if ( $rpi['renderPlugin']['render'] !== false ) {
                                 // ...if it does, then create an array entry for it
-                                $datafield_mapping[$key] = array(
+                                $datafield_mapping[$key] = [
                                     'datafield' => $df,
                                     'render_plugin_instance' => $rpi
-                                );
+                                ];
                             }
                         }
                     }
@@ -324,9 +229,9 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
                         $datafield_mapping[$key] = '';
                     }
                     else if ($typeclass === 'File') {
-                        $datafield_mapping[$key] = array(
+                        $datafield_mapping[$key] = [
                             'datarecordfield' => $datarecord['dataRecordFields'][$rpf_df_id]
-                        );
+                        ];
                     }
                     else {
                         // Don't need to execute a render plugin on this datafield's value...extract it
@@ -366,18 +271,18 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
                                 break;
                         }
 
-                        $datafield_mapping[$key] = trim($value);
+                        $datafield_mapping[$key] = trim((string) $value);
                     }
                 }
 
                 // Need to try to ensure urls are valid...
                 if ( $datafield_mapping['url'] !== '' ) {
                     // Ensure that DOIs that aren't entirely links still are valid
-                    if ( stripos($datafield_mapping['url'], 'doi:') === 0 )
-                        $datafield_mapping['url'] = 'https://doi.org/'.trim( substr($datafield_mapping['url'], 4) );
+                    if ( stripos((string) $datafield_mapping['url'], 'doi:') === 0 )
+                        $datafield_mapping['url'] = 'https://doi.org/'.trim( substr((string) $datafield_mapping['url'], 4) );
 
                     // Ensure that the values have an 'https://' prefix
-                    if ( strpos($datafield_mapping['url'], 'http') !== 0 )
+                    if ( !str_starts_with((string) $datafield_mapping['url'], 'http') )
                         $datafield_mapping['url'] = 'https://'.$datafield_mapping['url'];
                 }
 
@@ -386,13 +291,13 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
 
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:RRUFF:RRUFFReferences/rruffreferences_display.html.twig',
-                    array(
+                    [
                         'datarecord' => $datarecord,
                         'mapping' => $datafield_mapping,
 
                         'is_top_level' => $is_top_level,
                         'original_context' => $rendering_options['context'],
-                    )
+                    ]
                 );
 
                 // If meant for text output, then replace all whitespace sequences with a single space
@@ -402,7 +307,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
             else if ( $context === 'fake_edit') {
                 // Retrieve mapping between datafields and render plugin fields
                 $autogenerate_df_id = null;
-                $plugin_fields = array();
+                $plugin_fields = [];
                 foreach ($fields as $rpf_name => $rpf_df) {
                     // Need to find the real datafield entry in the primary datatype array
                     $rpf_df_id = $rpf_df['id'];
@@ -448,16 +353,16 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
                 $journal_df_id = $fields['Journal']['id'];
                 $sort_data = $this->sort_service->sortDatarecordsByDatafield($journal_df_id);
 
-                $journal_list = array();
+                $journal_list = [];
                 foreach ($sort_data as $dr_id => $sort_value)
                     $journal_list[$sort_value] = 1;
 
 
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:RRUFF:RRUFFReferences/rruffreferences_fakeedit_fieldarea.html.twig',
-                    array(
-                        'datatype_array' => array($initial_datatype_id => $datatype),
-                        'datarecord_array' => array($datarecord['id'] => $datarecord),
+                    [
+                        'datatype_array' => [$initial_datatype_id => $datatype],
+                        'datarecord_array' => [$datarecord['id'] => $datarecord],
                         'theme_array' => $theme_array,
 
                         'target_datatype_id' => $initial_datatype_id,
@@ -479,7 +384,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
 
                         'journal_df_id' => $journal_df_id,
                         'journal_list' => $journal_list,
-                    )
+                    ]
                 );
             }
             else if ( $context === 'edit' || $context === 'mass_edit' ) {
@@ -499,13 +404,13 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
                 $journal_df_id = $fields['Journal']['id'];
                 $sort_data = $this->sort_service->sortDatarecordsByDatafield($journal_df_id);
 
-                $journal_list = array();
+                $journal_list = [];
                 foreach ($sort_data as $dr_id => $sort_value)
                     $journal_list[$sort_value] = 1;
 
                 if ( $context === 'edit' ) {
                     // Most of the fields need slightly modified saving javascript...
-                    $reference_field_list = array();
+                    $reference_field_list = [];
                     foreach ($fields as $rpf_name => $rpf) {
                         switch ($rpf_name) {
                             case 'Authors':
@@ -528,17 +433,17 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
 
                     // Also need a list of which datafields are using the chemistry plugin
                     // TODO - figure out some way to make plugins play nicer with each other?
-                    $chemistry_plugin_fields = array();
+                    $chemistry_plugin_fields = [];
                     foreach ($datatype['dataFields'] as $df_id => $df) {
                         foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
                             if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.chemistry' ) {
                                 $subscript_delimiter = $rpi['renderPluginOptionsMap']['subscript_delimiter'];
                                 $superscript_delimiter = $rpi['renderPluginOptionsMap']['superscript_delimiter'];
 
-                                $chemistry_plugin_fields[$df_id] = array(
+                                $chemistry_plugin_fields[$df_id] = [
                                     'subscript_delimiter' => $subscript_delimiter,
                                     'superscript_delimiter' => $superscript_delimiter,
-                                );
+                                ];
                             }
                         }
                     }
@@ -549,9 +454,9 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
 
                     $output = $this->templating->render(
                         'ODROpenRepositoryGraphBundle:RRUFF:RRUFFReferences/rruffreferences_edit_fieldarea.html.twig',
-                        array(
-                            'datatype_array' => array($initial_datatype_id => $datatype),
-                            'datarecord_array' => array($datarecord['id'] => $datarecord),
+                        [
+                            'datatype_array' => [$initial_datatype_id => $datatype],
+                            'datarecord_array' => [$datarecord['id'] => $datarecord],
                             'theme_array' => $theme_array,
 
                             'target_datatype_id' => $initial_datatype_id,
@@ -573,14 +478,14 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
                             'reference_field_list' => $reference_field_list,
                             'chemistry_plugin_fields' => $chemistry_plugin_fields,
                             'journal_list' => $journal_list,
-                        )
+                        ]
                     );
                 }
                 else if ( $context === 'mass_edit' ) {
                     $output = $this->templating->render(
                         'ODROpenRepositoryGraphBundle:RRUFF:RRUFFReferences/rruffreferences_massedit_fieldarea.html.twig',
-                        array(
-                            'datatype_array' => array($initial_datatype_id => $datatype),
+                        [
+                            'datatype_array' => [$initial_datatype_id => $datatype],
                             'theme_array' => $theme_array,
 
                             'target_datatype_id' => $initial_datatype_id,
@@ -596,7 +501,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
 
                             'journal_df_id' => $journal_df_id,
                             'journal_list' => $journal_list,
-                        )
+                        ]
                     );
                 }
             }
@@ -618,11 +523,11 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
         // Only want to override the Journal field
         if ( isset($render_plugin_instance['renderPluginMap']['Journal']['id']) ) {
             $journal_df_id = $render_plugin_instance['renderPluginMap']['Journal']['id'];
-            return array('Journal' => $journal_df_id);
+            return ['Journal' => $journal_df_id];
         }
 
         // If the journal field isn't mapped for some reason, return nothing
-        return array();
+        return [];
     }
 
 
@@ -635,20 +540,20 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
         //  currently listed in the field
         $sort_data = $this->sort_service->sortDatarecordsByDatafield( $datafield['id'] );
 
-        $journal_list = array();
+        $journal_list = [];
         foreach ($sort_data as $dr_id => $sort_value)
             $journal_list[$sort_value] = 1;
 
         $output = $this->templating->render(
             'ODROpenRepositoryGraphBundle:RRUFF:RRUFFReferences/rruffreferences_search_journal_datafield.html.twig',
-            array(
+            [
                 'datatype' => $datatype,
                 'datafield' => $datafield,
 
                 'journal_list' => $journal_list,
 
                 'preset_value' => $preset_value,
-            )
+            ]
         );
 
         return $output;
@@ -663,9 +568,9 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
         // The array entry for 'Journal' will only exist if the search system needs to run a search
         //  on the field
         if ( isset($df_list['Journal']) )
-            return array( 'Journal' => $df_list['Journal'] );
+            return [ 'Journal' => $df_list['Journal'] ];
         else
-            return array();
+            return [];
     }
 
 
@@ -682,9 +587,9 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
         // ----------------------------------------
         // Have to re-implement SearchService::searchTextOrNumberDatafield() here, so that the call
         //  to SearchQueryService::searchTextOrNumberDatafield() can receive a different parameter
-        $allowed_typeclasses = array(
+        $allowed_typeclasses = [
             'LongText'
-        );
+        ];
         $typeclass = $datafield->getFieldType()->getTypeClass();
         if ( !in_array($typeclass, $allowed_typeclasses) )
             throw new ODRBadRequestException('RRUFFReferencesPlugin::searchOverriddenField() called with '.$typeclass.' datafield', 0x49ee1545);
@@ -694,11 +599,11 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
         // See if this search result is already cached...
         $cached_searches = $this->cache_service->get('cached_search_df_'.$datafield->getId());
         if ( !$cached_searches )
-            $cached_searches = array();
+            $cached_searches = [];
 
         // Since MYSQL's collation is case-insensitive, the php caching should treat it the same
         $value = $search_term['value'];
-        $cache_key = mb_strtolower($value);
+        $cache_key = mb_strtolower((string) $value);
         if ( isset($cached_searches[$cache_key]) )
             return $cached_searches[$cache_key];
 
@@ -719,11 +624,11 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
             $doublequotes_force_exact_match
         );
 
-        $end_result = array(
+        $end_result = [
             'dt_id' => $datafield->getDataType()->getId(),
             'records' => $result['records'],
             'guard' => $result['guard'],
-        );
+        ];
 
         // ...then recache the search result
         $cached_searches[$cache_key] = $end_result;
@@ -759,11 +664,11 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
             AND rp.deletedAt IS NULL AND rpi.deletedAt IS NULL AND rpm.deletedAt IS NULL
             AND df.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'plugin_classname' => 'odr_plugins.rruff.rruff_references',
                 'datatype' => $datatype->getId(),
                 'field_name' => 'Reference ID'
-            )
+            ]
         );
         $results = $query->getResult();
         if ( count($results) !== 1 )
@@ -791,7 +696,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
 
         // Create a new storage entity with the new value
         $this->entity_create_service->createStorageEntity($user, $datarecord, $datafield, $new_value, false);    // guaranteed to not need a PostUpdate event
-        $this->logger->debug('Setting df '.$datafield->getId().' "Reference ID" of new dr '.$datarecord->getId().' to "'.$new_value.'"...', array(self::class, 'onDatarecordCreate()'));
+        $this->logger->debug('Setting df '.$datafield->getId().' "Reference ID" of new dr '.$datarecord->getId().' to "'.$new_value.'"...', [self::class, 'onDatarecordCreate()']);
 
         // No longer need the lock
         $lockHandler->release();
@@ -803,7 +708,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
             $event = new DatafieldModifiedEvent($datafield, $user);
             $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             // ...don't want to rethrow the error since it'll interrupt everything after this
             //  event
 //            if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -837,9 +742,9 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
             WHERE e.data_field_id = :datafield
             ORDER BY e.value DESC
             LIMIT 0,1';
-        $params = array(
+        $params = [
             'datafield' => $datafield_id,
-        );
+        ];
         $conn = $this->em->getConnection();
         $results = $conn->executeQuery($query, $params);
 
@@ -928,7 +833,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
         $entities = $original_drf->getFile();
         $entities = $entities->toArray();
         if ( empty($entities) )
-            return array();
+            return [];
 
 
         // ----------------------------------------
@@ -937,7 +842,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
         $dt_array = $dt_array[$datafield->getDataType()->getId()];
 
         // ...because we need the renderPluginField -> dataField mapping
-        $rpf_mapping = array();
+        $rpf_mapping = [];
         foreach ($dt_array['renderPluginInstances'] as $rpi_num => $rpi) {
             if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.rruff_references' ) {
                 foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf_data)
@@ -955,7 +860,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
 
         // Unfortunately, there doesn't seem to be a better method to actually get the values than to
         //  iterate over every single datafield...
-        $value_mapping = array();
+        $value_mapping = [];
         foreach ($dr_array['dataRecordFields'] as $df_id => $drf) {
             // The plugin config currently only allowed shortVarchar and longText for the fields of
             //  interest, but might as well get more here in case the config changes later
@@ -978,7 +883,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
         // The files should be named like "<journal, or book_title><volume>_<year>_<pages>.<file_extension>
         $journal = '';
 
-        $pieces = array('journal' => '', 'volume' => '', 'year' => '', 'pages' => '');
+        $pieces = ['journal' => '', 'volume' => '', 'year' => '', 'pages' => ''];
         if ( isset($value_mapping[ $rpf_mapping['Journal'] ]) )
             $journal = $value_mapping[ $rpf_mapping['Journal'] ];
         // If the journal is blank, then attempt to use the book title
@@ -986,11 +891,11 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
             $journal = $value_mapping[ $rpf_mapping['Book Title'] ];
         // ...if both journal and book title are blank, then decline to rename the file
         if ( $journal === '' )
-            return array();
+            return [];
 
         // Only want at most 50 characters for the journal/book title
-        if ( strlen($journal) > 50 )
-            $journal = substr($journal, 0, 50);
+        if ( strlen((string) $journal) > 50 )
+            $journal = substr((string) $journal, 0, 50);
         // NOTE: this is enough to only truncate ~5% of the values in the database as of 2025/09/03
 
         $pieces['journal'] = $journal;
@@ -1005,7 +910,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
         // Cut out invalid characters from the pieces of the new filename
         foreach ($pieces as $name => $val) {
             $val = preg_replace(ValidUtility::FILENAME_ILLEGAL_CHARACTERS_REGEX_A, '', $val);
-            $pieces[$name] = str_replace(array(' ',/*'-',*/'_',',','"',"'",'.','(',')'), '', $val);
+            $pieces[$name] = str_replace([' ',/*'-',*/'_',',','"',"'",'.','(',')'], '', $val);
         }
 
         $new_filename = $pieces['journal'].$pieces['volume'].'_'.$pieces['year'].'_'.$pieces['pages'];
@@ -1013,7 +918,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
 
         // ----------------------------------------
         // Now that we've got part of the filename, we need to update the file uploaded to this drf...
-        $new_filenames = array();
+        $new_filenames = [];
 
         foreach ($entities as $entity) {
             // Should only be one in here
@@ -1021,10 +926,10 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
             $id = $entity->getId();
 
             // ...so that the filename for this file/image entity can be determined
-            $new_filenames[$id] = array(
+            $new_filenames[$id] = [
                 'new_filename' => $new_filename.'.'.$entity->getExt(),
                 'entity' => $entity
-            );
+            ];
             // Never want to change the extension
 
             // Actually saving the new names is done by whatever called this function
@@ -1062,7 +967,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
             $is_event_relevant = self::isEventRelevant($datafield);
             if ( $is_event_relevant ) {
                 // This file was uploaded to the correct field, so it now needs to be processed
-                $this->logger->debug('Want to rename '.$typeclass.' '.$entity->getId().' "'.$entity->getOriginalFileName().'"...', array(self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()));
+                $this->logger->debug('Want to rename '.$typeclass.' '.$entity->getId().' "'.$entity->getOriginalFileName().'"...', [self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()]);
 
                 // ----------------------------------------
                 // Since the file hasn't been encrypted yet, it's currently in something of an
@@ -1080,8 +985,8 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
                     $data = $ret[$entity->getId()];
                     $new_filename = $data['new_filename'];
 
-                    if ( strlen($new_filename) <= 255 ) {
-                        $this->logger->debug('...renaming '.$typeclass.' '.$entity->getId().' to "'.$new_filename.'"...', array(self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()));
+                    if ( strlen((string) $new_filename) <= 255 ) {
+                        $this->logger->debug('...renaming '.$typeclass.' '.$entity->getId().' to "'.$new_filename.'"...', [self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()]);
 
                         // ...save the new filename in the database...
                         $meta_entry = $entity->getFileMeta();
@@ -1098,13 +1003,13 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
                         $this->em->flush();
                     }
                     else {
-                        $this->logger->debug('-- (ERROR) unable to save new filename "'.$new_filename.'" for '.$typeclass.' '.$entity->getId().' because it exceeds 255 characters', array(self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()));
+                        $this->logger->debug('-- (ERROR) unable to save new filename "'.$new_filename.'" for '.$typeclass.' '.$entity->getId().' because it exceeds 255 characters', [self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()]);
                     }
                 }
                 else {
                     // ...if getNewFilenames() returns null, then there's some unrecoverable problem
                     //  that prevents the file/image from being renamed
-                    $this->logger->debug('-- (ERROR) unable to rename '.$typeclass.' '.$entity->getId().'...', array(self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()));
+                    $this->logger->debug('-- (ERROR) unable to rename '.$typeclass.' '.$entity->getId().'...', [self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()]);
 
                     // Regardless of the reason why there's a problem, this plugin can't fix it
                     // As such, nothing should be done
@@ -1114,7 +1019,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
         }
         catch (\Exception $e) {
             // Can't really display the error to the user yet, but can log it...
-            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()));
+            $this->logger->debug('-- (ERROR) '.$e->getMessage(), [self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()]);
 
             // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
             //  any additional subscribers won't run either
@@ -1122,7 +1027,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
         finally {
             // Would prefer if these happened regardless of success/failure...
             if ( $is_event_relevant )
-                $this->logger->debug('finished rename attempt for '.$typeclass.' '.$entity->getId(), array(self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()));
+                $this->logger->debug('finished rename attempt for '.$typeclass.' '.$entity->getId(), [self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()]);
 
             // Don't need to clear any caches here, since the file encryption should handle it
         }
@@ -1161,18 +1066,18 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
                     FROM ODRAdminBundle:File f
                     WHERE f.dataRecordFields = :drf
                     AND f.deletedAt IS NULL'
-                )->setParameters( array('drf' => $drf->getId()) );
+                )->setParameters( ['drf' => $drf->getId()] );
                 $tmp = $query->getResult();
 
                 // There could be nothing uploaded to the field, or there could be multiple files/images
                 /** @var File[] $tmp */
-                $entities = array();
+                $entities = [];
                 foreach ($tmp as $num => $entity)
                     $entities[ $entity->getId() ] = $entity;
                 /** @var File[] $entities */
 
                 // This file was uploaded to the correct field, so it now needs to be processed
-                $this->logger->debug('Want to rename the '.$typeclass.'s in datafield '.$datafield->getId().' datarecord '.$datarecord->getId().'...', array(self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()));
+                $this->logger->debug('Want to rename the '.$typeclass.'s in datafield '.$datafield->getId().' datarecord '.$datarecord->getId().'...', [self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()]);
 
 
                 // ----------------------------------------
@@ -1182,18 +1087,18 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
                 if ( is_array($ret) ) {
                     foreach ($ret as $entity_id => $data) {
                         $new_filename = $data['new_filename'];
-                        if ( strlen($new_filename) <= 255 ) {
+                        if ( strlen((string) $new_filename) <= 255 ) {
                             // ...so for each file/image uploaded to the datafield...
                             /** @var File $entity */
                             $entity = $entities[$entity_id];
-                            $this->logger->debug('...renaming '.$typeclass.' '.$entity->getId().' to "'.$new_filename.'"...', array(self::class, 'onMassEditTrigger()', $typeclass.' '.$entity->getId()));
+                            $this->logger->debug('...renaming '.$typeclass.' '.$entity->getId().' to "'.$new_filename.'"...', [self::class, 'onMassEditTrigger()', $typeclass.' '.$entity->getId()]);
 
                             // ...save the new filename in the database...
-                            $props = array('original_filename' => $new_filename);
+                            $props = ['original_filename' => $new_filename];
                             $this->entity_modify_service->updateFileMeta($user, $entity, $props, true);
                         }
                         else {
-                            $this->logger->debug('-- (ERROR) unable to save new filename "'.$new_filename.'" for '.$typeclass.' '.$entity_id.' because it exceeds 255 characters', array(self::class, 'onMassEditTrigger()', $typeclass.' '.$entity_id));
+                            $this->logger->debug('-- (ERROR) unable to save new filename "'.$new_filename.'" for '.$typeclass.' '.$entity_id.' because it exceeds 255 characters', [self::class, 'onMassEditTrigger()', $typeclass.' '.$entity_id]);
                         }
                     }
 
@@ -1203,7 +1108,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
                 else {
                     // ...if getNewFilenames() returns null, then there's some unrecoverable problem
                     //  that prevents the file from being renamed
-                    $this->logger->debug('-- (ERROR) unable to rename the '.$typeclass.'s...', array(self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()));
+                    $this->logger->debug('-- (ERROR) unable to rename the '.$typeclass.'s...', [self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()]);
 
                     // Regardless of the reason why there's a problem, this plugin can't fix it
                     // As such, nothing should be done
@@ -1213,7 +1118,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
         }
         catch (\Exception $e) {
             // Can't really display the error to the user yet, but can log it...
-            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()));
+            $this->logger->debug('-- (ERROR) '.$e->getMessage(), [self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()]);
 
             // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
             //  any additional subscribers won't run either
@@ -1221,7 +1126,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
         finally {
             // Would prefer if these happened regardless of success/failure...
             if ( $is_event_relevant )
-                $this->logger->debug('finished rename attempt for the '.$typeclass.'s in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), array(self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()));
+                $this->logger->debug('finished rename attempt for the '.$typeclass.'s in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), [self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()]);
 
             // Don't need to clear caches here, since the mass update process will always do it
         }
@@ -1238,9 +1143,9 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
 
         // Since this is a datatype plugin, there's going to be multiple fields in here...only want
         //  to display this option for the File field
-        return array(
+        return [
             $render_plugin_instance['renderPluginMap']['File']['id']
-        );
+        ];
     }
 
 
@@ -1254,7 +1159,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
 
         // This File field in this plugin does not care whether the user changed the public status
         //  of the file/image field
-        $trigger_fields = array();
+        $trigger_fields = [];
         $trigger_fields[ $render_plugin_instance['renderPluginMap']['File']['id'] ] = true;
 
         return $trigger_fields;
@@ -1268,16 +1173,16 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
         // Only override when called from the 'edit' context...the 'display' context might be a
         //  possibility in the future, but this plugin doesn't need to override there
         if ( $rendering_context !== 'edit' )
-            return array();
+            return [];
 
         // Sanity checks
         if ( $render_plugin_instance->getRenderPlugin()->getPluginClassName() !== 'odr_plugins.rruff.rruff_references' )
-            return array();
+            return [];
         $datatype = $datafield->getDataType();
         if ( $datatype->getId() !== $datarecord->getDataType()->getId() )
-            return array();
+            return [];
         if ( $render_plugin_instance->getDataType()->getId() !== $datatype->getId() )
-            return array();
+            return [];
 
 
         // ----------------------------------------
@@ -1285,7 +1190,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
         $dt_array = $this->database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't need links
         $dt = $dt_array[$datafield->getDataType()->getId()];
 
-        $plugin_fields = array();
+        $plugin_fields = [];
         foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
             if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.rruff_references' ) {
                 foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf_data)
@@ -1298,18 +1203,18 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
         if ( isset($plugin_fields[$datafield->getId()]) )
             $rpf_name = $plugin_fields[$datafield->getId()];
         if ( $rpf_name === '' )
-            return array();
+            return [];
 
         if ( $rpf_name === 'File' ) {
             // Only want to override the File field
-            return array(
-                'token_list' => array(),    // so ODRRenderService generates CSRF tokens
+            return [
+                'token_list' => [],    // so ODRRenderService generates CSRF tokens
                 'template_name' => 'ODROpenRepositoryGraphBundle:RRUFF:RRUFFReferences/rruffreferences_edit_datafield.html.twig',
-            );
+            ];
         }
 
         // Otherwise, don't want to override the default reloading for this field
-        return array();
+        return [];
     }
 
 
@@ -1319,15 +1224,15 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
     public function getTableResultsOverrideValues($render_plugin_instance, $datarecord, $datafield = null)
     {
         // Don't do anything if fields aren't mapped
-        $values = array();
+        $values = [];
         if ( !isset($render_plugin_instance['renderPluginMap']) )
-            return array();
+            return [];
 
         // Since this is a datatype plugin, need to dig through the renderPluginInstance array
-        $relevant_rpf_names = array('Book Title', 'Journal');
+        $relevant_rpf_names = ['Book Title', 'Journal'];
 
-        $df_mapping = array();
-        $value_mapping = array();
+        $df_mapping = [];
+        $value_mapping = [];
         foreach ($relevant_rpf_names as $rpf_name) {
             $df_id = $render_plugin_instance['renderPluginMap'][$rpf_name]['id'];
             $df_mapping[$rpf_name] = $df_id;
@@ -1347,7 +1252,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
         // Want to put italics around the Book Title
         $book_title_df_id = $df_mapping['Book Title'];
         if ( isset($value_mapping[$book_title_df_id]) && $value_mapping[$book_title_df_id] !== '' ) {
-            if ( strpos($value_mapping[$book_title_df_id], '<i>') !== false )
+            if ( str_contains((string) $value_mapping[$book_title_df_id], '<i>') )
                 $values[$book_title_df_id] = $value_mapping[$book_title_df_id];
             else
                 $values[$book_title_df_id] = '<i>'.$value_mapping[$book_title_df_id].'</i>';

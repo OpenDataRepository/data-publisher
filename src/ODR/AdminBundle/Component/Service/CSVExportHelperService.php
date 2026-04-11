@@ -40,61 +40,10 @@ class CSVExportHelperService
 {
 
     /**
-     * @var ContainerInterface
-     */
-    private $container;
-
-    /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var DatabaseInfoService
-     */
-    private $database_info_service;
-
-    /**
-     * @var DatarecordInfoService
-     */
-    private $datarecord_info_service;
-
-    /**
-     * @var DatatreeInfoService
-     */
-    private $datatree_info_service;
-
-    /**
-     * @var PermissionsManagementService
-     */
-    private $permissions_service;
-
-    /**
-     * @var SearchAPIService
-     */
-    private $search_api_service;
-
-    /**
-     * @var SearchKeyService
-     */
-    private $search_key_service;
-
-    /**
-     * @var TokenGenerator
-     */
-    private $token_generator;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * CSVExportHelperService constructor
      *
      * @param ContainerInterface $container
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param DatabaseInfoService $database_info_service
      * @param DatarecordInfoService $datarecord_info_service
      * @param DatatreeInfoService $datatree_info_service
@@ -104,28 +53,8 @@ class CSVExportHelperService
      * @param TokenGenerator $token_generator
      * @param Logger $logger
      */
-    public function __construct(
-        ContainerInterface $container,
-        EntityManager $entity_manager,
-        DatabaseInfoService $database_info_service,
-        DatarecordInfoService $datarecord_info_service,
-        DatatreeInfoService $datatree_info_service,
-        PermissionsManagementService $permissions_service,
-        SearchAPIService $search_api_service,
-        SearchKeyService $search_key_service,
-        TokenGenerator $token_generator,
-        Logger $logger
-    ) {
-        $this->container = $container;
-        $this->em = $entity_manager;
-        $this->database_info_service = $database_info_service;
-        $this->datarecord_info_service = $datarecord_info_service;
-        $this->datatree_info_service = $datatree_info_service;
-        $this->permissions_service = $permissions_service;
-        $this->search_api_service = $search_api_service;
-        $this->search_key_service = $search_key_service;
-        $this->token_generator = $token_generator;
-        $this->logger = $logger;
+    public function __construct(private readonly ContainerInterface $container, private readonly EntityManager $em, private readonly DatabaseInfoService $database_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly DatatreeInfoService $datatree_info_service, private readonly PermissionsManagementService $permissions_service, private readonly SearchAPIService $search_api_service, private readonly SearchKeyService $search_key_service, private readonly TokenGenerator $token_generator, private readonly Logger $logger)
+    {
     }
 
 
@@ -142,7 +71,7 @@ class CSVExportHelperService
      */
     public function getFilteredDatarecordList($inflated_list, $complete_datarecord_list)
     {
-        $filtered_list = array();
+        $filtered_list = [];
 
         foreach ($inflated_list as $dr_id => $child_dt_list) {
             if ( isset($complete_datarecord_list[$dr_id]) ) {
@@ -208,7 +137,7 @@ class CSVExportHelperService
 
 
         // Convert the search key into a format suitable for searching
-        $searchable_datafields = $this->search_api_service->getSearchableDatafieldsForUser(array($datatype->getId()), $user_permissions);
+        $searchable_datafields = $this->search_api_service->getSearchableDatafieldsForUser([$datatype->getId()], $user_permissions);
         $criteria = $this->search_key_service->convertSearchKeyToCriteria($search_key, $searchable_datafields, $user_permissions);
 
         // Need to grab hydrated versions of the datafields/datatypes being searched on
@@ -229,18 +158,18 @@ class CSVExportHelperService
 
         // Going to need these two arrays to be able to accurately determine which datarecords
         //  end up matching the query
-        $ignored_prefixes = array();    // TODO
+        $ignored_prefixes = [];    // TODO
         $search_arrays = $this->search_api_service->getSearchArrays($datatype->getId(), $search_permissions, $ignored_prefixes);
 //        $flattened_list = $search_arrays['flattened'];
         $inflated_list = $search_arrays['inflated'];
         // The top-level of $inflated_list is wrapped in the top-level datatype id...get rid of it
         $inflated_list = $inflated_list[ $datatype->getId() ];
 
-        return array(
+        return [
             'grandparent_datarecord_list' => $grandparent_datarecord_list,
             'complete_datarecord_list' => $complete_datarecord_list,
             'inflated_list' => $inflated_list
-        );
+        ];
     }
 
 
@@ -310,13 +239,13 @@ class CSVExportHelperService
 
         // ----------------------------------------
         // Don't need to do any verification on these...CSVExportController handled that
-        $delimiters = array(
+        $delimiters = [
             'base' => $parameters['delimiter'],
             'file' => null,
             'radio' => null,
             'tag' => null,
             'tag_hierarchy' => null,
-        );
+        ];
 
         if ( $delimiters['base'] === 'tab' )
             $delimiters['base'] = "\t";
@@ -371,36 +300,36 @@ class CSVExportHelperService
         // Gather basic info about all datafields prior to actually loading data
         $dt_array = $this->database_info_service->getDatatypeArray($datatype_id, true);    // may need linked datatypes
         // Going to need a stacked version of the datatype array if plugins are involved...
-        $tmp = array();
+        $tmp = [];
         $this->permissions_service->filterByGroupPermissions($dt_array, $tmp, $user_permissions);
-        $stacked_dt_array = array(
+        $stacked_dt_array = [
             $datatype_id => $this->database_info_service->stackDatatypeArray($dt_array, $datatype_id)
-        );
+        ];
 
         // If tags are being exported, then additional information will be needed
-        $inversed_tag_hierarchy = array();
+        $inversed_tag_hierarchy = [];
 
 
         // ----------------------------------------
         // Need to locate information about the datafields that are going to be exported...particularly
         //  whether the plugin system needs to override the values for CSVExport
-        $export_datafields = array();
-        $export_datatypes = array();
+        $export_datafields = [];
+        $export_datatypes = [];
 
         // Modify the given array of datafields to also have typeclass info for later
-        $new_datafields = array();
+        $new_datafields = [];
 
         // Ensure this datatype's external id field is exported, if one exists
         $external_id_field = $dt_array[$datatype_id]['dataTypeMeta']['externalIdField'];
         if ( !is_null($external_id_field) ) {
             $external_id_field_id = $external_id_field['id'];
             $export_datafields[$external_id_field_id] = 0;
-            $new_datafields[ $datatype_id.'_'.$external_id_field_id ] = array('df_id' => $external_id_field_id, 'typeclass' => '');
+            $new_datafields[ $datatype_id.'_'.$external_id_field_id ] = ['df_id' => $external_id_field_id, 'typeclass' => ''];
         }
 
         foreach ($datafields as $id_string => $df_id) {
             $export_datafields[$df_id] = 0;
-            $new_datafields[$id_string] = array('df_id' => intval($df_id), 'typeclass' => '');
+            $new_datafields[$id_string] = ['df_id' => intval($df_id), 'typeclass' => ''];
         }
         $datafields = $new_datafields;
 
@@ -443,7 +372,7 @@ class CSVExportHelperService
 
         // If any entries remain in $df_id_list...they're either datafields the user can't view, or
         //  they belong to unrelated datatypes.  Neither should be allowed.
-        $invalid_df_ids = array();
+        $invalid_df_ids = [];
         foreach ($export_datafields as $df_id => $num) {
             if ( $num === 0 )
                 $invalid_df_ids[] = $df_id;
@@ -457,18 +386,18 @@ class CSVExportHelperService
         // ----------------------------------------
         // Now that the datafield list is valid, check whether any of the datafields being exported
         //  (or their datatypes) want to override a csv export
-        $plugin_data = array();
+        $plugin_data = [];
         foreach ($dt_array as $dt_id => $dt) {
             if ( isset($export_datatypes[$dt_id]) ) {
                 foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
                     if ( $rpi['renderPlugin']['overrideExport'] == true ) {
                         $plugin_classname = $rpi['renderPlugin']['pluginClassName'];
-                        $plugin_data[] = array(
+                        $plugin_data[] = [
                             'rpi' => $rpi,
                             'plugin' => $this->container->get($plugin_classname),
                             'dt_id' => $dt_id,
                             'df_id' => null,
-                        );
+                        ];
                     }
                 }
             }
@@ -478,12 +407,12 @@ class CSVExportHelperService
                     foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
                         if ( $rpi['renderPlugin']['overrideExport'] == true ) {
                             $plugin_classname = $rpi['renderPlugin']['pluginClassName'];
-                            $plugin_data[] = array(
+                            $plugin_data[] = [
                                 'rpi' => $rpi,
                                 'plugin' => $this->container->get($plugin_classname),
                                 'dt_id' => $dt_id,
                                 'df_id' => $df_id,
-                            );
+                            ];
                         }
                     }
                 }
@@ -492,7 +421,7 @@ class CSVExportHelperService
 
         // TODO - need to handle the LinkedDescendantMerger plugin
         // For each datatype/datafield that might want to execute a plugin to override the output...
-        $plugin_executions = array('datatype' => array(), 'datafield' => array());
+        $plugin_executions = ['datatype' => [], 'datafield' => []];
         foreach ($plugin_data as $num => $data) {
             // ...check whether it actually does want to override something
             /** @var ExportOverrideInterface $plugin */
@@ -543,8 +472,8 @@ class CSVExportHelperService
            'SELECT dr.id AS dr_id, dr.data_type_id AS dt_id
             FROM odr_data_record AS dr
             WHERE dr.id IN (?)';
-        $parameters = array(1 => $datarecord_ids);
-        $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+        $parameters = [1 => $datarecord_ids];
+        $types = [1 => DBALConnection::PARAM_INT_ARRAY];
 
         $conn = $this->em->getConnection();
         $results = $conn->executeQuery($query, $parameters, $types);
@@ -561,7 +490,7 @@ class CSVExportHelperService
         // ----------------------------------------
         // Now that the datafields and the datarecords are valid, convert each record into a row
         //  of data
-        $lines = array();
+        $lines = [];
         for ($i = 0; $i < count($datarecord_ids); $i++) {
             $datarecord_id = $datarecord_ids[$i];
 
@@ -570,9 +499,9 @@ class CSVExportHelperService
             $this->permissions_service->filterByGroupPermissions($dt_array, $dr_array, $user_permissions);
 
             // Stack the cached version of the datarecord array to make recursion work
-            $stacked_dr_array = array(
+            $stacked_dr_array = [
                 $datarecord_id => $this->datarecord_info_service->stackDatarecordArray($dr_array, $datarecord_id)
-            );
+            ];
 
 
             // ----------------------------------------
@@ -597,7 +526,7 @@ class CSVExportHelperService
 
             // Child/linked datatypes that only allow a single child/linked datarecord should get
             //  combined with their parent
-            $combined_dr_array = array();
+            $combined_dr_array = [];
             foreach ($filtered_dr_array as $dr_id => $dr_array)
                 $combined_dr_array[$dr_id] = self::mergeSingleChildtypes($datatree_array, $datatype_id, $dr_array);
 
@@ -608,7 +537,7 @@ class CSVExportHelperService
             // Need to ensure all fields are always in the output and that the output is always in
             //  the same order
             foreach ($datarecord_data as $num => $data) {
-                $line = array();
+                $line = [];
                 foreach ($datafields as $id_string => $df_data) {
                     // Due to the possibility of child/linked datatypes allowing multiple child/linked
                     //  records, the filtered/merged data arrays may not have entries for all of
@@ -646,13 +575,13 @@ class CSVExportHelperService
                 VALUES (:random_key, :tj_id, :job_order, :line_count, :created)';
 
             $now = new \DateTime();
-            $params = array(
+            $params = [
                 'random_key' => $filename_fragment,
                 'tj_id' => $tracked_job_id,
                 'job_order' => $job_order,
                 'line_count' => count($datarecord_ids),
                 'created' => $now->format('Y-m-d H:i:s'),
-            );
+            ];
 
             $conn = $this->em->getConnection();
             $rowsAffected = $conn->executeUpdate($query, $params);
@@ -738,7 +667,7 @@ class CSVExportHelperService
      */
     private function getTagTree($tag_tree)
     {
-        $inversed_tree = array();
+        $inversed_tree = [];
         foreach ($tag_tree as $parent_tag_id => $child_tags) {
             foreach ($child_tags as $child_tag_id => $tmp)
                 $inversed_tree[$child_tag_id] = $parent_tag_id;
@@ -767,7 +696,7 @@ class CSVExportHelperService
     private function filterDatarecordArray($current_prefix, $user_permissions, $datatype_data, $datafields, $datarecord_data, $datarecords, $inversed_tag_hierarchy, $delimiters, $plugin_executions)
     {
         // Due to recursion, creating/returning a new array is easier than modifying the original
-        $filtered_data = array();
+        $filtered_data = [];
 
         // Ignore all datafields that aren't supposed to be exported
         foreach ($datarecord_data as $dr_id => $dr_data) {
@@ -775,13 +704,13 @@ class CSVExportHelperService
             if ( !isset($datarecords[$dr_id]) )
                 continue;
 
-            $filtered_data[$dr_id] = array();
+            $filtered_data[$dr_id] = [];
 
             $dt_id = $dr_data['dataType']['id'];
             $dt_data = $datatype_data[$dt_id];
 
             // If this export requires a field that a datatype plugin wants to override...
-            $plugin_overridden_values = array();
+            $plugin_overridden_values = [];
             if ( isset($plugin_executions['datatype'][$dt_id]) ) {
                 // ...then execute the datatype plugin to get those values
                 $plugin_data = $plugin_executions['datatype'][$dt_id];
@@ -796,14 +725,14 @@ class CSVExportHelperService
 
             // For any actual data in the datarecord...
             if ( isset($dr_data['dataRecordFields']) ) {
-                $filtered_data[$dr_id]['values'] = array();
+                $filtered_data[$dr_id]['values'] = [];
 
                 foreach ($dr_data['dataRecordFields'] as $df_id => $df_data) {
                     // ...if it's supposed to be exported...
                     $df_prefix = $current_prefix.'_'.$df_id;
                     if ( isset($datafields[$df_prefix]) ) {
                         // ...then acquire the datafield's value
-                        $tmp = array();
+                        $tmp = [];
 
                         if ( isset($plugin_overridden_values[$df_id]) ) {
                             // This datafield's value is overridden by a datatype plugin
@@ -817,7 +746,7 @@ class CSVExportHelperService
                             $plugin = $plugin_data['plugin'];
                             $rpi = $plugin_data['rpi'];
 
-                            $ret = $plugin->getExportOverrideValues(array($df_id), $rpi, $dt_data, $dr_data, $user_permissions);
+                            $ret = $plugin->getExportOverrideValues([$df_id], $rpi, $dt_data, $dr_data, $user_permissions);
                             $tmp = $ret[$df_id];
                         }
                         else {
@@ -888,7 +817,7 @@ class CSVExportHelperService
      */
     private function getFileData($df_data, $delimiters)
     {
-        $files = array();
+        $files = [];
         if ( isset($df_data['file']) ) {
             foreach ($df_data['file'] as $num => $file) {
                 // If there's already a file in the list, then insert a delimiter after the
@@ -916,7 +845,7 @@ class CSVExportHelperService
      */
     private function getImageData($df_data, $delimiters)
     {
-        $images = array();
+        $images = [];
         if ( isset($df_data['image']) ) {
             foreach ($df_data['image'] as $num => $thumbnail_image) {
                 // If there's already an image in the list, then insert a delimiter after the
@@ -947,13 +876,13 @@ class CSVExportHelperService
     private function getXYZData($df_data, $xyz_column_names, $delimiters)
     {
         $num_columns = count( explode(',', $xyz_column_names) );
-        $xyz_data = array();
+        $xyz_data = [];
         if ( isset($df_data['xyzData']) ) {
-            $points = array();
+            $points = [];
 
             // Pull the values from the cached datarecord...
             foreach ($df_data['xyzData'] as $num => $data) {
-                $tmp = array($data['x_value']);
+                $tmp = [$data['x_value']];
                 if ( $num_columns > 1 )
                     $tmp[] = $data['y_value'];
                 if ( $num_columns > 2 )
@@ -963,9 +892,7 @@ class CSVExportHelperService
             }
 
             // ...then sort by x_value...
-            usort($points, function($a, $b) {
-                return $a[0] <=> $b[0];
-            });
+            usort($points, fn($a, $b) => $a[0] <=> $b[0]);
 
             // ...before finally converting back into a string for export
             foreach ($points as $point)
@@ -986,7 +913,7 @@ class CSVExportHelperService
      */
     private function getRadioData($df_data, $delimiters)
     {
-        $selections = array();
+        $selections = [];
         if ( isset($df_data['radioSelection']) ) {
             foreach ($df_data['radioSelection'] as $ro_id => $rs) {
                 // Only save radio option names when the radio option is selected
@@ -1017,19 +944,19 @@ class CSVExportHelperService
      */
     private function getTagData($df_data, $inversed_tag_hierarchy, $delimiters)
     {
-        $tags_to_export = array();
-        $tag_chains = array();
+        $tags_to_export = [];
+        $tag_chains = [];
         if ( isset($df_data['tagSelection']) ) {
             // Each selected tag should also have its parents selected...this means determining the
             //  strings to export is straightforward...
-            $tag_lookup = array();
+            $tag_lookup = [];
             foreach ($df_data['tagSelection'] as $t_id => $ts)
                 $tag_lookup[$t_id] = $ts['tag']['tagName'];
 
             // ...but this also means the parent selections need to be filtered out of the array to
             //  prevent duplicates in the export
             foreach ($df_data['tagSelection'] as $t_id => $ts) {
-                $tmp = array();
+                $tmp = [];
                 if ( $ts['selected'] === 1 ) {
                     // Build a "chain" of tag ids, starting with the tag in question...
                     $tmp[] = $t_id;
@@ -1059,7 +986,7 @@ class CSVExportHelperService
 
             // Now that there won't be any duplicates, convert the tag ids into tag names
             foreach ($tag_chains as $tag_id => $chain) {
-                $tag_names = array();
+                $tag_names = [];
                 foreach ($chain as $num => $t_id)
                     $tag_names[] = $tag_lookup[$t_id];
 
@@ -1133,7 +1060,7 @@ class CSVExportHelperService
             if ( !$multiple_allowed ) {
                 // ...then ensure this datarecord has a list of values, because...
                 if ( !isset($dr['values']) )
-                    $dr['values'] = array();
+                    $dr['values'] = [];
 
                 // Not using $child_dr_list, because we want the result of the previous recursion
                 foreach ($dr['children'][$child_dt_id] as $child_dr_id => $child_dr) {
@@ -1177,19 +1104,19 @@ class CSVExportHelperService
     private function mergeMultipleChildtypes($dr_list)
     {
         // Each datarecord can turn into multiple lines when it has multiple child/linked records
-        $lines = array();
+        $lines = [];
 
         foreach ($dr_list as $dr_id => $data) {
             // Any values for this datarecord are going to form the "start" of the block of data
             //  for this datarecord
-            $line = array();
+            $line = [];
             if ( isset($data['values']) )
                 $line = $data['values'];
 
             // If this datarecord has child/linked datarecords of its own...
             if ( isset($data['children']) ) {
                 // ...then those child/linked datarecords need to be merged first...
-                $child_lines = array();
+                $child_lines = [];
                 foreach ($data['children'] as $child_dt_id => $child_dr_list) {
                     $child_lines = self::mergeMultipleChildtypes($child_dr_list);
 
@@ -1197,7 +1124,7 @@ class CSVExportHelperService
                     //  child/linked record's line of data
                     foreach ($child_lines as $child_line) {
                         // Make a copy of this datarecord's data first...
-                        $new_line = array();
+                        $new_line = [];
                         foreach ($line as $df_id => $value)
                             $new_line[$df_id] = $value;
 
@@ -1272,7 +1199,7 @@ class CSVExportHelperService
         // Need to also load all the TrackedCSVExport entries of this job...
         /** @var TrackedCSVExport[] $tracked_csv_exports */
         $tracked_csv_exports = $this->em->getRepository('ODRAdminBundle:TrackedCSVExport')->findBy(
-            array('trackedJob' => $tracked_job_id)
+            ['trackedJob' => $tracked_job_id]
         );
         if ( count($tracked_csv_exports) == 0 ) {
             // Nothing has happened yet
@@ -1280,7 +1207,7 @@ class CSVExportHelperService
         }
 
         $most_recent_completion = null;
-        $ordered_filenames = array();
+        $ordered_filenames = [];
         $count = 0;
         foreach ($tracked_csv_exports as $te) {
             $count += $te->getLineCount();
@@ -1349,40 +1276,40 @@ class CSVExportHelperService
             $dt_array = $this->database_info_service->getDatatypeArray($datatype_id, true);    // do need links
 
             // Modify the given array of datafields to also have typeclass info for later
-            $export_datafields = array();
-            $new_datafields = array();
+            $export_datafields = [];
+            $new_datafields = [];
 
             // Ensure this datatype's external id field is exported, if one exists
             $external_id_field = $dt_array[$datatype_id]['dataTypeMeta']['externalIdField'];
             if ( !is_null($external_id_field) ) {
                 $external_id_field_id = $external_id_field['id'];
                 $export_datafields[$external_id_field_id] = 0;
-                $new_datafields[ $datatype_id.'_'.$external_id_field_id ] = array('df_id' => $external_id_field_id, 'typeclass' => '');
+                $new_datafields[ $datatype_id.'_'.$external_id_field_id ] = ['df_id' => $external_id_field_id, 'typeclass' => ''];
             }
 
             foreach ($datafields as $id_string => $df_id) {
                 $export_datafields[$df_id] = 0;
-                $new_datafields[$id_string] = array('df_id' => intval($df_id), 'fieldName' => '');
+                $new_datafields[$id_string] = ['df_id' => intval($df_id), 'fieldName' => ''];
             }
             $datafields = $new_datafields;
 
             // Dig through the cached datatype array and save the names of all the datatypes...
-            $dt_names = array();
+            $dt_names = [];
             foreach ($dt_array as $dt_id => $dt) {
                 if ( isset($dt['dataTypeMeta']['shortName']) )
                     $dt_names[$dt_id] = $dt['dataTypeMeta']['shortName'];
             }
             // ...so prefixes for the datafields can be created if required for clarification
-            $field_prefixes = array();
+            $field_prefixes = [];
             foreach ($new_datafields as $id_string => $df_data) {
                 // The id string has two parts...a list of datatypes to "get to" the field, and the
                 //  datafield id
-                $pieces = explode('_', $id_string);
+                $pieces = explode('_', (string) $id_string);
                 $dt_prefix = $pieces[0];
                 $df_id = $pieces[1];
 
                 if ( !isset($field_prefixes[$df_id]) )
-                    $field_prefixes[$df_id] = array();
+                    $field_prefixes[$df_id] = [];
                 // Determine the datatypes to "get to" the field
                 $pieces = explode('-', $dt_prefix);
                 // No point using the top-level datatype's name though...it's implied
@@ -1443,7 +1370,7 @@ class CSVExportHelperService
             }
 
             // Compress the list of datafields into a header line
-            $header_line = array();
+            $header_line = [];
             foreach ($datafields as $id_string => $df_data)
                 $header_line[] = $df_data['fieldName'];
 

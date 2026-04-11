@@ -55,7 +55,7 @@ class ClearCSVExportExpressFinalizeCommand extends ContainerAwareCommand
             else
                 $job = $pheanstalk->watch('csv_export_finalize_express')->ignore('default')->reserve();
 
-            $data = json_decode($job->getData());
+            $data = json_decode((string) $job->getData());
 //            $datarecord_id = $data->datarecord_id;
             $job_source = $data->redis_prefix;
 

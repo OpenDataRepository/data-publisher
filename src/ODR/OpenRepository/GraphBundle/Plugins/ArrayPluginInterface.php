@@ -42,5 +42,5 @@ interface ArrayPluginInterface
      * @return ArrayPluginReturn|null
      * @throws \Exception
      */
-    public function execute($datarecord_array, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array());
+    public function execute($datarecord_array, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = []);
 }

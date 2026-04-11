@@ -53,62 +53,58 @@ class UpdateDataTypeForm extends AbstractType
         $builder->add(
             'short_name',
             HiddenType::class,
-            array(
+            [
                 'required' => true,
                 'label' => 'Short Name',
-            )
+            ]
         );
 
         $builder->add(
             'long_name',
             TextType::class,
-            array(
+            [
                 'required' => true,
                 'label' => 'Dataset Name',
-            )
+            ]
         );
 
         $builder->add(
             'description',
             TextareaType::class,
-            array(
+            [
                 'required' => true,
                 'label' => 'Description',
-            )
+            ]
         );
 
         $builder->add(
             'externalIdField',
             EntityType::class,
-            array(
-                'class' => 'ODR\AdminBundle\Entity\DataFields',
-                'query_builder' => function(EntityRepository $er) use ($datatype_id) {
-                    return $er->createQueryBuilder('df')
-                                ->leftJoin('ODRAdminBundle:DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
-                                ->where('dfm.is_unique = 1 AND df.dataType = ?1')
-                                ->setParameter(1, $datatype_id);
-                },
+            [
+                'class' => \ODR\AdminBundle\Entity\DataFields::class,
+                'query_builder' => fn(EntityRepository $er) => $er->createQueryBuilder('df')
+                            ->leftJoin('ODRAdminBundle:DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
+                            ->where('dfm.is_unique = 1 AND df.dataType = ?1')
+                            ->setParameter(1, $datatype_id),
 
                 'label' => 'External ID Field',
                 'choice_label' => 'field_name',
                 'expanded' => false,
                 'multiple' => false,
                 'placeholder' => 'NONE',
-            )
+            ]
         );
 
         $builder->add(
             'nameField',
             EntityType::class,
-            array(
-                'class' => 'ODR\AdminBundle\Entity\DataFields',
-                'query_builder' => function(EntityRepository $er) use ($single_linked_descendants) {
-                    return $er->createQueryBuilder('df')
-                                ->leftJoin('ODRAdminBundle:DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
-                                ->leftJoin('ODRAdminBundle:FieldType', 'ft', 'WITH', 'dfm.fieldType = ft')
-                                ->where('ft.canBeSortField = 1 AND df.dataType IN (?1)')
-                                ->setParameter(1, $single_linked_descendants);
-                },
+            [
+                'class' => \ODR\AdminBundle\Entity\DataFields::class,
+                'query_builder' => fn(EntityRepository $er) => $er->createQueryBuilder('df')
+                            ->leftJoin('ODRAdminBundle:DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
+                            ->leftJoin('ODRAdminBundle:FieldType', 'ft', 'WITH', 'dfm.fieldType = ft')
+                            ->where('ft.canBeSortField = 1 AND df.dataType IN (?1)')
+                            ->setParameter(1, $single_linked_descendants),
 
                 'group_by' => function($df, $key, $value) use ($datatype_id) {
                     /** @var DataFields $df */
@@ -123,21 +119,19 @@ class UpdateDataTypeForm extends AbstractType
 
                 // Don't want to lose this entirely for the moment, but don't want to use it either
                 'disabled' => true,
-            )
+            ]
         );
 
         $builder->add(
             'sortField',
             EntityType::class,
-            array(
-                'class' => 'ODR\AdminBundle\Entity\DataFields',
-                'query_builder' => function(EntityRepository $er) use ($single_linked_descendants) {
-                    return $er->createQueryBuilder('df')
-                                ->leftJoin('ODRAdminBundle:DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
-                                ->leftJoin('ODRAdminBundle:FieldType', 'ft', 'WITH', 'dfm.fieldType = ft')
-                                ->where('ft.canBeSortField = 1 AND df.dataType IN (?1)')
-                                ->setParameter(1, $single_linked_descendants);
-                },
+            [
+                'class' => \ODR\AdminBundle\Entity\DataFields::class,
+                'query_builder' => fn(EntityRepository $er) => $er->createQueryBuilder('df')
+                            ->leftJoin('ODRAdminBundle:DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
+                            ->leftJoin('ODRAdminBundle:FieldType', 'ft', 'WITH', 'dfm.fieldType = ft')
+                            ->where('ft.canBeSortField = 1 AND df.dataType IN (?1)')
+                            ->setParameter(1, $single_linked_descendants),
 
                 'group_by' => function($df, $key, $value) use ($datatype_id) {
                     /** @var DataFields $df */
@@ -152,7 +146,7 @@ class UpdateDataTypeForm extends AbstractType
 
                 // Don't want to lose this entirely for the moment, but don't want to use it either
                 'disabled' => true,
-            )
+            ]
         );
 
         if ($is_top_level) {
@@ -160,16 +154,14 @@ class UpdateDataTypeForm extends AbstractType
             $builder->add(
                 'backgroundImageField',
                 EntityType::class,
-                array(
-                    'class' => 'ODR\AdminBundle\Entity\DataFields',
-                    'query_builder' => function(EntityRepository $er) use ($datatype_id) {
-                        return $er->createQueryBuilder('df')
-                            ->leftJoin('ODRAdminBundle:DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
-                            ->leftJoin('ODRAdminBundle:FieldType', 'ft', 'WITH', 'dfm.fieldType = ft')
-                            ->where('ft.typeName = ?1 AND df.dataType = ?2')
-                            ->setParameter(1, 'Image')
-                            ->setParameter(2, $datatype_id);
-                    },
+                [
+                    'class' => \ODR\AdminBundle\Entity\DataFields::class,
+                    'query_builder' => fn(EntityRepository $er) => $er->createQueryBuilder('df')
+                        ->leftJoin('ODRAdminBundle:DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
+                        ->leftJoin('ODRAdminBundle:FieldType', 'ft', 'WITH', 'dfm.fieldType = ft')
+                        ->where('ft.typeName = ?1 AND df.dataType = ?2')
+                        ->setParameter(1, 'Image')
+                        ->setParameter(2, $datatype_id),
 
                     'label' => 'Background Image Field',
                     'choice_label' => 'field_name',
@@ -179,25 +171,25 @@ class UpdateDataTypeForm extends AbstractType
 
                     // Don't want to lose this entirely for the moment, but don't want to use it either
                     'disabled' => true,
-                )
+                ]
             );
 
             $builder->add(
                 'searchSlug',
                 TextType::class,
-                array(
+                [
                     'label' => 'Search Abbreviation',
-                )
+                ]
             );
         }
 
         $builder->add(
             'newRecordsArePublic',
             CheckboxType::class,
-            array(
+            [
                 'label'  => 'Created Records default to public',
                 'required' => false
-            )
+            ]
         );
     }
 
@@ -220,6 +212,7 @@ class UpdateDataTypeForm extends AbstractType
      *
      * @return string The prefix of the template block name
      */
+    #[\Override]
     public function getBlockPrefix()
     {
         return 'UpdateDataTypeForm';
@@ -232,9 +225,9 @@ class UpdateDataTypeForm extends AbstractType
     public function configureOptions(OptionsResolver $resolver)
     {
         $resolver->setDefaults(
-            array(
-                'data_class' => 'ODR\AdminBundle\Entity\DataTypeMeta',
-            )
+            [
+                'data_class' => \ODR\AdminBundle\Entity\DataTypeMeta::class,
+            ]
         );
 
         // Required options should not have defaults set

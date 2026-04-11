@@ -34,22 +34,22 @@ class UpdateDatatypePropertiesForm extends AbstractType
         $builder->add(
             'longName',
             HiddenType::class,
-            array(
+            [
                 'required' => true,
                 'label'  => 'Long Name',
-                'attr' => array(
+                'attr' => [
                     'maxlength' => 255,
-                ),
-            )
+                ],
+            ]
         );
 
         $builder->add(
             'description',
             HiddenType::class,
-            array(
+            [
                 'required' => true,
                 'label' => 'Enter a description for this database.'
-            )
+            ]
         );
 
     }
@@ -73,6 +73,7 @@ class UpdateDatatypePropertiesForm extends AbstractType
      *
      * @return string The prefix of the template block name
      */
+    #[\Override]
     public function getBlockPrefix()
     {
         return 'UpdateDatatypePropertiesForm';
@@ -85,10 +86,10 @@ class UpdateDatatypePropertiesForm extends AbstractType
     public function configureOptions(OptionsResolver $resolver)
     {
         $resolver->setDefaults(
-            array(
-                'data_class' => 'ODR\AdminBundle\Entity\DataTypeMeta',
+            [
+                'data_class' => \ODR\AdminBundle\Entity\DataTypeMeta::class,
                 'form_settings' => null,
-            )
+            ]
         );
     }
 }

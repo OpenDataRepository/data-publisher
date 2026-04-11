@@ -494,7 +494,7 @@ class TrackedJob
      * @return array
      */
     public function toArray() {
-        $tracked_job = array();
+        $tracked_job = [];
 
         $tracked_job['id'] = $this->getId();
         $tracked_job['job_type'] = $this->getJobType();
@@ -522,7 +522,7 @@ class TrackedJob
            'UPDATE odr_tracked_job
             SET current = current + 1
             WHERE id = :id';
-        $params = array('id' => $this->id);
+        $params = ['id' => $this->id];
         $conn = $em->getConnection();
         $rowsAffected = $conn->executeUpdate($query, $params);
 
@@ -545,7 +545,7 @@ class TrackedJob
                'UPDATE odr_tracked_job
                 SET started = :datetime
                 WHERE id = :id';
-            $params = array('id' => $this->id, 'datetime' => $start_time->format('Y-m-d H:i:s') );
+            $params = ['id' => $this->id, 'datetime' => $start_time->format('Y-m-d H:i:s') ];
             $conn = $em->getConnection();
             $rowsAffected = $conn->executeUpdate($query, $params);
         }

@@ -28,52 +28,16 @@ class CSVImportHelperService
 {
 
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var DatatreeInfoService
-     */
-    private $dti_service;
-
-    /**
-     * @var SearchService
-     */
-    private $search_service;
-
-    /**
-     * @var SortService
-     */
-    private $sort_service;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * CSVImportHelperService constructor
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param DatatreeInfoService $dti_service
      * @param SearchService $search_service
      * @param SortService $sort_service
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        DatatreeInfoService $dti_service,
-        SearchService $search_service,
-        SortService $sort_service,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->dti_service = $dti_service;
-        $this->search_service = $search_service;
-        $this->sort_service = $sort_service;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly DatatreeInfoService $dti_service, private readonly SearchService $search_service, private readonly SortService $sort_service, private readonly Logger $logger)
+    {
     }
 
 
@@ -88,7 +52,7 @@ class CSVImportHelperService
      */
     public function getUniquenessCheckData($post, $file_headers)
     {
-        $data = array(
+        $data = [
             'file_headers' => $file_headers,
 
             'import_datatype_id' => intval($post['datatype_id']),
@@ -103,9 +67,9 @@ class CSVImportHelperService
             'top_level_external_id_column' => null,
             'child_external_id_column' => null,
 
-            'top_level_lookup' => array(),
-            'child_lookup' => array(),
-        );
+            'top_level_lookup' => [],
+            'child_lookup' => [],
+        ];
 
         // Going to need the datatype that's getting imported into
         /** @var DataType $dt */
@@ -174,7 +138,7 @@ class CSVImportHelperService
 
         // Want to also create a more direct mapping from the post data, where the column_num of a
         //  column in the CSV file that is marked as unique points to a datafield_id
-        $data['unique_mapping'] = array();
+        $data['unique_mapping'] = [];
         if ( isset($post['unique_columns']) ) {
             foreach ($post['unique_columns'] as $column_num => $num) {
                 if ($post['datafield_mapping'][$column_num] === 'new')
@@ -225,11 +189,11 @@ class CSVImportHelperService
     {
         // Going to build an array of the existing values in each unique datafield that's getting
         //  imported into
-        $existing_values = array();
+        $existing_values = [];
 
         // If importing into a child datatype, then need to be able to lookup the id of a top-level
         //  record based on the id of a child record
-        $parent_lookup = array();
+        $parent_lookup = [];
         if ( $data['import_into_child_datatype'] )
             $parent_lookup = $this->search_service->getCachedSearchDatarecordList($data['import_datatype_id']);
 
@@ -246,12 +210,12 @@ class CSVImportHelperService
                     if ( $data['import_into_top_level'] ) {
                         // This is a top-level datarecord...
                         if ( !isset($existing_values[$dr_id]) )
-                            $existing_values[$dr_id] = array();
+                            $existing_values[$dr_id] = [];
 
-                        $existing_values[$dr_id][$df_id] = array(
+                        $existing_values[$dr_id][$df_id] = [
                             'line' => 0,
                             'value' => $current_value,
-                        );
+                        ];
                     }
                     else /*if ( $data['import_into_child_datatype'] )*/ {
                         // This is a child datarecord...multiple records of a child datatype are
@@ -259,14 +223,14 @@ class CSVImportHelperService
                         //  parent records
                         $parent_dr_id = $parent_lookup[$dr_id];
                         if ( !isset($existing_values[$parent_dr_id]) )
-                            $existing_values[$parent_dr_id] = array();
+                            $existing_values[$parent_dr_id] = [];
                         if ( !isset($existing_values[$parent_dr_id][$dr_id]) )
-                            $existing_values[$parent_dr_id][$dr_id] = array();
+                            $existing_values[$parent_dr_id][$dr_id] = [];
 
-                        $existing_values[$parent_dr_id][$dr_id][$df_id] = array(
+                        $existing_values[$parent_dr_id][$dr_id][$df_id] = [
                             'line' => 0,
                             'value' => $current_value,
-                        );
+                        ];
                     }
                 }
             }
@@ -291,7 +255,7 @@ class CSVImportHelperService
     public function getFutureUniqueValues($data, $reader, &$future_values)
     {
         // Going to try to detect duplicate entries in the CSV file here, if possible
-        $errors = array();
+        $errors = [];
 
         // The csv file might end up creating new datarecords...they also need to be checked
         $new_dr_num = 0;
@@ -353,7 +317,7 @@ class CSVImportHelperService
 
             // Only care about the columns from the CSV file that are going to unique datafields...
             foreach ($data['unique_mapping'] as $column_num => $df_id) {
-                $value = trim( $row[$column_num] );
+                $value = trim( (string) $row[$column_num] );
 
                 if ( $data['import_into_top_level'] ) {
                     // This is a top-level datatype
@@ -361,7 +325,7 @@ class CSVImportHelperService
                     // Overwrite any existing value for this datafield, or just create a new one
                     //  if it doesn't exist
                     if ( !isset($future_values[$dr_id]) )
-                        $future_values[$dr_id] = array();
+                        $future_values[$dr_id] = [];
 
                     // Need to look for duplicate entries in the external id column of the csv file
                     if ( $df_id === $data['top_level_external_id_field']
@@ -373,21 +337,21 @@ class CSVImportHelperService
                         //  randomization of priority on background jobs, there's no guarantee which
                         //  row of data the record would end up using after the import finished
                         $message = 'The external id value "'.$value.'" in the column "'.$data['file_headers'][$column_num].'" on line '.$line_num.' is a duplicate of line '.$future_values[$dr_id][$df_id]['line'];
-                        $errors[] = array(
+                        $errors[] = [
                             'level' => 'Error',
                             'category' => 'Duplicate values in CSV File',
-                            'body' => array(
+                            'body' => [
                                 'line_num' => $line_num,
                                 'message' => $message,
-                            ),
-                        );
+                            ],
+                        ];
                     }
                     else {
                         // Otherwise, store the line_num/value so it can be checked later on
-                        $future_values[$dr_id][$df_id] = array(
+                        $future_values[$dr_id][$df_id] = [
                             'line' => $line_num,
                             'value' => $value
-                        );
+                        ];
                     }
                 }
                 else {
@@ -396,9 +360,9 @@ class CSVImportHelperService
                     // Overwrite any existing value for this datafield, or just create a new one
                     //  if it doesn't exist
                     if ( !isset($future_values[$dr_id]) )
-                        $future_values[$dr_id] = array();
+                        $future_values[$dr_id] = [];
                     if ( !isset($future_values[$dr_id][$child_dr_id]) )
-                        $future_values[$dr_id][$child_dr_id] = array();
+                        $future_values[$dr_id][$child_dr_id] = [];
 
                     // Need to look for duplicate entries in the external id column of the csv file
                     if ( $df_id === $data['child_external_id_field']
@@ -410,21 +374,21 @@ class CSVImportHelperService
                         //  randomization of priority on background jobs, there's no guarantee which
                         //  row of data the record would end up using after the import finished
                         $message = 'The external id value "'.$value.'" in the column "'.$data['file_headers'][$column_num].'" on line '.$line_num.' is a duplicate of line '.$future_values[$dr_id][$child_dr_id][$df_id]['line'];
-                        $errors[] = array(
+                        $errors[] = [
                             'level' => 'Error',
                             'category' => 'Duplicate values in CSV File',
-                            'body' => array(
+                            'body' => [
                                 'line_num' => $line_num,
                                 'message' => $message,
-                            ),
-                        );
+                            ],
+                        ];
                     }
                     else {
                         // Otherwise, store the line_num/value so it can be checked later on
-                        $future_values[$dr_id][$child_dr_id][$df_id] = array(
+                        $future_values[$dr_id][$child_dr_id][$df_id] = [
                             'line' => $line_num,
                             'value' => $value
-                        );
+                        ];
                     }
                 }
             }
@@ -451,14 +415,14 @@ class CSVImportHelperService
     {
         // Going to attempt to detect instances where the values in the csv file would violate
         //  uniqueness constraints
-        $errors = array();
+        $errors = [];
 
         // This function needs to flip the unique mapping so it's (df_id => column_num) instead
         $unique_columns = array_flip( $data['unique_mapping'] );
 
         if ( $data['import_into_top_level'] ) {
             // This is a top-level datatype
-            $seen_values = array();
+            $seen_values = [];
             foreach ($future_values as $dr_id => $df_data) {
                 foreach ($df_data as $df_id => $csv_data) {
                     // NOTE - doing it this way allows newly created top-level datarecords to have
@@ -468,10 +432,10 @@ class CSVImportHelperService
 
                     if ( !isset($seen_values[$df_id][$value]) ) {
                         // Haven't seen this value before, keep looking
-                        $seen_values[$df_id][$value] = array(
+                        $seen_values[$df_id][$value] = [
                             'prev_line' => $line_num,
                             'prev_dr_id' => $dr_id,
-                        );
+                        ];
                     }
                     else {
                         // Have seen this value before, complain
@@ -487,14 +451,14 @@ class CSVImportHelperService
                         if ( is_numeric($prev_dr_id) )
                             $message = 'The field "'.$data['file_headers'][$column_num].'" is supposed to be unique, but the value "'.$value.'" already exists in Datarecord '.$prev_dr_id.' "'.$prev_dr_value.'"';
 
-                        $errors[] = array(
+                        $errors[] = [
                             'level' => 'Error',
                             'category' => 'Duplicate values in CSV File',
-                            'body' => array(
+                            'body' => [
                                 'line_num' => $line_num,
                                 'message' => $message,
-                            ),
-                        );
+                            ],
+                        ];
                     }
                 }
             }
@@ -503,7 +467,7 @@ class CSVImportHelperService
             // This is a child datatype
             foreach ($future_values as $parent_dr_id => $child_dr_ids) {
                 // The values in the child records must be unique within the parent datatype
-                $seen_values = array();
+                $seen_values = [];
                 foreach ($child_dr_ids as $child_dr_id => $df_data) {
                     foreach ($df_data as $df_id => $csv_data) {
                         $line_num = $csv_data['line'];
@@ -512,11 +476,11 @@ class CSVImportHelperService
                         //
                         if ( !isset($seen_values[$df_id][$value]) ) {
                             // Haven't seen this value before, keep looking
-                            $seen_values[$df_id][$value] = array(
+                            $seen_values[$df_id][$value] = [
                                 'prev_line' => $line_num,
 //                                'prev_dr_id' => $parent_dr_id,
                                 'prev_cdr_id' => $child_dr_id,
-                            );
+                            ];
                         }
                         else {
                             // Have seen this value before, complain
@@ -531,14 +495,14 @@ class CSVImportHelperService
                             if ( is_numeric($prev_cdr_id) )
                                 $message = 'The field "'.$data['file_headers'][$column_num].'" is supposed to be unique, but the value "'.$value.'" already exists in Datarecord '.$prev_cdr_id;
 
-                            $errors[] = array(
+                            $errors[] = [
                                 'level' => 'Error',
                                 'category' => 'Duplicate values in CSV File',
-                                'body' => array(
+                                'body' => [
                                     'line_num' => $line_num,
                                     'message' => $message,
-                                ),
-                            );
+                                ],
+                            ];
                         }
                     }
                 }
@@ -562,7 +526,7 @@ class CSVImportHelperService
     {
         // Don't do anything if not importing into a child/linked datatype
         if ( $data['import_into_top_level'] )
-            return array();
+            return [];
 
         $descendant_datatype_id = $data['import_datatype_id'];
         $ancestor_datatype_id = $data['parent_datatype_id'];
@@ -572,12 +536,12 @@ class CSVImportHelperService
         if ( isset($datatree_array['multiple_allowed'][$descendant_datatype_id])
             && in_array($ancestor_datatype_id, $datatree_array['multiple_allowed'][$descendant_datatype_id])
         ) {
-            return array();
+            return [];
         }
 
         // Otherwise, need to determine whether the import will create multiple descendant records
         //  when there should only be at most one
-        $errors = array();
+        $errors = [];
 
         // May need the names of the ancestor/descendant datatypes for error reporting
         /** @var DataType $descendant_datatype */
@@ -589,7 +553,7 @@ class CSVImportHelperService
         // ----------------------------------------
         // Need to load the existing parent/child relations...
         $rel_type_adj = null;
-        $existing_records = array();
+        $existing_records = [];
         if ( $data['import_into_child_datatype'] ) {
             $rel_type_adj = 'child';
             $tmp = $this->search_service->getCachedSearchDatarecordList($descendant_datatype_id);
@@ -619,7 +583,7 @@ class CSVImportHelperService
 
         // The descendant datatype will have an external id field if it's a remote datatype, but a
         //  child datatype isn't guaranteed to have one
-        $descendant_lookup = array();
+        $descendant_lookup = [];
         if ( !is_null($data['child_external_id_column']) )
             $descendant_lookup = $data['child_lookup'];
         $descendant_external_id_column = $data['child_external_id_column'];
@@ -627,7 +591,7 @@ class CSVImportHelperService
         // Where there is no external id for a child datatype, the importer will overwrite existing
         //  child datarecords...there needs to be a check for whether the csv file attempts to
         //  overwrite the same child datarecord twice, however
-        $overwritten_children = array();
+        $overwritten_children = [];
 
 
         // ----------------------------------------
@@ -666,14 +630,14 @@ class CSVImportHelperService
                         if ( $existing_records[$ancestor_dr_id] === '' )
                             $message = 'The csv file is already creating a child datarecord for the parent Datarecord with the "'.$ancestor_external_id_field_name.'" value "'.$ancestor_external_id_value.'"';
 
-                        $errors[] = array(
+                        $errors[] = [
                             'level' => 'Warning',
                             'category' => 'Potential overwrites',
-                            'body' => array(
+                            'body' => [
                                 'line_num' => $line_num,
                                 'message' => $message,
-                            ),
-                        );
+                            ],
+                        ];
 
                         // Store that a child will be overwritten for this ancestor
                         $overwritten_children[$ancestor_dr_id] = 1;
@@ -682,14 +646,14 @@ class CSVImportHelperService
                         // If this point is reached, the csv file has a duplicate entry for this
                         //  ancestor...should throw an error instead of a warning, since there's no
                         //  telling what the child record will end up with
-                        $errors[] = array(
+                        $errors[] = [
                             'level' => 'Error',
                             'category' => 'Duplicate values in CSV File',
-                            'body' => array(
+                            'body' => [
                                 'line_num' => $line_num,
                                 'message' => 'The Datarecord with the "'.$ancestor_external_id_field_name.'" value "'.$ancestor_external_id_value.'" is listed multiple times in the csv file',
-                            ),
-                        );
+                            ],
+                        ];
                     }
                 }
                 else {
@@ -723,14 +687,14 @@ class CSVImportHelperService
                     // The ancestor currently has a descendant, but the csv file is referencing a
                     //  different (or non-existent) record...the constraint will be violated if the
                     //  importer is allowed to continue
-                    $errors[] = array(
+                    $errors[] = [
                         'level' => 'Error',
                         'category' => 'Database constraint violations',
-                        'body' => array(
+                        'body' => [
                             'line_num' => $line_num,
                             'message' => 'The relationship between the ancestor Datatype "'.$ancestor_datatype->getShortName().'" and its '.$rel_type_adj.' Datatype "'.$descendant_datatype->getShortName().'" only permits a single descendant, but line '.$line_num.' in the csv file will create another descendant for the ancestor Datarecord with the "'.$ancestor_external_id_field_name.'" value "'.$ancestor_external_id_value.'"'
-                        ),
-                    );
+                        ],
+                    ];
                 }
 
                 // Don't need to check for duplicates here...

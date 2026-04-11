@@ -24,18 +24,12 @@ class CommentPlugin implements DatatypePluginInterface
 {
 
     /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-
-    /**
      * CommentPlugin constructor.
      *
      * @param EngineInterface $templating
      */
-    public function __construct(EngineInterface $templating) {
-        $this->templating = $templating;
+    public function __construct(private readonly EngineInterface $templating)
+    {
     }
 
 
@@ -80,7 +74,7 @@ class CommentPlugin implements DatatypePluginInterface
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
+    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = [], $datatype_permissions = [], $datafield_permissions = [], $token_list = [])
     {
 
         try {
@@ -93,7 +87,7 @@ class CommentPlugin implements DatatypePluginInterface
             $options = $render_plugin_instance['renderPluginOptionsMap'];
 
             // Retrieve mapping between datafields and render plugin fields
-            $datafield_mapping = array();
+            $datafield_mapping = [];
             foreach ($fields as $rpf_name => $rpf_df) {
                 // Need to find the real datafield entry in the primary datatype array
                 $rpf_df_id = $rpf_df['id'];
@@ -124,40 +118,29 @@ class CommentPlugin implements DatatypePluginInterface
 
             // ----------------------------------------
             // For each datarecord that has been passed to this plugin, locate the associated comments field
-            $comments = array();
+            $comments = [];
             $count = 0;
             foreach ($datarecords as $dr_id => $dr) {
                 $comment_datafield_id = $datafield_mapping['comment']['id'];
                 $comment_datafield_typeclass = $datafield_mapping['comment']['dataFieldMeta']['fieldType']['typeClass'];
 
                 if ( isset($dr['dataRecordFields'][$comment_datafield_id]) ) {
-                    $entity = array();
+                    $entity = [];
                     $drf = $dr['dataRecordFields'][$comment_datafield_id];
-                    switch ($comment_datafield_typeclass) {
-                        case 'ShortVarchar':
-                            $entity = $drf['shortVarchar'];
-                            break;
-                        case 'MediumVarchar':
-                            $entity = $drf['mediumVarchar'];
-                            break;
-                        case 'LongVarchar':
-                            $entity = $drf['longVarchar'];
-                            break;
-                        case 'LongText':
-                            $entity = $drf['longText'];
-                            break;
-
-                        default:
-                            throw new \Exception('Invalid Fieldtype for comment');
-                            break;
-                    }
+                    $entity = match ($comment_datafield_typeclass) {
+                        'ShortVarchar' => $drf['shortVarchar'],
+                        'MediumVarchar' => $drf['mediumVarchar'],
+                        'LongVarchar' => $drf['longVarchar'],
+                        'LongText' => $drf['longText'],
+                        default => throw new \Exception('Invalid Fieldtype for comment'),
+                    };
 
                     // Grab the comment text and when it was made
                     $date = $entity[0]['created'];
                     $date = $date->format('Y-m-d H:i:s');
 
                     $count++;
-                    $comments[$date.'_'.$count] = array('datarecord' => $dr, 'entity' => $entity[0]);
+                    $comments[$date.'_'.$count] = ['datarecord' => $dr, 'entity' => $entity[0]];
                 }
             }
 
@@ -167,12 +150,12 @@ class CommentPlugin implements DatatypePluginInterface
 
             $output = $this->templating->render(
                 'ODROpenRepositoryGraphBundle:Base:Comments/comments.html.twig',
-                array(
+                [
                     'datatype' => $datatype,
                     'datarecord_array' => $datarecords,
                     'mapping' => $datafield_mapping,
                     'comments' => $comments,
-                )
+                ]
             );
 
             return $output;

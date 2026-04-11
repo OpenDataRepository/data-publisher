@@ -29,27 +29,6 @@ class SearchRedirectService
 {
 
     /**
-     * @var ODRTabHelperService
-     */
-    private $tab_helper_service;
-
-    /**
-     * @var Router
-     */
-    private $router;
-
-    /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * SearchRedirectService constructor.
      *
      * @param ODRTabHelperService $tab_helper_service
@@ -57,16 +36,8 @@ class SearchRedirectService
      * @param EngineInterface $templating
      * @param Logger $logger
      */
-    public function __construct(
-        ODRTabHelperService $tab_helper_service,
-        Router $router,
-        EngineInterface $templating,
-        Logger $logger
-    ) {
-        $this->tab_helper_service = $tab_helper_service;
-        $this->router = $router;
-        $this->templating = $templating;
-        $this->logger = $logger;
+    public function __construct(private readonly ODRTabHelperService $tab_helper_service, private readonly Router $router, private readonly EngineInterface $templating, private readonly Logger $logger)
+    {
     }
 
 
@@ -83,19 +54,19 @@ class SearchRedirectService
     public function redirectToSearchResult($search_key, $search_theme_id)
     {
         // Can't use $this->redirect, because it won't update the hash...
-        $return = array(
+        $return = [
             'r' => 2,    // so common.js::LoadContentFullAjax() updates page instead of reloading
             't' => '',
-            'd' => array(
+            'd' => [
                 'url' => $this->router->generate(
                     'odr_search_render',
-                    array(
+                    [
                         'search_theme_id' => $search_theme_id,
                         'search_key' => $search_key,
-                    )
+                    ]
                 )
-            )
-        );
+            ]
+        ];
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
@@ -118,10 +89,10 @@ class SearchRedirectService
         // Generate the new URL that the user will be redirected to after the javascript executes
         $new_url = $this->router->generate(
             'odr_search_render',
-            array(
+            [
                 'search_theme_id' => $search_theme_id,
                 'search_key' => $search_key,
-            )
+            ]
         );
 
         // If the user isn't logged in, display a "login" button...
@@ -129,19 +100,19 @@ class SearchRedirectService
         if ($user === 'anon.')
             $logged_in = false;
 
-        $return = array(
+        $return = [
             'r' => 0,
             't' => '',
-            'd' => array(
+            'd' => [
                 'html' => $this->templating->render(
                     'ODROpenRepositorySearchBundle:Default:searchpage_redirect.html.twig',
-                    array(
+                    [
                         'logged_in' => $logged_in,
                         'url' => $new_url,
-                    )
+                    ]
                 )
-            )
-        );
+            ]
+        ];
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
@@ -162,20 +133,20 @@ class SearchRedirectService
     public function redirectToSingleDatarecord($datarecord_id, $search_theme_id = 0, $search_key = '')
     {
         // Can't use $this->redirect, because it won't update the hash...
-        $return = array(
+        $return = [
             'r' => 2,    // so common.js::LoadContentFullAjax() updates page instead of reloading
             't' => '',
-            'd' => array(
+            'd' => [
                 'url' => $this->router->generate(
                     'odr_display_view',
-                    array(
+                    [
                         'datarecord_id' => $datarecord_id,
                         'search_theme_id' => $search_theme_id,
                         'search_key' => $search_key
-                    )
+                    ]
                 )
-            )
-        );
+            ]
+        ];
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
@@ -197,21 +168,21 @@ class SearchRedirectService
     public function redirectToViewPage($datarecord_id, $search_theme_id, $filtered_search_key, $offset)
     {
         // Can't use $this->redirect, because it won't update the hash...
-        $return = array(
+        $return = [
             'r' => 2,    // so common.js::LoadContentFullAjax() updates page instead of reloading
             't' => '',
-            'd' => array(
+            'd' => [
                 'url' => $this->router->generate(
                     'odr_display_view',
-                    array(
+                    [
                         'datarecord_id' => $datarecord_id,
                         'search_theme_id' => $search_theme_id,
                         'search_key' => $filtered_search_key,
                         'offset' => $offset,
-                    )
+                    ]
                 )
-            )
-        );
+            ]
+        ];
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
@@ -233,21 +204,21 @@ class SearchRedirectService
     public function redirectToEditPage($datarecord_id, $search_theme_id, $filtered_search_key, $offset)
     {
         // Can't use $this->redirect, because it won't update the hash...
-        $return = array(
+        $return = [
             'r' => 2,    // so common.js::LoadContentFullAjax() updates page instead of reloading
             't' => '',
-            'd' => array(
+            'd' => [
                 'url' => $this->router->generate(
                     'odr_record_edit',
-                    array(
+                    [
                         'datarecord_id' => $datarecord_id,
                         'search_theme_id' => $search_theme_id,
                         'search_key' => $filtered_search_key,
                         'offset' => $offset,
-                    )
+                    ]
                 )
-            )
-        );
+            ]
+        ];
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');

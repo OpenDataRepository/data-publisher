@@ -32,10 +32,10 @@ class OAuthEventListener implements EventSubscriberInterface
      */
     public static function getSubscribedEvents()
     {
-        return array(
+        return [
             OAuthEvent::PRE_AUTHORIZATION_PROCESS => 'onPreAuthorizationProcess',
             OAuthEvent::POST_AUTHORIZATION_PROCESS => 'onPostAuthorizationProcess',
-        );
+        ];
     }
 
 

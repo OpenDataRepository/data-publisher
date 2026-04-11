@@ -1068,7 +1068,7 @@ class DataFields
      */
     public function getNameDatatypes()
     {
-        $name_datatypes = array();
+        $name_datatypes = [];
         if ( !is_null($this->dataTypeSpecialFields) ) {
             foreach ($this->dataTypeSpecialFields as $dtsf) {
                 /** @var DataTypeSpecialFields $dtsf */
@@ -1085,7 +1085,7 @@ class DataFields
      */
     public function getSortDatatypes()
     {
-        $sort_datatypes = array();
+        $sort_datatypes = [];
         if ( !is_null($this->dataTypeSpecialFields) ) {
             foreach ($this->dataTypeSpecialFields as $dtsf) {
                 /** @var DataTypeSpecialFields $dtsf */

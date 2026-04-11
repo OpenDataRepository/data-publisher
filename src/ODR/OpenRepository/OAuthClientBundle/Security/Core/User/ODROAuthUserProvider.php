@@ -48,9 +48,9 @@ class ODROAuthUserProvider implements UserProviderInterface, OAuthAwareUserProvi
     /**
      * @var array
      */
-    protected $properties = array(
+    protected $properties = [
         'identifier' => 'id',
-    );
+    ];
 
     /**
      * Constructor.
@@ -93,7 +93,7 @@ class ODROAuthUserProvider implements UserProviderInterface, OAuthAwareUserProvi
         }
 
         $username = $response->getUsername();
-        $criteria = array($this->properties[$resourceOwnerName] => $username);
+        $criteria = [$this->properties[$resourceOwnerName] => $username];
 
         // This session key only exists when ODR\OpenRepository\OAuthClientBundle\Security\Http\Firewall\ODROAuthListener
         //  is convinced this is a ODR <-> OAuth account connection attempt
@@ -123,12 +123,12 @@ class ODROAuthUserProvider implements UserProviderInterface, OAuthAwareUserProvi
     {
         $accessor = PropertyAccess::createPropertyAccessor();
         $identifier = $this->properties['identifier'];
-        if (!$this->supportsClass(get_class($user)) || !$accessor->isReadable($user, $identifier)) {
-            throw new UnsupportedUserException(sprintf('Instances of "%s" are not supported.', get_class($user)), 0xd92a78ec);
+        if (!$this->supportsClass($user::class) || !$accessor->isReadable($user, $identifier)) {
+            throw new UnsupportedUserException(sprintf('Instances of "%s" are not supported.', $user::class), 0xd92a78ec);
         }
 
         $userId = $accessor->getValue($user, $identifier);
-        if (null === $user = $this->findUser(array($identifier => $userId))) {
+        if (null === $user = $this->findUser([$identifier => $userId])) {
             throw new UsernameNotFoundException(sprintf('User with ID "%d" could not be reloaded.', $userId), 0xd92a78ec);
         }
 
@@ -155,7 +155,7 @@ class ODROAuthUserProvider implements UserProviderInterface, OAuthAwareUserProvi
         // Tweak the provided criteria to make it easier for DQL to locate the correct user
         $provider_name = $provider_id = null;
         foreach ($criteria as $key => $value) {
-            $provider_name = substr($key, 0, -2);
+            $provider_name = substr((string) $key, 0, -2);
             $provider_id = $value;
         }
 
@@ -166,7 +166,7 @@ class ODROAuthUserProvider implements UserProviderInterface, OAuthAwareUserProvi
             JOIN ODROpenRepositoryOAuthClientBundle:UserLink AS ul WITH ul.user = u
             WHERE ul.providerName = :provider_name AND ul.providerId = :provider_id
             AND u.enabled = 1'
-        )->setParameters( array('provider_name' => $provider_name, 'provider_id' => $provider_id) );
+        )->setParameters( ['provider_name' => $provider_name, 'provider_id' => $provider_id] );
         $result = $query->getResult();
 
         // Would like to use $query->getSingleResult(), but apparently that throws an exception when nothing found...
@@ -191,13 +191,13 @@ class ODROAuthUserProvider implements UserProviderInterface, OAuthAwareUserProvi
         // Tweak the provided criteria
         $provider_name = $provider_id = null;
         foreach ($criteria as $key => $value) {
-            $provider_name = substr($key, 0, -2);
+            $provider_name = substr((string) $key, 0, -2);
             $provider_id = $value;
         }
 
         // Don't continue if a user is already connected to this criteria
         // TODO - do something more comphrehensive than just refusing to connect?
-        $user_link = $this->em->getRepository("ODROpenRepositoryOAuthClientBundle:UserLink")->findOneBy( array('providerName' => $provider_name, 'providerId' => $provider_id) );
+        $user_link = $this->em->getRepository("ODROpenRepositoryOAuthClientBundle:UserLink")->findOneBy( ['providerName' => $provider_name, 'providerId' => $provider_id] );
         if ($user_link)
             throw new \RuntimeException("Unable to connect account", 0xd92a78ec);
 

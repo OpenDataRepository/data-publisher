@@ -25,36 +25,14 @@ class DatatreeInfoService
 {
 
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var CacheService
-     */
-    private $cache_service;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * DatatreeInfoService constructor.
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param CacheService $cache_service
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        CacheService $cache_service,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->cache_service = $cache_service;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly Logger $logger)
+    {
     }
 
 
@@ -106,15 +84,15 @@ class DatatreeInfoService
             WHERE ancestor.setup_step IN (:setup_step) AND descendant.setup_step IN (:setup_step)
             AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
             AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
-        )->setParameters( array('setup_step' => DataType::STATE_VIEWABLE) );
+        )->setParameters( ['setup_step' => DataType::STATE_VIEWABLE] );
         $results = $query->getArrayResult();
 
-        $datatree_array = array(
-            'descendant_of' => array(),
-            'linked_from' => array(),
-            'multiple_allowed' => array(),
-            'edit_behavior' => array(),
-        );
+        $datatree_array = [
+            'descendant_of' => [],
+            'linked_from' => [],
+            'multiple_allowed' => [],
+            'edit_behavior' => [],
+        ];
         foreach ($results as $num => $result) {
             $ancestor_id = $result['ancestor_id'];
             $descendant_id = $result['descendant_id'];
@@ -134,7 +112,7 @@ class DatatreeInfoService
                 // linked datatypes are slightly easier to work with if they have a list of all
                 //  datatypes that link to them
                 if ( !isset($datatree_array['linked_from'][$descendant_id]) )
-                    $datatree_array['linked_from'][$descendant_id] = array();
+                    $datatree_array['linked_from'][$descendant_id] = [];
                 $datatree_array['linked_from'][$descendant_id][] = $ancestor_id;
 
                 // The edit_behavior flag only matters for linked datatypes, and should only be stored
@@ -142,7 +120,7 @@ class DatatreeInfoService
                 if ( $edit_behavior !== DataTreeMeta::ALWAYS_EDIT ) {
                     // ...might as well store it the same way as all the other sub-arrays
                     if ( !isset($datatree_array['edit_behavior'][$descendant_id]) )
-                        $datatree_array['edit_behavior'][$descendant_id] = array();
+                        $datatree_array['edit_behavior'][$descendant_id] = [];
                     $datatree_array['edit_behavior'][$descendant_id][$ancestor_id] = $edit_behavior;
                 }
             }
@@ -151,7 +129,7 @@ class DatatreeInfoService
             if ($multiple_allowed == 1) {
                 // ...since it's more of a linked datatype option, might as well store it the same way
                 if ( !isset($datatree_array['multiple_allowed'][$descendant_id]) )
-                    $datatree_array['multiple_allowed'][$descendant_id] = array();
+                    $datatree_array['multiple_allowed'][$descendant_id] = [];
                 $datatree_array['multiple_allowed'][$descendant_id][] = $ancestor_id;
             }
         }
@@ -188,11 +166,11 @@ class DatatreeInfoService
             JOIN ODRAdminBundle:DataType AS grandparent WITH dt.grandparent = grandparent
             WHERE dt.setup_step IN (:setup_steps) AND dt.id = grandparent.id
             AND dt.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
-        )->setParameters( array('setup_steps' => DataType::STATE_VIEWABLE) );
+        )->setParameters( ['setup_steps' => DataType::STATE_VIEWABLE] );
         $results = $query->getArrayResult();
 
         // AND dt.metadataFor IS NULL
-        $top_level_datatypes = array();
+        $top_level_datatypes = [];
         foreach ($results as $result)
             $top_level_datatypes[] = $result['datatype_id'];
 
@@ -227,11 +205,11 @@ class DatatreeInfoService
             WHERE dt.setup_step IN (:setup_steps) AND dt.id = grandparent.id
             AND dt.is_master_type = 1
             AND dt.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
-        )->setParameters( array('setup_steps' => DataType::STATE_VIEWABLE) );
+        )->setParameters( ['setup_steps' => DataType::STATE_VIEWABLE] );
         $results = $query->getArrayResult();
 
         // AND dt.metadataFor IS NULL
-        $top_level_templates = array();
+        $top_level_templates = [];
         foreach ($results as $result)
             $top_level_templates[] = $result['datatype_id'];
 
@@ -267,8 +245,8 @@ class DatatreeInfoService
             $datatree_array = self::getDatatreeArray();
 
             // The end result should always contain the requested top-level datatype id
-            $associated_datatypes = array($top_level_datatype_id => 0);
-            $datatypes_to_check = array($top_level_datatype_id);
+            $associated_datatypes = [$top_level_datatype_id => 0];
+            $datatypes_to_check = [$top_level_datatype_id];
             while ( !empty($datatypes_to_check) ) {
                 // Need to first find all datatypes with the requested top-level datatype as their
                 //  ancestor...
@@ -281,7 +259,7 @@ class DatatreeInfoService
                 $links = self::getLinkedDescendants($children, $datatree_array);
 
                 // Save any linked descendants that were found...
-                $datatypes_to_check = array();
+                $datatypes_to_check = [];
                 foreach ($links as $num => $c_dt_id) {
                     $associated_datatypes[$c_dt_id] = 0;
                     $datatypes_to_check[$c_dt_id] = 0;
@@ -336,17 +314,17 @@ class DatatreeInfoService
             $datatree_array = self::getDatatreeArray();
 
             // The end result should always contain the requested top-level datatype id
-            $associated_datatypes = array($bottom_level_datatype_id => 0);
-            $datatypes_to_check = array($bottom_level_datatype_id);
+            $associated_datatypes = [$bottom_level_datatype_id => 0];
+            $datatypes_to_check = [$bottom_level_datatype_id];
             while ( !empty($datatypes_to_check) ) {
                 // Need to get the ids of all datatypes that link to the requested datatype...
                 $links = self::getLinkedAncestors($datatypes_to_check, $datatree_array);
-                $immediate_parents = array();
+                $immediate_parents = [];
                 foreach ($links as $num => $dt_id)
                     $immediate_parents[] = $dt_id;
 
                 // ...but then need to get the grandparents of those datatypes
-                $datatypes_to_check = array();
+                $datatypes_to_check = [];
                 foreach ($immediate_parents as $num => $dt_id) {
                     $gp_dt_id = self::getGrandparentDatatypeId($dt_id, $datatree_array);
 
@@ -455,11 +433,11 @@ class DatatreeInfoService
         if ( is_null($datatree_array) )
             $datatree_array = self::getDatatreeArray();
 
-        $child_datatypes = array();
+        $child_datatypes = [];
 
         $datatypes_to_check = $datatype_ids;
         while ( !empty($datatypes_to_check) ) {
-            $tmp = array();
+            $tmp = [];
             foreach ($datatypes_to_check as $num => $parent_dt_id) {
                 $keys = array_keys($datatree_array['descendant_of'], $parent_dt_id);
                 foreach ($keys as $num => $c_dt_id) {
@@ -471,7 +449,7 @@ class DatatreeInfoService
             if ($deep)
                 $datatypes_to_check = array_keys($tmp);
             else
-                $datatypes_to_check = array();
+                $datatypes_to_check = [];
         }
 
         $child_datatypes = array_keys($child_datatypes);
@@ -496,11 +474,11 @@ class DatatreeInfoService
         if ( is_null($datatree_array) )
             $datatree_array = self::getDatatreeArray();
 
-        $linked_ancestors = array();
+        $linked_ancestors = [];
 
         $datatypes_to_check = $datatype_ids;
         while ( !empty($datatypes_to_check) ) {
-            $tmp = array();
+            $tmp = [];
             foreach ($datatypes_to_check as $num => $child_dt_id) {
                 if ( isset($datatree_array['linked_from'][$child_dt_id]) ) {
                     foreach ($datatree_array['linked_from'][$child_dt_id] as $num => $p_dt_id) {
@@ -517,7 +495,7 @@ class DatatreeInfoService
             if ($deep)
                 $datatypes_to_check = array_keys($tmp);
             else
-                $datatypes_to_check = array();
+                $datatypes_to_check = [];
         }
 
         $linked_ancestors = array_keys($linked_ancestors);
@@ -544,11 +522,11 @@ class DatatreeInfoService
         if ( is_null($datatree_array) )
             $datatree_array = self::getDatatreeArray();
 
-        $linked_descendants = array();
+        $linked_descendants = [];
 
         $datatypes_to_check = $datatype_ids;
         while ( !empty($datatypes_to_check) ) {
-            $tmp = array();
+            $tmp = [];
             foreach ($datatypes_to_check as $num => $parent_dt_id) {
                 foreach ($datatree_array['linked_from'] as $c_dt_id => $parents) {
                     if ( in_array($parent_dt_id, $parents) ) {
@@ -562,7 +540,7 @@ class DatatreeInfoService
             if ($deep)
                 $datatypes_to_check = array_keys($tmp);
             else
-                $datatypes_to_check = array();
+                $datatypes_to_check = [];
         }
 
         $linked_descendants = array_keys($linked_descendants);
@@ -588,20 +566,20 @@ class DatatreeInfoService
         if ($associated_datarecords == false) {
             // The $render_drs include records from all links, needed so that rendering can work
             //  properly
-            $render_drs = self::getMultipleAllowedDatarecords_worker( array($top_level_datarecord_id) );
+            $render_drs = self::getMultipleAllowedDatarecords_worker( [$top_level_datarecord_id] );
             // The $table_drs only include records from single-allowed links, used for the table
             //  search results...this is technically a subset of the previous
-            $table_drs = self::getSingleAllowedDatarecords_worker( array($top_level_datarecord_id) );
+            $table_drs = self::getSingleAllowedDatarecords_worker( [$top_level_datarecord_id] );
 
             // Both of those arrays need the requested top-level datarecord in there...
             $render_drs[$top_level_datarecord_id] = 1;
             $table_drs[$top_level_datarecord_id] = 1;
 
             // ...and most places want the datarecord ids as values instead of keys
-            $associated_datarecords = array(
+            $associated_datarecords = [
                 0 => array_keys($render_drs),
                 1 => array_keys($table_drs)
-            );
+            ];
 
             // Save the list of associated datarecords back into the cache
             $this->cache_service->set('associated_datarecords_for_'.$top_level_datarecord_id, $associated_datarecords);
@@ -629,8 +607,8 @@ class DatatreeInfoService
      */
     private function getMultipleAllowedDatarecords_worker($datarecord_ids)
     {
-        $datarecords_to_return = array();
-        $datarecords_to_check = array();
+        $datarecords_to_return = [];
+        $datarecords_to_check = [];
 
         $query = $this->em->createQuery(
            'SELECT ldr.id AS ldr_id
@@ -641,7 +619,7 @@ class DatatreeInfoService
             WHERE dr.id IN (:datarecord_ids)
             AND dr.deletedAt IS NULL AND cdr.deletedAt IS NULL
             AND ldt.deletedAt IS NULL AND ldr.deletedAt IS NULL'
-        )->setParameters( array('datarecord_ids' => $datarecord_ids) );
+        )->setParameters( ['datarecord_ids' => $datarecord_ids] );
         $results = $query->getArrayResult();
 
         foreach ($results as $num => $result) {
@@ -684,19 +662,19 @@ class DatatreeInfoService
             AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
             AND d_dt.deletedAt IS NULL'
         )->setParameters(
-            array('datarecord_ids' => $datarecord_ids)
+            ['datarecord_ids' => $datarecord_ids]
         );
         $results = $query->getArrayResult();
 
-        $single_allowed_datatype_ids = array();
+        $single_allowed_datatype_ids = [];
         foreach ($results as $num => $result) {
             $d_dt_id = $result['d_dt_id'];
 
             $single_allowed_datatype_ids[] = $d_dt_id;
         }
 
-        $datarecords_to_return = array();
-        $datarecords_to_check = array();
+        $datarecords_to_return = [];
+        $datarecords_to_check = [];
 
         $query = $this->em->createQuery(
            'SELECT ldr.id AS ldr_id
@@ -708,10 +686,10 @@ class DatatreeInfoService
             AND dr.deletedAt IS NULL AND cdr.deletedAt IS NULL
             AND ldt.deletedAt IS NULL AND ldr.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'datarecord_ids' => $datarecord_ids,
                 'single_allowed_datatype_ids' => $single_allowed_datatype_ids
-            )
+            ]
         );
         $results = $query->getArrayResult();
 

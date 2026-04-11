@@ -26,16 +26,6 @@ class MapPlugin implements DatatypePluginInterface
 {
 
     /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-    /**
-     * @var TokenGenerator
-     */
-    private $tokenGenerator;
-
-    /**
      * @var string
      */
     private $api_key;
@@ -47,12 +37,8 @@ class MapPlugin implements DatatypePluginInterface
      * @param EngineInterface $templating
      * @param TokenGenerator $tokenGenerator
      */
-    public function __construct(
-        EngineInterface $templating,
-        TokenGenerator $tokenGenerator
-    ) {
-        $this->templating = $templating;
-        $this->tokenGenerator = $tokenGenerator;
+    public function __construct(private readonly EngineInterface $templating, private readonly TokenGenerator $tokenGenerator)
+    {
     }
 
 
@@ -95,7 +81,7 @@ class MapPlugin implements DatatypePluginInterface
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
+    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = [], $datatype_permissions = [], $datafield_permissions = [], $token_list = [])
     {
 
         try {
@@ -110,7 +96,7 @@ class MapPlugin implements DatatypePluginInterface
 
             // ----------------------------------------
             // Retrieve mapping between datafields and render plugin fields
-            $datafield_mapping = array();
+            $datafield_mapping = [];
             foreach ($fields as $rpf_name => $rpf_df) {
                 // Need to find the real datafield entry in the primary datatype array
                 $rpf_df_id = $rpf_df['id'];
@@ -134,27 +120,27 @@ class MapPlugin implements DatatypePluginInterface
                 }
 
                 //
-                $df_typeclass = lcfirst($df['dataFieldMeta']['fieldType']['typeClass']);
+                $df_typeclass = lcfirst((string) $df['dataFieldMeta']['fieldType']['typeClass']);
 
                 // Grab the fieldname specified in the plugin's config file to use as an array key
                 $key = strtolower( str_replace(' ', '_', $rpf_name) );
-                $datafield_mapping[$key] = array('id' => $rpf_df_id, 'typeclass' => $df_typeclass);
+                $datafield_mapping[$key] = ['id' => $rpf_df_id, 'typeclass' => $df_typeclass];
             }
 
 
             // ----------------------------------------
             // For each datarecord that has been passed to this plugin, locate the associated comments field
-            $gps_locations = array();
+            $gps_locations = [];
 //            throw new \Exception( '<pre>'.print_r($datarecords, true).'</pre>' );
 
-            $keys = array(
+            $keys = [
                 'latitude',
                 'longitude',
-            );
+            ];
 
             foreach ($datarecords as $dr_id => $dr) {
                 // Attempt to extract properties from the datarecord data...
-                $tmp = array();
+                $tmp = [];
 
                 foreach ($keys as $key) {
                     $df_id = $datafield_mapping[$key]['id'];
@@ -196,8 +182,8 @@ class MapPlugin implements DatatypePluginInterface
 
             $output = $this->templating->render(
                 'ODROpenRepositoryGraphBundle:Base:Map/map_wrapper.html.twig',
-                array(
-                    'datatype_array' => array($datatype['id'] => $datatype),
+                [
+                    'datatype_array' => [$datatype['id'] => $datatype],
                     'datarecord_array' => $datarecords,
                     'theme_array' => $theme_array,
 
@@ -218,7 +204,7 @@ class MapPlugin implements DatatypePluginInterface
 
                     'gps_locations' => $gps_locations,
                     'unique_id' => $unique_id,
-                )
+                ]
             );
 
             return $output;

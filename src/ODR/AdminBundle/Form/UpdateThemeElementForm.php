@@ -71,6 +71,7 @@ class UpdateThemeElementForm extends AbstractType
      *
      * @return string The prefix of the template block name
      */
+    #[\Override]
     public function getBlockPrefix()
     {
         return 'UpdateThemeElementForm';
@@ -83,9 +84,9 @@ class UpdateThemeElementForm extends AbstractType
     public function configureOptions(OptionsResolver $resolver)
     {
         $resolver->setDefaults(
-            array(
-                'data_class' => 'ODR\AdminBundle\Entity\ThemeElementMeta',
-            )
+            [
+                'data_class' => \ODR\AdminBundle\Entity\ThemeElementMeta::class,
+            ]
         );
     }
 }

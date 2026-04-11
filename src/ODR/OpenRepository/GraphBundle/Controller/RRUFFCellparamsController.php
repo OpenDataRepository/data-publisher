@@ -58,7 +58,7 @@ class RRUFFCellparamsController extends ODRCustomController
      */
     public function saveAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -110,7 +110,7 @@ class RRUFFCellparamsController extends ODRCustomController
             // ----------------------------------------
             // Ensure the datatype is using the correct render plugin...
             $found_plugin = false;
-            $relevant_fields = array();
+            $relevant_fields = [];
 
             $dt_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
 
@@ -139,9 +139,9 @@ class RRUFFCellparamsController extends ODRCustomController
 
             // It's not valid to have a space group without a point group, or a point group without
             //  a crystal system
-            $submitted_crystal_system = trim( $values[ $relevant_fields['Crystal System'] ] );
-            $submitted_point_group = trim( $values[ $relevant_fields['Point Group'] ] );
-            $submitted_space_group = trim( $values[ $relevant_fields['Space Group'] ] );
+            $submitted_crystal_system = trim( (string) $values[ $relevant_fields['Crystal System'] ] );
+            $submitted_point_group = trim( (string) $values[ $relevant_fields['Point Group'] ] );
+            $submitted_space_group = trim( (string) $values[ $relevant_fields['Space Group'] ] );
 
             // Need to unescape these values if they're coming from a wordpress install...
             $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
@@ -171,7 +171,7 @@ class RRUFFCellparamsController extends ODRCustomController
 
             // ...and finally, hydrate the given datafields for later
             /** @var DataFields[] $df_lookup */
-            $df_lookup = array();
+            $df_lookup = [];
             foreach ($values as $df_id => $df_value) {
                 $df = $em->getRepository('ODRAdminBundle:DataFields')->find($df_id);
                 if ($df == null)
@@ -237,15 +237,15 @@ class RRUFFCellparamsController extends ODRCustomController
             // If this point is reached, then all three of the submitted fields can get saved
             $crystal_system_datafield = $df_lookup[ $relevant_fields['Crystal System'] ];
             $crystal_system_storage_entity = $entity_create_service->createStorageEntity($user, $datarecord, $crystal_system_datafield);
-            $entity_modify_service->updateStorageEntity($user, $crystal_system_storage_entity, array('value' => $submitted_crystal_system));
+            $entity_modify_service->updateStorageEntity($user, $crystal_system_storage_entity, ['value' => $submitted_crystal_system]);
 
             $point_group_datafield = $df_lookup[ $relevant_fields['Point Group'] ];
             $point_group_storage_entity = $entity_create_service->createStorageEntity($user, $datarecord, $point_group_datafield);
-            $entity_modify_service->updateStorageEntity($user, $point_group_storage_entity, array('value' => $submitted_point_group));
+            $entity_modify_service->updateStorageEntity($user, $point_group_storage_entity, ['value' => $submitted_point_group]);
 
             $space_group_datafield = $df_lookup[ $relevant_fields['Space Group'] ];
             $space_group_storage_entity = $entity_create_service->createStorageEntity($user, $datarecord, $space_group_datafield);
-            $entity_modify_service->updateStorageEntity($user, $space_group_storage_entity, array('value' => $submitted_space_group));
+            $entity_modify_service->updateStorageEntity($user, $space_group_storage_entity, ['value' => $submitted_space_group]);
             // Saving the space group should also trigger an update to the Lattice field
 
 
@@ -263,11 +263,11 @@ class RRUFFCellparamsController extends ODRCustomController
             }
 
             // Delete any cached search results involving these datafields
-            $dfs_for_events = array(
+            $dfs_for_events = [
                 $crystal_system_datafield,
                 $point_group_datafield,
                 $space_group_datafield,
-            );
+            ];
             // The lattice datafield doesn't need to have an event fired here, the render plugin
             //  will do it as part of the "derivation from space group" process
 
@@ -277,7 +277,7 @@ class RRUFFCellparamsController extends ODRCustomController
                     $event = new DatafieldModifiedEvent($df, $user);
                     $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
 //                    if ( $this->container->getParameter('kernel.environment') === 'dev' )

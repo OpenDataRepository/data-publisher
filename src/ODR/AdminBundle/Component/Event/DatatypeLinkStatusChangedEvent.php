@@ -26,26 +26,6 @@ class DatatypeLinkStatusChangedEvent extends Event implements ODREventInterface
     // Best practice is apparently to have the Event class define the event name
     const NAME = 'odr.event.datatype_link_status_change_event';
 
-    /**
-     * @var DataType
-     */
-    private $ancestor_datatype;
-
-    /**
-     * @var Datatype|null
-     */
-    private $new_descendant_datatype;
-
-    /**
-     * @var Datatype|null
-     */
-    private $previous_descendant_datatype;
-
-    /**
-     * @var ODRUser
-     */
-    private $user;
-
 
     /**
      * DatatypeLinkStatusChangedEvent constructor.
@@ -55,16 +35,8 @@ class DatatypeLinkStatusChangedEvent extends Event implements ODREventInterface
      * @param DataType|null $previous_descendant_datatype
      * @param ODRUser $user
      */
-    public function __construct(
-        DataType $ancestor_datatype,
-        $new_descendant_datatype,
-        $previous_descendant_datatype,
-        ODRUser $user
-    ) {
-        $this->ancestor_datatype = $ancestor_datatype;
-        $this->new_descendant_datatype = $new_descendant_datatype;
-        $this->previous_descendant_datatype = $previous_descendant_datatype;
-        $this->user = $user;
+    public function __construct(private readonly DataType $ancestor_datatype, private $new_descendant_datatype, private $previous_descendant_datatype, private readonly ODRUser $user)
+    {
     }
 
 
@@ -126,10 +98,10 @@ class DatatypeLinkStatusChangedEvent extends Event implements ODREventInterface
      */
     public function getErrorInfo()
     {
-        $tmp = array(
+        $tmp = [
             self::NAME,
             'ancestor dt '.$this->ancestor_datatype->getId()
-        );
+        ];
         if ( !is_null($this->new_descendant_datatype) )
             $tmp[] = 'new descendant dt '.$this->new_descendant_datatype->getId();
         if ( !is_null($this->previous_descendant_datatype) )

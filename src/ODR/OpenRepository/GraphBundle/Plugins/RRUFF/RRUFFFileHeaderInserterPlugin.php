@@ -60,59 +60,9 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
 {
 
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var CryptoService
-     */
-    private $crypto_service;
-
-    /**
-     * @var DatabaseInfoService
-     */
-    private $database_info_service;
-
-    /**
-     * @var DatarecordInfoService
-     */
-    private $datarecord_info_service;
-
-    /**
-     * @var DatatreeInfoService
-     */
-    private $datatree_info_service;
-
-    /**
-     * @var EntityDeletionService
-     */
-    private $entity_deletion_service;
-
-    /**
-     * @var ODRUploadService
-     */
-    private $upload_service;
-
-    /**
-     * @var string
-     */
-    private $odr_tmp_directory;
-
-    /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-    /**
      * @var string[]
      */
-    private $field_names = array(
+    private $field_names = [
         'mineral_name' => 'Mineral Name',
         'rruff_id' => 'RRUFF ID',
         'ima_formula' => 'IMA Formula',
@@ -148,25 +98,25 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
         'powder_gamma' => 'gamma',
         'powder_vol' => 'volume',
         'powder_crys' => 'crystal system',
-    );
+    ];
 
     /**
      * @var string[]
      */
-    private $filetype_mapping = array(
+    private $filetype_mapping = [
 //        'none' => 'none',    // Do not consider this a legal value
         'raman_raw' => 'Raman RAW',
         'raman_processed' => 'Raman Processed',
         'infrared_raw' => 'Infrared RAW',
         'powder_raw' => 'RAW Powder Diffraction Profile',
         'powder_processed' => 'Processed Powder Diffraction Profile'
-    );
+    ];
 
 
     /**
      * RRUFF File Header Inserter Plugin constructor.
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param CryptoService $crypto_service
      * @param DatabaseInfoService $database_info_service
      * @param DatarecordInfoService $datarecord_info_service
@@ -177,28 +127,8 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
      * @param EngineInterface $templating
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        CryptoService $crypto_service,
-        DatabaseInfoService $database_info_service,
-        DatarecordInfoService $datarecord_info_service,
-        DatatreeInfoService $datatree_info_service,
-        EntityDeletionService $entity_deletion_service,
-        ODRUploadService $upload_service,
-        string $odr_tmp_directory,
-        EngineInterface $templating,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->crypto_service = $crypto_service;
-        $this->database_info_service = $database_info_service;
-        $this->datarecord_info_service = $datarecord_info_service;
-        $this->datatree_info_service = $datatree_info_service;
-        $this->entity_deletion_service = $entity_deletion_service;
-        $this->upload_service = $upload_service;
-        $this->odr_tmp_directory = $odr_tmp_directory;
-        $this->templating = $templating;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly CryptoService $crypto_service, private readonly DatabaseInfoService $database_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly DatatreeInfoService $datatree_info_service, private readonly EntityDeletionService $entity_deletion_service, private readonly ODRUploadService $upload_service, private readonly string $odr_tmp_directory, private readonly EngineInterface $templating, private readonly Logger $logger)
+    {
     }
 
 
@@ -267,10 +197,10 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
             else if ( $rendering_options['context'] === 'edit' ) {
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:RRUFF:RRUFFFileHeaderInserter/rruff_file_header_inserter_edit_addon.html.twig',
-                    array(
+                    [
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,
-                    )
+                    ]
                 );
             }
 
@@ -369,7 +299,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
     private function getCurrentPluginConfig($datafield)
     {
         // Going to try to create an array of datafield uuids and string constants...
-        $config = array();
+        $config = [];
 
         // Events don't have access to the renderPluginInstance, so might as well just always get
         //  the data from the cached datatype array
@@ -419,7 +349,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
 
                     // ----------------------------------------
                     // Need to also get the semi-encoded option containing the header data
-                    $header_data = trim($rpi['renderPluginOptionsMap']['header_data']);
+                    $header_data = trim((string) $rpi['renderPluginOptionsMap']['header_data']);
 
                     // Unlike the base version, the user doesn't define what the header looks like
                     // It instead demands mappings for two dozen plus fields, which are stored in a
@@ -427,7 +357,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
                     $header_data = explode(',', $header_data);
 
                     $prefix = '';
-                    $fields_by_name = array();
+                    $fields_by_name = [];
                     foreach ($header_data as $num => $line) {
                         $data = explode('=', $line);
                         $key = trim($data[0]);
@@ -455,7 +385,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
                     if ( !isset($this->filetype_mapping[$filetype]) )
                         $invalid = true;
 
-                    $config = array(
+                    $config = [
                         'invalid' => $invalid,
 
                         'baseurl' => $baseurl,
@@ -469,7 +399,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
                         'replace_existing_files' => $replace_existing_files,
 
                         'fields_by_name' => $fields_by_name,
-                    );
+                    ];
                 }
             }
         }
@@ -507,8 +437,8 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
         );
         $results = $query->getArrayResult();
 
-        $by_ancestors = array();
-        $by_descendants = array();
+        $by_ancestors = [];
+        $by_descendants = [];
         foreach ($results as $result) {
             $ancestor_id = $result['ancestor_id'];
             $descendant_id = $result['descendant_id'];
@@ -516,11 +446,11 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
             // Don't care about whether it's a link or not
 
             if ( !isset($by_ancestors[$ancestor_id]) )
-                $by_ancestors[$ancestor_id] = array();
+                $by_ancestors[$ancestor_id] = [];
             $by_ancestors[$ancestor_id][$descendant_id] = $multiple_allowed;
 
             if ( !isset($by_descendants[$descendant_id]) )
-                $by_descendants[$descendant_id] = array();
+                $by_descendants[$descendant_id] = [];
             $by_descendants[$descendant_id][$ancestor_id] = $multiple_allowed;
         }
 
@@ -528,17 +458,17 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
         // ----------------------------------------
         // The reason for making two arrays out of the datatree table is because this problem needs
         //  to solved in two steps...
-        $all_valid_datatypes = array();
-        $prefix_data = array();
+        $all_valid_datatypes = [];
+        $prefix_data = [];
 
         // The first step is to take this datatype and find every single ancestor it has
         $dt_id = $datafield->getDataType()->getId();
         $all_valid_datatypes[$dt_id] = 1;
         $prefix_data[$dt_id] = '';
 
-        $datatypes_to_check = array($dt_id);
+        $datatypes_to_check = [$dt_id];
         while ( !empty($datatypes_to_check) ) {
-            $tmp = array();
+            $tmp = [];
             foreach ($datatypes_to_check as $num => $descendant_dt_id) {
                 if ( isset($by_descendants[$descendant_dt_id]) ) {
                     foreach ($by_descendants[$descendant_dt_id] as $ancestor_id => $multiple_allowed) {
@@ -549,7 +479,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
 
                         if ( !isset($prefix_data[$ancestor_id]) ) {
                             // This is the first time this ancestor has been seen
-                            $prefix_data[$ancestor_id] = array($descendant_dt_id => $prefix_data[$descendant_dt_id]);
+                            $prefix_data[$ancestor_id] = [$descendant_dt_id => $prefix_data[$descendant_dt_id]];
                         }
                         else {
                             // This descendant has multiple paths to reach the same ancestor...
@@ -581,7 +511,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
 
         $datatypes_to_check = array_keys($all_valid_datatypes);
         while ( !empty($datatypes_to_check) ) {
-            $tmp = array();
+            $tmp = [];
             foreach ($datatypes_to_check as $num => $ancestor_dt_id) {
                 if ( isset($by_ancestors[$ancestor_dt_id]) ) {
                     foreach ($by_ancestors[$ancestor_dt_id] as $descendant_id => $multiple_allowed) {
@@ -610,7 +540,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
         $all_fieldtypes = $this->em->getRepository('ODRAdminBundle:FieldType')->findAll();
 
         // Only datafields with certain fieldtypes are valid for this application
-        $valid_fieldtypes = array();
+        $valid_fieldtypes = [];
         foreach ($all_fieldtypes as $ft) {
             switch ($ft->getTypeName()) {
                 // These fieldtypes can be converted into a string
@@ -647,17 +577,17 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
             JOIN ODRAdminBundle:DataTypeMeta dtm WITH dtm.dataType = dt
             WHERE dt.id IN (:datatype_ids)
             AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
-        )->setParameters( array('datatype_ids' => $all_valid_datatypes) );
+        )->setParameters( ['datatype_ids' => $all_valid_datatypes] );
         $results = $query->getArrayResult();
 
-        $name_data = array();
+        $name_data = [];
         foreach ($results as $result) {
             $dt_id = $result['dt_id'];
             $dt_name = $result['dt_name'];
 
             // Want the names of all the valid datatypes, hence the separate query
             if ( !isset($name_data[$dt_id]) )
-                $name_data[$dt_id] = array('name' => $dt_name, 'fields' => array());
+                $name_data[$dt_id] = ['name' => $dt_name, 'fields' => []];
         }
 
         // ...then use a second query to determine the ids/names of the relevant datafields
@@ -671,11 +601,11 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
             AND dfm.publicDate != :public_date
             AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'datatype_ids' => $all_valid_datatypes,
                 'fieldtype_ids' => $valid_fieldtypes,
                 'public_date' => "2200-01-01 00:00:00",
-            )
+            ]
         );
         $results = $query->getArrayResult();
 
@@ -697,21 +627,21 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
         // In an attempt to assist users, the list of "valid datatypes" on the left side of the
         //  renderplugin settings dialog should attempt to display only the datatypes that the
         //  currently selected prefix would provide access to
-        $descendants_by_prefix = array();
+        $descendants_by_prefix = [];
 
         foreach ($prefixes as $prefix_string => $name_string) {
             // ...the easiest way to do this is to explode each prefix again, and find all "valid"
             //  datatypes descended from them
-            $descendants_by_prefix[$prefix_string] = array();
+            $descendants_by_prefix[$prefix_string] = [];
 
-            $valid_datatypes = explode('_', $prefix_string);
+            $valid_datatypes = explode('_', (string) $prefix_string);
 
             // Keep track of all valid datatypes for this prefix
             foreach ($valid_datatypes as $num => $dt_id)
                 $descendants_by_prefix[$prefix_string][$dt_id] = 1;
 
             while ( !empty($valid_datatypes) ) {
-                $tmp = array();
+                $tmp = [];
                 foreach ($valid_datatypes as $num => $ancestor_dt_id) {
                     if ( isset($by_ancestors[$ancestor_dt_id]) ) {
                         foreach ($by_ancestors[$ancestor_dt_id] as $descendant_id => $multiple_allowed) {
@@ -738,12 +668,12 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
 
         // ----------------------------------------
         // Need to have the names of the fields
-        return array(
+        return [
             'prefixes' => $prefixes,
             'name_data' => $name_data,
             'allowed_datatypes' => $descendants_by_prefix,
             'field_names' => $this->field_names,
-        );
+        ];
     }
 
 
@@ -757,7 +687,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
      */
     private function buildPrefixes($prefix_data, $fields)
     {
-        $prefixes = array();
+        $prefixes = [];
 
         foreach ($prefix_data as $ancestor_id => $descendants) {
             if ( !is_array($descendants) ) {
@@ -847,10 +777,10 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
         //  render plugin is concerned at least.
         $ancestor_dr_id = null;
         // Also will be useful to get all the intermediate ids
-        $intermediate_dr_ids = array();
+        $intermediate_dr_ids = [];
         // The "prefix" string...an underscore-separated list of datatype ids...indicates how far
         //  to go looking for this "ultimate ancestor".
-        $split_prefix = explode('_', $prefix);
+        $split_prefix = explode('_', (string) $prefix);
 
 
         // If the "prefix" string only has a single datatype id in it, then we don't need to locate
@@ -874,12 +804,12 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
             $cached_datatree_array = $this->datatree_info_service->getDatatreeArray();
 
             // Due to doctrine's querybuilder being a pain, I'm going to duplicate it's work instead
-            $select_array = array('dr_0.id AS dr_0_id');
+            $select_array = ['dr_0.id AS dr_0_id'];
             $from_str = 'FROM odr_data_record dr_0';
-            $join_array = array();
-            $where_array = array('dr_0.data_type_id = :dr_0_dt');
-            $deleted_array = array('dr_0.deletedAt IS NULL');
-            $params = array('dr_0_dt' => intval($split_prefix[0]));
+            $join_array = [];
+            $where_array = ['dr_0.data_type_id = :dr_0_dt'];
+            $deleted_array = ['dr_0.deletedAt IS NULL'];
+            $params = ['dr_0_dt' => intval($split_prefix[0])];
 
             $dr_num = 1;
             $ldt_num = 1;
@@ -950,7 +880,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
             $conn = $this->em->getConnection();
             $tmp = $conn->executeQuery($query, $params);
 
-            $results = array();
+            $results = [];
             foreach ($tmp as $key => $value)
                 $results[$key] = $value;
 
@@ -990,7 +920,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
             JOIN ODRAdminBundle:DataRecord gp WITH dr.grandparent = gp
             WHERE dr.id = :datarecord_id
             AND dr.deletedAt IS NULL AND gp.deletedAt IS NULL'
-        )->setParameters( array('datarecord_id' => $ancestor_dr_id) );
+        )->setParameters( ['datarecord_id' => $ancestor_dr_id] );
         $results = $query->getArrayResult();
         $grandparent_dr_id = $results[0]['id'];
 
@@ -1008,7 +938,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
         //  is simple enough to check...
         /** @var FieldType[] $fieldtypes */
         $fieldtypes = $this->em->getRepository('ODRAdminBundle:FieldType')->findAll();
-        $valid_fieldtypes = array();
+        $valid_fieldtypes = [];
         foreach ($fieldtypes as $ft) {
             switch ($ft->getTypeName()) {
                 // These fieldtypes can be converted into a string
@@ -1043,7 +973,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
         //  a child/linked descendant of a particular datatype, then this array won't have the datatype
         //  id...but that also means that there's no possible value for datafields of that datatype,
         //  so it ends up meaning the same thing in the long run
-        $valid_datatypes = array();
+        $valid_datatypes = [];
         foreach ($dr_array as $dr_id => $dr) {
             $dt_id = $dr['dataType']['id'];
             $valid_datatypes[$dt_id] = 1;
@@ -1060,16 +990,16 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
             AND dfm.fieldType IN (:fieldtype_ids) AND dfm.publicDate != :public_date
             AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'datatype_ids' => $valid_datatypes,
                 'datafield_ids' => array_values($fields_by_name),
                 'fieldtype_ids' => $valid_fieldtypes,
                 'public_date' => '2200-01-01 00:00:00',
-            )
+            ]
         );
         $results = $query->getArrayResult();
 
-        $datafield_names = array();
+        $datafield_names = [];
         foreach ($results as $result) {
             $id = $result['id'];
             $field_name = $result['fieldName'];
@@ -1086,13 +1016,13 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
         //  queried here, it would either have to be done with a massive really slow query like the
         //  one in DatarecordInfoService, or a potentially large number of simple queries...
 
-        $original_mapping = array();
+        $original_mapping = [];
         foreach ($datafield_names as $df_id => $df_name) {
             // In theory, the header is supposed to receive a single value from the datarecords that
             //  are related via the config_prefix.  However, since this plugin intentionally allows
             //  multiple descendant records, it is very likely that there will be multiple values
             //  for each datafield
-            $original_mapping[$df_id] = array();
+            $original_mapping[$df_id] = [];
 
             // ...so we need to iterate over all records in the cached array and hope we find the
             //  correct/desired value
@@ -1100,10 +1030,10 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
                 if ( isset($dr['dataRecordFields'][$df_id]) ) {
                     $drf = $dr['dataRecordFields'][$df_id];
 
-                    $typeclasses = array(
+                    $typeclasses = [
                         'boolean', 'integerValue', 'decimalValue', 'shortVarchar', 'mediumVarchar',
                         'longVarchar', 'longText', 'datetimeValue', 'radioSelection'
-                    );
+                    ];
                     foreach ($typeclasses as $typeclass) {
                         if ( isset($drf[$typeclass]) ) {
                             if ( $typeclass !== 'radioSelection' ) {
@@ -1129,14 +1059,14 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
         //  entire process is called on the 532nm spectra, then the values for the 785nm spectra will
         //  also be in here as a sibling record of sorts.
         // These sibling records can be filtered out using $intermediate_dr_ids.
-        $filtered_mapping = array();
+        $filtered_mapping = [];
         foreach ($original_mapping as $df_id => $data) {
             foreach ($data as $dr_id => $value) {
                 // Only want to keep values from datarecords in $intermediate_dr_ids for this
                 //  particular array
                 if ( isset($intermediate_dr_ids[$dr_id]) ) {
                     if ( !isset($filtered_mapping[$df_id]) )
-                        $filtered_mapping[$df_id] = array();
+                        $filtered_mapping[$df_id] = [];
                     $filtered_mapping[$df_id][$dr_id] = $value;
                 }
             }
@@ -1159,7 +1089,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
         // The fix is to do an extra step...one that requires specific knowledge of RRUFF's structure
         //  ...and only keep the oriented pin data when it's more tightly related to the file being
         //  checked
-        $pin_fields = array(
+        $pin_fields = [
             $fields_by_name['pin_id'],
             $fields_by_name['pin_parallel_x'],
             $fields_by_name['pin_parallel_y'],
@@ -1174,7 +1104,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
             $fields_by_name['raman_wavelength'],
 //            $fields_by_name['infrared_wavelength'],
 //            $fields_by_name['powder_wavelength'],
-        );
+        ];
         foreach ($pin_fields as $df_id) {
             if ( isset($original_mapping[$df_id]) ) {
                 // This RRUFF sample could have multiple oriented raman sub-samples
@@ -1204,7 +1134,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
         // Because the RRUFFFileHeaderInserter plugin has a pre-defined structure, it's better to
         //  call a template file to do the work...but it's easier on twig if php figures out the
         //  values first...
-        $header_values = array();
+        $header_values = [];
         foreach ($fields_by_name as $name => $df_id) {
             // Prefer to use values from the $filtered_mapping array first...
             if ( isset($filtered_mapping[$df_id]) && !empty($filtered_mapping[$df_id]) ) {
@@ -1212,7 +1142,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
                     // While there should only be one value in here, there's no way to know the
                     //  $dr_id beforehand
                     if ( $config_info['replace_newlines_in_fields'] )
-                        $header_values[$name] = str_replace(array("\r", "\n"), " ", $value);
+                        $header_values[$name] = str_replace(["\r", "\n"], " ", $value);
                     else
                         $header_values[$name] = $value;
                     break;
@@ -1222,7 +1152,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
                 // ...but fall back to the $original_mapping array if a filtered value doesn't exist
                 foreach ($original_mapping[$df_id] as $dr_id => $value) {
                     if ( $config_info['replace_newlines_in_fields'] )
-                        $header_values[$name] = str_replace(array("\r", "\n"), " ", $value);
+                        $header_values[$name] = str_replace(["\r", "\n"], " ", $value);
                     else
                         $header_values[$name] = $value;
                     // Might as well just use the first value, since there's no way to determine
@@ -1274,14 +1204,14 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
         // Get twig to render the header
         $header_text = $this->templating->render(
             'ODROpenRepositoryGraphBundle:RRUFF:RRUFFFileHeaderInserter/file_header.txt.twig',
-            array(
+            [
                 'header_values' => $header_values,
 
                 'baseurl' => $baseurl,
                 'filetype' => $filetype,
                 'comment_prefix' => $comment_prefix,
                 'newline_separator' => $newline_separator,
-            )
+            ]
         );
 
         // Clean up any duplicated newlines and return
@@ -1436,29 +1366,29 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
             FROM ODRAdminBundle:File f
             WHERE f.dataRecordFields = :drf
             AND f.deletedAt IS NULL'
-        )->setParameters( array('drf' => $drf->getId()) );
+        )->setParameters( ['drf' => $drf->getId()] );
         $results = $query->getResult();
 
         // There could be nothing uploaded to the field, or there could be multiple files
         /** @var File[] $results */
-        $entities = array();
+        $entities = [];
         foreach ($results as $num => $entity)
             $entities[ $entity->getId() ] = $entity;
         /** @var File[] $entities */
 
         // If nothing is uploaded, then do not continue
         if ( empty($entities) ) {
-            $this->logger->debug('No files to rebuild the file headers for in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
+            $this->logger->debug('No files to rebuild the file headers for in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), [self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()]);
             return $change_made;
         }
-        $this->logger->debug('Attempting to rebuild the file headers for files in datafield '.$datafield->getId().' datarecord '.$datarecord->getId().'...', array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
+        $this->logger->debug('Attempting to rebuild the file headers for files in datafield '.$datafield->getId().' datarecord '.$datarecord->getId().'...', [self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()]);
 
 
         // ----------------------------------------
         // Going to need the plugin config for later
         $plugin_config = self::getCurrentPluginConfig($datafield);
         if ( $plugin_config['invalid'] ) {
-            $this->logger->debug('Plugin config for files in datafield '.$datafield->getId().' datarecord '.$datarecord->getId().' is not valid, aborting', array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
+            $this->logger->debug('Plugin config for files in datafield '.$datafield->getId().' datarecord '.$datarecord->getId().' is not valid, aborting', [self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()]);
             return $change_made;
         }
 
@@ -1507,22 +1437,22 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
 
                         // Have the upload service create a new file
                         $this->upload_service->uploadNewFile($tmp_filepath, $user, $drf, null, $prev_public_date, $prev_quality, false);
-                        $this->logger->debug('...finished dealing with what used to be File '.$file->getId().'...', array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
+                        $this->logger->debug('...finished dealing with what used to be File '.$file->getId().'...', [self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()]);
                     }
                     else {
                         // Update the headers in the decrypted version of the file
                         self::insertNewHeader($tmp_filepath, $new_header, $plugin_config);
-                        $this->logger->debug('...replaced header for File '.$file->getId().'...', array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
+                        $this->logger->debug('...replaced header for File '.$file->getId().'...', [self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()]);
 
                         // Have the upload service replace the existing file with the modified version
                         $this->upload_service->replaceExistingFile($file, $tmp_filepath, $user);
-                        $this->logger->debug('...re-encrypted File '.$file->getId().'...', array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
+                        $this->logger->debug('...re-encrypted File '.$file->getId().'...', [self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()]);
 
                         // replaceExistingFile() will end up triggering the required events
                     }
                 }
                 else {
-                    $this->logger->debug('...existing header already matches desired header for File '.$file->getId().'...', array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
+                    $this->logger->debug('...existing header already matches desired header for File '.$file->getId().'...', [self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()]);
                 }
 
                 // If there's no difference between the headers, then delete the decrypted version of
@@ -1537,7 +1467,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
             return $change_made;
         }
         catch (\Exception $e) {
-            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()));
+            $this->logger->debug('-- (ERROR) '.$e->getMessage(), [self::class, 'executeOnFileDatafield()', 'drf '.$drf->getId()]);
 
             if ( $notify_user ) {
                 // Since this isn't a background job or an event, however, the suspected reason
@@ -1720,7 +1650,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
             $is_event_relevant = self::isEventRelevant($datafield);
             if ( $is_event_relevant ) {
                 // This file was uploaded to the correct field, so it now needs to be processed
-                $this->logger->debug('Received request to update headers for a newly uploaded file in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), array(self::class, 'onFilePreEncrypt()', 'drf '.$drf->getId()));
+                $this->logger->debug('Received request to update headers for a newly uploaded file in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), [self::class, 'onFilePreEncrypt()', 'drf '.$drf->getId()]);
 
 
                 // ----------------------------------------
@@ -1735,7 +1665,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
                 // Going to need the plugin config for later
                 $plugin_config = self::getCurrentPluginConfig($drf->getDataField());
                 if ( $plugin_config['invalid'] ) {
-                    $this->logger->debug('...plugin config for File '.$entity->getId().' is not valid, aborting', array(self::class, 'onFilePreEncrypt()', 'drf '.$drf->getId()));
+                    $this->logger->debug('...plugin config for File '.$entity->getId().' is not valid, aborting', [self::class, 'onFilePreEncrypt()', 'drf '.$drf->getId()]);
                     return;
                 }
 
@@ -1750,7 +1680,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
                 if ( $new_header !== $existing_header ) {
                     // ...then rewrite it to have the new header
                     self::insertNewHeader($local_filepath, $new_header, $plugin_config);
-                    $this->logger->debug('...replaced header for File '.$entity->getId().'...', array(self::class, 'onFilePreEncrypt()', $drf->getId()));
+                    $this->logger->debug('...replaced header for File '.$entity->getId().'...', [self::class, 'onFilePreEncrypt()', $drf->getId()]);
 
                     // Inserting a header almost certainly changed the filesize...need to update that
                     //  value in the database so that encryption and future decryption attempts aren't
@@ -1761,13 +1691,13 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
                     $this->em->flush($entity);
                 }
                 else {
-                    $this->logger->debug('...existing header already matches desired header for File '.$entity->getId().'...', array(self::class, 'onFilePreEncrypt()', $drf->getId()));
+                    $this->logger->debug('...existing header already matches desired header for File '.$entity->getId().'...', [self::class, 'onFilePreEncrypt()', $drf->getId()]);
                 }
             }
         }
         catch (\Exception $e) {
             // Can't really display the error to the user yet, but can log it...
-            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()));
+            $this->logger->debug('-- (ERROR) '.$e->getMessage(), [self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()]);
 
             // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
             //  any additional subscribers won't run either
@@ -1775,7 +1705,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
         finally {
             // Would prefer if these happened regardless of success/failure...
             if ( $is_event_relevant )
-                $this->logger->debug('finished header insertion attempt for '.$typeclass.' '.$entity->getId(), array(self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()));
+                $this->logger->debug('finished header insertion attempt for '.$typeclass.' '.$entity->getId(), [self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()]);
 
             // Don't need to clear any caches or fire any events here, since the file encryption
             //  should handle it
@@ -1808,7 +1738,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
             if ( $is_event_relevant ) {
                 // Since there are at least three places where this can be called from,
                 //  it's better to have the render plugin do all the work
-                $this->logger->debug('Received request to update headers for files in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), array(self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()));
+                $this->logger->debug('Received request to update headers for files in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), [self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()]);
 
                 // This particular place, however, is NOT allowed to throw exceptions to notify
                 //  the user of issues
@@ -1818,7 +1748,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
         }
         catch (\Exception $e) {
             // Can't really display the error to the user yet, but can log it...
-            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()));
+            $this->logger->debug('-- (ERROR) '.$e->getMessage(), [self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()]);
 
             // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
             //  any additional subscribers won't run either
@@ -1826,7 +1756,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
         finally {
             // Would prefer if these happened regardless of success/failure...
             if ( $is_event_relevant )
-                $this->logger->debug('finished header insertion attempt for the files in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), array(self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()));
+                $this->logger->debug('finished header insertion attempt for the files in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), [self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()]);
 
             // Don't need to clear caches here, since the mass update process will always do it
         }
@@ -1847,7 +1777,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
      */
     public function getRenderPluginOptionsOverride($user, $is_datatype_admin, $render_plugin, $datatype, $datafield = null, $render_plugin_instance = null)
     {
-        $custom_rpo_html = array();
+        $custom_rpo_html = [];
         foreach ($render_plugin->getRenderPluginOptionsDef() as $rpo) {
             // Only the "header_data" option needs to use a custom render for the dialog...
             /** @var RenderPluginOptionsDef $rpo */
@@ -1866,14 +1796,14 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
                 if ( isset($current_plugin_config['prefix']) )
                     $current_prefix = $current_plugin_config['prefix'];
 
-                $fields_by_name = array();
+                $fields_by_name = [];
                 if ( isset($current_plugin_config['fields_by_name']) )
                     $fields_by_name = $current_plugin_config['fields_by_name'];
 
                 // ...which allows a template to be rendered
                 $custom_rpo_html[$rpo->getId()] = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:RRUFF:RRUFFFileHeaderInserter/plugin_settings_dialog_field_list_override.html.twig',
-                    array(
+                    [
                         'rpo_id' => $rpo->getId(),
 
                         'available_prefixes' => $available_prefixes,
@@ -1883,7 +1813,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
                         'allowed_datatypes' => $allowed_datatypes,
                         'field_names' => $field_names,
                         'fields_by_name' => $fields_by_name,
-                    )
+                    ]
                 );
             }
         }
@@ -1910,12 +1840,12 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
         // Since this is a datafield plugin, there will only be the one datafield...want it to
         //  always display this option
         foreach ($render_plugin_instance['renderPluginMap'] as $rpf_name => $rpf) {
-            return array(
+            return [
                 $rpf['id']
-            );
+            ];
         }
 
-        return array();
+        return [];
     }
 
 
@@ -1935,7 +1865,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
     {
         // This datafield plugin does not care whether the user entered a value or not...the plugin's
         //  activation is independent of the user changing public status of the file field
-        $trigger_fields = array();
+        $trigger_fields = [];
         foreach ($render_plugin_instance['renderPluginMap'] as $rpf_name => $rpf) {
             // Since this is a datafield plugin, it only has one entry in renderPluginMap
             $trigger_fields[ $rpf['id'] ] = true;

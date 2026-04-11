@@ -63,7 +63,7 @@ class FacadeController extends Controller
             $em = $this->getDoctrine()->getManager();
 
             /** @var DataTypeMeta $datatype_meta */
-            $datatype_meta = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy(array('searchSlug' => $search_slug));
+            $datatype_meta = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy(['searchSlug' => $search_slug]);
             if ($datatype_meta == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -80,12 +80,12 @@ class FacadeController extends Controller
             // Let the APIController do the rest of the error-checking
             return $this->forward(
                 'ODRAdminBundle:API:getDatatypeExport',
-                array(
+                [
                     'version' => 'v1',
                     'datatype_uuid' => $datatype->getUniqueId(),
                     '_format' => $request->getRequestFormat(),
                     'type' => $type,
-                ),
+                ],
                 $request->query->all()
             );
         } catch (\Exception $e) {
@@ -114,7 +114,7 @@ class FacadeController extends Controller
             $em = $this->getDoctrine()->getManager();
 
             /** @var DataTypeMeta $datatype_meta */
-            $datatype_meta = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy(array('searchSlug' => $search_slug));
+            $datatype_meta = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy(['searchSlug' => $search_slug]);
             if ($datatype_meta == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -129,11 +129,11 @@ class FacadeController extends Controller
             // Let the APIController do the rest of the error-checking
             return $this->forward(
                 'ODRAdminBundle:API:getDatarecordList',
-                array(
+                [
                     'version' => 'v1',
                     'datatype_uuid' => $datatype->getUniqueId(),
                     '_format' => $request->getRequestFormat()
-                ),
+                ],
                 $request->query->all()
             );
         } catch (\Exception $e) {
@@ -163,7 +163,7 @@ class FacadeController extends Controller
             $em = $this->getDoctrine()->getManager();
 
             /** @var DataTypeMeta $datatype_meta */
-            $datatype_meta = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy(array('searchSlug' => $search_slug));
+            $datatype_meta = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy(['searchSlug' => $search_slug]);
             if ($datatype_meta == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -183,11 +183,11 @@ class FacadeController extends Controller
             // Let the APIController do the rest of the error-checking
             return $this->forward(
                 'ODRAdminBundle:API:getDatarecordExport',
-                array(
+                [
                     'version' => 'v1',
                     'record_uuid' => $datarecord->getUniqueId(),
                     '_format' => $request->getRequestFormat(),
-                ),
+                ],
                 $request->query->all()
             );
         } catch (\Exception $e) {
@@ -256,9 +256,9 @@ class FacadeController extends Controller
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
-                array(
+                [
                     'unique_id' => $dt_uuid
-                )
+                ]
             );
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
@@ -358,9 +358,9 @@ class FacadeController extends Controller
 
         /** @var DataType $datatype */
         $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
-            array(
+            [
                 'unique_id' => $dt_uuid
-            )
+            ]
         );
         if ($datatype == null)
             throw new ODRNotFoundException('Datatype');
@@ -378,13 +378,13 @@ class FacadeController extends Controller
         $user = $this->container->get('security.token_storage')->getToken()->getUser();
         $html = $this->renderView(
             'ODROpenRepositorySearchBundle:Default:test.html.twig',
-            array(
+            [
                 'records' => '<pre>' . var_export($records,true) . '</pre>',
                 'user' => $user,
-                'datatype_permissions' => array(),
+                'datatype_permissions' => [],
                 'odr_wordpress_integrated' => $is_wordpress_integrated,
                 'wordpress_site_baseurl' => $wordpress_site_baseurl,
-            )
+            ]
         );
 
         $response = new Response($html);
@@ -414,9 +414,9 @@ class FacadeController extends Controller
 
         /** @var DataType $datatype */
         $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
-                array(
+                [
                    'unique_id' => $dt_uuid
-                )
+                ]
             );
 
         if ($datatype == null)
@@ -432,7 +432,7 @@ class FacadeController extends Controller
 
         $url = "http://localhost:9299/ahed/_search?q=*:*";
         $ch = curl_init( $url );
-        curl_setopt( $ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
+        curl_setopt( $ch, CURLOPT_HTTPHEADER, ['Content-Type:application/json']);
         curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
         $output = curl_exec($ch);
         curl_close($ch);
@@ -482,7 +482,7 @@ class FacadeController extends Controller
                     // print $odr_wordpress_user . ' ';
                     $user_manager = $this->container->get('fos_user.user_manager');
                     /** @var ODRUser $admin_user */
-                    $admin_user = $user_manager->findUserBy(array('email' => $odr_wordpress_user));
+                    $admin_user = $user_manager->findUserBy(['email' => $odr_wordpress_user]);
                 }
             }
 
@@ -497,9 +497,9 @@ class FacadeController extends Controller
 
             /** @var DataType $target_datatype */
             $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
-                array(
+                [
                     'unique_id' => $dataset_uuid
-                )
+                ]
             );
             if ($target_datatype == null)
                 throw new ODRNotFoundException('Datatype');
@@ -533,7 +533,7 @@ class FacadeController extends Controller
 
             // ----------------------------------------
             // TODO - where is this used?
-            $default_search_params = array();
+            $default_search_params = [];
 
             // Need to build everything used by the sidebar...
             $sidebar_layout_id = $ssb_service->getPreferredSidebarLayoutId($admin_user, $target_datatype->getId(), 'searching');
@@ -553,9 +553,9 @@ class FacadeController extends Controller
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
-                array(
+                [
                     'unique_id' => $dataset_uuid
-                )
+                ]
             );
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
@@ -584,7 +584,7 @@ class FacadeController extends Controller
                    // }
 
             curl_setopt($ch, CURLOPT_POSTFIELDS, $query);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type:application/json']);
             # Return response instead of printing.
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             # Send request.
@@ -598,21 +598,21 @@ class FacadeController extends Controller
             $output = '';
             $output .= $this->get('templating')->render(
                 'ODROpenRepositorySearchBundle:TemplateSearch:result_header.html.twig',
-                array(
+                [
                     'total' => $search_result['hits']['total']['value'], // total records
                     'limit' => $limit,
                     'offset' => $offset
-                )
+                ]
             );
             $counter = 1;
             foreach($search_result['hits']['hits'] as $record_data) {
                 $record = $record_data['_source'];
                 $output .= $this->get('templating')->render(
                     'ODROpenRepositorySearchBundle:TemplateSearch:result.html.twig',
-                    array(
+                    [
                         'record'=> $record,
                         'record_num' => $counter
-                    )
+                    ]
                 );
                 $counter++;
             }
@@ -625,7 +625,7 @@ class FacadeController extends Controller
 
             $html = $this->renderView(
                 'ODROpenRepositorySearchBundle:TemplateSearch:index.html.twig',
-                array(
+                [
                     // required twig/javascript parameters
                     'user' => $admin_user,
                     'datatype_permissions' => $datatype_permissions,
@@ -648,14 +648,14 @@ class FacadeController extends Controller
                     'background_image_id' => $background_image_id,
 
                     // datatype/datafields to search
-                    'search_params' => array(),
+                    'search_params' => [],
                     'target_datatype' => $target_datatype,
                     'sidebar_array' => $sidebar_array,
 
                     // theme selection
 //                    'available_themes' => $available_themes,
                     'preferred_theme_id' => $preferred_theme_id,
-                )
+                ]
             );
 
             $html = $request->wordpress_header . $html . $request->wordpress_footer;
@@ -701,9 +701,9 @@ class FacadeController extends Controller
         /** @var DataRecord $record */
         $record = $em->getRepository('ODRAdminBundle:DataRecord')
             ->findOneBy(
-                array(
+                [
                     'unique_id' => $record_uuid
-                )
+                ]
             );
 
         if(!$record) {
@@ -743,7 +743,7 @@ class FacadeController extends Controller
         $payload = $data;
         // $log .= 'Payload: <br />' . $payload . "<br />";
         curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type:application/json']);
         # Return response instead of printing.
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         # Send request.
@@ -759,7 +759,7 @@ class FacadeController extends Controller
             $ch = curl_init($url);
             # Setup request to send json via POST.
             curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type:application/json']);
             # Return response instead of printing.
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             # Send request.
@@ -795,9 +795,9 @@ class FacadeController extends Controller
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
-                array(
+                [
                     'unique_id' => $dataset_uuid
-                )
+                ]
             );
 
             if ($datatype == null)
@@ -809,7 +809,7 @@ class FacadeController extends Controller
             $ch = curl_init($url);
             # Setup request to send json via POST.
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
-            curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type:application/json']);
             # Return response instead of printing.
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             # Send request.
@@ -824,7 +824,7 @@ class FacadeController extends Controller
             # Setup request to send json via POST.
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
             curl_setopt($ch, CURLOPT_POSTFIELDS,'{"index.mapping.total_fields.limit": 6000}');
-            curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type:application/json']);
             # Return response instead of printing.
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             # Send request.
@@ -840,7 +840,7 @@ class FacadeController extends Controller
                 $ch = curl_init($url);
                 # Setup request to send json via POST.
                 curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
-                curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
+                curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type:application/json']);
                 # Return response instead of printing.
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                 # Send request.
@@ -855,7 +855,7 @@ class FacadeController extends Controller
                 # Setup request to send json via POST.
                 curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
                 curl_setopt($ch, CURLOPT_POSTFIELDS, '{"index.mapping.total_fields.limit": 6000}');
-                curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
+                curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type:application/json']);
                 # Return response instead of printing.
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                 # Send request.
@@ -868,9 +868,9 @@ class FacadeController extends Controller
             // TODO use "updated" to only update records modified within the last 24 hours
             $records = $em->getRepository('ODRAdminBundle:DataRecord')
                 ->findBy(
-                    array(
+                    [
                         'dataType' => $datatype
-                    )
+                    ]
                 );
 
             // Get the pheanstalk queue
@@ -881,14 +881,14 @@ class FacadeController extends Controller
             // for($i=0; $i<10; $i++) {
                 // $record = $records[$i];
             foreach($records as $record) {
-                $url = $this->generateUrl('odr_search_seed_elastic_record', array('record_uuid' => $record->getUniqueId()));
+                $url = $this->generateUrl('odr_search_seed_elastic_record', ['record_uuid' => $record->getUniqueId()]);
                 $url = $baseurl . $url;
 
                 // Add record to pheanstalk queue
                 $payload = json_encode(
-                    array(
+                    [
                         'url' => $url,
-                    )
+                    ]
                 );
 
                 $pheanstalk->useTube('odr_seed_elastic_record')->put($payload);
@@ -901,16 +901,16 @@ class FacadeController extends Controller
 
             // Wrap array for JSON compliance
             if($datatype->getMetadataDatatype()) {
-                $output[$dataset_uuid] = array(
+                $output[$dataset_uuid] = [
                     'count' => $counter,
                     'master_datatype_id' => $datatype->getMasterDataType()->getUniqueId(),
-                );
+                ];
             }
             else {
-                $output[$dataset_uuid] = array(
+                $output[$dataset_uuid] = [
                     'count' => $counter,
                     'master_datatype_id' => $datatype->getUniqueId(),
-                );
+                ];
             }
         }
 
@@ -932,13 +932,13 @@ class FacadeController extends Controller
         // Get the pheanstalk queue
         $pheanstalk = $this->get('pheanstalk');
 
-        $job_data = array(
+        $job_data = [
             'base_url' => $baseurl,
             'ima_update_rebuild' => $recent,
             'api_user' => $this->container->getParameter('api_user'),
             'api_key' => $this->container->getParameter('api_key'),
             'rruff_database_uuid' => $this->container->getParameter('rruff_database_uuid')
-        );
+        ];
 
         // TODO Updating File Zips requires a way to get
         // all modified files and remove them before the update.
@@ -953,11 +953,11 @@ class FacadeController extends Controller
         }
         $full_rruff_url = $this->generateUrl(
             $route_name,
-            array(
+            [
                 'datatype_uuid' => $job_data['rruff_database_uuid'],
                 'version' => 'v5',
                 'recent' => $recent
-            )
+            ]
         );
         $full_rruff_url = $baseurl . $full_rruff_url;
 
@@ -965,46 +965,46 @@ class FacadeController extends Controller
         $route_name = 'odr_api_recently_modified_file_list';
         $rruff_modified_files_url = $this->generateUrl(
             $route_name,
-            array(
+            [
                 'datatype_uuid' => $job_data['rruff_database_uuid'],
                 'version' => 'v5',
                 'recent' => $recent
-            )
+            ]
         );
         $rruff_modified_files_url = $baseurl . $rruff_modified_files_url;
 
         // API Login URL
         $api_login_url = $this->generateUrl(
             'api_login_check',
-            array(
-            )
+            [
+            ]
         );
         $api_login_url = $baseurl . $api_login_url;
 
         // API Job Create URL
         $api_create_job_url = $this->generateUrl(
             'odr_api_start_job',
-            array(
+            [
                 'version' => 'v4'
-            )
+            ]
         );
         $api_create_job_url = $baseurl . $api_create_job_url;
 
         // API Job Status URL
         $api_job_status_url = $this->generateUrl(
             'odr_api_job_status',
-            array(
+            [
                 'version' => 'v4'
-            )
+            ]
         );
         $api_job_status_url = $baseurl . $api_job_status_url;
 
         // API Worker Job Create URL
         $api_worker_job_url = $this->generateUrl(
             'odr_api_worker_job',
-            array(
+            [
                 'version' => 'v4',
-            )
+            ]
         );
         $api_worker_job_url = $baseurl . $api_worker_job_url;
 
@@ -1025,7 +1025,7 @@ class FacadeController extends Controller
 
         $pheanstalk->useTube('odr_rruff_record_analyzer')->put($payload);
         // Wrap array for JSON compliance
-        $output = array("done" => true );
+        $output = ["done" => true ];
 
         return new JsonResponse($output);
     }
@@ -1042,13 +1042,13 @@ class FacadeController extends Controller
         // Get the pheanstalk queue
         $pheanstalk = $this->get('pheanstalk');
 
-        $job_data = array(
+        $job_data = [
             'base_url' => $baseurl,
             'ima_update_rebuild' => $recent,
             'api_user' => $this->container->getParameter('api_user'),
             'api_key' => $this->container->getParameter('api_key'),
             'amcsd_database_uuid' => $this->container->getParameter('amcsd_database_uuid')
-        );
+        ];
 
         // TODO Updating File Zips requires a way to get
         // all modified files and remove them before the update.
@@ -1063,11 +1063,11 @@ class FacadeController extends Controller
         }
         $full_amcsd_url = $this->generateUrl(
             $route_name,
-            array(
+            [
                 'datatype_uuid' => $job_data['amcsd_database_uuid'],
                 'version' => 'v5',
                 'recent' => $recent
-            )
+            ]
         );
         $full_amcsd_url = $baseurl . $full_amcsd_url;
 
@@ -1075,46 +1075,46 @@ class FacadeController extends Controller
         $route_name = 'odr_api_recently_modified_file_list';
         $amcsd_modified_files_url = $this->generateUrl(
             $route_name,
-            array(
+            [
                 'datatype_uuid' => $job_data['amcsd_database_uuid'],
                 'version' => 'v5',
                 'recent' => $recent
-            )
+            ]
         );
         $amcsd_modified_files_url = $baseurl . $amcsd_modified_files_url;
 
         // API Login URL
         $api_login_url = $this->generateUrl(
             'api_login_check',
-            array(
-            )
+            [
+            ]
         );
         $api_login_url = $baseurl . $api_login_url;
 
         // API Job Create URL
         $api_create_job_url = $this->generateUrl(
             'odr_api_start_job',
-            array(
+            [
                 'version' => 'v4'
-            )
+            ]
         );
         $api_create_job_url = $baseurl . $api_create_job_url;
 
         // API Job Status URL
         $api_job_status_url = $this->generateUrl(
             'odr_api_job_status',
-            array(
+            [
                 'version' => 'v4'
-            )
+            ]
         );
         $api_job_status_url = $baseurl . $api_job_status_url;
 
         // API Worker Job Create URL
         $api_worker_job_url = $this->generateUrl(
             'odr_api_worker_job',
-            array(
+            [
                 'version' => 'v4',
-            )
+            ]
         );
         $api_worker_job_url = $baseurl . $api_worker_job_url;
 
@@ -1135,7 +1135,7 @@ class FacadeController extends Controller
 
         $pheanstalk->useTube('odr_amcsd_record_analyzer')->put($payload);
         // Wrap array for JSON compliance
-        $output = array("done" => true );
+        $output = ["done" => true ];
 
         return new JsonResponse($output);
     }
@@ -1163,7 +1163,7 @@ class FacadeController extends Controller
             */
             $baseurl = $this->container->getParameter('baseurl_no_prefix');
             $baseurl = $baseurl . "/odr_rruff";
-            $job_data = array(
+            $job_data = [
                 'base_url' => $baseurl,
                 'ima_update_rebuild' => $recent,
                 'api_user' => $this->container->getParameter('api_user'),
@@ -1185,7 +1185,7 @@ class FacadeController extends Controller
                 'cell_params_synonyms' => $this->container->getParameter('cell_params_synonyms'),
                 'master_tag_data' => $this->container->getParameter('tag_data'),
                 'tag_data' => $this->container->getParameter('tag_data')
-            );
+            ];
 
             // Get the pheanstalk queue
             $pheanstalk = $this->get('pheanstalk');
@@ -1193,11 +1193,11 @@ class FacadeController extends Controller
             $route_name = 'odr_api_datarecord_list';
             $full_ima_url = $this->generateUrl(
                 $route_name,
-                array(
+                [
                     'datatype_uuid' => $job_data['ima_uuid'],
                     'version' => 'v5',
                     'recent' => 0
-                )
+                ]
             );
             $full_ima_url = $baseurl . $full_ima_url;
 
@@ -1207,62 +1207,62 @@ class FacadeController extends Controller
             }
             $ima_url = $this->generateUrl(
                 $route_name,
-                array(
+                [
                     'datatype_uuid' => $job_data['ima_uuid'],
                     'version' => 'v5',
                     'recent' => $recent
-                )
+                ]
             );
             $ima_url = $baseurl . $ima_url;
 
             // TODO Check if this needs to be v5
             $ima_template_url = $this->generateUrl(
                 'odr_api_get_template_single',
-                array(
+                [
                     'datatype_uuid' => $job_data['ima_uuid'],
                     'version' => 'v5'
-                )
+                ]
             );
             $ima_template_url = $baseurl . $ima_template_url;
 
             $cell_params_url = $this->generateUrl(
                 $route_name,
-                array(
+                [
                     'datatype_uuid' => $job_data['cell_params_uuid'],
                     'version' => 'v5',
                     'recent' => $recent
-                )
+                ]
             );
             $cell_params_url = $baseurl . $cell_params_url;
 
             $powder_diffraction_url = $this->generateUrl(
                 $route_name,
-                array(
+                [
                     'datatype_uuid' => $job_data['rruff_database_uuid'],
                     'version' => 'v5',
                     'recent' => $recent
-                )
+                ]
             );
             $powder_diffraction_url = $baseurl . $powder_diffraction_url;
 
             $references_url = $this->generateUrl(
                 $route_name,
-                array(
+                [
                     'datatype_uuid' => $job_data['reference_database_uuid'],
                     'version' => 'v5',
                     'recent' => $recent
-                )
+                ]
             );
             $references_url = $baseurl . $references_url;
 
             // AMCSD ???
             $amcsd_url = $this->generateUrl(
                 $route_name,
-                array(
+                [
                     'datatype_uuid' => $job_data['amcsd_database_uuid'],
                     'version' => 'v5',
                     'recent' => $recent
-                )
+                ]
             );
             $amcsd_url = $baseurl . $amcsd_url;
 
@@ -1270,11 +1270,11 @@ class FacadeController extends Controller
             $paragenetic_modes_url = $this->generateUrl(
                 // 'odr_api_datarecord_list',
                 $route_name,
-                array(
+                [
                     'datatype_uuid' => $job_data['paragenetic_modes_uuid'],
                     'version' => 'v5',
                     'recent' => $recent
-                )
+                ]
             );
             $paragenetic_modes_url = $baseurl . $paragenetic_modes_url;
 
@@ -1282,19 +1282,19 @@ class FacadeController extends Controller
             $paragenetic_modes_template_url = $this->generateUrl(
                 'odr_api_get_template_single',
                 // $route_name,
-                array(
+                [
                     'datatype_uuid' => $job_data['paragenetic_modes_uuid'],
                     'version' => 'v5',
                     'recent' => $recent
-                )
+                ]
             );
             $paragenetic_modes_template_url = $baseurl . $paragenetic_modes_template_url;
 
             // API Login URL
             $api_login_url = $this->generateUrl(
                 'api_login_check',
-                array(
-                )
+                [
+                ]
             );
             // $api_login_url = $baseurl . '/odr_rruff/api/v3/token';
             $api_login_url = $baseurl . $api_login_url;
@@ -1302,9 +1302,9 @@ class FacadeController extends Controller
             // API Job Create URL
             $api_create_job_url = $this->generateUrl(
                 'odr_api_start_job',
-                array(
+                [
                     'version' => 'v4'
-                )
+                ]
             );
             // $api_create_job_url = $baseurl . '/odr_rruff' . $api_create_job_url;
             $api_create_job_url = $baseurl . $api_create_job_url;
@@ -1312,18 +1312,18 @@ class FacadeController extends Controller
             // API Job Status URL
             $api_job_status_url = $this->generateUrl(
                 'odr_api_job_status',
-                array(
+                [
                     'version' => 'v4'
-                )
+                ]
             );
             $api_job_status_url = $baseurl . $api_job_status_url;
 
             // API Worker Job Create URL
             $api_worker_job_url = $this->generateUrl(
                 'odr_api_worker_job',
-                array(
+                [
                     'version' => 'v4',
-                )
+                ]
             );
             // $api_worker_job_url = $baseurl . '/odr_rruff' .  $api_worker_job_url;
             $api_worker_job_url = $baseurl . $api_worker_job_url;
@@ -1354,7 +1354,7 @@ class FacadeController extends Controller
 
             $pheanstalk->useTube('odr_ima_data_builder')->put($payload);
             // Wrap array for JSON compliance
-            $output = array("done" => true );
+            $output = ["done" => true ];
 
             return new JsonResponse($output);
         }
@@ -1383,19 +1383,19 @@ class FacadeController extends Controller
         $limit,
         $offset,
         $return_as_list = false,
-        Request $request
+        ?Request $request = null
     ) {
 
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
 
-        $params = json_decode(base64_decode($search_key), true);
+        $params = json_decode(base64_decode((string) $search_key), true);
 
         /** @var DataType $datatype */
         $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
-            array(
+            [
                 'id' => $params['dt_id']
-            )
+            ]
         );
         if ($datatype == null)
             throw new ODRNotFoundException('Datatype');
@@ -1407,10 +1407,10 @@ class FacadeController extends Controller
         $records = $search_api_service->performSearch(
             $datatype,
             $search_key,
-            array(),
+            [],
             false,
-            array(),
-            array(),
+            [],
+            [],
             false,
             true
         );
@@ -1436,7 +1436,7 @@ class FacadeController extends Controller
                     null,
                     false
                 );
-                $output_data[] = json_decode($record_data);
+                $output_data[] = json_decode((string) $record_data);
             }
         }
         else {
@@ -1444,10 +1444,10 @@ class FacadeController extends Controller
         }
 
         // Wrap array for JSON compliance
-        $output = array(
+        $output = [
             'count' => count($output_data),
             'records' => $output_data
-        );
+        ];
         return new JsonResponse($output);
 
     }
@@ -1480,9 +1480,9 @@ class FacadeController extends Controller
 
         /** @var DataType $datatype */
         $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
-            array(
+            [
                 'unique_id' => $dt_uuid
-            )
+            ]
         );
         if ($datatype == null)
             throw new ODRNotFoundException('Datatype');
@@ -1496,10 +1496,10 @@ class FacadeController extends Controller
         $output_records = array_slice($records, $offset, $limit);
 
         // Wrap array for JSON compliance
-        $output = array(
+        $output = [
             'count' => count($records),
             'records' => $output_records
-        );
+        ];
         return new JsonResponse($output);
 
     }
@@ -1564,9 +1564,9 @@ class FacadeController extends Controller
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
-                array(
+                [
                     'unique_id' => $dt_uuid
-                )
+                ]
             );
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');

@@ -51,9 +51,9 @@ class SearchCacheController extends Controller
         // Get a count of records
         // Retrieve what should be the first and only datarecord...
         $results = $em->getRepository('ODRAdminBundle:DataRecord')->findBy(
-            array(
+            [
                 'dataType' => $datatype->getId()
-            )
+            ]
         );
 
         // ----------------------------------------
@@ -65,7 +65,7 @@ class SearchCacheController extends Controller
             /*
              * {"dt_id":"77","sort_by":[{"sort_df_id":"195","sort_dir":"asc"}],"199":"Fe"}
              */
-            $search_params = array("dt_id" => $datatype_id);
+            $search_params = ["dt_id" => $datatype_id];
 
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
@@ -76,12 +76,12 @@ class SearchCacheController extends Controller
             $url = $this->generateUrl(
                 // 'odr_search_render',
                 'odr_display_view',
-                array(
+                [
                     'datarecord_id' => $result->getId(),
                     'search_theme_id' => 0,
                     'search_key' => $search_key,
                     'offset' => 1
-                ),
+                ],
                 false
             );
 
@@ -94,9 +94,9 @@ class SearchCacheController extends Controller
             $url = $site_baseurl . '/' . $datatype->getSearchSlug() . "#" . $url;
 
             $payload = json_encode(
-                array(
+                [
                     'url' => $url,
-                )
+                ]
             );
 
             // Record pre-cache for interface display speed

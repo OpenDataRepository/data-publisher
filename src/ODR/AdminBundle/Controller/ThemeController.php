@@ -67,7 +67,7 @@ class ThemeController extends ODRCustomController
      */
     public function getavailablethemesAction($datatype_id, $page_type, $search_key, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'json';
         $return['d'] = '';
@@ -128,7 +128,7 @@ class ThemeController extends ODRCustomController
             //  returned as part of the "default_for" entry
             $formatted_page_type = ucfirst( str_replace('_', ' ', $page_type) );
 
-            $available_page_types = array();
+            $available_page_types = [];
             foreach (ThemeInfoService::PAGE_TYPES as $num => $str)
                 $available_page_types[$str] = ucfirst( str_replace('_', ' ', $str) );
 
@@ -136,7 +136,7 @@ class ThemeController extends ODRCustomController
             // Render and return the theme chooser dialog
             $return['d'] = $templating->render(
                 'ODRAdminBundle:Default:choose_view.html.twig',
-                array(
+                [
                     'user' => $user,
                     'is_datatype_admin' => $is_datatype_admin,
                     'is_super_admin' => $is_super_admin,
@@ -151,7 +151,7 @@ class ThemeController extends ODRCustomController
                     'show_context_checkbox' => $show_context_checkbox,
                     'formatted_page_type' => $formatted_page_type,
                     'available_page_types' => $available_page_types,
-                )
+                ]
             );
         }
         catch (\Exception $e) {
@@ -278,7 +278,7 @@ class ThemeController extends ODRCustomController
      */
     public function modifythemeAction($datatype_id, $theme_id, $search_key, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -322,10 +322,10 @@ class ThemeController extends ODRCustomController
             self::canModifyTheme($user, $theme);
             // --------------------
 
-            $return['d'] = array(
+            $return['d'] = [
                 'datatype_id' => $datatype->getId(),
                 'html' => $odr_render_service->getThemeDesignHTML($user, $theme, $search_key),
-            );
+            ];
 
         }
         catch (\Exception $e) {
@@ -353,7 +353,7 @@ class ThemeController extends ODRCustomController
      */
     public function savethemepropertiesAction($theme_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -401,9 +401,9 @@ class ThemeController extends ODRCustomController
             $theme_form = $this->createForm(
                 UpdateThemeForm::class,
                 $submitted_data,
-                array(
+                [
                     'is_master_theme' => $is_master_theme,
-                )
+                ]
             );
             $theme_form->handleRequest($request);
 
@@ -429,7 +429,7 @@ class ThemeController extends ODRCustomController
 
                 if ($theme_form->isValid()) {
                     // Save any changes made in the form
-                    $properties = array(
+                    $properties = [
                         'templateName' => $submitted_data->getTemplateName(),
                         'templateDescription' => $submitted_data->getTemplateDescription(),
                         'disableSearchSidebar' => $submitted_data->getDisableSearchSidebar(),
@@ -437,7 +437,7 @@ class ThemeController extends ODRCustomController
                         'isTableTheme' => $submitted_data->getIsTableTheme(),
                         'displaysAllResults' => $submitted_data->getDisplaysAllResults(),
                         'enableHorizontalScrolling' => $submitted_data->getEnableHorizontalScrolling(),
-                    );
+                    ];
                     $entity_modify_service->updateThemeMeta($user, $theme, $properties);
 
                     // Update the cached version of this theme
@@ -475,10 +475,10 @@ class ThemeController extends ODRCustomController
      */
     public function themesharedAction($theme_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
-        $return['d'] = array();
+        $return['d'] = [];
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -537,18 +537,18 @@ class ThemeController extends ODRCustomController
             // Toggle the shared status of the specified theme
             if ( $theme->isShared() ) {
                 // Theme is currently shared...
-                $properties = array(
+                $properties = [
                     'shared' => false,
-                );
+                ];
                 $entity_modify_service->updateThemeMeta($user, $theme, $properties);
 
                 $return['d']['public'] = false;
             }
             else {
                 // Theme is not currently shared...
-                $properties = array(
+                $properties = [
                     'shared' => true,
-                );
+                ];
                 $entity_modify_service->updateThemeMeta($user, $theme, $properties);
 
                 $return['d']['public'] = true;
@@ -583,7 +583,7 @@ class ThemeController extends ODRCustomController
      */
     public function setdatabasedefaultthemeAction($page_type, $theme_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -641,10 +641,10 @@ class ThemeController extends ODRCustomController
                 WHERE t.data_type_id = :datatype_id AND (tm.default_for & :page_type_id)
                 AND t.id = t.parent_theme_id
                 AND t.deletedAt IS NULL AND tm.deletedAt IS NULL';
-            $params = array(
+            $params = [
                 'datatype_id' => $datatype->getId(),
                 'page_type_id' => $page_type_id,
-            );
+            ];
             $conn = $em->getConnection();
             $results = $conn->executeQuery($query, $params);
 
@@ -655,9 +655,9 @@ class ThemeController extends ODRCustomController
                     /** @var Theme $t */
                     $t = $em->getRepository('ODRAdminBundle:Theme')->find($t_id);
                     $new_defaults = $t->getDefaultFor() - $page_type_id;
-                    $properties = array(
+                    $properties = [
                         'defaultFor' => $new_defaults
-                    );
+                    ];
 
                     $entity_modify_service->updateThemeMeta($user, $t, $properties, true);    // Don't flush immediately...
                     // Update cached versions of these themes
@@ -667,10 +667,10 @@ class ThemeController extends ODRCustomController
 
             // ...afterwards, specify this theme as the default (and shared, if it isn't already)
             $new_defaults = $theme->getDefaultFor() + $page_type_id;
-            $properties = array(
+            $properties = [
                 'shared' => true,
                 'defaultFor' => $new_defaults
-            );
+            ];
             $entity_modify_service->updateThemeMeta($user, $theme, $properties, true);    // Don't flush immediately...
 
             // Updated cached version of this theme
@@ -704,7 +704,7 @@ class ThemeController extends ODRCustomController
      */
     public function unsetdatabasedefaultthemeAction($page_type, $theme_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -757,10 +757,10 @@ class ThemeController extends ODRCustomController
             // Only do stuff if the theme is currently the default for this page type...
             if ( ($theme->getDefaultFor() & $page_type_id) ) {
                 $new_defaults = $theme->getDefaultFor() - $page_type_id;
-                $properties = array(
+                $properties = [
                     'shared' => true,
                     'defaultFor' => $new_defaults
-                );
+                ];
                 $entity_modify_service->updateThemeMeta($user, $theme, $properties, true);    // Don't flush immediately...
 
                 // Updated cached version of this theme
@@ -800,7 +800,7 @@ class ThemeController extends ODRCustomController
      */
     public function unsetpersonaldefaultthemeAction($page_type, $theme_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -847,10 +847,10 @@ class ThemeController extends ODRCustomController
             // Only do stuff if the user has a themePreference involving this theme and page type...
             /** @var ThemePreferences $tp */
             $tp = $em->getRepository('ODRAdminBundle:ThemePreferences')->findOneBy(
-                array(
+                [
                     'theme' => $theme->getId(),
                     'createdBy' => $user->getId(),
-                )
+                ]
             );
 
             if ($tp == null ) {
@@ -900,7 +900,7 @@ class ThemeController extends ODRCustomController
      */
     public function deletethemeAction($theme_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -966,10 +966,10 @@ class ThemeController extends ODRCustomController
                 WHERE tp.theme = :theme_id
                 AND tp.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'now' => new \DateTime(),
                     'theme_id' => $theme->getId(),
-                )
+                ]
             );
             $rows = $query->execute();
 
@@ -980,10 +980,10 @@ class ThemeController extends ODRCustomController
                 WHERE t.parentTheme = :theme_id
                 AND t.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'now' => new \DateTime(),
                     'theme_id' => $theme->getId(),
-                )
+                ]
             );
             $rows = $query->execute();
 
@@ -1017,7 +1017,7 @@ class ThemeController extends ODRCustomController
      */
     public function clonethemeAction($theme_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1069,9 +1069,9 @@ class ThemeController extends ODRCustomController
             // This actually seems to be fast enough that it doesn't need the TrackedJobService...
             $new_theme = $clone_theme_service->cloneSourceTheme($user, $theme, 'custom');    // this controller action should never create a "master" theme
 
-            $return['d'] = array(
+            $return['d'] = [
                 'new_theme_id' => $new_theme->getId()
-            );
+            ];
 
 
             // Delete the cached list of top-level themes
@@ -1101,7 +1101,7 @@ class ThemeController extends ODRCustomController
      */
     public function addthemeelementAction($theme_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1161,11 +1161,11 @@ class ThemeController extends ODRCustomController
             }
 
             // Return the new theme element's id
-            $return['d'] = array(
+            $return['d'] = [
                 'theme_element_id' => $theme_element->getId(),
                 'datatype_id' => $datatype->getId(),
                 'html' => $html,
-            );
+            ];
 
         }
         catch (\Exception $e) {
@@ -1192,7 +1192,7 @@ class ThemeController extends ODRCustomController
      */
     public function deletethemeelementAction($theme_element_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1242,7 +1242,7 @@ class ThemeController extends ODRCustomController
 
 
             // Going to delete both the themeElement and its meta entry...
-            $entities_to_remove = array();
+            $entities_to_remove = [];
             $entities_to_remove[] = $theme_element;
             $entities_to_remove[] = $theme_element->getThemeElementMeta();
 
@@ -1283,7 +1283,7 @@ class ThemeController extends ODRCustomController
      */
     public function themeelementpropertiesAction($theme_element_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1344,12 +1344,12 @@ class ThemeController extends ODRCustomController
 //                        $submitted_data->setHidden(0);
 
                     // Save any changes made to the form
-                    $properties = array(
+                    $properties = [
                         'hidden' => $submitted_data->getHidden(),
                         'hideBorder' => $submitted_data->getHideBorder(),
                         'cssWidthMed' => $submitted_data->getCssWidthMed(),
                         'cssWidthXL' => $submitted_data->getCssWidthXL(),
-                    );
+                    ];
                     $entity_modify_service->updateThemeElementMeta($user, $theme_element, $properties);
 
                     // Update the cached version of this theme
@@ -1367,23 +1367,23 @@ class ThemeController extends ODRCustomController
                 $theme_element_form = $this->createForm(
                     UpdateThemeElementForm::class,
                     $theme_element_meta,
-                    array(
+                    [
                         'action' => $this->generateUrl(
                             'odr_design_get_theme_element_properties',
-                            array(
+                            [
                                 'theme_element_id' => $theme_element_id
-                            )
+                            ]
                         ),
-                    )
+                    ]
                 );
 
                 // Return the slideout html
                 $return['d'] = $templating->render(
                     'ODRAdminBundle:Theme:theme_element_properties_form.html.twig',
-                    array(
+                    [
                         'theme_element' => $theme_element,
                         'theme_element_form' => $theme_element_form->createView(),
-                    )
+                    ]
                 );
             }
         }
@@ -1410,7 +1410,7 @@ class ThemeController extends ODRCustomController
      */
     public function themeelementorderAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1465,9 +1465,9 @@ class ThemeController extends ODRCustomController
 
                 if ( $theme_element->getDisplayOrder() !== $index ) {
                     // Need to update this theme_element's display order
-                    $properties = array(
+                    $properties = [
                         'displayOrder' => $index
-                    );
+                    ];
                     $entity_modify_service->updateThemeElementMeta($user, $theme_element, $properties, true);    // don't flush immediately
                     $changes_made = true;
                 }
@@ -1505,10 +1505,10 @@ class ThemeController extends ODRCustomController
      */
     public function themeelementvisibilityAction($theme_element_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
-        $return['d'] = array();
+        $return['d'] = [];
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -1552,15 +1552,15 @@ class ThemeController extends ODRCustomController
 
             // Toggle the hidden status of the specified theme_element
             if ( $theme_element->getHidden() ) {
-                $properties = array(
+                $properties = [
                     'hidden' => false,
-                );
+                ];
                 $entity_modify_service->updateThemeElementMeta($user, $theme_element, $properties);
             }
             else {
-                $properties = array(
+                $properties = [
                     'hidden' => true,
-                );
+                ];
                 $entity_modify_service->updateThemeElementMeta($user, $theme_element, $properties);
             }
 
@@ -1595,10 +1595,10 @@ class ThemeController extends ODRCustomController
      */
     public function themeelementbordervisibilityAction($theme_element_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
-        $return['d'] = array();
+        $return['d'] = [];
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -1642,15 +1642,15 @@ class ThemeController extends ODRCustomController
 
             // Toggle the hidden status of the specified theme_element
             if ( $theme_element->getHideBorder() ) {
-                $properties = array(
+                $properties = [
                     'hideBorder' => false,
-                );
+                ];
                 $entity_modify_service->updateThemeElementMeta($user, $theme_element, $properties);
             }
             else {
-                $properties = array(
+                $properties = [
                     'hideBorder' => true,
-                );
+                ];
                 $entity_modify_service->updateThemeElementMeta($user, $theme_element, $properties);
             }
 
@@ -1681,7 +1681,7 @@ class ThemeController extends ODRCustomController
      */
     public function reloadthemeelementAction($theme_element_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1717,11 +1717,11 @@ class ThemeController extends ODRCustomController
             // ----------------------------------------
             // Render the required version of the page
             $html = $odr_render_service->reloadThemeDesignThemeElement($user, $theme_element);
-            $return['d'] = array(
+            $return['d'] = [
                 'theme_element_id' => $theme_element_id,
                 'theme_element_hidden' => $theme_element->getHidden(),
                 'html' => $html,
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0xdb066a2d;
@@ -1753,7 +1753,7 @@ class ThemeController extends ODRCustomController
      */
     public function loadthemedatatypeAction($theme_element_id, $datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1781,7 +1781,7 @@ class ThemeController extends ODRCustomController
 
             /** @var ThemeDataType $theme_datatype */
             $theme_datatype = $em->getRepository('ODRAdminBundle:ThemeDataType')->findOneBy(
-                array('themeElement' => $theme_element->getId(), 'dataType' => $child_datatype->getId())
+                ['themeElement' => $theme_element->getId(), 'dataType' => $child_datatype->getId()]
             );
             if ( is_null($theme_datatype) )
                 throw new ODRNotFoundException('Theme Datatype');
@@ -1800,7 +1800,7 @@ class ThemeController extends ODRCustomController
             // Also need this in order to render the form, though it can't be changed from here
             /** @var DataTree $datatree */
             $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
-                array('ancestor' => $parent_datatype->getId(), 'descendant' => $child_datatype->getId())
+                ['ancestor' => $parent_datatype->getId(), 'descendant' => $child_datatype->getId()]
             );
             if ( $datatree == null )
                 throw new ODRNotFoundException('Datatree');
@@ -1828,20 +1828,20 @@ class ThemeController extends ODRCustomController
             $theme_datatype_form = $this->createForm(
                 UpdateThemeDatatypeForm::class,
                 $theme_datatype,
-                array(
+                [
                     'is_top_level' => $is_top_level,
                     'multiple_allowed' => $datatree->getMultipleAllowed(),
-                )
+                ]
             )->createView();
 
 
             // Return the slideout html
             $return['d'] = $templating->render(
                 'ODRAdminBundle:Theme:theme_datatype_properties_form.html.twig',
-                array(
+                [
                     'theme_datatype' => $theme_datatype,
                     'theme_datatype_form' => $theme_datatype_form,
-                )
+                ]
             );
         }
         catch (\Exception $e) {
@@ -1872,7 +1872,7 @@ class ThemeController extends ODRCustomController
      */
     public function savethemedatatypeAction($theme_element_id, $datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1902,7 +1902,7 @@ class ThemeController extends ODRCustomController
 
             /** @var ThemeDataType $theme_datatype */
             $theme_datatype = $em->getRepository('ODRAdminBundle:ThemeDataType')->findOneBy(
-                array('themeElement' => $theme_element->getId(), 'dataType' => $child_datatype->getId())
+                ['themeElement' => $theme_element->getId(), 'dataType' => $child_datatype->getId()]
             );
             if ( is_null($theme_datatype) )
                 throw new ODRNotFoundException('Theme Datatype');
@@ -1938,7 +1938,7 @@ class ThemeController extends ODRCustomController
             // Check if multiple child/linked datarecords are allowed for datatype
             /** @var DataTree $datatree */
             $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
-                array('ancestor' => $parent_datatype->getId(), 'descendant' => $child_datatype->getId())
+                ['ancestor' => $parent_datatype->getId(), 'descendant' => $child_datatype->getId()]
             );
 
             // Might be useful in the future...
@@ -1950,10 +1950,10 @@ class ThemeController extends ODRCustomController
             $theme_datatype_form = $this->createForm(
                 UpdateThemeDatatypeForm::class,
                 $submitted_data,
-                array(
+                [
                     'is_top_level' => $is_top_level,
                     'multiple_allowed' => $datatree->getMultipleAllowed(),
-                )
+                ]
             );
 
             $theme_datatype_form->handleRequest($request);
@@ -1961,9 +1961,9 @@ class ThemeController extends ODRCustomController
 
                 if ($theme_datatype_form->isValid()) {
                     // Save all changes made via the form
-                    $properties = array(
+                    $properties = [
                         'display_type' => $submitted_data->getDisplayType(),
-                    );
+                    ];
                     $entity_modify_service->updateThemeDatatype($user, $theme_datatype, $properties);
 
                     // Update cached version of theme
@@ -2004,7 +2004,7 @@ class ThemeController extends ODRCustomController
      */
     public function loadthemedatafieldAction($datafield_id, $theme_element_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -2031,7 +2031,7 @@ class ThemeController extends ODRCustomController
             // Locate the ThemeDatafield entity
             /** @var ThemeDataField $theme_datafield */
             $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy(
-                array('dataField' => $datafield->getId(), 'themeElement' => $theme_element->getId())
+                ['dataField' => $datafield->getId(), 'themeElement' => $theme_element->getId()]
             );
             if ( is_null($theme_datafield) )
                 throw new ODRNotFoundException('ThemeDatafield');
@@ -2064,24 +2064,24 @@ class ThemeController extends ODRCustomController
             $theme_datafield_form = $this->createForm(
                 UpdateThemeDatafieldForm::class,
                 $theme_datafield,
-                array(
+                [
                     'action' => $this->generateUrl(
                         'odr_design_save_theme_datafield',
-                        array(
+                        [
                             'theme_element_id' => $theme_element_id,
                             'datafield_id' => $datafield_id
-                        )
+                        ]
                     )
-                )
+                ]
             )->createView();
 
             // Return the slideout html
             $return['d'] = $templating->render(
                 'ODRAdminBundle:Theme:theme_datafield_properties_form.html.twig',
-                array(
+                [
                     'theme_datafield' => $theme_datafield,
                     'theme_datafield_form' => $theme_datafield_form,
-                )
+                ]
             );
         }
         catch (\Exception $e) {
@@ -2112,7 +2112,7 @@ class ThemeController extends ODRCustomController
      */
     public function savethemedatafieldAction($theme_element_id, $datafield_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -2140,7 +2140,7 @@ class ThemeController extends ODRCustomController
 
             /** @var ThemeDataField $theme_datafield */
             $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy(
-                array('themeElement' => $theme_element->getId(), 'dataField' => $datafield->getId())
+                ['themeElement' => $theme_element->getId(), 'dataField' => $datafield->getId()]
             );
             if ( is_null($theme_datafield) )
                 throw new ODRNotFoundException('ThemeDatafield');
@@ -2189,7 +2189,7 @@ class ThemeController extends ODRCustomController
 //                        $submitted_data->setHidden(0);
 
                     // Save all changes made via the submitted form
-                    $properties = array(
+                    $properties = [
 //                        'displayOrder' => $submitted_data->getDisplayOrder(),    // Not allowed to change this value through this controller action
                         'cssWidthMed' => $submitted_data->getCssWidthMed(),
                         'cssWidthXL' => $submitted_data->getCssWidthXL(),
@@ -2198,7 +2198,7 @@ class ThemeController extends ODRCustomController
 //                        'hidden' => $submitted_data->getHidden(),
 //                        'hideHeader' => $submitted_data->getHideHeader(),
 //                        'useIconInTables' => $submitted_data->getUseIconInTables(),
-                    );
+                    ];
                     $entity_modify_service->updateThemeDatafield($user, $theme_datafield, $properties);
 
                     // Update the cached version of the theme
@@ -2238,10 +2238,10 @@ class ThemeController extends ODRCustomController
      */
     public function themedatafieldvisibilityAction($theme_element_id, $datafield_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
-        $return['d'] = array();
+        $return['d'] = [];
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -2265,10 +2265,10 @@ class ThemeController extends ODRCustomController
 
             /** @var ThemeDataField $theme_datafield */
             $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy(
-                array(
+                [
                     'themeElement' => $theme_element_id,
                     'dataField' => $datafield_id,
-                )
+                ]
             );
             if ( is_null($theme_datafield) )
                 throw new ODRNotFoundException('ThemeDatafield');
@@ -2300,15 +2300,15 @@ class ThemeController extends ODRCustomController
 
             // Toggle the hidden status of the specified theme_datafield
             if ( $theme_datafield->getHidden() ) {
-                $properties = array(
+                $properties = [
                     'hidden' => false,
-                );
+                ];
                 $entity_modify_service->updateThemeDatafield($user, $theme_datafield, $properties);
             }
             else {
-                $properties = array(
+                $properties = [
                     'hidden' => true,
-                );
+                ];
                 $entity_modify_service->updateThemeDatafield($user, $theme_datafield, $properties);
             }
 
@@ -2340,10 +2340,10 @@ class ThemeController extends ODRCustomController
      */
     public function themedatafieldheadervisibilityAction($theme_element_id, $datafield_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
-        $return['d'] = array();
+        $return['d'] = [];
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -2367,10 +2367,10 @@ class ThemeController extends ODRCustomController
 
             /** @var ThemeDataField $theme_datafield */
             $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy(
-                array(
+                [
                     'themeElement' => $theme_element_id,
                     'dataField' => $datafield_id,
-                )
+                ]
             );
             if ( is_null($theme_datafield) )
                 throw new ODRNotFoundException('ThemeDatafield');
@@ -2407,15 +2407,15 @@ class ThemeController extends ODRCustomController
 
             // Toggle the hidden status of the specified theme_datafield
             if ( $theme_datafield->getHideHeader() ) {
-                $properties = array(
+                $properties = [
                     'hideHeader' => false,
-                );
+                ];
                 $entity_modify_service->updateThemeDatafield($user, $theme_datafield, $properties);
             }
             else {
-                $properties = array(
+                $properties = [
                     'hideHeader' => true,
-                );
+                ];
                 $entity_modify_service->updateThemeDatafield($user, $theme_datafield, $properties);
             }
 
@@ -2447,10 +2447,10 @@ class ThemeController extends ODRCustomController
      */
     public function themedatafielduseiconAction($theme_element_id, $datafield_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
-        $return['d'] = array();
+        $return['d'] = [];
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -2474,10 +2474,10 @@ class ThemeController extends ODRCustomController
 
             /** @var ThemeDataField $theme_datafield */
             $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy(
-                array(
+                [
                     'themeElement' => $theme_element_id,
                     'dataField' => $datafield_id,
-                )
+                ]
             );
             if ( is_null($theme_datafield) )
                 throw new ODRNotFoundException('ThemeDatafield');
@@ -2508,15 +2508,15 @@ class ThemeController extends ODRCustomController
 
             // Toggle the property for the specified theme_datafield
             if ( $theme_datafield->getUseIconInTables() ) {
-                $properties = array(
+                $properties = [
                     'useIconInTables' => false,
-                );
+                ];
                 $entity_modify_service->updateThemeDatafield($user, $theme_datafield, $properties);
             }
             else {
-                $properties = array(
+                $properties = [
                     'useIconInTables' => true,
-                );
+                ];
                 $entity_modify_service->updateThemeDatafield($user, $theme_datafield, $properties);
             }
 
@@ -2552,7 +2552,7 @@ class ThemeController extends ODRCustomController
      */
     public function datafieldorderAction($initial_theme_element_id, $ending_theme_element_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -2621,7 +2621,7 @@ class ThemeController extends ODRCustomController
                 WHERE df.id IN (:datafields)
                 AND df.deletedAt IS NULL AND dt.deletedAt IS NULL
                 GROUP BY dt.id'
-            )->setParameters( array('datafields' => $post) );
+            )->setParameters( ['datafields' => $post] );
             $results = $query->getArrayResult();
 
             if ( count($results) > 1 )
@@ -2637,11 +2637,11 @@ class ThemeController extends ODRCustomController
                 FROM ODRAdminBundle:ThemeDataField tdf
                 WHERE tdf.themeElement = :theme_element_id
                 AND tdf.deletedAt IS NULL'
-            )->setParameters( array('theme_element_id' => $ending_theme_element->getId()) );
+            )->setParameters( ['theme_element_id' => $ending_theme_element->getId()] );
             $results = $query->getResult();
             /** @var ThemeDataField[] $results */
 
-            $tdf_list = array();
+            $tdf_list = [];
             foreach ($results as $num => $tdf)
                 $tdf_list[ $tdf->getDataField()->getId() ] = $tdf;
 
@@ -2655,9 +2655,9 @@ class ThemeController extends ODRCustomController
                     //  display_order
                     $tdf = $tdf_list[$df_id];
                     if ( $tdf->getDisplayOrder() !== $index ) {
-                        $properties = array(
+                        $properties = [
                             'displayOrder' => $index
-                        );
+                        ];
                         $entity_modify_service->updateThemeDatafield($user, $tdf, $properties, true);    // don't flush immediately...
                     }
                 }
@@ -2667,10 +2667,10 @@ class ThemeController extends ODRCustomController
 
                     /** @var ThemeDataField $old_tdf_entry */
                     $old_tdf_entry = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy(
-                        array(
+                        [
                             'dataField' => $df_id,
                             'themeElement' => $initial_theme_element->getId()
-                        )
+                        ]
                     );
 
                     if ($old_tdf_entry == null) {
@@ -2680,10 +2680,10 @@ class ThemeController extends ODRCustomController
                     else {
                         // Otherwise, update the previous tdf entry so it's in the desired position
                         //  in the ending theme_element
-                        $properties = array(
+                        $properties = [
                             'displayOrder' => $index,
                             'themeElement' => $ending_theme_element,
-                        );
+                        ];
                         $entity_modify_service->updateThemeDatafield($user, $old_tdf_entry, $properties, true);    // don't flush immediately
 
                         // Don't need to redo display_order of the other theme_datafield entries in

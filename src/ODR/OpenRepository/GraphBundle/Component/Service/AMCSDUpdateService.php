@@ -43,58 +43,9 @@ class AMCSDUpdateService
 {
 
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var string
-     */
-    private $odr_tmp_directory;
-
-    /**
-     * @var string
-     */
-    private $odr_web_directory;
-
-    /**
-     * @var EventDispatcherInterface
-     */
-    private $event_dispatcher;
-
-    // NOTE - $event_dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-
-    /**
-     * @var CryptoService
-     */
-    private $crypto_service;
-
-    /**
-     * @var EntityCreationService
-     */
-    private $entity_creation_service;
-
-    /**
-     * @var ODRUploadService
-     */
-    private $odr_upload_service;
-
-    /**
-     * @var SearchService
-     */
-    private $search_service;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * AMCSD Update Service constructor
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param string $odr_tmp_directory
      * @param string $odr_web_directory
      * @param EventDispatcherInterface $event_dispatcher
@@ -104,26 +55,8 @@ class AMCSDUpdateService
      * @param SearchService $search_service
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        string $odr_tmp_directory,
-        string $odr_web_directory,
-        EventDispatcherInterface $event_dispatcher,
-        CryptoService $crypto_service,
-        EntityCreationService $entity_creation_service,
-        ODRUploadService $odr_upload_service,
-        SearchService $search_service,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->odr_tmp_directory = $odr_tmp_directory;
-        $this->odr_web_directory = $odr_web_directory;
-        $this->event_dispatcher = $event_dispatcher;
-        $this->crypto_service = $crypto_service;
-        $this->entity_creation_service = $entity_creation_service;
-        $this->odr_upload_service = $odr_upload_service;
-        $this->search_service = $search_service;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly string $odr_tmp_directory, private readonly string $odr_web_directory, private readonly EventDispatcherInterface $event_dispatcher, private readonly CryptoService $crypto_service, private readonly EntityCreationService $entity_creation_service, private readonly ODRUploadService $odr_upload_service, private readonly SearchService $search_service, private readonly Logger $logger)
+    {
     }
 
 
@@ -197,7 +130,7 @@ class AMCSDUpdateService
         $start = 0;
         $curr = 0;
         $buffer = '';
-        $codes = array();
+        $codes = [];
         while ( true ) {
             // No point reading past the end of the file
             if ( feof($input_file) )
@@ -218,7 +151,7 @@ class AMCSDUpdateService
                 // If this is the end of the file fragment...
                 if ( $trimmed_line === "END\r\n" || $trimmed_line === "_END_\r\n" ) {
                     // Files don't have the filno in them, so have to resort to database code
-                    $matches = array();
+                    $matches = [];
                     preg_match('/_database_code_amcsd (\d{7,7})/', $buffer, $matches);
                     $database_code = $matches[1];
 
@@ -392,10 +325,10 @@ class AMCSDUpdateService
         // ----------------------------------------
         // ...and now that both the datatype id and the datafield ids are known, get the values
         //  for each of the four fields for each AMCSD datarecord on ODR
-        $database_codes = array();
-        $amc_files = array();
-        $cif_files = array();
-        $dif_files = array();
+        $database_codes = [];
+        $amc_files = [];
+        $cif_files = [];
+        $dif_files = [];
 
         $query =
            'SELECT dr.id AS dr_id, sv.value AS val
@@ -434,7 +367,7 @@ class AMCSDUpdateService
         }
 */
         // NOTE: this is temporary
-        $codes = array();
+        $codes = [];
         foreach ($database_codes as $dr_id => $str) {
             if ( isset($codes[$str]) ) {
                 $query_1 = 'UPDATE odr_data_record dr SET deletedAt = NOW() WHERE dr.id = '.$dr_id;
@@ -502,7 +435,7 @@ class AMCSDUpdateService
             $dif_files[$dr_id] = $val;
         }
 
-        $info = array(
+        $info = [
             'datatype_id' => $dt_id,
             'database_code_df_id' => $database_code_df_id,
             'database_codes' => $database_codes,
@@ -512,7 +445,7 @@ class AMCSDUpdateService
             'cif_files' => $cif_files,
             'dif_file_df_id' => $dif_df_id,
             'dif_files' => $dif_files,
-        );
+        ];
 
         return $info;
     }
@@ -553,19 +486,19 @@ class AMCSDUpdateService
 
         // New AMCSD entries are also likely going to need to create new references...
         $reference_info = self::getReferenceInfo( $this->em->getConnection() );
-        $reference_links = array();
+        $reference_links = [];
 
         // ...but want to use the existing references if possible, which requires hydrated datafields
         //  for ODR's search system
         /** @var DataFields[] $df_lookup */
-        $df_lookup = array();
+        $df_lookup = [];
 
 
         // ----------------------------------------
         // Going to compare each file in the two directory trees created during the previous two steps...
-        $new = array('amc' => 0, 'cif' => 0, 'dif' => 0);
-        $changed = array('amc' => 0, 'cif' => 0, 'dif' => 0);
-        $filetypes = array('amc', 'cif', 'dif');
+        $new = ['amc' => 0, 'cif' => 0, 'dif' => 0];
+        $changed = ['amc' => 0, 'cif' => 0, 'dif' => 0];
+        $filetypes = ['amc', 'cif', 'dif'];
         foreach ($filetypes as $filetype) {
             $new_filelist = scandir($new_basedir.$filetype);
             $count = 0;
@@ -589,7 +522,7 @@ class AMCSDUpdateService
 
                         // The hope is that the reference data in the CIF matches an existing
                         //  reference...
-                        $dr_list = array();
+                        $dr_list = [];
                         foreach ($ref_from_cif as $df_id => $value) {
                             // buildFromCifContents() will have created an array with <df_id> => <val>
                             //  pairs, plus a couple additional non-numeric keys
@@ -768,7 +701,7 @@ class AMCSDUpdateService
 
 
         // ----------------------------------------
-        $info = array(
+        $info = [
             'datatype_id' => $dt_id,
             'ref_id_df_id' => $ref_id_df_id,
             'authors_df_id' => $authors_df_id,
@@ -779,7 +712,7 @@ class AMCSDUpdateService
             'volume_df_id' => $volume_df_id,
             'pages_df_id' => $pages_df_id,
             'needs_review_df_id' => $needs_review_df_id,
-        );
+        ];
 
         return $info;
     }
@@ -808,11 +741,11 @@ class AMCSDUpdateService
         for ($i = 0; $i < count($lines); $i++) {
             $line = $lines[$i];
             if ( $line === '_publ_author_name' ) {
-                $buffer = array();
+                $buffer = [];
                 while (true) {
                     $i++;
                     $line = $lines[$i];
-                    if ( strpos($line, "_") === false )
+                    if ( !str_contains($line, "_") )
                         $buffer[] = substr($line, 1, -1);
                     else
                         break;
@@ -822,27 +755,27 @@ class AMCSDUpdateService
                 $authors = implode(', ', $buffer);
                 $authors = str_replace('  ', ' ', $authors);
             }
-            else if ( strpos($line, '_journal_name_full') !== false ) {
+            else if ( str_contains($line, '_journal_name_full') ) {
                 $journal = substr($line, strlen('_journal_name_full')+2, -1);
             }
-            else if ( strpos($line, '_journal_volume') !== false ) {
+            else if ( str_contains($line, '_journal_volume') ) {
                 $volume = substr($line, strlen('_journal_volume')+1);
             }
-            else if ( strpos($line, '_journal_year') !== false ) {
+            else if ( str_contains($line, '_journal_year') ) {
                 $year = substr($line, strlen('_journal_year')+1);
             }
-            else if ( strpos($line, '_journal_page_first') !== false ) {
+            else if ( str_contains($line, '_journal_page_first') ) {
                 $pages = substr($line, strlen('_journal_page_first')+1);
 
                 $line = $lines[$i+1];
                 $pages .= '-'.substr($line, strlen('_journal_page_last')+1);
                 $i++;
 
-                if ( strpos($pages, '-') === 0 )
+                if ( str_starts_with($pages, '-') )
                     $pages = substr($pages, 1);
             }
             else if ( $line === '_publ_section_title') {
-                $buffer = array();
+                $buffer = [];
                 $semicolons = 0;
                 while ($semicolons < 2) {
                     $i++;
@@ -856,13 +789,13 @@ class AMCSDUpdateService
 
                 $article_title = trim( implode(' ', $buffer) );
                 $article_title = str_replace('  ', ' ', $article_title);
-                $article_title = str_replace(array("\n", "\r"), '', $article_title);
+                $article_title = str_replace(["\n", "\r"], '', $article_title);
 
                 // Don't want this in the title
-                if ( strpos($article_title, '_cod_database_code') !== false )
+                if ( str_contains($article_title, '_cod_database_code') )
                     $article_title = substr($article_title, 0, strpos($article_title, '_cod_database_code'));
             }
-            else if ( strpos($line, '_database_code_amcsd') !== false ) {
+            else if ( str_contains($line, '_database_code_amcsd') ) {
                 // Shouldn't have any article data after this
                 break;
             }
@@ -883,8 +816,8 @@ class AMCSDUpdateService
             throw new \Exception('could not find article_title in cif contents for fileno '.$fileno);
 
         // AMCSD has part of what should be the volume in the article title for this journal...
-        if ( strpos($journal, 'Acta Crystallographica') !== false ) {
-            if ( strpos($journal, 'Section') !== false ) {
+        if ( str_contains($journal, 'Acta Crystallographica') ) {
+            if ( str_contains($journal, 'Section') ) {
                 $letter = substr($journal, -1);
                 $volume = $letter.$volume;
                 $journal = 'Acta Crystallographica';
@@ -897,7 +830,7 @@ class AMCSDUpdateService
         if ( strlen($pages) > 15 )
             $pages = '';
 
-        $ret = array(
+        $ret = [
             $info['authors_df_id'] => $authors,
             $info['journal_df_id'] => $journal,
             $info['volume_df_id'] => $volume,
@@ -905,7 +838,7 @@ class AMCSDUpdateService
             $info['pages_df_id'] => $pages,
             $info['article_title_df_id'] => $article_title,
             $info['needs_review_df_id'] => true,
-        );
+        ];
 
         $str = '';
         foreach ($ret as $key => $val) {
@@ -978,7 +911,7 @@ class AMCSDUpdateService
                     $event = new DatarecordCreatedEvent($new_dr, $user, null);
                     $this->event_dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
 //                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -1069,11 +1002,11 @@ class AMCSDUpdateService
         $info = self::getAMCSDInfo( $this->em->getConnection() );
         $database_codes = array_flip( $info['database_codes'] );
         ksort($database_codes);
-        $files = array(
+        $files = [
             'amc' => $info['amc_files'],
             'cif' => $info['cif_files'],
             'dif' => $info['dif_files'],
-        );
+        ];
 
         /** @var DataType $amcsd_dt */
         $amcsd_dt = $datatype_repository->find( $info['datatype_id'] );
@@ -1083,11 +1016,11 @@ class AMCSDUpdateService
         $amc_file_df_id = $info['amc_file_df_id'];
         $cif_file_df_id = $info['cif_file_df_id'];
         $dif_file_df_id = $info['dif_file_df_id'];
-        $df_lookup = array(
+        $df_lookup = [
             'amc' => $datafield_repository->find($amc_file_df_id),
             'cif' => $datafield_repository->find($cif_file_df_id),
             'dif' => $datafield_repository->find($dif_file_df_id),
-        );
+        ];
         foreach ($df_lookup as $df) {
             if ( $df == null )
                 throw new ODRNotFoundException('datafield');
@@ -1129,7 +1062,7 @@ class AMCSDUpdateService
             AND e.deletedAt IS NULL';
         $results = $conn->fetchAll($query);
 
-        $ref_id_mapping = array();
+        $ref_id_mapping = [];
         foreach ($results as $result) {
             $dr_id = $result['dr_id'];
             $ref_id = $result['ref_id'];
@@ -1165,7 +1098,7 @@ class AMCSDUpdateService
 
         // Need to merge the three different filelists into one...
         $count = 0;
-        $filelist = array();
+        $filelist = [];
         foreach ($amc_modified_filelist as $num => $filename) {
             // Ignore linux directories...
             if ( $filename === '.' || $filename === '..' )
@@ -1175,7 +1108,7 @@ class AMCSDUpdateService
             //  database codes with filenames for CSVImporting...
             $code = self::getDatabaseCode($modified_basedir.'amc/'.$filename);
             if ( !isset($filelist[$code]) )
-                $filelist[$code] = array('amc' => '', 'cif' => '', 'dif' => '');
+                $filelist[$code] = ['amc' => '', 'cif' => '', 'dif' => ''];
 
             // If the file is in this directory, then copy it into the CSVImport storage directory
             $modified_filename = substr($filename, 0, -3);
@@ -1192,7 +1125,7 @@ class AMCSDUpdateService
             //  database codes with filenames for CSVImporting...
             $code = self::getDatabaseCode($modified_basedir.'cif/'.$filename);
             if ( !isset($filelist[$code]) )
-                $filelist[$code] = array('amc' => '', 'cif' => '', 'dif' => '');
+                $filelist[$code] = ['amc' => '', 'cif' => '', 'dif' => ''];
 
             // If the file is in this directory, then copy it into the CSVImport storage directory
             $modified_filename = substr($filename, 0, -3);
@@ -1209,7 +1142,7 @@ class AMCSDUpdateService
             //  database codes with filenames for CSVImporting...
             $code = self::getDatabaseCode($modified_basedir.'dif/'.$filename);
             if ( !isset($filelist[$code]) )
-                $filelist[$code] = array('amc' => '', 'cif' => '', 'dif' => '');
+                $filelist[$code] = ['amc' => '', 'cif' => '', 'dif' => ''];
 
             // If the file is in this directory, then copy it into the CSVImport storage directory
             $modified_filename = substr($filename, 0, -3);
@@ -1269,7 +1202,7 @@ class AMCSDUpdateService
     {
         $contents = file_get_contents($filename);
         $pattern = '/_database_code_amcsd (\d{7,7})/';
-        $matches = array();
+        $matches = [];
         preg_match($pattern, $contents, $matches);
 
         return $matches[1];

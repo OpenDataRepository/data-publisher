@@ -39,21 +39,21 @@ class ODRUserProfileForm extends AbstractType
         $builder->add(
             'user_id',
             HiddenType::class,
-            array(
+            [
                 'required' => true,
                 'label'  => 'user_id',
                 'data' => $target_user_id,
                 'mapped' => false,
-            )
+            ]
         );
 
         $builder->add(
             'email',
             EmailType::class,
-            array(
+            [
                 'required' => true,
                 'label'  => 'Email',
-            )
+            ]
         );
 
         if ($target_user_id == 0) {
@@ -61,59 +61,59 @@ class ODRUserProfileForm extends AbstractType
             $builder->add(
                 'plainPassword',
                 RepeatedType::class,
-                array(
+                [
                     'type' => PasswordType::class,
                     'error_bubbling' => true,   // required for errors to show when $form->isValid() is called
-                    'first_options' => array('label' => 'Password'),
-                    'second_options' => array('label' => 'Confirm Password'),
+                    'first_options' => ['label' => 'Password'],
+                    'second_options' => ['label' => 'Confirm Password'],
                     'invalid_message' => 'The password fields must match',
-                )
+                ]
             );
         }
 
         $builder->add(
             'firstName',
             TextType::class,
-            array(
+            [
                 'required' => false,
                 'label'  => 'First Name',
-            )
+            ]
         );
 
         $builder->add(
             'lastName',
             TextType::class,
-            array(
+            [
                 'required' => false,
                 'label'  => 'Last Name',
-            )
+            ]
         );
 
         $builder->add(
             'institution',
             TextType::class,
-            array(
+            [
                 'required' => false,
                 'label'  => 'Institution',
-            )
+            ]
         );
 
         $builder->add(
             'position',
             TextType::class,
-            array(
+            [
                 'required' => false,
                 'label'  => 'Position',
-            )
+            ]
         );
 
         $builder->add(
             'phoneNumber',
             TextType::class,
-            array(
+            [
                 'required' => false,
                 'label'  => 'Phone Number',
-            )
+            ]
         );
 
     }
@@ -138,6 +138,7 @@ class ODRUserProfileForm extends AbstractType
      *
      * @return string The prefix of the template block name
      */
+    #[\Override]
     public function getBlockPrefix()
     {
         return 'ODRUserProfileForm';
@@ -149,6 +150,6 @@ class ODRUserProfileForm extends AbstractType
      */
     public function configureOptions(OptionsResolver $resolver)
     {
-        $resolver->setDefaults(array('target_user_id' => 0));
+        $resolver->setDefaults(['target_user_id' => 0]);
     }
 }

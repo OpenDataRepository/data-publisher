@@ -20,44 +20,15 @@ use Symfony\Component\Security\Core\Authentication\Token\AnonymousToken;
 class WPAutoLoginSubscriber implements EventSubscriberInterface
 {
     /**
-     * @var string
-     */
-    private $env;
-
-    /**
-     * @var ContainerInterface
-     */
-    private $container;
-
-    /**
-     * @var UserManager
-     */
-    private $user_manager;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * ODREventSubscriber constructor.
      *
-     * @param string $environment
+     * @param string $env
      * @param ContainerInterface $container
      * @param UserManager $user_manager
      * @param Logger $logger
      */
-    public function __construct(
-        string $environment,
-        ContainerInterface $container,
-        UserManager $user_manager,
-        Logger $logger
-    ) {
-        $this->env = $environment;
-        $this->container = $container;
-        $this->user_manager = $user_manager;
-        $this->logger = $logger;
+    public function __construct(private readonly string $env, private readonly ContainerInterface $container, private readonly UserManager $user_manager, private readonly Logger $logger)
+    {
     }
 
 
@@ -66,12 +37,12 @@ class WPAutoLoginSubscriber implements EventSubscriberInterface
      */
     public static function getSubscribedEvents()
     {
-        return array(
+        return [
             KernelEvents::CONTROLLER => [
                 ['onKernelControllerPre', 10],
                 ['onKernelControllerPost', -10],
             ],
-        );
+        ];
     }
 
     /**
@@ -149,7 +120,7 @@ class WPAutoLoginSubscriber implements EventSubscriberInterface
                         $user->setLastName($odr_wordpress_user_last_name);
                         $user->setEmail($odr_wordpress_user);
                         $user->setPlainPassword(random_bytes(8));
-                        $user->setRoles(array('ROLE_USER'));
+                        $user->setRoles(['ROLE_USER']);
                         $user->setEnabled(1);
                         $this->user_manager->updateUser($user);
 

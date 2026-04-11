@@ -91,7 +91,7 @@ class MassEditController extends ODRCustomController
      */
     public function massEditAction($datatype_id, $search_theme_id, $search_key, $offset, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -200,11 +200,11 @@ class MassEditController extends ODRCustomController
             $session = $request->getSession();
             $list = $session->get('mass_edit_datarecord_lists');
             if ($list == null)
-                $list = array();
+                $list = [];
 
-            $list[$odr_tab_id] = array(
+            $list[$odr_tab_id] = [
                 'encoded_search_key' => $search_key
-            );
+            ];
             $session->set('mass_edit_datarecord_lists', $list);
 
 
@@ -212,7 +212,7 @@ class MassEditController extends ODRCustomController
             // In order for the MassEditTrigger event to work, it needs a list of datafields that
             //  render plugins might want to overwrite...easiest way to do this is to first figure
             //  out whether the datatype has any plugins that listen to the MassEditTrigger event
-            $mass_edit_trigger_plugins = array();
+            $mass_edit_trigger_plugins = [];
 
             $dt_array = $database_info_service->getDatatypeArray($datatype_id, false);    // not allowed to mass edit linked datatypes
             foreach ($dt_array as $dt_id => $dt) {
@@ -224,7 +224,7 @@ class MassEditController extends ODRCustomController
                         //  so it can be queried later
                         $plugin_classname = $rpi['renderPlugin']['pluginClassName'];
                         if ( !isset($mass_edit_trigger_plugins[$plugin_classname]) )
-                            $mass_edit_trigger_plugins[$plugin_classname] = array();
+                            $mass_edit_trigger_plugins[$plugin_classname] = [];
                         $mass_edit_trigger_plugins[$plugin_classname][] = $rpi;
                     }
                 }
@@ -239,7 +239,7 @@ class MassEditController extends ODRCustomController
                                 //  its name so it can be queried later
                                 $plugin_classname = $rpi['renderPlugin']['pluginClassName'];
                                 if ( !isset($mass_edit_trigger_plugins[$plugin_classname]) )
-                                    $mass_edit_trigger_plugins[$plugin_classname] = array();
+                                    $mass_edit_trigger_plugins[$plugin_classname] = [];
                                 $mass_edit_trigger_plugins[$plugin_classname][] = $rpi;
                             }
                         }
@@ -248,7 +248,7 @@ class MassEditController extends ODRCustomController
             }
 
             // Now that the relevant plugins have been found...
-            $mass_edit_trigger_datafields = array();
+            $mass_edit_trigger_datafields = [];
 
             foreach ($mass_edit_trigger_plugins as $plugin_classname => $rpi_list) {
                 // ...load up each of the plugins...
@@ -263,14 +263,14 @@ class MassEditController extends ODRCustomController
                     $ret = $plugin_svc->getMassEditOverrideFields($rpi);
                     foreach ($ret as $df_id) {
                         if ( !isset($mass_edit_trigger_datafields[$df_id]) )
-                            $mass_edit_trigger_datafields[$df_id] = array();
+                            $mass_edit_trigger_datafields[$df_id] = [];
 
                         // Need to be able to differentiate between which plugin the user requested
                         //  in case the field has multiple plugins that could be run
-                        $mass_edit_trigger_datafields[$df_id][] = array(
+                        $mass_edit_trigger_datafields[$df_id][] = [
                             'plugin_id' => $rp_id,
                             'plugin_name' => $rp_name
-                        );
+                        ];
                     }
                 }
             }
@@ -280,17 +280,17 @@ class MassEditController extends ODRCustomController
             // Generate the HTML required for a header
             $header_html = $templating->render(
                 'ODRAdminBundle:MassEdit:massedit_header.html.twig',
-                array(
+                [
                     'search_theme_id' => $search_theme_id,
                     'search_key' => $search_key,
                     'offset' => $offset,
-                )
+                ]
             );
 
             // Get the mass edit page rendered
             $page_html = $odr_render_service->getMassEditHTML($user, $datatype, $odr_tab_id, $mass_edit_trigger_datafields);
 
-            $return['d'] = array( 'html' => $header_html.$page_html );
+            $return['d'] = [ 'html' => $header_html.$page_html ];
         }
         catch (\Exception $e) {
             $source = 0x50ff5a99;
@@ -315,7 +315,7 @@ class MassEditController extends ODRCustomController
      */
     public function massUpdateAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -336,15 +336,15 @@ class MassEditController extends ODRCustomController
             $datatype_id = $post['datatype_id'];
 
             // The rest of these are optional
-            $datafields = array();
+            $datafields = [];
             if ( isset($post['datafields']) )
                 $datafields = $post['datafields'];
 
-            $public_status = array();
+            $public_status = [];
             if ( isset($post['public_status']) )
                 $public_status = $post['public_status'];
 
-            $event_triggers = array();
+            $event_triggers = [];
             if ( isset($post['event_triggers']) )
                 $event_triggers = $post['event_triggers'];
 
@@ -400,10 +400,10 @@ class MassEditController extends ODRCustomController
             // ----------------------------------------
             // Check whether any jobs that are currently running would interfere with a newly
             //  created 'mass_edit' job for this datatype
-            $new_job_data = array(
+            $new_job_data = [
                 'job_type' => 'mass_edit',
                 'target_entity' => $datatype,
-            );
+            ];
 
             $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
@@ -453,8 +453,8 @@ class MassEditController extends ODRCustomController
             // ----------------------------------------
             // Perform some rudimentary validation on the datafields marked for this mass update
             // Also, organize the datafields by datatype for later use
-            $datafield_list = array();
-            $datatype_list = array();
+            $datafield_list = [];
+            $datatype_list = [];
 
             foreach ($datafields as $df_id => $value) {
                 /** @var DataFields $df */
@@ -536,7 +536,7 @@ class MassEditController extends ODRCustomController
 
             // If the user wants to trigger the MassEditTrigger event, then just need to ensure the
             //  datafield belongs to this datatype
-            $plugin_response_cache = array();
+            $plugin_response_cache = [];
             foreach ($event_triggers as $df_id => $plugin_ids) {
                 // Ensure the datafield belongs to the top-level datatype or one of its descendants
                 $tmp = self::getDatafieldArray($dt_array, $df_id);
@@ -633,7 +633,7 @@ class MassEditController extends ODRCustomController
             if ( count($public_status) > 0 || (count($datafield_list) > 0 && count($datarecords) > 0) ) {
                 $job_type = 'mass_edit';
                 $target_entity = 'datatype_'.$datatype_id;
-                $additional_data = array('description' => 'Mass Edit of DataType '.$datatype_id, 'datafield_list' => array_keys($datafield_list));
+                $additional_data = ['description' => 'Mass Edit of DataType '.$datatype_id, 'datafield_list' => array_keys($datafield_list)];
                 $restrictions = '';
                 $total = -1;    // TODO - better way of dealing with this?
                 $reuse_existing = false;
@@ -646,7 +646,7 @@ class MassEditController extends ODRCustomController
 
             // ----------------------------------------
             // Set the url for mass updating public status
-            $url = $this->generateUrl('odr_mass_update_worker_status', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+            $url = $this->generateUrl('odr_mass_update_worker_status', [], UrlGeneratorInterface::ABSOLUTE_URL);
 
             $job_count = 0;
 
@@ -663,10 +663,10 @@ class MassEditController extends ODRCustomController
                     AND gp_drm.prevent_user_edits = 0
                     AND dr.deletedAt IS NULL
                     AND gp_dr.deletedAt IS NULL AND gp_drm.deletedAt IS NULL'
-                )->setParameters( array('datatype_id' => $dt_id) );
+                )->setParameters( ['datatype_id' => $dt_id] );
                 $results = $query->getArrayResult();
 
-                $all_datarecord_ids = array();
+                $all_datarecord_ids = [];
                 foreach ($results as $num => $tmp)
                     $all_datarecord_ids[] = $tmp['dr_id'];
 
@@ -681,7 +681,7 @@ class MassEditController extends ODRCustomController
 
                     $priority = 1024;   // should be roughly default priority
                     $payload = json_encode(
-                        array(
+                        [
                             "job_type" => 'public_status_change',
                             "tracked_job_id" => $tracked_job_id,
                             "user_id" => $user->getId(),
@@ -692,7 +692,7 @@ class MassEditController extends ODRCustomController
                             "redis_prefix" => $redis_prefix,    // debug purposes only
                             "url" => $url,
                             "api_key" => $api_key,
-                        )
+                        ]
                     );
 
                     $delay = 15;    // TODO - delay set rather high because unable to determine how many jobs need to be created beforehand...better way of dealing with this?
@@ -703,7 +703,7 @@ class MassEditController extends ODRCustomController
 
             // ----------------------------------------
             // Set the url for mass updating datarecord values
-            $url = $this->generateUrl('odr_mass_update_worker_values', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+            $url = $this->generateUrl('odr_mass_update_worker_values', [], UrlGeneratorInterface::ABSOLUTE_URL);
 
             // TODO - ...modify this to only create one background job per datarecord?
             // TODO - ...this would reduce the number of events fired, but there will still be multiple events if modifying child records
@@ -738,7 +738,7 @@ class MassEditController extends ODRCustomController
                         WHERE df.id = :datafield_id AND gp_drm.prevent_user_edits = 0
                         AND df.deletedAt IS NULL AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL
                         AND gp_dr.deletedAt IS NULL AND gp_drm.deletedAt IS NULL'
-                    )->setParameters( array('datafield_id' => $df_id) );
+                    )->setParameters( ['datafield_id' => $df_id] );
                 }
                 else {
                     $query = $em->createQuery(
@@ -752,11 +752,11 @@ class MassEditController extends ODRCustomController
                         AND gp_drm.prevent_user_edits = 0
                         AND df.deletedAt IS NULL AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL
                         AND gp_dr.deletedAt IS NULL AND gp_drm.deletedAt IS NULL'
-                    )->setParameters( array('datafield_id' => $df_id, 'public_date' => '2200-01-01 00:00:00') );
+                    )->setParameters( ['datafield_id' => $df_id, 'public_date' => '2200-01-01 00:00:00'] );
                 }
                 $results = $query->getArrayResult();
 
-                $all_datarecord_ids = array();
+                $all_datarecord_ids = [];
                 foreach ($results as $num => $tmp)
                     $all_datarecord_ids[] = $tmp['dr_id'];
 
@@ -770,7 +770,7 @@ class MassEditController extends ODRCustomController
                     $job_count++;
 
                     $priority = 1024;   // should be roughly default priority
-                    $payload = array(
+                    $payload = [
                         "job_type" => 'value_change',
                         "tracked_job_id" => $tracked_job_id,
                         "user_id" => $user->getId(),
@@ -781,7 +781,7 @@ class MassEditController extends ODRCustomController
                         "redis_prefix" => $redis_prefix,    // debug purposes only
                         "url" => $url,
                         "api_key" => $api_key,
-                    );
+                    ];
 
 
                     if ( isset($datafields[$df_id]) ) {
@@ -812,7 +812,7 @@ class MassEditController extends ODRCustomController
             $em->persist($tracked_job);
             $em->flush();
 
-            $return['d'] = array('tracked_job_id' => $tracked_job_id);
+            $return['d'] = ['tracked_job_id' => $tracked_job_id];
 
         }
         catch (\Exception $e) {
@@ -843,10 +843,10 @@ class MassEditController extends ODRCustomController
         // Attempt to locate the requested cached datafield array entry...
         foreach ($dt_array as $dt_id => $dt) {
             if ( isset($dt['dataFields'][$df_id]) ) {
-                return array(
+                return [
                     'dt_id' => $dt_id,
                     'cached_df' => $dt['dataFields'][$df_id]
-                );
+                ];
             }
         }
 
@@ -891,7 +891,7 @@ class MassEditController extends ODRCustomController
         }
 
         // If this point is reached, then the given render plugin doesn't affect the given datafield
-        return array();
+        return [];
     }
 
 
@@ -904,7 +904,7 @@ class MassEditController extends ODRCustomController
      */
     public function massUpdateWorkerStatusAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -972,7 +972,7 @@ class MassEditController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $user_manager->findUserBy( array('id' => $user_id) );
+            $user = $user_manager->findUserBy( ['id' => $user_id] );
 
             // Ensure user has permissions to be doing this
             if ( !$permissions_service->canChangePublicStatus($user, $datarecord) )
@@ -990,7 +990,7 @@ class MassEditController extends ODRCustomController
 
             if ( $public_status == -1 && $datarecord->isPublic() ) {
                 // Make the datarecord non-public
-                $properties = array('publicDate' => new \DateTime('2200-01-01 00:00:00'));
+                $properties = ['publicDate' => new \DateTime('2200-01-01 00:00:00')];
                 $entity_modify_service->updateDatarecordMeta($user, $datarecord, $properties);
 
                 $updated = true;
@@ -998,7 +998,7 @@ class MassEditController extends ODRCustomController
             }
             else if ( $public_status == 1 && !$datarecord->isPublic() ) {
                 // Make the datarecord public
-                $properties = array('publicDate' => new \DateTime());
+                $properties = ['publicDate' => new \DateTime()];
                 $entity_modify_service->updateDatarecordMeta($user, $datarecord, $properties);
 
                 $updated = true;
@@ -1012,7 +1012,7 @@ class MassEditController extends ODRCustomController
                     $event = new DatarecordPublicStatusChangedEvent($datarecord, $user);
                     $dispatcher->dispatch(DatarecordPublicStatusChangedEvent::NAME, $event);
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
 //                if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -1065,7 +1065,7 @@ class MassEditController extends ODRCustomController
      */
     public function massUpdateWorkerValuesAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1104,7 +1104,7 @@ class MassEditController extends ODRCustomController
             if ( isset($post['value']) )
                 $value = $post['value'];
 
-            $event_trigger = array();
+            $event_trigger = [];
             if ( isset($post['event_trigger']) )
                 $event_trigger = json_decode( $post['event_trigger'] );
 
@@ -1161,7 +1161,7 @@ class MassEditController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $user_manager->findUserBy( array('id' => $user_id) );
+            $user = $user_manager->findUserBy( ['id' => $user_id] );
 
             // Ensure user has permissions to be doing this
             if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
@@ -1189,9 +1189,9 @@ class MassEditController extends ODRCustomController
 
                 if ( !$datafield->getPreventUserEdits() && !is_null($value) ) {
                     // Load all selection objects attached to this radio object
-                    $radio_selections = array();
+                    $radio_selections = [];
                     /** @var RadioSelection[] $tmp */
-                    $tmp = $repo_radio_selection->findBy( array('dataRecordFields' => $drf->getId()) );
+                    $tmp = $repo_radio_selection->findBy( ['dataRecordFields' => $drf->getId()] );
                     foreach ($tmp as $rs)
                         $radio_selections[ $rs->getRadioOption()->getId() ] = $rs;
                     /** @var RadioSelection[] $radio_selections */
@@ -1207,7 +1207,7 @@ class MassEditController extends ODRCustomController
                             $radio_selection = $entity_create_service->createRadioSelection($user, $radio_option, $drf);
 
                             // Ensure it has the correct selected value
-                            $properties = array('selected' => $selected);
+                            $properties = ['selected' => $selected];
                             $entity_modify_service->updateRadioSelection($user, $radio_selection, $properties);
 
                             $ret .= 'setting radio_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', radio_option_id '.$radio_option_id.' to '.$selected."\n";
@@ -1227,7 +1227,7 @@ class MassEditController extends ODRCustomController
                         foreach ($radio_selections as $radio_option_id => $rs) {
                             if ( $rs->getSelected() == 1 ) {
                                 // Ensure this RadioSelection is deselected
-                                $properties = array('selected' => 0);
+                                $properties = ['selected' => 0];
                                 $entity_modify_service->updateRadioSelection($user, $rs, $properties, true);    // don't flush immediately...
                                 $changes_made = true;
 
@@ -1264,7 +1264,7 @@ class MassEditController extends ODRCustomController
 
                 if ( !$datafield->getPreventUserEdits() && !is_null($value) ) {
                     // Need to ensure the values are numeric
-                    $selections = array();
+                    $selections = [];
                     foreach ($value as $tag_id => $val)
                         $selections[$tag_id] = intval($val);
 
@@ -1297,7 +1297,7 @@ class MassEditController extends ODRCustomController
                     FROM ODRAdminBundle:File AS file
                     WHERE file.dataRecord = :dr_id AND file.dataField = :df_id
                     AND file.deletedAt IS NULL'
-                )->setParameters( array('dr_id' => $datarecord_id, 'df_id' => $datafield_id) );
+                )->setParameters( ['dr_id' => $datarecord_id, 'df_id' => $datafield_id] );
                 $results = $query->getResult();
 
                 $has_files = false;
@@ -1306,13 +1306,13 @@ class MassEditController extends ODRCustomController
 
                 if ( !$datafield->getPreventUserEdits() && !is_null($value) && $value !== 0 && $has_files ) {
                     // Only makes sense to do stuff if there's at least one file uploaded
-                    $files_changed = array();
+                    $files_changed = [];
 
                     foreach ($results as $num => $file) {
                         /** @var File $file */
                         if ( $file->isPublic() && $value == -1 ) {
                             // File is public, but needs to be non-public
-                            $properties = array('publicDate' => new \DateTime('2200-01-01 00:00:00'));
+                            $properties = ['publicDate' => new \DateTime('2200-01-01 00:00:00')];
                             $entity_modify_service->updateFileMeta($user, $file, $properties, true);    // don't flush immediately
 
                             // Delete the decrypted version of the file, if it exists
@@ -1328,7 +1328,7 @@ class MassEditController extends ODRCustomController
                         }
                         else if ( !$file->isPublic() && $value == 1 ) {
                             // File is non-public, but needs to be public
-                            $properties = array('publicDate' => new \DateTime());
+                            $properties = ['publicDate' => new \DateTime()];
                             $entity_modify_service->updateFileMeta($user, $file, $properties, true);    // don't flush immediately
 
                             // Immediately decrypt the file...don't need to specify a
@@ -1349,7 +1349,7 @@ class MassEditController extends ODRCustomController
                                 $event = new FilePublicStatusChangedEvent($file, $datafield, 'mass_edit');
                                 $dispatcher->dispatch(FilePublicStatusChangedEvent::NAME, $event);
                             }
-                            catch (\Exception $e) {
+                            catch (\Exception) {
                                 // ...don't want to rethrow the error since it'll interrupt everything after this
                                 //  event
 //                                if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -1386,7 +1386,7 @@ class MassEditController extends ODRCustomController
                     FROM ODRAdminBundle:Image AS image
                     WHERE image.dataRecord = :dr_id AND image.dataField = :df_id
                     AND image.original = 1 AND image.deletedAt IS NULL'
-                )->setParameters( array('dr_id' => $datarecord_id, 'df_id' => $datafield_id) );
+                )->setParameters( ['dr_id' => $datarecord_id, 'df_id' => $datafield_id] );
                 $results = $query->getResult();
 
                 $has_images = false;
@@ -1395,13 +1395,13 @@ class MassEditController extends ODRCustomController
 
                 if ( !$datafield->getPreventUserEdits() && !is_null($value) && $value !== 0 && $has_images ) {
                     // Only makes sense to do stuff if there's at least one image uploaded
-                    $images_changed = array();
+                    $images_changed = [];
 
                     foreach ($results as $num => $image) {
                         /** @var Image $image */
                         if ( $image->isPublic() && $value == -1 ) {
                             // Image is public, but needs to be non-public
-                            $properties = array('publicDate' => new \DateTime('2200-01-01 00:00:00'));
+                            $properties = ['publicDate' => new \DateTime('2200-01-01 00:00:00')];
                             $entity_modify_service->updateImageMeta($user, $image, $properties, true);    // don't flush immediately
 
                             // Delete the decrypted version of the file, if it exists
@@ -1417,7 +1417,7 @@ class MassEditController extends ODRCustomController
                         }
                         else if ( !$image->isPublic() && $value == 1 ) {
                             // Image is non-public, but needs to be public
-                            $properties = array('publicDate' => new \DateTime());
+                            $properties = ['publicDate' => new \DateTime()];
                             $entity_modify_service->updateImageMeta($user, $image, $properties, true);    // don't flush immediately
 
                             // Immediately decrypt the image...don't need to specify a
@@ -1438,7 +1438,7 @@ class MassEditController extends ODRCustomController
                                 $event = new FilePublicStatusChangedEvent($image, $datafield, 'mass_edit');
                                 $dispatcher->dispatch(FilePublicStatusChangedEvent::NAME, $event);
                             }
-                            catch (\Exception $e) {
+                            catch (\Exception) {
                                 // ...don't want to rethrow the error since it'll interrupt everything after this
                                 //  event
 //                                if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -1477,7 +1477,7 @@ class MassEditController extends ODRCustomController
                 if ( !$datafield->getPreventUserEdits() && !is_null($value) ) {
                     if ($old_value !== $value) {
                         // Make the change to the value stored in the storage entity
-                        $entity_modify_service->updateStorageEntity($user, $storage_entity, array('value' => new \DateTime($value)));
+                        $entity_modify_service->updateStorageEntity($user, $storage_entity, ['value' => new \DateTime($value)]);
 
                         $ret .= 'changing datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' from "'.$old_value.'" to "'.$value."\"\n";
                     }
@@ -1540,7 +1540,7 @@ class MassEditController extends ODRCustomController
 
                     if ($old_value !== $value) {
                         // Make the change to the value stored in the storage entity
-                        $entity_modify_service->updateStorageEntity($user, $storage_entity, array('value' => $value));
+                        $entity_modify_service->updateStorageEntity($user, $storage_entity, ['value' => $value]);
 
                         $ret .= 'changing datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().' from "'.$old_value.'" to "'.$value."\"\n";
                     }
@@ -1608,7 +1608,7 @@ class MassEditController extends ODRCustomController
                         $event = new DatatypeImportedEvent($datatype, $user);
                         $dispatcher->dispatch(DatatypeImportedEvent::NAME, $event);
                     }
-                    catch (\Exception $e) {
+                    catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
                         //  event
 //                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -1651,7 +1651,7 @@ class MassEditController extends ODRCustomController
      */
     public function massDeleteAction($datatype_id, $odr_tab_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1751,10 +1751,10 @@ class MassEditController extends ODRCustomController
             // Check whether any jobs that are currently running would interfere with the deletion
             //  of this datarecord
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find( $datarecords[0] );
-            $new_job_data = array(
+            $new_job_data = [
                 'job_type' => 'delete_datarecord',
                 'target_entity' => $datarecord,
-            );
+            ];
 
             $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
@@ -1785,10 +1785,10 @@ class MassEditController extends ODRCustomController
                     AND gp_drm.prevent_user_edits = 0
                     AND dr.deletedAt IS NULL AND parent_dr.deletedAt IS NULL
                     AND gp_dr.deletedAt IS NULL AND gp_drm.deletedAt IS NULL'
-                )->setParameters( array('parent_ids' => $parent_ids) );
+                )->setParameters( ['parent_ids' => $parent_ids] );
                 $results = $query->getArrayResult();
 
-                $parent_ids = array();
+                $parent_ids = [];
                 foreach ($results as $result) {
                     $dr_id = $result['dr_id'];
 
@@ -1806,14 +1806,14 @@ class MassEditController extends ODRCustomController
                 JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
                 WHERE ldt.descendant IN (:datarecord_ids)
                 AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL'
-            )->setParameters( array('datarecord_ids' => $datarecords_to_delete) );
+            )->setParameters( ['datarecord_ids' => $datarecords_to_delete] );
             $results = $query->getArrayResult();
             // NOTE - the grandparent record intentionally isn't loaded here, for the same reason as
             //  EntityDeletionService...but it's irrelevant here, because MassEdit only deletes
             //  top-level records
 
-            $dr_ids = array();
-            $dr_uuids = array();
+            $dr_ids = [];
+            $dr_uuids = [];
             foreach ($results as $result) {
                 $dr_id = $result['dr_id'];
                 $dr_uuid = $result['dr_uuid'];
@@ -1838,11 +1838,11 @@ class MassEditController extends ODRCustomController
                 AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL
                 AND dtsf.deletedAt IS NULL AND l_dt.deletedAt IS NULL'
             )->setParameters(
-                array( 'datarecords_to_delete' => $datarecords_to_delete )
+                [ 'datarecords_to_delete' => $datarecords_to_delete ]
             );
             $results = $query->getArrayResult();
 
-            $datatypes_to_clear = array();
+            $datatypes_to_clear = [];
             foreach ($results as $result) {
                 $dt_id = $result['dt_id'];
                 $datatypes_to_clear[] = $dt_id;
@@ -1863,11 +1863,11 @@ class MassEditController extends ODRCustomController
                 WHERE (ldt.ancestor IN (:datarecord_ids) OR ldt.descendant IN (:datarecord_ids))
                 AND ldt.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'now' => new \DateTime(),
                     'deleted_by' => $user->getId(),
                     'datarecord_ids' => $datarecords_to_delete
-                )
+                ]
             );
             $rows = $query->execute();
 
@@ -1878,10 +1878,10 @@ class MassEditController extends ODRCustomController
                 WHERE drm.dataRecord IN (:datarecord_ids)
                 AND drm.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'now' => new \DateTime(),
                     'datarecord_ids' => $datarecords_to_delete
-                )
+                ]
             );
             $rows = $query->execute();
 
@@ -1892,11 +1892,11 @@ class MassEditController extends ODRCustomController
                 WHERE dr.id IN (:datarecord_ids)
                 AND dr.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'now' => new \DateTime(),
                     'deleted_by' => $user->getId(),
                     'datarecord_ids' => $datarecords_to_delete
-                )
+                ]
             );
             $rows = $query->execute();
 
@@ -1965,32 +1965,32 @@ class MassEditController extends ODRCustomController
                'SELECT dr.id AS dr_id
                 FROM ODRAdminBundle:DataRecord AS dr
                 WHERE dr.deletedAt IS NULL AND dr.dataType = :datatype'
-            )->setParameters(array('datatype' => $datatype->getId()));
+            )->setParameters(['datatype' => $datatype->getId()]);
             $remaining = $query->getArrayResult();
 
             if ( count($remaining) > 0 ) {
                 $search_key = $search_key_service->encodeSearchKey(
-                    array(
+                    [
                         'dt_id' => $datatype->getId()
-                    )
+                    ]
                 );
 
                 // If at least one datarecord remains, redirect to the search results list
                 $preferred_theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'search_results');
                 $url = $this->generateUrl(
                     'odr_search_render',
-                    array(
+                    [
                         'search_theme_id' => $preferred_theme_id,
                         'search_key' => $search_key
-                    )
+                    ]
                 );
             }
             else {
                 // ...otherwise, return to the list of datatypes
-                $url = $this->generateUrl('odr_list_types', array('section' => 'databases'));
+                $url = $this->generateUrl('odr_list_types', ['section' => 'databases']);
             }
 
-            $return['d'] = array('redirect_url' => $url);
+            $return['d'] = ['redirect_url' => $url];
         }
         catch (\Exception $e) {
             // Don't commit changes if any error was encountered...

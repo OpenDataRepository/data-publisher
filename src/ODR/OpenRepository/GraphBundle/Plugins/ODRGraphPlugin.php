@@ -23,37 +23,6 @@ use Pheanstalk\Pheanstalk;
 abstract class ODRGraphPlugin
 {
     /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-    /**
-     * @var Pheanstalk
-     */
-    private $pheanstalk;
-
-    /**
-     * @var string
-     */
-    private $site_baseurl;
-
-    /**
-     * @var string
-     */
-    private $odr_web_directory;
-
-    /**
-     * @var string
-     */
-    private $odr_files_directory;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * ODRGraph Plugin constructor.
      *
      * @param EngineInterface $templating
@@ -63,20 +32,8 @@ abstract class ODRGraphPlugin
      * @param string $odr_files_directory
      * @param Logger $logger
      */
-    public function __construct(
-        EngineInterface $templating,
-        Pheanstalk $pheanstalk,
-        string $site_baseurl,
-        string $odr_web_directory,
-        string $odr_files_directory,
-        Logger $logger
-    ) {
-        $this->templating = $templating;
-        $this->pheanstalk = $pheanstalk;
-        $this->site_baseurl = $site_baseurl;
-        $this->odr_web_directory = $odr_web_directory;
-        $this->odr_files_directory = $odr_files_directory;
-        $this->logger = $logger;
+    public function __construct(private readonly EngineInterface $templating, private readonly Pheanstalk $pheanstalk, private readonly string $site_baseurl, private readonly string $odr_web_directory, private readonly string $odr_files_directory, private readonly Logger $logger)
+    {
     }
 
 
@@ -105,7 +62,7 @@ abstract class ODRGraphPlugin
         //  ...but this is unavoidable since puppeteer needs to access them over https
 
         // Create the JSON data to be passed to the puppeteer server...
-        $json_data = array(
+        $json_data = [
             'site_baseurl' => $this->site_baseurl,
             'odr_web_dir' => $this->odr_web_directory,
 //            'odr_files_dir' => $this->odr_files_directory,
@@ -117,7 +74,7 @@ abstract class ODRGraphPlugin
             'files_to_delete' => $files_to_delete,
 
             'selector' => $page_data['odr_chart_id'],
-        );
+        ];
         $payload = json_encode($json_data);
 
         // ...and send it off
@@ -147,7 +104,7 @@ abstract class ODRGraphPlugin
                     continue;
 
                 // If this cached graph used this file, unlink it to force a rebuild later on
-                if ( strpos($filename, $filename_fragment) !== false ) {
+                if ( str_contains($filename, $filename_fragment) ) {
                     unlink($graph_filepath.'/'.$filename);
 //                    $this->logger->debug('deleting "'.$graph_filepath.'/'.$filename.'"');
                 }

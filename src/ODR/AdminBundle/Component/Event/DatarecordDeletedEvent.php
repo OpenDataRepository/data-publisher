@@ -27,26 +27,6 @@ class DatarecordDeletedEvent extends Event implements ODREventInterface
     // Best practice is apparently to have the Event class define the event name
     const NAME = 'odr.event.datarecord_deleted_event';
 
-    /**
-     * @var int|int[]
-     */
-    private $datarecord_id;
-
-    /**
-     * @var string|string[]
-     */
-    private $datarecord_uuid;
-
-    /**
-     * @var DataType
-     */
-    private $datatype;
-
-    /**
-     * @var ODRUser
-     */
-    private $user;
-
 
     /**
      * DatarecordDeletedEvent constructor.
@@ -56,16 +36,8 @@ class DatarecordDeletedEvent extends Event implements ODREventInterface
      * @param DataType $datatype
      * @param ODRUser $user
      */
-    public function __construct(
-        $datarecord_id,
-        $datarecord_uuid,
-        DataType $datatype,
-        ODRUser $user
-    ) {
-        $this->datarecord_id = $datarecord_id;
-        $this->datarecord_uuid = $datarecord_uuid;
-        $this->datatype = $datatype;
-        $this->user = $user;
+    public function __construct(private $datarecord_id, private $datarecord_uuid, private readonly DataType $datatype, private readonly ODRUser $user)
+    {
     }
 
 
@@ -130,19 +102,19 @@ class DatarecordDeletedEvent extends Event implements ODREventInterface
     public function getErrorInfo()
     {
         if ( !is_array($this->datarecord_id) ) {
-            return array(
+            return [
                 self::NAME,
                 'dr_id '.$this->datarecord_id,
                 'dr_uuid '.$this->datarecord_uuid,
                 'dt '.$this->datatype->getId()
-            );
+            ];
         }
         else {
-            return array(
+            return [
                 self::NAME,
                 'dr_ids '.implode(',', $this->datarecord_id),
                 'dt '.$this->datatype->getId()
-            );
+            ];
         }
     }
 }

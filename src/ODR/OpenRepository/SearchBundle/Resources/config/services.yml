@@ -10,9 +10,9 @@ services:
     odr.search_api_service_no_conflict:
         class: ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIServiceNoConflict
         arguments:
-            $entity_manager: "@doctrine.orm.entity_manager"
-            $datatree_info_service: "@odr.datatree_info_service"
-            $datarecord_export_service: "@odr.datarecord_export_service"
+            $em: "@doctrine.orm.entity_manager"
+            $dti_service: "@odr.datatree_info_service"
+            $dre_service: "@odr.datarecord_export_service"
             $search_service: "@odr.search_service"
             $search_cache_service: "@odr.search_cache_service"
             $search_key_service: "@odr.search_key_service"
@@ -23,7 +23,7 @@ services:
     odr.search_sidebar_service:
         class: ODR\OpenRepository\SearchBundle\Component\Service\SearchSidebarService
         arguments:
-            $entity_manager: "@doctrine.orm.entity_manager"
+            $em: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
             $database_info_service: "@odr.database_info_service"
             $datatree_info_service: "@odr.datatree_info_service"
@@ -37,7 +37,7 @@ services:
         arguments:
             $search_key_char_limit: "%search_key_char_limit%"
             $container: "@service_container"    # needed in order to execute arbitrary render plugins
-            $entity_manager: "@doctrine.orm.entity_manager"
+            $em: "@doctrine.orm.entity_manager"
             $datatree_info_service: "@odr.datatree_info_service"
             $search_service: "@odr.search_service"
             $search_key_service: "@odr.search_key_service"
@@ -48,7 +48,7 @@ services:
     odr.search_cache_service:
         class: ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService
         arguments:
-            $entity_manager: "@doctrine.orm.entity_manager"
+            $em: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
             $datatree_info_service: "@odr.datatree_info_service"
             $logger: "@logger"
@@ -59,7 +59,7 @@ services:
         class: ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService
         arguments:
             $search_key_char_limit: "%search_key_char_limit%"
-            $entity_manager: "@doctrine.orm.entity_manager"
+            $em: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
             $database_info_service: "@odr.database_info_service"
             $datatree_info_service: "@odr.datatree_info_service"
@@ -70,7 +70,7 @@ services:
     odr.search_service:
         class: ODR\OpenRepository\SearchBundle\Component\Service\SearchService
         arguments:
-            $entity_manager: "@doctrine.orm.entity_manager"
+            $em: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
             $datatree_info_service: "@odr.datatree_info_service"
             $search_query_service: "@odr.search_query_service"
@@ -81,7 +81,7 @@ services:
         class: ODR\OpenRepository\SearchBundle\Component\Service\SearchQueryService
         public: false
         arguments:
-            $entity_manager: "@doctrine.orm.entity_manager"
+            $em: "@doctrine.orm.entity_manager"
             $logger: "@logger"
 
 

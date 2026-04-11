@@ -26,16 +26,13 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 
 class DatafieldType extends AbstractType
 {
-    private $manager;
-
     /**
      * DatafieldType constructor.
      *
      * @param ObjectManager $manager
      */
-    public function __construct(ObjectManager $manager)
+    public function __construct(private readonly ObjectManager $manager)
     {
-        $this->manager = $manager;
     }
 
 
@@ -54,15 +51,16 @@ class DatafieldType extends AbstractType
      */
     public function configureOptions(OptionsResolver $resolver)
     {
-        $resolver->setDefaults(array(
+        $resolver->setDefaults([
             'invalid_message' => 'This Datafield does not exist',
-        ));
+        ]);
     }
 
 
     /**
      * @inheritdoc
      */
+    #[\Override]
     public function getParent()
     {
         return HiddenType::class;

@@ -15,7 +15,7 @@ class TablePrefixSubscriber implements \Doctrine\Common\EventSubscriber
 
     public function getSubscribedEvents()
     {
-        return array('loadClassMetadata');
+        return ['loadClassMetadata'];
     }
 
     public function loadClassMetadata(LoadClassMetadataEventArgs $args)

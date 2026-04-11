@@ -73,7 +73,7 @@ class DisplayController extends ODRCustomController
      */
     public function legacy_viewAction($datarecord_id, $search_key, $offset, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -88,8 +88,8 @@ class DisplayController extends ODRCustomController
             $search_theme_id = 0;
             // Need to reformat to create proper search key and forward internally to view controller
 
-            $search_param_elements = preg_split("/\|/",$search_key);
-            $search_params = array();
+            $search_param_elements = preg_split("/\|/",(string) $search_key);
+            $search_params = [];
             foreach($search_param_elements as $search_param_element) {
                 $search_param_data = preg_split("/\=/",$search_param_element);
                 $search_params[$search_param_data[0]] = $search_param_data[1];
@@ -135,7 +135,7 @@ class DisplayController extends ODRCustomController
     {
         $time = microtime(true);
         // print "Start: " . $time . "<br />";
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -284,19 +284,19 @@ class DisplayController extends ODRCustomController
 
             // Need this array to exist right now so the part that's not the search header will display
             if ( is_null($search_header) ) {
-                $search_header = array(
+                $search_header = [
                     'page_length' => 0,
                     'next_datarecord_id' => 0,
                     'prev_datarecord_id' => 0,
                     'search_result_current' => 0,
                     'search_result_count' => 0
-                );
+                ];
             }
 
-            $redirect_path = $router->generate('odr_display_view', array('datarecord_id' => 0));    // blank path
+            $redirect_path = $router->generate('odr_display_view', ['datarecord_id' => 0]);    // blank path
             $header_html = $templating->render(
                 'ODRAdminBundle:Display:display_header.html.twig',
-                array(
+                [
                     'page_type' => 'display',
 
                     'can_edit_datarecord' => $can_edit_datarecord,
@@ -317,7 +317,7 @@ class DisplayController extends ODRCustomController
                     'search_result_current' => $search_header['search_result_current'],
                     'search_result_count' => $search_header['search_result_count'],
                     'redirect_path' => $redirect_path,
-                )
+                ]
             );
 
             $now = microtime(true);
@@ -339,10 +339,10 @@ class DisplayController extends ODRCustomController
             // print "NOW: " . $now . "<br />";
             // print "Elapsed: " . ($now - $time) . "<br />";
 
-            $return['d'] = array(
+            $return['d'] = [
                 'datatype_id' => $datatype->getId(),
                 'html' => $header_html.$page_html
-            );
+            ];
 
             // Store which datarecord to scroll to if returning to the search results list
             $session->set('scroll_target', $datarecord->getId());
@@ -387,7 +387,7 @@ class DisplayController extends ODRCustomController
 
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
-                array( 'unique_id' => $datarecord_uuid)
+                [ 'unique_id' => $datarecord_uuid]
             );
             if ($datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
@@ -409,8 +409,8 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
 
             //
-            $baseurl = $this->generateUrl( 'odr_search', array( 'search_slug' => $grandparent_datatype->getSearchSlug()) );
-            $hash = $this->generateUrl( 'odr_display_view', array( 'datarecord_id' => $grandparent_datarecord->getId()) );
+            $baseurl = $this->generateUrl( 'odr_search', [ 'search_slug' => $grandparent_datatype->getSearchSlug()] );
+            $hash = $this->generateUrl( 'odr_display_view', [ 'datarecord_id' => $grandparent_datarecord->getId()] );
 
             // Which type of redirect to use depends on whether this is coming from AJAX or not...
             $params = $request->query->all();
@@ -422,13 +422,13 @@ class DisplayController extends ODRCustomController
                 //  the search that would set it...
 
                 // Get the existing javascript to redirect
-                $return = array(
+                $return = [
                     'r' => 2,    // so common.js::LoadContentFullAjax() updates page instead of reloading
                     't' => '',
-                    'd' => array(
+                    'd' => [
                         'url' => $hash
-                    )
-                );
+                    ]
+                ];
 
                 $response = new Response(json_encode($return));
                 $response->headers->set('Content-Type', 'application/json');
@@ -459,7 +459,7 @@ class DisplayController extends ODRCustomController
      */
     public function filedownloadstartAction($file_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -516,14 +516,14 @@ class DisplayController extends ODRCustomController
             $local_filepath = realpath( $this->getParameter('odr_web_directory').'/'.$file->getUploadDir().'/'.$filename );
             if ( !file_exists($local_filepath) ) {
                 // Need to decrypt the file...generate the url for cURL to use
-                $url = $this->generateUrl('odr_crypto_request', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+                $url = $this->generateUrl('odr_crypto_request', [], UrlGeneratorInterface::ABSOLUTE_URL);
                 $pheanstalk = $this->get('pheanstalk');
                 $api_key = $this->container->getParameter('beanstalk_api_key');
 
                 // Schedule a beanstalk job to start decrypting the file
                 $priority = 1024;   // should be roughly default priority
                 $payload = json_encode(
-                    array(
+                    [
                         "object_type" => 'File',
                         "object_id" => $file_id,
                         "crypto_type" => 'decrypt',
@@ -535,16 +535,16 @@ class DisplayController extends ODRCustomController
                         "redis_prefix" => $redis_prefix,    // debug purposes only
                         "url" => $url,
                         "api_key" => $api_key,
-                    )
+                    ]
                 );
 
                 $delay = 0;
                 $pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
 
                 // Return a URL to monitor decryption progress
-                $monitor_url = $this->generateUrl('odr_get_file_decrypt_progress', array('file_id' => $file_id));
+                $monitor_url = $this->generateUrl('odr_get_file_decrypt_progress', ['file_id' => $file_id]);
 
-                $response = new JsonResponse(array());
+                $response = new JsonResponse([]);
                 $response->setStatusCode(202);
                 $response->headers->set('Location', $monitor_url);
 
@@ -557,10 +557,10 @@ class DisplayController extends ODRCustomController
 
                 if ( $file->getFilesize() == $current_filesize ) {
                     // File exists and is fully decrypted, determine path to download it
-                    $download_url = $this->generateUrl('odr_file_download', array('file_id' => $file_id));
+                    $download_url = $this->generateUrl('odr_file_download', ['file_id' => $file_id]);
 
                     // Return a link to the download URL
-                    $response = new JsonResponse(array());
+                    $response = new JsonResponse([]);
                     $response->setStatusCode(200);
                     $response->headers->set('Location', $download_url);
 
@@ -568,9 +568,9 @@ class DisplayController extends ODRCustomController
                 }
                 else if ( $file->getFilesize() < $current_filesize ) {
                     // Return a URL to monitor decryption progress
-                    $monitor_url = $this->generateUrl('odr_get_file_decrypt_progress', array('file_id' => $file_id));
+                    $monitor_url = $this->generateUrl('odr_get_file_decrypt_progress', ['file_id' => $file_id]);
 
-                    $response = new JsonResponse(array());
+                    $response = new JsonResponse([]);
                     $response->setStatusCode(202);
                     $response->headers->set('Location', $monitor_url);
 
@@ -585,9 +585,9 @@ class DisplayController extends ODRCustomController
                         throw new ODRException('file does not exist, but too much of it is decrypted??');
 
                     // Return a URL to monitor decryption progress
-                    $monitor_url = $this->generateUrl('odr_get_file_decrypt_progress', array('file_id' => $file_id));
+                    $monitor_url = $this->generateUrl('odr_get_file_decrypt_progress', ['file_id' => $file_id]);
 
-                    $response = new JsonResponse(array());
+                    $response = new JsonResponse([]);
                     $response->setStatusCode(202);
                     $response->headers->set('Location', $monitor_url);
 
@@ -605,7 +605,7 @@ class DisplayController extends ODRCustomController
     }
 
     public function fileDownloadByNameAction($file_name, $datatype_id, Request $request) {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -636,10 +636,10 @@ class DisplayController extends ODRCustomController
                 AND fm.originalFileName LIKE :file_name
                 '
             )->setParameters(
-                array(
+                [
                     'data_type_id' => $datatype_id,
                     'file_name' => $file_name,
-                )
+                ]
             );
             // 'non_public_date' => '2200-01-01 00:00:00'
             // AND fm.publicDate != :non_public_date
@@ -653,7 +653,7 @@ class DisplayController extends ODRCustomController
                 // var_dump($file);
                 /** @var File $file */
                 $fileMeta = $em->getRepository('ODRAdminBundle:FileMeta')
-                    ->findBy(array('file' => $file['id']));
+                    ->findBy(['file' => $file['id']]);
                 // var_dump($fileMeta);
                 // if(is_null($fileMeta)) { // what was this doing
                 if(is_array($fileMeta)) {
@@ -771,7 +771,7 @@ class DisplayController extends ODRCustomController
      */
     public function filedownloadAction($file_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -917,7 +917,7 @@ class DisplayController extends ODRCustomController
         //$response->sendHeaders();
 
         // Use symfony's StreamedResponse to send the decrypted file back in chunks to the user
-        $response->setCallback(function () use ($handle) {
+        $response->setCallback(function () use ($handle): void {
             while (!feof($handle)) {
                 $buffer = fread($handle, 65536);    // attempt to send 64Kb at a time
                 echo $buffer;
@@ -940,7 +940,7 @@ class DisplayController extends ODRCustomController
      */
     public function imagedownloadAction($image_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -1121,7 +1121,7 @@ class DisplayController extends ODRCustomController
      */
     public function listallfilesAction($grandparent_datarecord_id, $group_by_datafield, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -1182,7 +1182,7 @@ class DisplayController extends ODRCustomController
             $entity_names = self::extractEntityNames($datatype_array, $datarecord_array);
 
             // Extract the filenames from the cached data arrays, organizing them by user request
-            $file_array = array();
+            $file_array = [];
             if ( !$group_by_datafield )
                 $file_array = self::groupFilesByDatarecord($grandparent_datarecord_id, $entity_names, $datarecord_array);
             else
@@ -1196,20 +1196,20 @@ class DisplayController extends ODRCustomController
                 $key = $grandparent_datatype_id;
 
             if ( empty($file_array[$key]['datafields']) && empty($file_array[$key]['child_datatypes']) )
-                $file_array = array();
+                $file_array = [];
 
 
             // ----------------------------------------
             // Render and return a tree structure of data
             $return['d'] = $templating->render(
                 'ODRAdminBundle:Default:file_download_dialog_form.html.twig',
-                array(
+                [
                     'file_array' => $file_array,
                     'entity_names' => $entity_names,
 
                     'grandparent_datarecord_id' => $grandparent_datarecord_id,
                     'group_by_datafield' => $group_by_datafield,
-                )
+                ]
             );
 
         }
@@ -1239,11 +1239,11 @@ class DisplayController extends ODRCustomController
      */
     private function extractEntityNames(&$datatype_array, &$datarecord_array)
     {
-        $entity_names = array(
-            'datatypes' => array(),
-            'datafields' => array(),
-            'datarecords' => array()
-        );
+        $entity_names = [
+            'datatypes' => [],
+            'datafields' => [],
+            'datarecords' => []
+        ];
 
         foreach ($datatype_array as $dt_id => $dt) {
             // Always want to save the datatype's name, since it might be used during rendering
@@ -1253,10 +1253,10 @@ class DisplayController extends ODRCustomController
                 $typename = $df['dataFieldMeta']['fieldType']['typeName'];
                 if ( $typename === 'File' || $typename === 'Image' ) {
                     // Probably going to display this datafield, save the name
-                    $entity_names['datafields'][$df_id] = array(
+                    $entity_names['datafields'][$df_id] = [
                         'fieldName' => $df['dataFieldMeta']['fieldName'],
                         'typeName' => $typename,
-                    );
+                    ];
                 }
                 else {
                     // Don't want this datafield in the array
@@ -1302,10 +1302,10 @@ class DisplayController extends ODRCustomController
      */
     private function groupFilesByDatarecord($current_datarecord_id, $entity_names, $datarecord_array)
     {
-        $file_array = array(
-            'datafields' => array(),
-            'child_datatypes' => array(),
-        );
+        $file_array = [
+            'datafields' => [],
+            'child_datatypes' => [],
+        ];
 
         $dr = $datarecord_array[$current_datarecord_id];
 
@@ -1313,7 +1313,7 @@ class DisplayController extends ODRCustomController
         foreach ($dr['dataRecordFields'] as $df_id => $drf) {
             // ...and they have files/images uploaded into them...
             if ( !empty($drf['file']) ) {
-                $file_array['datafields'][$df_id] = array();
+                $file_array['datafields'][$df_id] = [];
                 foreach ($drf['file'] as $num => $file) {
                     // ...then store the file_id and the filename
                     $file_id = $file['id'];
@@ -1321,7 +1321,7 @@ class DisplayController extends ODRCustomController
                 }
             }
             if ( !empty($drf['image']) ) {
-                $file_array['datafields'][$df_id] = array();
+                $file_array['datafields'][$df_id] = [];
                 foreach ($drf['image'] as $num => $thumbnail_image) {
                     // Don't want to store the thumbnail image
                     $image = $thumbnail_image['parent'];
@@ -1336,7 +1336,7 @@ class DisplayController extends ODRCustomController
         foreach ($dr['children'] as $child_dt_id => $child_dr_list) {
 
             // ...sort array of child datarecords by their respective sortvalue...
-            $sorted_dr_list = array();
+            $sorted_dr_list = [];
             foreach ($child_dr_list as $num => $child_dr_id) {
                 // User may not have permission to see the child/linked datarecord...
                 if ( isset($datarecord_array[$child_dr_id]) )
@@ -1344,9 +1344,7 @@ class DisplayController extends ODRCustomController
             }
 
             if ( !empty($sorted_dr_list) ) {
-                uasort($sorted_dr_list, function ($a, $b) {
-                    return strnatcmp($a, $b);
-                });
+                uasort($sorted_dr_list, fn($a, $b) => strnatcmp((string) $a, (string) $b));
             }
 
             foreach ($sorted_dr_list as $child_dr_id => $sort_value) {
@@ -1357,14 +1355,14 @@ class DisplayController extends ODRCustomController
                 //  descendant that has files
                 if ( !empty($tmp[$child_dr_id]['datafields']) || !empty($tmp[$child_dr_id]['child_datatypes']) ) {
                     if ( !isset($file_array['child_datatypes'][$child_dt_id]) )
-                        $file_array['child_datatypes'][$child_dt_id] = array();
+                        $file_array['child_datatypes'][$child_dt_id] = [];
 
                     $file_array['child_datatypes'][$child_dt_id][$child_dr_id] = $tmp[$child_dr_id];
                 }
             }
         }
 
-        return array($current_datarecord_id => $file_array);
+        return [$current_datarecord_id => $file_array];
     }
 
 
@@ -1382,24 +1380,22 @@ class DisplayController extends ODRCustomController
      */
     private function groupFilesByDatafield($current_datatype_id, $entity_names, $datatype_array, $datarecord_array)
     {
-        $file_array = array(
-            'datafields' => array(),
-            'child_datatypes' => array(),
-        );
+        $file_array = [
+            'datafields' => [],
+            'child_datatypes' => [],
+        ];
 
         $dt = $datatype_array[$current_datatype_id];
 
         // Don't want to have to sort the same list of datarecords more than once...
-        $sorted_dr_list = array();
+        $sorted_dr_list = [];
         foreach ($datarecord_array as $dr_id => $dr) {
             if ( $dr['dataType']['id'] === $current_datatype_id )
                 $sorted_dr_list[$dr_id] = $dr['sortField_value'];
         }
 
         if ( !empty($sorted_dr_list) ) {
-            uasort($sorted_dr_list, function ($a, $b) {
-                return strnatcmp($a, $b);
-            });
+            uasort($sorted_dr_list, fn($a, $b) => strnatcmp((string) $a, (string) $b));
         }
 
 
@@ -1416,11 +1412,11 @@ class DisplayController extends ODRCustomController
 
                     if ( !empty($drf['file']) || !empty($drf['image']) ) {
                         if ( !isset($file_array['datafields'][$df_id]) )
-                            $file_array['datafields'][$df_id] = array();
+                            $file_array['datafields'][$df_id] = [];
 
                         // ...create an entry for this datarecord...
                         if ( !isset($file_array['datafields'][$df_id][$dr_id]) )
-                            $file_array['datafields'][$df_id][$dr_id] = array();
+                            $file_array['datafields'][$df_id][$dr_id] = [];
 
                         // ...and then create entries for all the files/images that have been
                         //  uploaded to this datarecord
@@ -1453,14 +1449,14 @@ class DisplayController extends ODRCustomController
                 //  descendant that has files
                 if ( !empty($tmp[$child_dt_id]['datafields']) || !empty($tmp[$child_dt_id]['child_datatypes']) ) {
                     if (!isset($file_array['child_datatypes'][$child_dt_id]))
-                        $file_array['child_datatypes'][$child_dt_id] = array();
+                        $file_array['child_datatypes'][$child_dt_id] = [];
 
                     $file_array['child_datatypes'][$child_dt_id] = $tmp[$child_dt_id];
                 }
             }
         }
 
-        return array($current_datatype_id => $file_array);
+        return [$current_datatype_id => $file_array];
     }
 
 
@@ -1476,7 +1472,7 @@ class DisplayController extends ODRCustomController
      */
     public function startdownloadarchiveAction($grandparent_datarecord_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -1490,11 +1486,11 @@ class DisplayController extends ODRCustomController
                 throw new ODRBadRequestException();
 
             // Don't need to check whether the file/image ids are numeric...they're not sent to the database
-            $file_ids = array();
+            $file_ids = [];
             if ( isset($post['files']) )
                 $file_ids = $post['files'];
 
-            $image_ids = array();
+            $image_ids = [];
             if ( isset($post['images']) )
                 $image_ids = $post['images'];
 
@@ -1552,12 +1548,12 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             // Intersect the array of desired file/image ids with the array of permitted files/ids
             //  to determine which files/images to add to the zip archive
-            $file_list = array();
-            $image_list = array();
+            $file_list = [];
+            $image_list = [];
 
             // Also need to ensure no duplicate filenames will be added to the archive
-            $filename_list = array();
-            $filename_count = array();
+            $filename_list = [];
+            $filename_count = [];
             foreach ($datarecord_array as $dr_id => $dr) {
                 foreach ($dr['dataRecordFields'] as $drf_num => $drf) {
                     // If this datarecord has files...
@@ -1610,14 +1606,14 @@ class DisplayController extends ODRCustomController
             else {
                 // Create a filename for the zip archive
                 $tokenGenerator = $this->get('fos_user.util.token_generator');
-                $random_id = substr($tokenGenerator->generateToken(), 0, 12);
+                $random_id = substr((string) $tokenGenerator->generateToken(), 0, 12);
 
                 $archive_filename = $random_id.'.zip';
                 $archive_filepath = $this->getParameter('odr_tmp_directory').'/user_'.$user_id.'/'.$archive_filename;
 
                 $archive_size = count($file_list) + count($image_list);
 
-                $requests = array();
+                $requests = [];
                 foreach ($file_list as $desired_filename => $file) {
                     // Need to locate the decrypted version of the file
                     $local_filename = '';
@@ -1632,12 +1628,12 @@ class DisplayController extends ODRCustomController
                         $local_filename = 'File_'.$file['id'].'.'.$file['ext'];
                     }
 
-                    $requests[] = array(
+                    $requests[] = [
                         'object_type' => 'File',
                         'object_id' => $file['id'],
                         'local_filename' => $local_filename,
                         'desired_filename' => $desired_filename,
-                    );
+                    ];
                 }
                 foreach ($image_list as $desired_filename => $image) {
                     // Need to locate the decrypted version of the image
@@ -1653,19 +1649,19 @@ class DisplayController extends ODRCustomController
                         $local_filename = 'Image_'.$image['id'].'.'.$image['ext'];
                     }
 
-                    $requests[] = array(
+                    $requests[] = [
                         'object_type' => 'Image',
                         'object_id' => $image['id'],
                         'local_filename' => $local_filename,
                         'desired_filename' => $desired_filename,
-                    );
+                    ];
                 }
 
                 // Create the decryption requests for each of the files/images
                 self::createArchiveRequest($archive_filepath, $requests);
             }
 
-            $return['d'] = array('archive_filename' => $archive_filename, 'archive_size' => $archive_size);
+            $return['d'] = ['archive_filename' => $archive_filename, 'archive_size' => $archive_size];
         }
         catch (\Exception $e) {
             $source = 0xc31d45b5;
@@ -1693,7 +1689,7 @@ class DisplayController extends ODRCustomController
      */
     public function listsearchresultfilesAction($search_key, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1742,15 +1738,15 @@ class DisplayController extends ODRCustomController
             $dt_array = $database_info_service->getDatatypeArray($datatype->getId());
 
             // Filter down to what the user is allowed to see first
-            $dr_array = array();
+            $dr_array = [];
             $permissions_service->filterByGroupPermissions($dt_array, $dr_array, $user_permissions);
 
 
             // Need the names of all the datatypes and file datafields
-            $entity_names = array(
-                'datatypes' => array(),
-                'datafields' => array(),
-            );
+            $entity_names = [
+                'datatypes' => [],
+                'datafields' => [],
+            ];
             foreach ($dt_array as $dt_id => $dt) {
                 $entity_names['datatypes'][$dt_id] = $dt['dataTypeMeta']['shortName'];
 
@@ -1770,19 +1766,19 @@ class DisplayController extends ODRCustomController
             // Stack the datatype array so recursion is easier
             $dt_array = $database_info_service->stackDatatypeArray($dt_array, $search_params_dt_id);
             // Wrap it with the datatype id for the same reason
-            $dt_array = array($search_params_dt_id => $dt_array);
+            $dt_array = [$search_params_dt_id => $dt_array];
 
 
             // ----------------------------------------
             // Render the dialog
             $return['d'] = $templating->render(
                 'ODRAdminBundle:Default:mass_download_dialog_form.html.twig',
-                array(
+                [
                     'entity_names' => $entity_names,
 
                     'dt_array' => $dt_array,
                     'search_key' => $search_key,
-                )
+                ]
             );
         }
         catch (\Exception $e) {
@@ -1810,7 +1806,7 @@ class DisplayController extends ODRCustomController
      */
     public function startsearchresultfilesdownloadAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1860,7 +1856,7 @@ class DisplayController extends ODRCustomController
             // Flip because isset() is faster than in_array()
             $associated_datatypes = array_flip($associated_datatypes);
 
-            $hydrated_datafields = array();
+            $hydrated_datafields = [];
             foreach ($datafields as $num => $df_id) {
                 /** @var DataFields $df */
                 $df = $em->getRepository('ODRAdminBundle:DataFields')->find($df_id);
@@ -1892,7 +1888,7 @@ class DisplayController extends ODRCustomController
 
             // Need to "manually" filter out non-public files though, depending on whether the user
             //  can view non-public datarecords or not
-            $can_view_nonpublic_datarecords = array();
+            $can_view_nonpublic_datarecords = [];
             foreach ($hydrated_datafields as $df_id => $df) {
                 // Need to check whether the user can view each of the datafields, though
                 if ( !$permissions_service->canViewDatafield($user, $df) )
@@ -1908,8 +1904,8 @@ class DisplayController extends ODRCustomController
 
             // Need to ensure that the filenames of all files/images to be added to the archive
             //  are unique
-            $filename_list = array();
-            $filename_count = array();
+            $filename_list = [];
+            $filename_count = [];
 
 
             // Loading and digging through potentially thousands of cached datarecord entries is
@@ -1936,15 +1932,15 @@ class DisplayController extends ODRCustomController
                 AND drf.deletedAt IS NULL AND df.deletedAt IS NULL
                 AND f.deletedAt IS NULL AND fm.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'datafields' => $datafields,
                     'datarecords' => $dr_list,
-                )
+                ]
             );
             $results = $query->getArrayResult();
 
             // Organize files by their filename
-            $file_list = array();
+            $file_list = [];
             foreach ($results as $drf) {
                 foreach ($drf['file'] as $file_num => $file) {
                     // Need to ignore files from deleted datafields...
@@ -1992,15 +1988,15 @@ class DisplayController extends ODRCustomController
                 AND drf.deletedAt IS NULL AND df.deletedAt IS NULL
                 AND i.deletedAt IS NULL AND ip.deletedAt IS NULL AND ipm.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'datafields' => $datafields,
                     'datarecords' => $dr_list,
-                )
+                ]
             );
             $results = $query->getArrayResult();
 
             // Organize images by their filename
-            $image_list = array();
+            $image_list = [];
             foreach ($results as $drf) {
                 foreach ($drf['image'] as $image_num => $thumbnail_image) {
                     // Want to store the original image in the archive
@@ -2046,14 +2042,14 @@ class DisplayController extends ODRCustomController
             else {
                 // Create a filename for the zip archive
                 $tokenGenerator = $this->get('fos_user.util.token_generator');
-                $random_id = substr($tokenGenerator->generateToken(), 0, 12);
+                $random_id = substr((string) $tokenGenerator->generateToken(), 0, 12);
 
                 $archive_filename = $random_id.'.zip';
                 $archive_filepath = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/'.$archive_filename;
 
                 $archive_size = count($file_list) + count($image_list);
 
-                $requests = array();
+                $requests = [];
                 foreach ($file_list as $desired_filename => $file) {
                     // Need to locate the decrypted version of the file
                     $local_filename = '';
@@ -2067,12 +2063,12 @@ class DisplayController extends ODRCustomController
                         $local_filename = 'File_'.$file['id'].'.'.$file['ext'];
                     }
 
-                    $requests[] = array(
+                    $requests[] = [
                         'object_type' => 'File',
                         'object_id' => $file['id'],
                         'local_filename' => $local_filename,
                         'desired_filename' => $desired_filename,
-                    );
+                    ];
                 }
 
                 // Do the same for the images
@@ -2089,12 +2085,12 @@ class DisplayController extends ODRCustomController
                         $local_filename = 'Image_'.$image['id'].'.'.$image['ext'];
                     }
 
-                    $requests[] = array(
+                    $requests[] = [
                         'object_type' => 'Image',
                         'object_id' => $image['id'],
                         'local_filename' => $local_filename,
                         'desired_filename' => $desired_filename,
-                    );
+                    ];
                 }
 
                 // Create the decryption requests for each of the files/images
@@ -2102,10 +2098,10 @@ class DisplayController extends ODRCustomController
             }
 
             // TODO - is there some way to return that there are going to be duplicate filenames and/or duplicate files before the download starts?
-            $return['d'] = array(
+            $return['d'] = [
                 'archive_filename' => $archive_filename,
                 'archive_size' => $archive_size
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x23ed5770;
@@ -2183,7 +2179,7 @@ class DisplayController extends ODRCustomController
 
         // Generate the url for cURL to use
         $pheanstalk = $this->get('pheanstalk');
-        $url = $this->generateUrl('odr_crypto_request', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+        $url = $this->generateUrl('odr_crypto_request', [], UrlGeneratorInterface::ABSOLUTE_URL);
         $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
         $api_key = $this->container->getParameter('beanstalk_api_key');
 
@@ -2191,7 +2187,7 @@ class DisplayController extends ODRCustomController
         foreach ($requests as $request) {
             $priority = 1024;   // should be roughly default priority
             $payload = json_encode(
-                array(
+                [
                     "archive_filepath" => $archive_filepath,
                     "crypto_type" => 'decrypt',
 
@@ -2203,7 +2199,7 @@ class DisplayController extends ODRCustomController
                     "redis_prefix" => $redis_prefix,    // debug purposes only
                     "url" => $url,
                     "api_key" => $api_key,
-                )
+                ]
             );
 
             $delay = 0;
@@ -2223,7 +2219,7 @@ class DisplayController extends ODRCustomController
      */
     public function downloadarchiveAction($archive_filename, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -2279,7 +2275,7 @@ class DisplayController extends ODRCustomController
             //$response->sendHeaders();
 
             // Use symfony's StreamedResponse to send the decrypted file back in chunks to the user
-            $response->setCallback(function () use ($handle) {
+            $response->setCallback(function () use ($handle): void {
                 while (!feof($handle)) {
                     $buffer = fread($handle, 65536);    // attempt to send 64Kb at a time
                     echo $buffer;
@@ -2318,7 +2314,7 @@ class DisplayController extends ODRCustomController
      */
     public function viewrandomAction($datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -2353,7 +2349,7 @@ class DisplayController extends ODRCustomController
                     FROM ODRAdminBundle:DataRecord dr
                     WHERE dr.dataType = :datatype_id
                     AND dr.deletedAt IS NULL'
-                )->setParameters( array('datatype_id' => $datatype->getId()) );
+                )->setParameters( ['datatype_id' => $datatype->getId()] );
             }
             else {
                 $query = $em->createQuery(
@@ -2362,21 +2358,21 @@ class DisplayController extends ODRCustomController
                     LEFT JOIN ODRAdminBundle:DataRecordMeta drm WITH drm.dataRecord = dr
                     WHERE dr.dataType = :datatype_id AND drm.publicDate != :non_public_date
                     AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL'
-                )->setParameters( array('datatype_id' => $datatype->getId(), 'non_public_date' => '2200-01-01 00:00:00') );
+                )->setParameters( ['datatype_id' => $datatype->getId(), 'non_public_date' => '2200-01-01 00:00:00'] );
             }
 
             $results = $query->getArrayResult();
-            $num = rand(0, count($results)-1);
+            $num = random_int(0, count($results)-1);
 
             // ...and return a url to it
             $url = $router->generate(
                 'odr_display_view',
-                array(
+                [
                     'datarecord_id' => $results[$num]['dr_id'],
-                )
+                ]
             );
 
-            $return['d'] = array('url' => $url);
+            $return['d'] = ['url' => $url];
             $return['r'] = 2;
         }
         catch (\Exception $e) {
@@ -2402,7 +2398,7 @@ class DisplayController extends ODRCustomController
      */
     public function createziparchivefromfilelistAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -2450,14 +2446,14 @@ class DisplayController extends ODRCustomController
                 JOIN odr_data_record AS dr ON f.data_record_id = dr.id
                 WHERE f.id IN (?)
                 AND f.deletedAt IS NULL AND dr.deletedAt IS NULL';
-            $parameters = array(1 => $file_ids);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $parameters = [1 => $file_ids];
+            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
 
             $conn = $em->getConnection();
             $results = $conn->fetchAll($query, $parameters, $types);
 
             $datatype_id = null;
-            $dr_arrays = array();
+            $dr_arrays = [];
             foreach ($results as $result) {
                 // Ensure that the files all belong to the same datatype
                 $dt_id = $result['dt_id'];
@@ -2484,7 +2480,7 @@ class DisplayController extends ODRCustomController
             // Once filtering is done, attempt to find the array entries for each of the requested
             //  files
             $file_ids = array_flip($file_ids);
-            $file_list = array();
+            $file_list = [];
             foreach ($dr_arrays as $g_dr_id => $dr_array) {
                 foreach ($dr_array as $dr_id => $dr) {
                     if ( isset($dr['dataRecordFields']) ) {
@@ -2512,14 +2508,14 @@ class DisplayController extends ODRCustomController
             else {
                 // Create a filename for the zip archive
                 $tokenGenerator = $this->get('fos_user.util.token_generator');
-                $random_id = substr($tokenGenerator->generateToken(), 0, 12);
+                $random_id = substr((string) $tokenGenerator->generateToken(), 0, 12);
 
                 $archive_filename = $random_id.'.zip';
                 $archive_filepath = $this->getParameter('odr_tmp_directory').'/user_'.$user_id.'/'.$archive_filename;
 
                 $archive_size = count($file_list);
 
-                $requests = array();
+                $requests = [];
                 foreach ($file_list as $desired_filename => $file) {
                     // Need to locate the decrypted version of the file
                     $local_filename = '';
@@ -2534,19 +2530,19 @@ class DisplayController extends ODRCustomController
                         $local_filename = 'File_'.$file['id'].'.'.$file['ext'];
                     }
 
-                    $requests[] = array(
+                    $requests[] = [
                         'object_type' => 'File',
                         'object_id' => $file['id'],
                         'local_filename' => $local_filename,
                         'desired_filename' => $desired_filename,
-                    );
+                    ];
                 }
 
                 // Create the decryption requests for each of the files/images
                 self::createArchiveRequest($archive_filepath, $requests);
             }
 
-            $return['d'] = array('archive_filename' => $archive_filename, 'archive_size' => $archive_size);
+            $return['d'] = ['archive_filename' => $archive_filename, 'archive_size' => $archive_size];
         }
         catch (\Exception $e) {
             $source = 0xcf533f63;

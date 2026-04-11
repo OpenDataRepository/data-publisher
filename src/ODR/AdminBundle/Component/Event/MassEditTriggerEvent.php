@@ -39,21 +39,6 @@ class MassEditTriggerEvent extends Event implements ODREventInterface
     // Best practice is apparently to have the Event class define the event name
     const NAME = 'odr.event.post_massedit_event';
 
-    /**
-     * @var DataRecordFields
-     */
-    private $drf;
-
-    /**
-     * @var ODRUser
-     */
-    private $user;
-
-    /**
-     * @var string
-     */
-    private $plugin_classname;
-
 
     /**
      * MassEditTriggerEvent constructor.
@@ -62,14 +47,8 @@ class MassEditTriggerEvent extends Event implements ODREventInterface
      * @param ODRUser $user
      * @param string $plugin_classname
      */
-    public function __construct(
-        DataRecordFields $drf,
-        ODRUser $user,
-        string $plugin_classname
-    ) {
-        $this->drf = $drf;
-        $this->user = $user;
-        $this->plugin_classname = $plugin_classname;
+    public function __construct(private readonly DataRecordFields $drf, private readonly ODRUser $user, private readonly string $plugin_classname)
+    {
     }
 
 
@@ -120,11 +99,11 @@ class MassEditTriggerEvent extends Event implements ODREventInterface
      */
     public function getErrorInfo()
     {
-        return array(
+        return [
             self::NAME,
             $this->drf->getId().' ('.$this->drf->getDataField()->getFieldType()->getTypeClass().')',
             'df '.$this->drf->getDataField()->getId(),
             'dr '.$this->drf->getDataRecord()->getId(),
-        );
+        ];
     }
 }

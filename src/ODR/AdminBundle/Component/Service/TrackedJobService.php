@@ -32,29 +32,9 @@ class TrackedJobService
 {
 
     /**
-     * @var EntityManager $em
-     */
-    private $em;
-
-    /**
-     * @var DatatreeInfoService
-     */
-    private $datatree_info_service;
-
-    /**
-     * @var PermissionsManagementService
-     */
-    private $permissions_service;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-    /**
      * @var array
      */
-    private $valid_job_types = array(
+    private $valid_job_types = [
 //        'recache',
         'csv_export',
         'csv_import_validate',
@@ -67,27 +47,19 @@ class TrackedJobService
         'tag_rebuild',
         'clone_and_link',
 //        'rebuild_thumbnails',
-    );
+    ];
 
 
     /**
      * TrackedJobService constructor.
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param DatatreeInfoService $datatree_info_service
      * @param PermissionsManagementService $permissions_service
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        DatatreeInfoService $datatree_info_service,
-        PermissionsManagementService  $permissions_service,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->datatree_info_service = $datatree_info_service;
-        $this->permissions_service = $permissions_service;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly DatatreeInfoService $datatree_info_service, private readonly PermissionsManagementService  $permissions_service, private readonly Logger $logger)
+    {
     }
 
 
@@ -111,7 +83,7 @@ class TrackedJobService
             throw new ODRException('Tracked Job '.$tracked_job->getId().' ('.$tracked_job->getJobType().') appears to be stalled, aborting');
 
         // If it exists, convert its data into an array and return that
-        $job_data = self::getJobData( array($tracked_job), $datatype_permissions );
+        $job_data = self::getJobData( [$tracked_job], $datatype_permissions );
         return $job_data;
     }
 
@@ -137,17 +109,17 @@ class TrackedJobService
             ->orderBy('tj.created', 'DESC');
 
         $qb->setParameter('user_id', $user_id);
-        $qb->setParameter('jobs_array', array(
+        $qb->setParameter('jobs_array', [
             'csv_export',
             'csv_import',
             'csv_import_validate',
             'mass_edit',
             'migrate'
-        ));
+        ]);
         $tracked_jobs = $qb->getQuery()->getArrayResult();
 
         if ($tracked_jobs == null)
-            return array();
+            return [];
 
         return $tracked_jobs;
     }
@@ -168,7 +140,7 @@ class TrackedJobService
 
         // Load all tracked jobs of this job type
         /** @var TrackedJob[] $tracked_jobs */
-        $tracked_jobs = $this->em->getRepository('ODRAdminBundle:TrackedJob')->findBy( array('job_type' => $job_type) );
+        $tracked_jobs = $this->em->getRepository('ODRAdminBundle:TrackedJob')->findBy( ['job_type' => $job_type] );
         if ($tracked_jobs == null)
             return null;
 
@@ -192,9 +164,9 @@ class TrackedJobService
         $repo_datatype = $this->em->getRepository('ODRAdminBundle:DataType');
         $repo_datafield = $this->em->getRepository('ODRAdminBundle:DataFields');
 
-        $jobs = array();
+        $jobs = [];
         foreach ($tracked_jobs as $tracked_job) {
-            $job = array();
+            $job = [];
             $job['tracked_job_id'] = $tracked_job->getId();
 
             // ----------------------------------------
@@ -240,7 +212,7 @@ class TrackedJobService
                 $job['user_id'] = $tracked_job->getCreatedBy()->getId();
             }
 
-            $job['progress'] = array('total' => $tracked_job->getTotal(), 'current' => $tracked_job->getCurrent());
+            $job['progress'] = ['total' => $tracked_job->getTotal(), 'current' => $tracked_job->getCurrent()];
             $job['tracked_job_id'] = $tracked_job->getId();
             $job['eta'] = '...';
 
@@ -416,15 +388,15 @@ class TrackedJobService
         // TODO - more flexible way of doing this?
         if ($reuse_existing)
             $tracked_job = $this->em->getRepository('ODRAdminBundle:TrackedJob')
-                ->findOneBy( array('job_type' => $job_type, 'target_entity' => $target_entity) );
+                ->findOneBy( ['job_type' => $job_type, 'target_entity' => $target_entity] );
         else
             $tracked_job = $this->em->getRepository('ODRAdminBundle:TrackedJob')
                 ->findOneBy(
-                    array(
+                    [
                         'job_type' => $job_type,
                         'target_entity' => $target_entity,
                         'completed' => null
-                    )
+                    ]
                 );
 
         if ($tracked_job == null) {
@@ -525,16 +497,16 @@ class TrackedJobService
      */
     public function getTrackedErrorsByJob($tracked_job_id)
     {
-        $job_errors = array();
+        $job_errors = [];
 
         $tracked_job = $this->em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
         if ($tracked_job == null)
             throw new ODRNotFoundException('TrackedJob');
 
         /** @var TrackedError[] $tracked_errors */
-        $tracked_errors = $this->em->getRepository('ODRAdminBundle:TrackedError')->findBy( array('trackedJob' => $tracked_job_id) );
+        $tracked_errors = $this->em->getRepository('ODRAdminBundle:TrackedError')->findBy( ['trackedJob' => $tracked_job_id] );
         foreach ($tracked_errors as $error)
-            $job_errors[ $error->getId() ] = array('error_level' => $error->getErrorLevel(), 'error_body' => json_decode( $error->getErrorBody(), true ));
+            $job_errors[ $error->getId() ] = ['error_level' => $error->getErrorLevel(), 'error_body' => json_decode( $error->getErrorBody(), true )];
 
         return $job_errors;
     }
@@ -553,7 +525,7 @@ class TrackedJobService
         $query = $this->em->createQuery(
            'DELETE FROM ODRAdminBundle:TrackedError AS te
             WHERE te.trackedJob = :tracked_job'
-        )->setParameters( array('tracked_job' => $tracked_job_id) );
+        )->setParameters( ['tracked_job' => $tracked_job_id] );
         $rows = $query->execute();
 
         return $rows;
@@ -577,7 +549,7 @@ class TrackedJobService
         $target_entity = $job_data['target_entity'];
 
         // Most jobs run on datatypes, but a few run on datafields or datarecords instead...
-        $datafield_jobs = array(
+        $datafield_jobs = [
             'migrate' => 1,
             'tag_rebuild' => 1,
 
@@ -587,10 +559,10 @@ class TrackedJobService
             'delete_tag' => 1,
             'rename_radio_option' => 1,
             'rename_tag' => 1,
-        );
-        $datarecord_jobs = array(
+        ];
+        $datarecord_jobs = [
             'delete_datarecord' => 1,    // not a "real" job, but can break running jobs if it executes
-        );
+        ];
 
         $datatype = null;
         if ( $target_entity instanceof DataType
@@ -619,10 +591,10 @@ class TrackedJobService
         // ----------------------------------------
         // These jobs merely copy to new database entries...they can't interfere with any other
         //  background job
-        $always_allowed_jobs = array(
+        $always_allowed_jobs = [
             'clone_theme' => 1,
             'clone_and_link' => 1,
-        );
+        ];
         if ( isset($always_allowed_jobs[$new_job_type]) )
             return null;
 
@@ -644,8 +616,8 @@ class TrackedJobService
         //  job is already running, because they can modify the same datarecord/datafield pairs, or
         //  otherwise rely on values not changing
 
-        $allowed_jobs = array(
-            'migrate' => array(
+        $allowed_jobs = [
+            'migrate' => [
                 // New migrations are allowed, but only when the datafield isn't already being migrated
                 'migrate' => 'self::requireDifferentDatafield',
                 // Shouldn't migrate a datafield that's being rebuilt
@@ -657,9 +629,9 @@ class TrackedJobService
                 // Deleting is allowed, but only when the datafield isn't already being migrated
                 'delete_radio_option' => 'self::requireDifferentDatafield',
                 'delete_tag' => 'self::requireDifferentDatafield',
-            ),
+            ],
 
-            'tag_rebuild' => array(
+            'tag_rebuild' => [
                 // New migrations are allowed, but only when the datafield isn't already being migrated
                 'migrate' => 'self::requireDifferentDatafield',
                 // Should be able to run more than one of these jobs at a time so long as they're
@@ -673,34 +645,34 @@ class TrackedJobService
                 'rename_tag' => 'self::alwaysAllowed',
                 // Deleting a tag should only be allowed when it belongs to a different datafield
                 'delete_tag' => 'self::requireDifferentDatafield',
-            ),
+            ],
 
-            'csv_export' => array(
+            'csv_export' => [
                 // Since export filenames include which tracked job they're for, a user can run
                 //  multiple exports at the same time
                 'csv_export' => 'self::alwaysAllowed',
 
                 // None of the other jobs are allowed, since changing/deleting stuff in the middle
                 //  of exporting is bad
-            ),
-            'mass_edit' => array(
+            ],
+            'mass_edit' => [
                 // Renaming these has no effect on mass edit doing any selecting/deselecting
                 'rename_radio_option' => 'self::alwaysAllowed',
                 'rename_tag' => 'self::alwaysAllowed',
 
                 // None of the other jobs are allowed, since they're changing stuff mass edit needs
-            ),
+            ],
 
             // Only allowed to have one csv import job running at a time
 //            'csv_import' => array(),
 //            'csv_import_validate' => array(),
-        );
+        ];
 
 
         // ----------------------------------------
         // Need a list of any job that's currently in progress
         $current_jobs = $this->em->getRepository('ODRAdminBundle:TrackedJob')->findBy(
-            array('completed' => null)
+            ['completed' => null]
         );
         /** @var TrackedJob[] $current_jobs */
 

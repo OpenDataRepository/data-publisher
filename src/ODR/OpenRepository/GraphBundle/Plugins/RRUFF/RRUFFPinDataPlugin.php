@@ -27,28 +27,13 @@ class RRUFFPinDataPlugin implements DatatypePluginInterface
 {
 
     /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * RRUFF Pin Data Plugin constructor
      *
      * @param EngineInterface $templating
      * @param Logger $logger
      */
-    public function __construct(
-        EngineInterface $templating,
-        Logger $logger
-    ) {
-        $this->templating = $templating;
-        $this->logger = $logger;
+    public function __construct(private readonly EngineInterface $templating, private readonly Logger $logger)
+    {
     }
 
 
@@ -90,7 +75,7 @@ class RRUFFPinDataPlugin implements DatatypePluginInterface
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
+    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = [], $datatype_permissions = [], $datafield_permissions = [], $token_list = [])
     {
 
         try {
@@ -111,14 +96,14 @@ class RRUFFPinDataPlugin implements DatatypePluginInterface
                 $initial_theme_id = $t_id;
 
             // There *should* only be a single datarecord in $datarecords...
-            $datarecord = array();
+            $datarecord = [];
             foreach ($datarecords as $dr_id => $dr)
                 $datarecord = $dr;
 
             // ----------------------------------------
             // Retrieve mapping between datafields and render plugin fields
-            $datafield_mapping = array();
-            $plugin_fields = array();
+            $datafield_mapping = [];
+            $plugin_fields = [];
             foreach ($fields as $rpf_name => $rpf_df) {
                 // Need to find the real datafield entry in the primary datatype array
                 $rpf_df_id = $rpf_df['id'];
@@ -201,8 +186,8 @@ class RRUFFPinDataPlugin implements DatatypePluginInterface
             if ( $rendering_options['context'] === 'display' ) {
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:RRUFF:RRUFFPinData/pindata_display_fieldarea.html.twig',
-                    array(
-                        'datatype_array' => array($initial_datatype_id => $datatype),
+                    [
+                        'datatype_array' => [$initial_datatype_id => $datatype],
                         'datarecord' => $datarecord,
                         'theme_array' => $theme_array,
 
@@ -223,7 +208,7 @@ class RRUFFPinDataPlugin implements DatatypePluginInterface
 
                         'vector_parallel_str' => $vector_parallel_str,
                         'vector_perpendicular_str' => $vector_perpendicular_str,
-                    )
+                    ]
                 );
             }
 

@@ -92,11 +92,11 @@ class PluginsController extends ODRCustomController
         );
         $results = $query->getArrayResult();
 
-        $rpf_typeclasses = array();
-        $rpf_typenames = array();
-        $single_select_fieldtypes = array();
-        $multiple_select_fieldtypes = array();
-        $unique_fieldtypes = array();
+        $rpf_typeclasses = [];
+        $rpf_typenames = [];
+        $single_select_fieldtypes = [];
+        $multiple_select_fieldtypes = [];
+        $unique_fieldtypes = [];
 
         foreach ($results as $result) {
             $ft_id = $result['ft_id'];
@@ -111,7 +111,7 @@ class PluginsController extends ODRCustomController
             if ($typeclass === 'Radio') {
                 // ...then also need to consider "Single Radio" as equivalent to "Single Select",
                 //  and "Multiple Radio" as equivalent to "Multiple Select"
-                if ( strpos($typename, 'Single') !== false )
+                if ( str_contains((string) $typename, 'Single') )
                     $single_select_fieldtypes[$ft_id] = $typename;
                 else
                     $multiple_select_fieldtypes[$ft_id] = $typename;
@@ -128,13 +128,13 @@ class PluginsController extends ODRCustomController
         $rpf_typeclasses['Multiple Radio'] = $rpf_typenames['Multiple Radio'];
         $rpf_typeclasses['Multiple Select'] = $rpf_typenames['Multiple Select'];
 
-        return array(
+        return [
             'rpf_typeclasses' => $rpf_typeclasses,
             'rpf_typenames' => $rpf_typenames,
             'unique_fieldtypes' => $unique_fieldtypes,
             'single_select_fieldtypes' => $single_select_fieldtypes,
             'multiple_select_fieldtypes' => $multiple_select_fieldtypes,
-        );
+        ];
     }
 
 
@@ -163,7 +163,7 @@ class PluginsController extends ODRCustomController
 
         // ----------------------------------------
         // Also going to need a list of events defined by ODR that can be used by render plugins
-        $all_events = array();
+        $all_events = [];
         $events_base_dir = $this->container->getParameter('odr_events_directory');
         foreach ( scandir($events_base_dir) as $filename ) {
             // TODO - assumes linux?
@@ -180,7 +180,7 @@ class PluginsController extends ODRCustomController
 
 
         // ----------------------------------------
-        $available_plugins = array();
+        $available_plugins = [];
         $plugin_base_dir = $this->container->getParameter('odr_plugin_basedir');
         // Plugins are organized by category inside the plugin base directory...
         foreach ( scandir($plugin_base_dir) as $plugin_category ) {
@@ -189,7 +189,7 @@ class PluginsController extends ODRCustomController
                 continue;
 
             // Don't want the interfaces in the directory...
-            if ( substr($plugin_category, -4) === '.php' )
+            if ( str_ends_with($plugin_category, '.php') )
                 continue;
 
             $plugin_directory = $plugin_base_dir.'/'.$plugin_category;
@@ -199,7 +199,7 @@ class PluginsController extends ODRCustomController
                     continue;
 
                 // Only want names of php files...
-                if ( substr($filename, -4) === '.php' ) {
+                if ( str_ends_with($filename, '.php') ) {
                     // ...in order to get to their yml config files...
                     $stub = substr($filename, 0, -4);
                     $config_filename = $stub.'.yml';
@@ -276,7 +276,7 @@ class PluginsController extends ODRCustomController
 
         // ----------------------------------------
         // All plugins must define these configuration options
-        $required_keys = array(
+        $required_keys = [
             'name',
             'category',
             'plugin_type',
@@ -297,7 +297,7 @@ class PluginsController extends ODRCustomController
             'registered_events',
             'required_fields',
             'config_options',
-        );
+        ];
 
         foreach ($required_keys as $key) {
             if ( !array_key_exists($key, $plugin_config) )
@@ -308,7 +308,7 @@ class PluginsController extends ODRCustomController
         // ----------------------------------------
         // Datatype and Datafield plugins have different configuration requirements...
         $is_datatype_plugin = $is_theme_element_plugin = $is_datafield_plugin = $is_datafield_header_plugin = $is_array_plugin = false;
-        $plugin_type = strtolower($plugin_config['plugin_type']);
+        $plugin_type = strtolower((string) $plugin_config['plugin_type']);
 
         if ($plugin_type === 'datatype')
             $is_datatype_plugin = true;
@@ -326,15 +326,15 @@ class PluginsController extends ODRCustomController
 
         // Ensure the plugin file implements the correct interface...
         if ( $is_datatype_plugin && !($plugin_service instanceof DatatypePluginInterface) )
-            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" claims to be a Datatype plugin, but the RenderPlugin class "'.get_class($plugin_service).'" does not implement DatatypePluginInterface');
+            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" claims to be a Datatype plugin, but the RenderPlugin class "'.$plugin_service::class.'" does not implement DatatypePluginInterface');
         else if ( $is_theme_element_plugin && !($plugin_service instanceof ThemeElementPluginInterface) )
-            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" claims to be a ThemeElement plugin, but the RenderPlugin class "'.get_class($plugin_service).'" does not implement ThemeElementPluginInterface');
+            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" claims to be a ThemeElement plugin, but the RenderPlugin class "'.$plugin_service::class.'" does not implement ThemeElementPluginInterface');
         else if ( $is_datafield_plugin && !($plugin_service instanceof DatafieldPluginInterface) )
-            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" claims to be a Datafield plugin, but the RenderPlugin class "'.get_class($plugin_service).'" does not implement DatafieldPluginInterface');
+            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" claims to be a Datafield plugin, but the RenderPlugin class "'.$plugin_service::class.'" does not implement DatafieldPluginInterface');
         else if ( $is_datafield_header_plugin && !($plugin_service instanceof DatafieldHeaderPluginInterface) )
-            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" claims to be a DatafieldHeader plugin, but the RenderPlugin class "'.get_class($plugin_service).'" does not implement DatafieldHeaderPluginInterface');
+            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" claims to be a DatafieldHeader plugin, but the RenderPlugin class "'.$plugin_service::class.'" does not implement DatafieldHeaderPluginInterface');
         else if ( $is_array_plugin && !($plugin_service instanceof ArrayPluginInterface) )
-            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" claims to be a Array plugin, but the RenderPlugin class "'.get_class($plugin_service).'" does not implement ArrayPluginInterface');
+            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'" claims to be a Array plugin, but the RenderPlugin class "'.$plugin_service::class.'" does not implement ArrayPluginInterface');
 
 
         if ( $is_datatype_plugin ) {
@@ -439,22 +439,22 @@ class PluginsController extends ODRCustomController
 
         // ----------------------------------------
         // If there are entries in the "required_field" key, ensure they are properly formed
-        $required_keys = array(
+        $required_keys = [
             'name',
             'description',
             'type',
 //            'display_order',    // this is optional
-        );
+        ];
 
         // Fields in render plugins may need to have certain properties enforced to work correctly
-        $allowed_properties = array(
+        $allowed_properties = [
             'autogenerate_values',
             'must_be_unique',
             'no_user_edits',
             'single_uploads_only',
             'is_derived',
             'is_optional',
-        );
+        ];
         // NOTE: ensure DatafieldInfoService::getRenderPluginProperties() knows about these
 
         // Some additional validation is needed when the plugin has a derived field
@@ -469,7 +469,7 @@ class PluginsController extends ODRCustomController
 
             // Need to ensure that no RenderPluginField entries share a name, since that is used
             //  as a unique key during install/update...
-            $field_names = array();
+            $field_names = [];
 
             foreach ($plugin_config['required_fields'] as $field_id => $field_data) {
                 foreach ($required_keys as $key) {
@@ -483,7 +483,7 @@ class PluginsController extends ODRCustomController
                 else
                     $field_names[$fieldName] = 1;
 
-                $allowed_fieldtypes = explode('|', $field_data['type']);
+                $allowed_fieldtypes = explode('|', (string) $field_data['type']);
                 foreach ($allowed_fieldtypes as $ft) {
                     if ( !isset($rpf_typeclasses[$ft]) )
                         throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", required_field "'.$field_id.'" allows invalid fieldtype typeclass "'.$ft.'"');
@@ -580,13 +580,13 @@ class PluginsController extends ODRCustomController
             $type = 'Array';
 
             if ( $plugin_service instanceof DatafieldDerivationInterface )
-                throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the '.$type.' plugin "'.get_class($plugin_service).'" is not allowed to implement DatafieldDerivationInterface');
+                throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the '.$type.' plugin "'.$plugin_service::class.'" is not allowed to implement DatafieldDerivationInterface');
             if ( $plugin_service instanceof DatafieldReloadOverrideInterface )
-                throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the '.$type.' plugin "'.get_class($plugin_service).'" is not allowed to implement DatafieldReloadOverrideInterface');
+                throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the '.$type.' plugin "'.$plugin_service::class.'" is not allowed to implement DatafieldReloadOverrideInterface');
             if ( $plugin_service instanceof MassEditTriggerEventInterface )
-                throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the '.$type.' plugin "'.get_class($plugin_service).'" is not allowed to implement MassEditTriggerEventInterface');
+                throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the '.$type.' plugin "'.$plugin_service::class.'" is not allowed to implement MassEditTriggerEventInterface');
             if ( $plugin_service instanceof TableResultsOverrideInterface )
-                throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the '.$type.' plugin "'.get_class($plugin_service).'" is not allowed to implement TableResultsOverrideInterface');
+                throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the '.$type.' plugin "'.$plugin_service::class.'" is not allowed to implement TableResultsOverrideInterface');
 
             // They are allowed to implement PluginSettingsDialogOverrideInterface
 //            if ( $plugin_service instanceof PluginSettingsDialogOverrideInterface )
@@ -596,14 +596,14 @@ class PluginsController extends ODRCustomController
         // Datafield plugins can't implement DatafieldDerivationInterface...they only reference a
         //  single datafield, so there's no way to determine what to derive from
         if ( ($is_datafield_plugin || $is_datafield_header_plugin) && ($plugin_service instanceof DatafieldDerivationInterface) )
-            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the Datafield plugin "'.get_class($plugin_service).'" is not allowed to implement DatafieldDerivationInterface');
+            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the Datafield plugin "'.$plugin_service::class.'" is not allowed to implement DatafieldDerivationInterface');
         // Datafield plugins also don't need to implement DatafieldReloadOverrideInterface...the
         //  render plugin will be executed as part of the regular datafield reloading in Edit mode,
         //  assuming the plugin is allowed to execute there
         if ( ($is_datafield_plugin || $is_datafield_header_plugin) && $plugin_config['override_field_reload'] )
-            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the Datafield plugin "'.get_class($plugin_service).'" is not allowed to have override_field_reload set to true');
+            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the Datafield plugin "'.$plugin_service::class.'" is not allowed to have override_field_reload set to true');
         if ( ($is_datafield_plugin || $is_datafield_header_plugin) && ($plugin_service instanceof DatafieldReloadOverrideInterface) )
-            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the Datafield plugin "'.get_class($plugin_service).'" is not allowed to implement DatafieldReloadOverrideInterface');
+            throw new ODRException('RenderPlugin config file "'.$plugin_config['filepath'].'", the Datafield plugin "'.$plugin_service::class.'" is not allowed to implement DatafieldReloadOverrideInterface');
 
         // A plugin must implement DatafieldDerivationInterface if and only if it has at least
         //  one derived field
@@ -622,7 +622,7 @@ class PluginsController extends ODRCustomController
 
         // ----------------------------------------
         // If there are entries in the "config_options" key, ensure they are properly formed
-        $required_keys = array(
+        $required_keys = [
             'name',
 //            'type',    // TODO - unused...delete this?
             'default',
@@ -632,14 +632,14 @@ class PluginsController extends ODRCustomController
 
 //            'uses_custom_render',    // this is optional
 //            'uses_layout_settings',    // this is optional
-        );
+        ];
 
         $uses_custom_render = false;
         $uses_layout_settings = false;
         if ( is_array($plugin_config['config_options']) ) {
             // Need to ensure that no RenderPluginOption entries share a name, since that is used
             //  as a unique key during install/update...
-            $option_names = array();
+            $option_names = [];
 
             foreach ($plugin_config['config_options'] as $option_key => $option_data) {
                 foreach ($required_keys as $key) {
@@ -672,7 +672,7 @@ class PluginsController extends ODRCustomController
 
         // ----------------------------------------
         // Don't necessarily want render plugins to attach to every single possible event...
-        $illegal_events = array(
+        $illegal_events = [
             'DatatypeCreatedEvent' => 0,
             'DatatypeModifiedEvent' => 0,
             'DatatypeDeletedEvent' => 0,
@@ -703,7 +703,7 @@ class PluginsController extends ODRCustomController
 //            'PluginPreRemoveEvent' => 0,
 
 //            'PostUpdateEvent' => 0,
-        );
+        ];
         // ...though this is more due to a great reluctance to test that a render plugin will properly
         //  work in all situations the event can be triggered in, rather than some structural reason
         // e.g. DatarecordModifiedEvent can be fired multiple times in rapid succession when the
@@ -743,7 +743,7 @@ class PluginsController extends ODRCustomController
      */
     public function pluginlistAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -779,7 +779,7 @@ class PluginsController extends ODRCustomController
             );
             $results = $query->getArrayResult();
 
-            $installed_plugins = array();
+            $installed_plugins = [];
             foreach ($results as $result) {
                 $plugin_classname = $result['pluginClassName'];
 
@@ -798,19 +798,19 @@ class PluginsController extends ODRCustomController
             $plugin_update_problems = self::getPluginUpdateProblems($em, $plugins_with_updates);
 
             // Render and return a page displaying the installed/available plugins
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Plugins:list_plugins.html.twig',
-                    array(
+                    [
                         'installed_plugins' => $installed_plugins,
                         'available_plugins' => $available_plugins,
 
                         'plugins_with_updates' => $plugins_with_updates,
                         'readable_plugin_updates' => $readable_plugin_updates,
                         'plugin_update_problems' => $plugin_update_problems,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0xbbdd3fb7;
@@ -850,8 +850,8 @@ class PluginsController extends ODRCustomController
 
 
         // ----------------------------------------
-        $plugins_needing_updates = array();
-        $readable_plugin_updates = array();
+        $plugins_needing_updates = [];
+        $readable_plugin_updates = [];
         foreach ($installed_plugins as $plugin_classname => $installed_plugin_data) {
             // Complain when an "installed" plugin appears to not be available
             if ( !isset($available_plugins[$plugin_classname]) )
@@ -861,7 +861,7 @@ class PluginsController extends ODRCustomController
 
             // ----------------------------------------
             // Check the non-array properties of the render plugin...
-            $plugins_needing_updates[$plugin_classname] = array();
+            $plugins_needing_updates[$plugin_classname] = [];
 
             // NOTE: using '==' because yaml files are going to be empty string, while
             //  database could be null instead
@@ -931,7 +931,7 @@ class PluginsController extends ODRCustomController
 
 
             // Need to verify the plugin type too...
-            $plugin_type = strtolower( $plugin_config['plugin_type'] );
+            $plugin_type = strtolower( (string) $plugin_config['plugin_type'] );
             if ( $plugin_type === 'datatype' )
                 $plugin_type = RenderPlugin::DATATYPE_PLUGIN;
             else if ( $plugin_type === 'themeelement' )
@@ -961,15 +961,15 @@ class PluginsController extends ODRCustomController
 
             // ----------------------------------------
             // Determine whether any renderPluginFields need to be created/updated/deleted...
-            $tmp = array();
+            $tmp = [];
 
             foreach ( $installed_plugin_data['renderPluginFields'] as $num => $rpf) {
                 // TODO - is there a way to have a better key than fieldName?
-                $allowed_fieldtypes = array();
-                $properties = array();
+                $allowed_fieldtypes = [];
+                $properties = [];
 
                 // allowedFieldtypes are stored as a comma-separated list in the database
-                $ft_ids = explode(',', $rpf['allowedFieldtypes']);
+                $ft_ids = explode(',', (string) $rpf['allowedFieldtypes']);
                 foreach ($ft_ids as $ft_id) {
                     if ( isset($single_select_fieldtypes[$ft_id]) ) {
                         foreach ($single_select_fieldtypes as $num => $typename)
@@ -1001,7 +1001,7 @@ class PluginsController extends ODRCustomController
                     $properties[] = 'is_optional';
                 sort($properties);
 
-                $tmp[ $rpf['fieldName'] ] = array(
+                $tmp[ $rpf['fieldName'] ] = [
                     'description' => $rpf['description'],
                     'allowed_fieldtypes' => $allowed_fieldtypes,
                     'properties' => $properties,
@@ -1009,13 +1009,13 @@ class PluginsController extends ODRCustomController
                     // The display_order property doesn't have to be defined in the yml file, but
                     //  should exist here since this is loaded from the database
                     'display_order' => $rpf['display_order'],
-                );
+                ];
             }
 
             if ( is_array($plugin_config['required_fields']) ) {
                 foreach ($plugin_config['required_fields'] as $key => $data) {
                     $fieldname = $data['name'];
-                    $config_fieldtypes = explode('|', $data['type']);
+                    $config_fieldtypes = explode('|', (string) $data['type']);
 
                     // Need to ensure that "Single Radio" also means "Single Select", and vice versa
                     // ...and the same for the "Multiple" flavors of those fieldtypes
@@ -1034,18 +1034,18 @@ class PluginsController extends ODRCustomController
                     $display_order = 0;
                     if ( isset($data['display_order']) )
                         $display_order = $data['display_order'];
-                    $config_properties = array();
+                    $config_properties = [];
                     if ( isset($data['properties']) )
                         $config_properties = $data['properties'];
 
                     if ( !isset($tmp[$fieldname]) ) {
                         // This field doesn't exist in the database, make an entry for it
-                        $tmp[$fieldname] = array(
+                        $tmp[$fieldname] = [
                             'description' => $data['description'],
                             'allowed_fieldtypes' => $config_fieldtypes,
                             'properties' => $config_properties,
                             'display_order' => $display_order,
-                        );
+                        ];
 
                         $readable_plugin_updates[$plugin_classname][] = 'new required_field: '.$fieldname;
                     }
@@ -1111,8 +1111,8 @@ class PluginsController extends ODRCustomController
                 $plugins_needing_updates[$plugin_classname]['required_fields'] = $tmp;
 
             // Need one final check to determine whether any fields got deleted from the config file
-            $installed_fields = array();
-            $config_fields = array();
+            $installed_fields = [];
+            $config_fields = [];
             if ( isset($installed_plugins[$plugin_classname]['renderPluginFields']) ) {
                 foreach ($installed_plugins[$plugin_classname]['renderPluginFields'] as $num => $rpf)
                     $installed_fields[ $rpf['fieldName'] ] = 1;
@@ -1129,16 +1129,16 @@ class PluginsController extends ODRCustomController
 
             // ----------------------------------------
             // Determine whether any renderPluginOptions need to be created/updated/deleted...
-            $tmp = array();
+            $tmp = [];
 
             // TODO - rename renderPluginOptionsDef to renderPluginOptions
             foreach ( $installed_plugin_data['renderPluginOptionsDef'] as $num => $rpo) {
                 // TODO - is there a way to have a better key than optionName?
-                $tmp[ $rpo['name'] ] = array(
+                $tmp[ $rpo['name'] ] = [
                     'name' => $rpo['displayName'],
                     'default' => $rpo['defaultValue'],
                     'description' => $rpo['description']
-                );
+                ];
 
                 // These entries are optional in the config file, so ignore unless they're not null
                 if ( !is_null($rpo['choices']) )
@@ -1156,11 +1156,11 @@ class PluginsController extends ODRCustomController
 
                     if ( !isset($tmp[$option_key]) ) {
                         // This option doesn't exist in the database, make an entry for it
-                        $tmp[$option_key] = array(
+                        $tmp[$option_key] = [
                             'name' => $data['name'],
                             'default' => $data['default'],
                             'description' => $data['description'],
-                        );
+                        ];
 
                         // These entries are optional, so have to check whether they exists first
                         if ( isset($data['choices']) )
@@ -1251,8 +1251,8 @@ class PluginsController extends ODRCustomController
                 $plugins_needing_updates[$plugin_classname]['config_options'] = $tmp;
 
             // Need one final check to determine whether any options got deleted from the config file
-            $installed_options = array();
-            $config_options = array();
+            $installed_options = [];
+            $config_options = [];
             if ( isset($installed_plugins[$plugin_classname]['renderPluginOptionsDef']) ) {
                 foreach ($installed_plugins[$plugin_classname]['renderPluginOptionsDef'] as $num => $rpod)
                     $installed_options[ $rpod['name'] ] = 1;
@@ -1269,7 +1269,7 @@ class PluginsController extends ODRCustomController
 
             // ----------------------------------------
             // Determine whether any renderPluginEvents need to be created/updated/deleted...
-            $tmp = array();
+            $tmp = [];
 
             foreach ( $installed_plugin_data['renderPluginEvents'] as $num => $rpe) {
                 // TODO - is there a way to have a better key than eventName?
@@ -1305,8 +1305,8 @@ class PluginsController extends ODRCustomController
                 $plugins_needing_updates[$plugin_classname]['required_events'] = $tmp;
 
             // Need one final check to determine whether any events got deleted from the config file
-            $installed_events = array();
-            $config_events = array();
+            $installed_events = [];
+            $config_events = [];
             if ( isset($installed_plugins[$plugin_classname]['renderPluginEvents']) ) {
                 foreach ($installed_plugins[$plugin_classname]['renderPluginEvents'] as $num => $rpe)
                     $installed_events[ $rpe['eventName'] ] = 1;
@@ -1331,10 +1331,10 @@ class PluginsController extends ODRCustomController
             }
         }
 
-        return array(
+        return [
             'raw' => $plugins_needing_updates,
             'readable' => $readable_plugin_updates,
-        );
+        ];
     }
 
 
@@ -1356,7 +1356,7 @@ class PluginsController extends ODRCustomController
     private function getPluginUpdateProblems($em, $plugins_with_updates)
     {
         // Going to return an array of any problems that would be created by updating a plugin
-        $plugin_update_problems = array();
+        $plugin_update_problems = [];
 
         // Extract the plugin classnames from the list of plugins that can be updated
         $plugin_classnames = array_keys($plugins_with_updates);
@@ -1391,9 +1391,9 @@ class PluginsController extends ODRCustomController
             AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL AND ft.deletedAt IS NULL
             AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND gdt.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'plugin_classnames' => $plugin_classnames
-            )
+            ]
         );
         $results = $query->getArrayResult();
 
@@ -1585,16 +1585,16 @@ class PluginsController extends ODRCustomController
     private function insertPluginUpdateError(&$plugin_update_problems, $plugin_classname, $grandparent_datatype_id, $datatype_name, $datafield_name, $message)
     {
         if ( !isset($plugin_update_problems[$plugin_classname]) )
-            $plugin_update_problems[$plugin_classname] = array();
+            $plugin_update_problems[$plugin_classname] = [];
 
         if ( !isset($plugin_update_problems[$plugin_classname][$grandparent_datatype_id]) )
-            $plugin_update_problems[$plugin_classname][$grandparent_datatype_id] = array();
+            $plugin_update_problems[$plugin_classname][$grandparent_datatype_id] = [];
 
         if ( !isset($plugin_update_problems[$plugin_classname][$grandparent_datatype_id][$datatype_name]) )
-            $plugin_update_problems[$plugin_classname][$grandparent_datatype_id][$datatype_name] = array();
+            $plugin_update_problems[$plugin_classname][$grandparent_datatype_id][$datatype_name] = [];
 
         if ( !isset($plugin_update_problems[$plugin_classname][$grandparent_datatype_id][$datatype_name][$datafield_name]) )
-            $plugin_update_problems[$plugin_classname][$grandparent_datatype_id][$datatype_name][$datafield_name] = array();
+            $plugin_update_problems[$plugin_classname][$grandparent_datatype_id][$datatype_name][$datafield_name] = [];
 
         $plugin_update_problems[$plugin_classname][$grandparent_datatype_id][$datatype_name][$datafield_name][] = $message;
     }
@@ -1612,7 +1612,7 @@ class PluginsController extends ODRCustomController
      */
     private function getMappedDatafields($rp, $rpf_name)
     {
-        $mapped_datafields = array();
+        $mapped_datafields = [];
         foreach ($rp['renderPluginInstance'] as $rpi_num => $rpi) {
             foreach ($rpi['renderPluginMap'] as $rpm_num => $rpm) {
                 if ( $rpm['renderPluginFields']['fieldName'] === $rpf_name ) {
@@ -1626,14 +1626,14 @@ class PluginsController extends ODRCustomController
                     $dt = $df['dataType'];
                     $dtm = $dt['dataTypeMeta'][0];
 
-                    $mapped_datafields[$df_id] = array(
+                    $mapped_datafields[$df_id] = [
                         'grandparent_datatype_id' => $dt['grandparent']['id'],
                         'datatype_name' => $dtm['shortName'],
 
                         'fieldName' => $dfm['fieldName'],
                         'is_unique' => $dfm['is_unique'],
                         'allow_multiple_uploads' => $dfm['allow_multiple_uploads'],
-                    );
+                    ];
 
                     // Need to differentiate between the four different types of Radio fields...
                     if ( $dfm['fieldType']['typeClass'] === 'Radio' )
@@ -1658,7 +1658,7 @@ class PluginsController extends ODRCustomController
      */
     public function installpluginAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1696,7 +1696,7 @@ class PluginsController extends ODRCustomController
                'SELECT rp 
                 FROM ODRAdminBundle:RenderPlugin AS rp
                 WHERE rp.pluginClassName = :plugin_classname'
-            )->setParameters( array('plugin_classname' => $plugin_classname) );
+            )->setParameters( ['plugin_classname' => $plugin_classname] );
             $results = $query->getArrayResult();
 
             if ( count($results) > 0 )
@@ -1714,18 +1714,18 @@ class PluginsController extends ODRCustomController
 
             // Create a new RenderPlugin entry from the config file data
             $render_plugin = new RenderPlugin();
-            $render_plugin->setPluginName( mb_scrub($plugin_data['name']) );
-            $render_plugin->setDescription( mb_scrub($plugin_data['description']) );
-            $render_plugin->setCategory( mb_scrub($plugin_data['category']) );
-            $render_plugin->setPluginClassName( mb_scrub($plugin_classname) );
+            $render_plugin->setPluginName( mb_scrub((string) $plugin_data['name']) );
+            $render_plugin->setDescription( mb_scrub((string) $plugin_data['description']) );
+            $render_plugin->setCategory( mb_scrub((string) $plugin_data['category']) );
+            $render_plugin->setPluginClassName( mb_scrub((string) $plugin_classname) );
             $render_plugin->setActive(true);
 
             if ( $plugin_data['render'] === false )    // Yaml parser reads 'false' as a boolean
                 $render_plugin->setRender('false');
             else
-                $render_plugin->setRender( mb_scrub($plugin_data['render']) );
+                $render_plugin->setRender( mb_scrub((string) $plugin_data['render']) );
 
-            $plugin_type = strtolower( $plugin_data['plugin_type'] );
+            $plugin_type = strtolower( (string) $plugin_data['plugin_type'] );
             if ( $plugin_type === 'datatype' )
                 $render_plugin->setPluginType( RenderPlugin::DATATYPE_PLUGIN );
             else if ( $plugin_type === 'themeelement' )
@@ -1795,8 +1795,8 @@ class PluginsController extends ODRCustomController
                 foreach ($plugin_data['required_fields'] as $identifier => $data) {
                     $rpf = new RenderPluginFields();
                     $rpf->setRenderPlugin($render_plugin);
-                    $rpf->setFieldName( mb_scrub($data['name']) );
-                    $rpf->setDescription( mb_scrub($data['description']) );
+                    $rpf->setFieldName( mb_scrub((string) $data['name']) );
+                    $rpf->setDescription( mb_scrub((string) $data['description']) );
                     $rpf->setActive(true);
 
                     // Display order defaults to 0, but should match the config if it's defined
@@ -1829,9 +1829,9 @@ class PluginsController extends ODRCustomController
                     }
 
                     // Convert the fieldtypes listed in the plugin's config file into fieldtype ids
-                    $config_fieldtypes = explode('|', $data['type']);
+                    $config_fieldtypes = explode('|', (string) $data['type']);
 
-                    $allowed_fieldtypes = array();
+                    $allowed_fieldtypes = [];
                     foreach ($config_fieldtypes as $config_fieldtype) {
                         $ft_id = $rpf_typeclasses[$config_fieldtype];
 
@@ -1870,9 +1870,9 @@ class PluginsController extends ODRCustomController
                     // TODO - rename to RenderPluginOptions
                     $rpo = new RenderPluginOptionsDef();
                     $rpo->setRenderPlugin($render_plugin);
-                    $rpo->setName( mb_scrub($option_key) );
-                    $rpo->setDisplayName( mb_scrub($data['name']) );
-                    $rpo->setDescription( mb_scrub($data['description']) );
+                    $rpo->setName( mb_scrub((string) $option_key) );
+                    $rpo->setDisplayName( mb_scrub((string) $data['name']) );
+                    $rpo->setDescription( mb_scrub((string) $data['description']) );
 
                     // The "default" key could have boolean values...
                     if ($data['default'] === true)
@@ -1880,11 +1880,11 @@ class PluginsController extends ODRCustomController
                     else if ($data['default'] === false)
                         $rpo->setDefaultValue("false");
                     else
-                        $rpo->setDefaultValue( mb_scrub($data['default']) );
+                        $rpo->setDefaultValue( mb_scrub((string) $data['default']) );
 
                     // The "choices" and "display_order" keys are optional
                     if ( isset($data['choices']) )
-                        $rpo->setChoices( mb_scrub($data['choices']) );
+                        $rpo->setChoices( mb_scrub((string) $data['choices']) );
 
                     // ...still need to provide a default of 0 so doctrine doesn't complain apparently
                     $rpo->setDisplayOrder(0);
@@ -1956,7 +1956,7 @@ class PluginsController extends ODRCustomController
      */
     public function pluginproblemsAction($plugin_classname, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1985,7 +1985,7 @@ class PluginsController extends ODRCustomController
                'SELECT rp
                 FROM ODRAdminBundle:RenderPlugin AS rp
                 WHERE rp.pluginClassName = :plugin_classname'
-            )->setParameters( array('plugin_classname' => $plugin_classname) );
+            )->setParameters( ['plugin_classname' => $plugin_classname] );
             $results = $query->getResult();
 
             if ( count($results) == 0 )
@@ -2009,10 +2009,10 @@ class PluginsController extends ODRCustomController
                 LEFT JOIN rp.renderPluginInstance AS rpi
                 LEFT JOIN rp.renderPluginOptionsDef AS rpo
                 WHERE rp.id = :render_plugin_id'
-            )->setParameters( array('render_plugin_id' => $render_plugin->getId()) );
+            )->setParameters( ['render_plugin_id' => $render_plugin->getId()] );
             $results = $query->getArrayResult();
 
-            $installed_plugins = array();
+            $installed_plugins = [];
             foreach ($results as $result) {
                 $plugin_classname = $result['pluginClassName'];
 
@@ -2032,14 +2032,14 @@ class PluginsController extends ODRCustomController
 
             $plugin_update_problems = $plugin_update_problems[$plugin_classname];
 
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Plugins:plugin_problems.html.twig',
-                    array(
+                    [
                         'plugin_update_problems' => $plugin_update_problems,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x84b5fe5d;
@@ -2065,7 +2065,7 @@ class PluginsController extends ODRCustomController
      */
     public function pluginusesAction($plugin_classname, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -2094,7 +2094,7 @@ class PluginsController extends ODRCustomController
                'SELECT rp
                 FROM ODRAdminBundle:RenderPlugin AS rp
                 WHERE rp.pluginClassName = :plugin_classname'
-            )->setParameters( array('plugin_classname' => $plugin_classname) );
+            )->setParameters( ['plugin_classname' => $plugin_classname] );
             $results = $query->getResult();
 
             if ( count($results) == 0 )
@@ -2146,15 +2146,15 @@ class PluginsController extends ODRCustomController
             $conn = $em->getConnection();
             $results = $conn->fetchAll($query);
 
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Plugins:plugin_uses.html.twig',
-                    array(
+                    [
                         'is_datafield_plugin' => $is_datafield_plugin,
                         'plugin_uses' => $results,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x583161c6;
@@ -2183,7 +2183,7 @@ class PluginsController extends ODRCustomController
      */
     public function updatepluginAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -2230,7 +2230,7 @@ class PluginsController extends ODRCustomController
                'SELECT rp
                 FROM ODRAdminBundle:RenderPlugin AS rp
                 WHERE rp.pluginClassName = :plugin_classname'
-            )->setParameters( array('plugin_classname' => $plugin_classname) );
+            )->setParameters( ['plugin_classname' => $plugin_classname] );
             $results = $query->getResult();
 
             if ( count($results) == 0 )
@@ -2257,10 +2257,10 @@ class PluginsController extends ODRCustomController
                 LEFT JOIN rp.renderPluginInstance AS rpi
                 LEFT JOIN rp.renderPluginOptionsDef AS rpo
                 WHERE rp.id = :render_plugin_id'
-            )->setParameters( array('render_plugin_id' => $render_plugin->getId()) );
+            )->setParameters( ['render_plugin_id' => $render_plugin->getId()] );
             $results = $query->getArrayResult();
 
-            $installed_plugins = array();
+            $installed_plugins = [];
             foreach ($results as $result) {
                 $plugin_classname = $result['pluginClassName'];
 
@@ -2284,18 +2284,18 @@ class PluginsController extends ODRCustomController
 
             // ----------------------------------------
             // Update the existing RenderPlugin entry from the config file data
-            $render_plugin->setPluginName( mb_scrub($plugin_data['name']) );
-            $render_plugin->setDescription( mb_scrub($plugin_data['description']) );
-            $render_plugin->setCategory( mb_scrub($plugin_data['category']) );
-            $render_plugin->setPluginClassName( mb_scrub($plugin_classname) );
+            $render_plugin->setPluginName( mb_scrub((string) $plugin_data['name']) );
+            $render_plugin->setDescription( mb_scrub((string) $plugin_data['description']) );
+            $render_plugin->setCategory( mb_scrub((string) $plugin_data['category']) );
+            $render_plugin->setPluginClassName( mb_scrub((string) $plugin_classname) );
             $render_plugin->setActive(true);
 
             if ( $plugin_data['render'] === false )    // Yaml parser reads 'false' as a boolean
                 $render_plugin->setRender('false');
             else
-                $render_plugin->setRender( mb_scrub($plugin_data['render']) );
+                $render_plugin->setRender( mb_scrub((string) $plugin_data['render']) );
 
-            $plugin_type = strtolower( $plugin_data['plugin_type'] );
+            $plugin_type = strtolower( (string) $plugin_data['plugin_type'] );
             if ( $plugin_type === 'datatype' )
                 $render_plugin->setPluginType( RenderPlugin::DATATYPE_PLUGIN );
             else if ( $plugin_type === 'themeelement' )
@@ -2362,7 +2362,7 @@ class PluginsController extends ODRCustomController
 
             // ----------------------------------------
             // Determine if any RenderPluginField entries in the database aren't in the config file
-            $rpfs_to_delete = array();
+            $rpfs_to_delete = [];
             /** @var RenderPluginFields $rpf */
             foreach ($render_plugin->getRenderPluginFields() as $rpf) {
                 $found = false;
@@ -2388,10 +2388,10 @@ class PluginsController extends ODRCustomController
 
                     /** @var RenderPluginFields $rpf */
                     $rpf = $repo_render_plugin_fields->findOneBy(
-                        array(
+                        [
                             'fieldName' => $data['name'],
                             'renderPlugin' => $render_plugin->getId(),
-                        )
+                        ]
                     );
 
                     if ( is_null($rpf) ) {
@@ -2400,8 +2400,8 @@ class PluginsController extends ODRCustomController
                     }
 
                     $rpf->setRenderPlugin($render_plugin);
-                    $rpf->setFieldName( mb_scrub($data['name']) );
-                    $rpf->setDescription( mb_scrub($data['description']) );
+                    $rpf->setFieldName( mb_scrub((string) $data['name']) );
+                    $rpf->setDescription( mb_scrub((string) $data['description']) );
                     $rpf->setActive(true);
 
                     // Display order defaults to 0, but should match the config if it's defined
@@ -2434,9 +2434,9 @@ class PluginsController extends ODRCustomController
                     }
 
                     // Convert the fieldtypes listed in the plugin's config file into fieldtype ids
-                    $config_fieldtypes = explode('|', $data['type']);
+                    $config_fieldtypes = explode('|', (string) $data['type']);
 
-                    $allowed_fieldtypes = array();
+                    $allowed_fieldtypes = [];
                     foreach ($config_fieldtypes as $config_fieldtype) {
                         $ft_id = $rpf_typeclasses[$config_fieldtype];
 
@@ -2482,7 +2482,7 @@ class PluginsController extends ODRCustomController
             // ----------------------------------------
             // Determine if any RenderPluginOptions entries in the database aren't in the config file
             // TODO - rename to RenderPluginOptions
-            $options_to_delete = array();
+            $options_to_delete = [];
             /** @var RenderPluginOptionsDef $rpo */
             foreach ($render_plugin->getRenderPluginOptionsDef() as $rpo) {
                 $found = false;
@@ -2508,10 +2508,10 @@ class PluginsController extends ODRCustomController
 
                     /** @var RenderPluginOptionsDef $rpo */
                     $rpo = $repo_render_plugin_options->findOneBy(
-                        array(
+                        [
                             'name' => $option_key,
                             'renderPlugin' => $render_plugin->getId(),
-                        )
+                        ]
                     );
 
                     if ( is_null($rpo) ) {
@@ -2521,9 +2521,9 @@ class PluginsController extends ODRCustomController
 
 
                     $rpo->setRenderPlugin($render_plugin);
-                    $rpo->setName( mb_scrub($option_key) );
-                    $rpo->setDisplayName( mb_scrub($data['name']) );
-                    $rpo->setDescription( mb_scrub($data['description']) );
+                    $rpo->setName( mb_scrub((string) $option_key) );
+                    $rpo->setDisplayName( mb_scrub((string) $data['name']) );
+                    $rpo->setDescription( mb_scrub((string) $data['description']) );
 
                     // The "default" key could have boolean values...
                     if ($data['default'] === true)
@@ -2531,11 +2531,11 @@ class PluginsController extends ODRCustomController
                     else if ($data['default'] === false)
                         $rpo->setDefaultValue("false");
                     else
-                        $rpo->setDefaultValue( mb_scrub($data['default']) );
+                        $rpo->setDefaultValue( mb_scrub((string) $data['default']) );
 
                     // The "choices" and "display_order" keys are optional
                     if ( isset($data['choices']) )
-                        $rpo->setChoices( mb_scrub($data['choices']) );
+                        $rpo->setChoices( mb_scrub((string) $data['choices']) );
 
                     // ...still need to provide a default of 0 so doctrine doesn't complain apparently
                     $rpo->setDisplayOrder(0);
@@ -2585,7 +2585,7 @@ class PluginsController extends ODRCustomController
 
             // ----------------------------------------
             // Determine if any RenderPluginEvents entries in the database aren't in the config file
-            $events_to_delete = array();
+            $events_to_delete = [];
             /** @var RenderPluginEvents $rpe */
             foreach ($render_plugin->getRenderPluginEvents() as $rpe) {
                 $found = false;
@@ -2611,10 +2611,10 @@ class PluginsController extends ODRCustomController
 
                     /** @var RenderPluginEvents $rpe */
                     $rpe = $repo_render_plugin_events->findOneBy(
-                        array(
+                        [
                             'eventName' => $eventName,
                             'renderPlugin' => $render_plugin->getId(),
-                        )
+                        ]
                     );
 
                     if ( is_null($rpe) ) {
@@ -2649,7 +2649,7 @@ class PluginsController extends ODRCustomController
                     SET rpf.deletedAt = :now
                     WHERE rpf IN (:render_plugin_fields)
                     AND rpf.deletedAt IS NULL'
-                )->setParameters(array('now' => new \DateTime(), 'render_plugin_fields' => $rpfs_to_delete));
+                )->setParameters(['now' => new \DateTime(), 'render_plugin_fields' => $rpfs_to_delete]);
                 $rowsAffected = $query->execute();
 
                 $query = $em->createQuery(
@@ -2657,7 +2657,7 @@ class PluginsController extends ODRCustomController
                     SET rpm.deletedAt = :now
                     WHERE rpm.renderPluginFields IN (:render_plugin_fields)
                     AND rpm.deletedAt IS NULL'
-                )->setParameters(array('now' => new \DateTime(), 'render_plugin_fields' => $rpfs_to_delete));
+                )->setParameters(['now' => new \DateTime(), 'render_plugin_fields' => $rpfs_to_delete]);
                 $rowsAffected = $query->execute();
             }
 
@@ -2668,7 +2668,7 @@ class PluginsController extends ODRCustomController
                     SET rpo.deletedAt = :now
                     WHERE rpo IN (:render_plugin_options)
                     AND rpo.deletedAt IS NULL'
-                )->setParameters(array('now' => new \DateTime(), 'render_plugin_options' => $options_to_delete));
+                )->setParameters(['now' => new \DateTime(), 'render_plugin_options' => $options_to_delete]);
                 $rowsAffected = $query->execute();
 
                 $query = $em->createQuery(
@@ -2676,7 +2676,7 @@ class PluginsController extends ODRCustomController
                     SET rpom.deletedAt = :now
                     WHERE rpom.renderPluginOptionsDef IN (:render_plugin_options)
                     AND rpom.deletedAt IS NULL'
-                )->setParameters(array('now' => new \DateTime(), 'render_plugin_options' => $options_to_delete));
+                )->setParameters(['now' => new \DateTime(), 'render_plugin_options' => $options_to_delete]);
                 $rowsAffected = $query->execute();
 
                 $query = $em->createQuery(
@@ -2684,7 +2684,7 @@ class PluginsController extends ODRCustomController
                     SET rptom.deletedAt = :now
                     WHERE rptom.renderPluginOptionsDef IN (:render_plugin_options)
                     AND rptom.deletedAt IS NULL'
-                )->setParameters(array('now' => new \DateTime(), 'render_plugin_options' => $options_to_delete));
+                )->setParameters(['now' => new \DateTime(), 'render_plugin_options' => $options_to_delete]);
                 $rowsAffected = $query->execute();
             }
 
@@ -2694,7 +2694,7 @@ class PluginsController extends ODRCustomController
                     SET rpe.deletedAt = :now
                     WHERE rpe IN (:render_plugin_events)
                     AND rpe.deletedAt IS NULL'
-                )->setParameters(array('now' => new \DateTime(), 'render_plugin_events' => $events_to_delete));
+                )->setParameters(['now' => new \DateTime(), 'render_plugin_events' => $events_to_delete]);
                 $rowsAffected = $query->execute();
             }
 
@@ -2721,10 +2721,10 @@ class PluginsController extends ODRCustomController
                 WHERE rpi.renderPlugin = :render_plugin_id
                 AND rpi.deletedAt IS NULL AND dt.deletedAt IS NULL AND gp_dt.deletedAt IS NULL
                 AND df.deletedAt IS NULL AND df_dt.deletedAt IS NULL AND df_gp_dt.deletedAt IS NULL'
-            )->setParameters( array('render_plugin_id' => $render_plugin->getId()) );
+            )->setParameters( ['render_plugin_id' => $render_plugin->getId()] );
             $results = $query->getArrayResult();
 
-            $datatype_ids = array();
+            $datatype_ids = [];
             if ( is_array($results) ) {
                 foreach ($results as $result) {
                     // Store the grandparent datatype id, if it exists...
@@ -2772,7 +2772,7 @@ class PluginsController extends ODRCustomController
      */
     public function renderplugindialogAction($datatype_id, $datafield_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -2849,13 +2849,13 @@ class PluginsController extends ODRCustomController
                     AND rp.deletedAt IS NULL
                     ORDER BY rp.category, rp.pluginName'
                 )->setParameters(
-                    array(
-                        'plugin_types' => array(
+                    [
+                        'plugin_types' => [
                             RenderPlugin::DATATYPE_PLUGIN,
                             RenderPlugin::THEME_ELEMENT_PLUGIN,
                             RenderPlugin::ARRAY_PLUGIN,
-                        )
-                    )
+                        ]
+                    ]
                 );
                 /** @var RenderPlugin[] $render_plugins */
                 $render_plugins = $query->getResult();
@@ -2863,9 +2863,9 @@ class PluginsController extends ODRCustomController
                 // Load the currently active plugin instances for this datatype
                 /** @var RenderPluginInstance[]|null $render_plugin_instances */
                 $render_plugin_instances = $repo_render_plugin_instance->findBy(
-                    array(
+                    [
                         'dataType' => $datatype
-                    )
+                    ]
                 );
             }
             else {
@@ -2878,12 +2878,12 @@ class PluginsController extends ODRCustomController
                     AND rp.deletedAt IS NULL
                     ORDER BY rp.category, rp.pluginName'
                 )->setParameters(
-                    array(
-                        'plugin_types' => array(
+                    [
+                        'plugin_types' => [
                             RenderPlugin::DATAFIELD_PLUGIN,
                             RenderPlugin::DATAFIELD_HEADER_PLUGIN,
-                        )
-                    )
+                        ]
+                    ]
                 );
                 /** @var RenderPlugin[] $render_plugins */
                 $render_plugins = $query->getResult();
@@ -2891,16 +2891,16 @@ class PluginsController extends ODRCustomController
                 // Load the currently active plugin instances for this datafield
                 /** @var RenderPluginInstance[]|null $render_plugin_instances */
                 $render_plugin_instances = $repo_render_plugin_instance->findBy(
-                    array(
+                    [
                         'dataField' => $datafield
-                    )
+                    ]
                 );
             }
 
 
             // ----------------------------------------
             // Cleaner to determine these variables in here, instead of in twig
-            $attached_render_plugins = array();
+            $attached_render_plugins = [];
             $plugin_to_load = null;
             foreach ($render_plugin_instances as $rpi) {
                 $rp_id = $rpi->getRenderPlugin()->getId();
@@ -2941,8 +2941,8 @@ class PluginsController extends ODRCustomController
 
             // So, have to settle for displaying warnings on fields which don't currently fulfill
             //  the requirements
-            $current_unique_fields = array();
-            $current_single_upload_fields = array();
+            $current_unique_fields = [];
+            $current_single_upload_fields = [];
 
             if ( $datafield_id == 0 ) {
                 // Need to check each datafield in this datatype...
@@ -2973,10 +2973,10 @@ class PluginsController extends ODRCustomController
 
             // ----------------------------------------
             // Get Templating Object
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Plugins:plugin_settings_dialog_form.html.twig',
-                    array(
+                    [
                         'local_datatype' => $datatype,
                         'local_datafield' => $datafield,
                         'is_datatype_admin' => $is_datatype_admin,
@@ -2989,9 +2989,9 @@ class PluginsController extends ODRCustomController
 
                         'current_unique_fields' => $current_unique_fields,
                         'current_single_upload_fields' => $current_single_upload_fields,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x9a07165b;
@@ -3020,7 +3020,7 @@ class PluginsController extends ODRCustomController
      */
     public function renderpluginsettingsAction($datatype_id, $datafield_id, $render_plugin_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -3051,7 +3051,7 @@ class PluginsController extends ODRCustomController
                 if ( is_null($datatype) )
                     throw new ODRNotFoundException('Datatype');
 
-                $all_datafields = $repo_datafield->findBy(array('dataType' => $datatype));
+                $all_datafields = $repo_datafield->findBy(['dataType' => $datatype]);
             }
             else {
                 // This is a render plugin for a datafield/datafieldHeader
@@ -3104,7 +3104,7 @@ class PluginsController extends ODRCustomController
                 LEFT JOIN rp.renderPluginOptionsDef rpo
                 WHERE rp.id = :render_plugin_id
                 AND rp.deletedAt IS NULL AND rpf.deletedAt IS NULL AND rpo.deletedAt IS NULL'
-            )->setParameters( array('render_plugin_id' => $target_render_plugin->getId()) );
+            )->setParameters( ['render_plugin_id' => $target_render_plugin->getId()] );
             $results = $query->getArrayResult();
 
             // Only going to be one result in here
@@ -3112,12 +3112,12 @@ class PluginsController extends ODRCustomController
 
             // Rekey the RenderPluginFields and the RenderPluginOptions arrays to use their respective
             //  ids, so it'll be easier for the RenderPluginInstance to look up values when needed
-            $tmp = array();
+            $tmp = [];
             foreach ($render_plugin['renderPluginFields'] as $num => $rpf)
                 $tmp[ $rpf['id'] ] = $rpf;
             $render_plugin['renderPluginFields'] = $tmp;
 
-            $tmp = array();
+            $tmp = [];
             foreach ($render_plugin['renderPluginOptionsDef'] as $num => $rpo)
                 $tmp[ $rpo['id'] ] = $rpo;
             unset( $render_plugin['renderPluginOptionsDef'] );
@@ -3125,11 +3125,11 @@ class PluginsController extends ODRCustomController
 
 
             // Make a list of which fieldtypes each renderPluginField entry is allowed to have
-            $allowed_fieldtypes = array();
+            $allowed_fieldtypes = [];
             foreach ($render_plugin['renderPluginFields'] as $rpf_id => $rpf) {
-                $config_fieldtypes = explode(',', $rpf['allowedFieldtypes']);
+                $config_fieldtypes = explode(',', (string) $rpf['allowedFieldtypes']);
 
-                $tmp = array();
+                $tmp = [];
                 foreach ($config_fieldtypes as $config_fieldtype) {
                     if ( isset($single_select_fieldtypes[$config_fieldtype]) ) {
                         // Need to ensure "Single Radio" === "Single Select"
@@ -3151,9 +3151,9 @@ class PluginsController extends ODRCustomController
 
             // Convert the renderPluginOption choices from a string into an array
             foreach ($render_plugin['renderPluginOptions'] as $rpo_id => $rpo) {
-                $choices = array();
+                $choices = [];
                 if ( isset($rpo['choices']) ) {
-                    if ( strpos($rpo['choices'], ',') === false ) {
+                    if ( !str_contains($rpo['choices'], ',') ) {
                         // This is a set of "simple" choices...the display values work as HTML keys
                         $options = explode('||', $rpo['choices']);
                         foreach ($options as $option)
@@ -3212,9 +3212,9 @@ class PluginsController extends ODRCustomController
                     WHERE rpi.dataType = :dataType
                     ORDER BY rpi.id ASC'
                 )->setParameters(
-                    array(
+                    [
                         'dataType' => $datatype
-                    )
+                    ]
                 );
             }
             else {
@@ -3225,9 +3225,9 @@ class PluginsController extends ODRCustomController
                     WHERE rpi.dataField = :dataField
                     ORDER BY rpi.id ASC'
                 )->setParameters(
-                    array(
+                    [
                         'dataField' => $datafield
-                    )
+                    ]
                 );
             }
             $all_render_plugin_instances = $query->getArrayResult();
@@ -3261,9 +3261,9 @@ class PluginsController extends ODRCustomController
                     LEFT JOIN rpi.themeRenderPluginInstance trpi
                     WHERE rpi.id = :render_plugin_instance_id'
                 )->setParameters(
-                    array(
+                    [
                         'render_plugin_instance_id' => $current_render_plugin_instance['id']
-                    )
+                    ]
                 );
                 $results = $query->getArrayResult();
 
@@ -3272,7 +3272,7 @@ class PluginsController extends ODRCustomController
 
                 // Rekey the RenderPluginOptionsMap array to use the RenderPluginOptions id, so it's
                 //  easier to lookup values if needed
-                $tmp = array();
+                $tmp = [];
                 foreach ($render_plugin_instance['renderPluginOptionsMap'] as $num => $rpom) {
                     $rpo_id = $rpom['renderPluginOptionsDef']['id'];
                     unset( $rpom['renderPluginOptionsDef'] );
@@ -3325,7 +3325,7 @@ class PluginsController extends ODRCustomController
                 }
             }
 
-            $custom_render_plugin_options_html = array();
+            $custom_render_plugin_options_html = [];
             if ( $uses_custom_render ) {
                 // If any of them do, then call the relevant function defined in the render plugin
                 /** @var PluginSettingsDialogOverrideInterface $plugin */
@@ -3344,10 +3344,10 @@ class PluginsController extends ODRCustomController
 
 
             // ----------------------------------------
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Plugins:plugin_settings_dialog_form_data.html.twig',
-                    array(
+                    [
                         'rpf_typenames' => $rpf_typenames,
 
                         'local_datatype' => $datatype,
@@ -3363,9 +3363,9 @@ class PluginsController extends ODRCustomController
                         'illegal_render_plugin_message' => $illegal_render_plugin_message,
 
                         'custom_render_plugin_options_html' => $custom_render_plugin_options_html,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x001bf2cc;
@@ -3403,9 +3403,9 @@ class PluginsController extends ODRCustomController
                     WHERE rpi.dataType = :dataType
                     ORDER BY rpi.id ASC'
             )->setParameters(
-                array(
+                [
                     'dataType' => $datatype
-                )
+                ]
             );
         }
         else {
@@ -3416,9 +3416,9 @@ class PluginsController extends ODRCustomController
                     WHERE rpi.dataField = :dataField
                     ORDER BY rpi.id ASC'
             )->setParameters(
-                array(
+                [
                     'dataField' => $datafield
-                )
+                ]
             );
         }
         $all_render_plugin_instances = $query->getArrayResult();
@@ -3563,7 +3563,7 @@ class PluginsController extends ODRCustomController
      */
     private function getAllowedFieldtypesString($allowed_fieldtypes, $rpf_typenames)
     {
-        $ft_array = array();
+        $ft_array = [];
         foreach ($allowed_fieldtypes as $rpf_id => $ft_list) {
             foreach ($ft_list as $num => $ft_id)
                 $ft_array[] = '"'.array_search($ft_id, $rpf_typenames).'"';
@@ -3606,7 +3606,7 @@ class PluginsController extends ODRCustomController
      */
     public function detachrenderpluginAction($datatype_id, $datafield_id, $render_plugin_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -3674,18 +3674,18 @@ class PluginsController extends ODRCustomController
             $rpi_array = null;
             if ( is_null($datafield) ) {
                 $rpi_array = $em->getRepository('ODRAdminBundle:RenderPluginInstance')->findBy(
-                    array(
+                    [
                         'dataType' => $datatype->getId(),
                         'renderPlugin' => $target_render_plugin->getId()
-                    )
+                    ]
                 );
             }
             else {
                 $rpi_array = $em->getRepository('ODRAdminBundle:RenderPluginInstance')->findBy(
-                    array(
+                    [
                         'dataField' => $datafield->getId(),
                         'renderPlugin' => $target_render_plugin->getId()
-                    )
+                    ]
                 );
             }
 
@@ -3731,8 +3731,8 @@ class PluginsController extends ODRCustomController
             //  this RenderPluginInstance...
             // The ThemeElement is left alone to match what happens when deleting a child/linked
             //  datatype
-            $affected_themes = array();
-            $affected_theme_elements = array();
+            $affected_themes = [];
+            $affected_theme_elements = [];
             if ( $target_render_plugin->getPluginType() === RenderPlugin::THEME_ELEMENT_PLUGIN ) {
                 $query = $em->createQuery(
                    'SELECT trpi
@@ -3740,7 +3740,7 @@ class PluginsController extends ODRCustomController
                     WHERE trpi.renderPluginInstance = :rpi_id
                     AND trpi.deletedAt IS NULL'
                 )->setParameters(
-                    array('rpi_id' => $rpi->getId())
+                    ['rpi_id' => $rpi->getId()]
                 );
                 $results = $query->getResult();
                 /** @var ThemeRenderPluginInstance[] $results */
@@ -3793,13 +3793,13 @@ class PluginsController extends ODRCustomController
             // Don't need to filter here
             $datafield_properties = json_encode($datafield_info_service->getDatafieldProperties($datatype_array));
 
-            $return['d'] = array(
+            $return['d'] = [
                 'datafield_id' => $datafield_id,     // the entity may be null, so use the param that was passed in
                 'datatype_id' => $datatype->getId(), // this entity won't be null
 
                 'datafield_properties' => $datafield_properties,
                 'affected_theme_elements' => $affected_theme_elements,
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x2680077f;
@@ -3826,7 +3826,7 @@ class PluginsController extends ODRCustomController
      */
     public function saverenderpluginsettingsAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -3847,15 +3847,15 @@ class PluginsController extends ODRCustomController
             $local_datafield_id = $post['local_datafield_id'];
             $selected_plugin_id = $post['selected_render_plugin'];
 
-            $new_df_fieldtypes = array();
+            $new_df_fieldtypes = [];
             if ( isset($post['new_df_fieldtypes']) )
                 $new_df_fieldtypes = $post['new_df_fieldtypes'];
 
-            $plugin_map = array();
+            $plugin_map = [];
             if ( isset($post['plugin_map']) )
                 $plugin_map = $post['plugin_map'];
 
-            $plugin_options = array();
+            $plugin_options = [];
             if ( isset($post['plugin_options']) )
                 $plugin_options = $post['plugin_options'];
 
@@ -3863,7 +3863,7 @@ class PluginsController extends ODRCustomController
             $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
             if ( $is_wordpress_integrated ) {
                 foreach ($plugin_options as $rpo_id => $value)
-                    $plugin_options[$rpo_id] = stripslashes($value);
+                    $plugin_options[$rpo_id] = stripslashes((string) $value);
             }
 
 
@@ -3905,7 +3905,7 @@ class PluginsController extends ODRCustomController
             /** @var DataFields|null $target_datafield */
             $target_datafield = null;   // the datafield that is getting its render plugin modified
             /** @var RenderPluginInstance[] $all_render_plugin_instances */
-            $all_render_plugin_instances = array();
+            $all_render_plugin_instances = [];
 
             $changing_datatype_plugin = false;
             $changing_datafield_plugin = false;
@@ -3917,9 +3917,9 @@ class PluginsController extends ODRCustomController
                     throw new ODRNotFoundException('Datatype');
 
                 $all_render_plugin_instances = $repo_render_plugin_instance->findBy(
-                    array(
+                    [
                         'dataType' => $target_datatype->getId()
-                    )
+                    ]
                 );
 
                 $changing_datatype_plugin = true;
@@ -3935,9 +3935,9 @@ class PluginsController extends ODRCustomController
                     throw new ODRNotFoundException('Datatype');
 
                 $all_render_plugin_instances = $repo_render_plugin_instance->findBy(
-                    array(
+                    [
                         'dataField' => $target_datafield->getId()
-                    )
+                    ]
                 );
 
                 $changing_datafield_plugin = true;
@@ -4003,7 +4003,7 @@ class PluginsController extends ODRCustomController
 
 
             // Ensure the plugin map doesn't have the same datafield mapped to multiple renderPluginFields
-            $mapped_datafields = array();
+            $mapped_datafields = [];
             foreach ($plugin_map as $rpf_id => $df_id) {
                 if ( $df_id != '-1' && $df_id != '-2' ) {
                     if ( isset($mapped_datafields[$df_id]) )
@@ -4016,13 +4016,13 @@ class PluginsController extends ODRCustomController
             // Ensure the datafields listed in the plugin map are of the correct fieldtype, and that
             //  every field required by the plugin is mapped
             /** @var RenderPluginFields[] $render_plugin_fields */
-            $render_plugin_fields = $repo_render_plugin_fields->findBy( array('renderPlugin' => $selected_render_plugin) );
+            $render_plugin_fields = $repo_render_plugin_fields->findBy( ['renderPlugin' => $selected_render_plugin] );
             if ( count($render_plugin_fields) !== count($plugin_map) )
                 throw new ODRBadRequestException('Invalid Form...incorrect number of datafields mapped');
 
             // Might as well store these in a lookup array at the same time, so we don't have to
             //  keep reloading them
-            $rpf_lookup = array();
+            $rpf_lookup = [];
             foreach ($render_plugin_fields as $rpf) {
                 $rpf_id = $rpf->getId();
                 $rpf_lookup[$rpf_id] = $rpf;
@@ -4065,9 +4065,9 @@ class PluginsController extends ODRCustomController
 
             // Ensure that the options listed in the post belong to the correct render plugin
             /** @var RenderPluginOptionsDef[] $render_plugin_options */
-            $render_plugin_options = $repo_render_plugin_options->findBy( array('renderPlugin' => $selected_render_plugin) );
+            $render_plugin_options = $repo_render_plugin_options->findBy( ['renderPlugin' => $selected_render_plugin] );
 
-            $rpo_lookup = array();
+            $rpo_lookup = [];
             foreach ($render_plugin_options as $num => $rpo) {
                 // Layout-specific options shouldn't be submitted as part of this form
                 if ( !$rpo->getUsesLayoutSettings() ) {
@@ -4084,16 +4084,16 @@ class PluginsController extends ODRCustomController
 
             $plugin_attached = false;
             $plugin_theme_elements_added = false;
-            $plugin_fields_added = array();
-            $plugin_fields_changed = array();
-            $plugin_settings_changed = array();
+            $plugin_fields_added = [];
+            $plugin_fields_changed = [];
+            $plugin_settings_changed = [];
             $reload_datatype = false;
 
 
             // ----------------------------------------
             // Create any new datafields required
             $theme_element = null;
-            $new_datafields = array();
+            $new_datafields = [];
             foreach ($new_df_fieldtypes as $rpf_id => $ft_id) {
                 // Only attempt to create new datafields if they're being requested
                 if ( $plugin_map[$rpf_id] != '-1' )
@@ -4150,7 +4150,7 @@ class PluginsController extends ODRCustomController
                         $event = new DatafieldCreatedEvent($df, $user);
                         $dispatcher->dispatch(DatafieldCreatedEvent::NAME, $event);
                     }
-                    catch (\Exception $e) {
+                    catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
                         //  event
 //                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -4202,10 +4202,10 @@ class PluginsController extends ODRCustomController
                 // Attempt to locate the mapping for this render plugin field in this instance
                 /** @var RenderPluginMap $rpm */
                 $rpm = $repo_render_plugin_map->findOneBy(
-                    array(
+                    [
                         'renderPluginInstance' => $selected_render_plugin_instance->getId(),
                         'renderPluginFields' => $rpf_id
-                    )
+                    ]
                 );
                 // Locate the render plugin field object being referenced
                 /** @var RenderPluginFields $rpf */
@@ -4226,9 +4226,9 @@ class PluginsController extends ODRCustomController
                 }
                 else {
                     // ...otherwise, update the existing entity
-                    $props = array(
+                    $props = [
                         'dataField' => $df
-                    );
+                    ];
 
                     // If the field used to be null but isn't anymore, then it was technically added
                     if ( is_null($rpm->getDataField()) && !is_null($df) )
@@ -4241,7 +4241,7 @@ class PluginsController extends ODRCustomController
 
                 if ( !is_null($df) ) {
                     // The datafield may need to have these properties set due to the render plugin
-                    $props = array();
+                    $props = [];
                     if ( $rpf->getMustBeUnique() )
                         $props['is_unique'] = true;
                     if ( $rpf->getSingleUploadsOnly() )
@@ -4259,10 +4259,10 @@ class PluginsController extends ODRCustomController
                 // Attempt to locate the existing RenderPluginOptionsMap entity
                 /** @var RenderPluginOptionsMap $render_plugin_option_map */
                 $render_plugin_option_map = $repo_render_plugin_options_map->findOneBy(
-                    array(
+                    [
                         'renderPluginInstance' => $selected_render_plugin_instance->getId(),
                         'renderPluginOptionsDef' => $rpo_id,    // TODO - rename to renderPluginOptions
-                    )
+                    ]
                 );
 
                 // If the RenderPluginOptionsMap entity doesn't exist, create it
@@ -4276,9 +4276,9 @@ class PluginsController extends ODRCustomController
                 }
                 else {
                     // ...otherwise, update the existing entity
-                    $properties = array(
+                    $properties = [
                         'value' => $value
-                    );
+                    ];
                     $changes_made = $entity_modify_service->updateRenderPluginOptionsMap($user, $render_plugin_option_map, $properties, true);    // don't need to flush...
 
                     if ($changes_made)
@@ -4304,7 +4304,7 @@ class PluginsController extends ODRCustomController
                     $event = new PluginAttachEvent($selected_render_plugin_instance, $user);
                     $dispatcher->dispatch(PluginAttachEvent::NAME, $event);
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     // ...don't particularly want to rethrow the error since it'll interrupt
                     //  everything downstream of the event (such as file encryption...), but
                     //  having the error disappear is less ideal on the dev environment...
@@ -4328,7 +4328,7 @@ class PluginsController extends ODRCustomController
                     $event = new PluginOptionsChangedEvent($selected_render_plugin_instance, $user, $changed_fields, $plugin_settings_changed);
                     $dispatcher->dispatch(PluginOptionsChangedEvent::NAME, $event);
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     // ...don't particularly want to rethrow the error since it'll interrupt
                     //  everything downstream of the event (such as file encryption...), but
                     //  having the error disappear is less ideal on the dev environment...
@@ -4354,7 +4354,7 @@ class PluginsController extends ODRCustomController
                     $event = new DatatypeModifiedEvent($target_datatype, $user);
                     $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
 //                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -4368,13 +4368,13 @@ class PluginsController extends ODRCustomController
             $datatype_array = $database_info_service->getDatatypeArray($target_datatype->getGrandparent()->getId());
             $datafield_properties = json_encode($datafield_info_service->getDatafieldProperties($datatype_array));
 
-            $return['d'] = array(
+            $return['d'] = [
                 'datafield_id' => $local_datafield_id,
                 'datatype_id' => $local_datatype_id,
 
                 'datafield_properties' => $datafield_properties,
                 'reload_datatype' => $reload_datatype,
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x75fbef09;
@@ -4403,7 +4403,7 @@ class PluginsController extends ODRCustomController
      */
     public function pluginlayoutsettingsdialogAction($theme_id, $datatype_id, $datafield_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -4482,15 +4482,15 @@ class PluginsController extends ODRCustomController
                     AND rp.deletedAt IS NULL AND rpod.deletedAt IS NULL AND rpi.deletedAt IS NULL
                     ORDER BY rp.category, rp.pluginName'
                 )->setParameters(
-                    array(
-                        'plugin_types' => array(
+                    [
+                        'plugin_types' => [
                             RenderPlugin::DATATYPE_PLUGIN,
                             RenderPlugin::THEME_ELEMENT_PLUGIN,
                             RenderPlugin::ARRAY_PLUGIN,
-                        ),
+                        ],
                         'uses_layout_settings' => true,
                         'datatype' => $datatype_id,
-                    )
+                    ]
                 );
                 /** @var RenderPluginInstance[] $results */
                 $results = $query->getResult();
@@ -4513,14 +4513,14 @@ class PluginsController extends ODRCustomController
                     AND rp.deletedAt IS NULL AND rpod.deletedAt IS NULL AND rpi.deletedAt IS NULL
                     ORDER BY rp.category, rp.pluginName'
                 )->setParameters(
-                    array(
-                        'plugin_types' => array(
+                    [
+                        'plugin_types' => [
                             RenderPlugin::DATAFIELD_PLUGIN,
                             RenderPlugin::DATAFIELD_HEADER_PLUGIN,
-                        ),
+                        ],
                         'uses_layout_settings' => true,
                         'datafield' => $datafield_id,
-                    )
+                    ]
                 );
                 /** @var RenderPluginInstance[] $results */
                 $results = $query->getResult();
@@ -4537,7 +4537,7 @@ class PluginsController extends ODRCustomController
 
             // ----------------------------------------
             // Cleaner to determine which plugin to load in here, instead of in twig
-            $attached_render_plugins = array();
+            $attached_render_plugins = [];
             $plugin_to_load = null;
             foreach ($render_plugin_instances as $rpi) {
                 $rp_id = $rpi->getRenderPlugin()->getId();
@@ -4560,10 +4560,10 @@ class PluginsController extends ODRCustomController
 
             // ----------------------------------------
             // Get Templating Object
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Plugins:plugin_layout_settings_dialog_form.html.twig',
-                    array(
+                    [
                         'theme_id' => $theme_id,
                         'local_datatype' => $datatype,
                         'local_datafield' => $datafield,
@@ -4574,9 +4574,9 @@ class PluginsController extends ODRCustomController
 
                         'render_plugin_instances' => $render_plugin_instances,
                         'attached_render_plugins' => $attached_render_plugins,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x5520cdd5;
@@ -4605,7 +4605,7 @@ class PluginsController extends ODRCustomController
      */
     public function renderpluginlayoutsettingsAction($theme_id, $datatype_id, $datafield_id, $render_plugin_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -4680,7 +4680,7 @@ class PluginsController extends ODRCustomController
                 LEFT JOIN rp.renderPluginOptionsDef rpo
                 WHERE rp.id = :render_plugin_id
                 AND rp.deletedAt IS NULL AND rpo.deletedAt IS NULL'
-            )->setParameters( array('render_plugin_id' => $target_render_plugin->getId()) );
+            )->setParameters( ['render_plugin_id' => $target_render_plugin->getId()] );
             $results = $query->getArrayResult();
 
             // Only going to be one result in here
@@ -4688,7 +4688,7 @@ class PluginsController extends ODRCustomController
 
             // Rekey the RenderPluginOptions array to use its respective ids, so it'll be easier
             //  for the RenderPluginInstance to look up values when needed
-            $tmp = array();
+            $tmp = [];
             foreach ($render_plugin['renderPluginOptionsDef'] as $num => $rpo)
                 $tmp[ $rpo['id'] ] = $rpo;
             unset( $render_plugin['renderPluginOptionsDef'] );
@@ -4696,9 +4696,9 @@ class PluginsController extends ODRCustomController
 
             // Convert the renderPluginOption choices from a string into an array
             foreach ($render_plugin['renderPluginOptions'] as $rpo_id => $rpo) {
-                $choices = array();
+                $choices = [];
                 if ( isset($rpo['choices']) ) {
-                    if ( strpos($rpo['choices'], ',') === false ) {
+                    if ( !str_contains($rpo['choices'], ',') ) {
                         // This is a set of "simple" choices...the display values work as HTML keys
                         $options = explode('||', $rpo['choices']);
                         foreach ($options as $option)
@@ -4741,9 +4741,9 @@ class PluginsController extends ODRCustomController
                     WHERE rpi.dataType = :dataType
                     ORDER BY rpi.id ASC'
                 )->setParameters(
-                    array(
+                    [
                         'dataType' => $datatype
-                    )
+                    ]
                 );
             }
             else {
@@ -4754,9 +4754,9 @@ class PluginsController extends ODRCustomController
                     WHERE rpi.dataField = :dataField
                     ORDER BY rpi.id ASC'
                 )->setParameters(
-                    array(
+                    [
                         'dataField' => $datafield
-                    )
+                    ]
                 );
             }
             $all_render_plugin_instances = $query->getArrayResult();
@@ -4786,9 +4786,9 @@ class PluginsController extends ODRCustomController
                     LEFT JOIN rptom.theme t
                     WHERE rpi.id = :render_plugin_instance_id'
                 )->setParameters(
-                    array(
+                    [
                         'render_plugin_instance_id' => $current_render_plugin_instance['id']
-                    )
+                    ]
                 );
                 $results = $query->getArrayResult();
 
@@ -4797,7 +4797,7 @@ class PluginsController extends ODRCustomController
 
                 // Rekey the RenderPluginOptionsMap array to use the RenderPluginOptions id, so it's
                 //  easier to lookup values if needed
-                $tmp = array();
+                $tmp = [];
                 foreach ($render_plugin_instance['renderPluginThemeOptionsMap'] as $num => $rptom) {
                     if ( $rptom['theme']['id'] == $theme->getId() ) {
                         $rpo_id = $rptom['renderPluginOptionsDef']['id'];
@@ -4812,10 +4812,10 @@ class PluginsController extends ODRCustomController
 
 
             // ----------------------------------------
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Plugins:plugin_layout_settings_dialog_form_data.html.twig',
-                    array(
+                    [
                         'theme_id' => $theme_id,
                         'local_datatype' => $datatype,
                         'local_datafield' => $datafield,
@@ -4823,9 +4823,9 @@ class PluginsController extends ODRCustomController
 
                         'render_plugin' => $render_plugin,
                         'render_plugin_instance' => $render_plugin_instance,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x7590e380;
@@ -4850,7 +4850,7 @@ class PluginsController extends ODRCustomController
      */
     public function saverenderpluginlayoutsettingsAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -4873,7 +4873,7 @@ class PluginsController extends ODRCustomController
             $selected_plugin_id = intval($post['selected_render_plugin']);
             $current_theme_id = intval($post['selected_theme']);
 
-            $plugin_options = array();
+            $plugin_options = [];
             if ( isset($post['plugin_options']) )
                 $plugin_options = $post['plugin_options'];
 
@@ -4884,7 +4884,7 @@ class PluginsController extends ODRCustomController
             $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
             if ( $is_wordpress_integrated ) {
                 foreach ($plugin_options as $rpo_id => $value)
-                    $plugin_options[$rpo_id] = stripslashes($value);
+                    $plugin_options[$rpo_id] = stripslashes((string) $value);
             }
 
 
@@ -4920,7 +4920,7 @@ class PluginsController extends ODRCustomController
             /** @var DataFields|null $target_datafield */
             $target_datafield = null;   // the datafield that is getting its render plugin modified
             /** @var RenderPluginInstance[] $all_render_plugin_instances */
-            $all_render_plugin_instances = array();
+            $all_render_plugin_instances = [];
 
             /** @var Theme $theme */
             $theme = $repo_theme->find($current_theme_id);
@@ -4940,9 +4940,9 @@ class PluginsController extends ODRCustomController
                     throw new ODRBadRequestException('Invalid Theme');
 
                 $all_render_plugin_instances = $repo_render_plugin_instance->findBy(
-                    array(
+                    [
                         'dataType' => $target_datatype->getId()
-                    )
+                    ]
                 );
 
                 $changing_datatype_plugin = true;
@@ -4961,9 +4961,9 @@ class PluginsController extends ODRCustomController
                     throw new ODRBadRequestException('Invalid Theme');
 
                 $all_render_plugin_instances = $repo_render_plugin_instance->findBy(
-                    array(
+                    [
                         'dataField' => $target_datafield->getId()
-                    )
+                    ]
                 );
 
                 $changing_datafield_plugin = true;
@@ -5020,9 +5020,9 @@ class PluginsController extends ODRCustomController
 
             // Ensure that the options listed in the post belong to the correct render plugin
             /** @var RenderPluginOptionsDef[] $render_plugin_options */
-            $render_plugin_options = $repo_render_plugin_options->findBy( array('renderPlugin' => $selected_render_plugin) );
+            $render_plugin_options = $repo_render_plugin_options->findBy( ['renderPlugin' => $selected_render_plugin] );
 
-            $rpo_lookup = array();
+            $rpo_lookup = [];
             foreach ($render_plugin_options as $num => $rpo) {
                 // Layout-specific options should be the only options submitted as part of this form
                 if ( $rpo->getUsesLayoutSettings() ) {
@@ -5040,17 +5040,17 @@ class PluginsController extends ODRCustomController
 
             // ----------------------------------------
             // Save any changes to the RenderPluginOptions mapping
-            $plugin_settings_changed = array();
+            $plugin_settings_changed = [];
 
             foreach ($plugin_options as $rpo_id => $value) {
                 // Attempt to locate the existing RenderPluginThemeOptionsMap entity
                 /** @var RenderPluginThemeOptionsMap $render_plugin_theme_option_map */
                 $render_plugin_theme_option_map = $repo_render_plugin_theme_options_map->findOneBy(
-                    array(
+                    [
                         'renderPluginInstance' => $selected_render_plugin_instance->getId(),
                         'renderPluginOptionsDef' => $rpo_id,    // TODO - rename to renderPluginOptions
                         'theme' => $theme->getId(),
-                    )
+                    ]
                 );
 
                 // If the RenderPluginOptionsMap entity doesn't exist, create it
@@ -5064,9 +5064,9 @@ class PluginsController extends ODRCustomController
                 }
                 else {
                     // ...otherwise, update the existing entity
-                    $properties = array(
+                    $properties = [
                         'value' => $value
-                    );
+                    ];
                     $changes_made = $entity_modify_service->updateRenderPluginThemeOptionsMap($user, $render_plugin_theme_option_map, $properties, true);    // don't need to flush...
 
                     if ($changes_made)
@@ -5122,7 +5122,7 @@ class PluginsController extends ODRCustomController
                     $event = new DatatypeModifiedEvent($target_datatype, $user);
                     $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
 //                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -5136,12 +5136,12 @@ class PluginsController extends ODRCustomController
 //            $datatype_array = $database_info_service->getDatatypeArray($target_datatype->getGrandparent()->getId());
 //            $datafield_properties = json_encode($datafield_info_service->getDatafieldProperties($datatype_array));
 
-            $return['d'] = array(
+            $return['d'] = [
                 'datafield_id' => $local_datafield_id,
                 'datatype_id' => $local_datatype_id,
 
 //                'datafield_properties' => $datafield_properties,
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0xce09564a;

@@ -91,7 +91,7 @@ class DisplaytemplateController extends ODRCustomController
      */
     public function deletedatafieldAction($datafield_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -163,7 +163,7 @@ class DisplaytemplateController extends ODRCustomController
      */
     public function deletedatatypeAction($datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -226,7 +226,7 @@ class DisplaytemplateController extends ODRCustomController
      */
     public function check_statusAction($datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -253,14 +253,14 @@ class DisplaytemplateController extends ODRCustomController
             }
             else if ($datatype->getSetupStep() == DataType::STATE_INITIAL && $datatype->getMasterDataType() != null) {
                 // The database is still in the process of being created...return the HTML for the page that'll periodically check for progress
-                $return['d'] = array(
+                $return['d'] = [
                     'html' => $templating->render(
                         'ODRAdminBundle:Datatype:create_status_checker.html.twig',
-                        array(
+                        [
                             "datatype" => $datatype
-                        )
+                        ]
                     )
-                );
+                ];
             }
             else {
                 // Determine where to send this redirect
@@ -274,10 +274,10 @@ class DisplaytemplateController extends ODRCustomController
 
                     $url = $this->generateUrl(
                         'odr_datatype_properties',
-                        array(
+                        [
                             'datatype_id' => $datatype->getMetadataFor()->getId(),
                             'wizard' => 1
-                        )
+                        ]
                     );
                 }
                 else {
@@ -286,20 +286,20 @@ class DisplaytemplateController extends ODRCustomController
 
                     $url = $this->generateUrl(
                         'odr_design_master_theme',
-                        array(
+                        [
                             'datatype_id' => $datatype->getId(),
-                        )
+                        ]
                     );
                 }
 
-                $return['d'] = array(
+                $return['d'] = [
                     'html' => $templating->render(
                         'ODRAdminBundle:Datatype:create_status_checker_redirect.html.twig',
-                        array(
+                        [
                             'url' => $baseurl.'#'.$url
-                        )
+                        ]
                     )
-                );
+                ];
             }
         }
         catch (\Exception $e) {
@@ -326,7 +326,7 @@ class DisplaytemplateController extends ODRCustomController
      */
     public function designAction($datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -362,14 +362,14 @@ class DisplaytemplateController extends ODRCustomController
             else if ($datatype->getSetupStep() == DataType::STATE_INITIAL && $datatype->getMasterDataType() != null) {
                 // The database is still in the process of being created...return the HTML for the page that'll periodically check for progress
                 $return['t'] = "html";
-                $return['d'] = array(
+                $return['d'] = [
                     'html' => $templating->render(
                         'ODRAdminBundle:Datatype:create_status_checker.html.twig',
-                        array(
+                        [
                             "datatype" => $datatype
-                        )
+                        ]
                     )
-                );
+                ];
             }
             else {
                 // Ensure user has permissions to be doing this
@@ -380,10 +380,10 @@ class DisplaytemplateController extends ODRCustomController
                 $odr_render_service = $this->container->get('odr.render_service');
                 $page_html = $odr_render_service->getMasterDesignHTML($user, $datatype);
 
-                $return['d'] = array(
+                $return['d'] = [
                     'datatype_id' => $datatype->getId(),
                     'html' => $page_html,
-                );
+                ];
             }
         }
         catch (\Exception $e) {
@@ -410,7 +410,7 @@ class DisplaytemplateController extends ODRCustomController
      */
     public function adddatafieldAction($theme_element_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -488,7 +488,7 @@ class DisplaytemplateController extends ODRCustomController
 
             // Grab objects required to create a datafield entity
             /** @var FieldType $fieldtype */
-            $fieldtype = $em->getRepository('ODRAdminBundle:FieldType')->findOneBy( array('typeName' => 'Short Text') );
+            $fieldtype = $em->getRepository('ODRAdminBundle:FieldType')->findOneBy( ['typeName' => 'Short Text'] );
 
             // Create the datafield...works the same whether it's for a local or a linked datatype
             $datafield = $entity_create_service->createDatafield($user, $datatype, $fieldtype, true);    // Don't flush immediately...
@@ -545,9 +545,9 @@ class DisplaytemplateController extends ODRCustomController
                 // Increment the linked datatype's master theme's "sourceSyncVersion" property so
                 //  that all themes derived from it know they need to get updated...otherwise the
                 //  new datafield won't appear in these derived themes
-                $properties = array(
+                $properties = [
                     'sourceSyncVersion' => $source_theme->getSourceSyncVersion() + 1
-                );
+                ];
                 $entity_modify_service->updateThemeMeta($user, $source_theme, $properties, true);    // Don't flush immediately...
             }
 
@@ -559,9 +559,9 @@ class DisplaytemplateController extends ODRCustomController
             // Increment the "sourceSyncVersion" property of the theme that just received the new
             //  datafield, so that all derived/search results themes know they need update themselves
             //  with the new datafield
-            $properties = array(
+            $properties = [
                 'sourceSyncVersion' => $theme->getSourceSyncVersion() + 1
-            );
+            ];
             $entity_modify_service->updateThemeMeta($user, $theme, $properties);    // Flush here
 
 
@@ -605,18 +605,18 @@ class DisplaytemplateController extends ODRCustomController
             // ----------------------------------------
             if ( !$add_to_linked_datatype ) {
                 // If not adding to a linked datatype, then reloading the theme element is sufficient
-                $return['d'] = array(
+                $return['d'] = [
                     'reload' => 'theme_element',
                     'id' => $theme_element_id
-                );
+                ];
             }
             else {
                 // If adding to a linked datatype, then all instances of that datatype that are
                 //  currently displayed need to be reloaded
-                $return['d'] = array(
+                $return['d'] = [
                     'reload' => 'datatype',
                     'id' => $source_theme->getDataType()->getId()
-                );
+                ];
             }
 
         }
@@ -645,7 +645,7 @@ class DisplaytemplateController extends ODRCustomController
      */
     public function copydatafieldAction($theme_element_id, $datafield_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -693,10 +693,10 @@ class DisplaytemplateController extends ODRCustomController
 
             /** @var ThemeDataField $old_theme_datafield */
             $old_theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy(
-                array(
+                [
                     'dataField' => $old_datafield->getId(),
                     'themeElement' => $theme_element->getId()
-                )
+                ]
             );
             if ($old_theme_datafield == null)
                 throw new ODRNotFoundException('ThemeDatafield');
@@ -825,9 +825,9 @@ class DisplaytemplateController extends ODRCustomController
                 // Increment the linked datatype's master theme's "sourceSyncVersion" property so
                 //  that all themes derived from it know they need to get updated...otherwise the
                 //  new datafield won't appear in these derived themes
-                $properties = array(
+                $properties = [
                     'sourceSyncVersion' => $source_theme->getSourceSyncVersion() + 1
-                );
+                ];
                 $entity_modify_service->updateThemeMeta($user, $source_theme, $properties, true);    // Don't flush immediately...
             }
 
@@ -839,9 +839,9 @@ class DisplaytemplateController extends ODRCustomController
             // Increment the "sourceSyncVersion" property of the theme that just received the new
             //  datafield, so that all derived/search results themes know they need update themselves
             //  with the new datafield
-            $properties = array(
+            $properties = [
                 'sourceSyncVersion' => $theme->getSourceSyncVersion() + 1
-            );
+            ];
             $entity_modify_service->updateThemeMeta($user, $theme, $properties);    // Flush here
 
 
@@ -886,18 +886,18 @@ class DisplaytemplateController extends ODRCustomController
             if ( !$add_to_linked_datatype ) {
                 // If not copying a field inside a linked datatype, then reloading the theme element
                 //  is sufficient
-                $return['d'] = array(
+                $return['d'] = [
                     'reload' => 'theme_element',
                     'id' => $theme_element_id
-                );
+                ];
             }
             else {
                 // If copying a field inside a linked datatype, then all instances of that datatype
                 //  that are currently displayed need to be reloaded
-                $return['d'] = array(
+                $return['d'] = [
                     'reload' => 'datatype',
                     'id' => $source_theme->getDataType()->getId()
-                );
+                ];
             }
 
         }
@@ -954,7 +954,7 @@ class DisplaytemplateController extends ODRCustomController
      */
     public function addchilddatatypeAction($theme_element_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1104,9 +1104,9 @@ class DisplaytemplateController extends ODRCustomController
                 // Increment the linked datatype's master theme's "sourceSyncVersion" property so
                 //  that all themes derived from it know they need to get updated...otherwise the
                 //  new datafield won't appear in these derived themes
-                $properties = array(
+                $properties = [
                     'sourceSyncVersion' => $new_te->getTheme()->getSourceSyncVersion() + 1
-                );
+                ];
                 $entity_modify_service->updateThemeMeta($user, $source_theme, $properties, true);    // Don't flush immediately...
             }
 
@@ -1116,9 +1116,9 @@ class DisplaytemplateController extends ODRCustomController
 
             // Since a child datatype was added, any themes that use this master theme as their
             //  source need to get updated themselves
-            $properties = array(
+            $properties = [
                 'sourceSyncVersion' => $theme->getSourceSyncVersion() + 1
-            );
+            ];
             $entity_modify_service->updateThemeMeta($user, $theme, $properties, true);    // don't flush immediately
 
             // Adding a new child datatype requires an update of the "master_revision" property of
@@ -1182,18 +1182,18 @@ class DisplaytemplateController extends ODRCustomController
             if ( !$add_to_linked_datatype ) {
                 // If not creating a childtype inside a linked datatype, then reloading the theme
                 //  element is sufficient
-                $return['d'] = array(
+                $return['d'] = [
                     'reload' => 'theme_element',
                     'id' => $theme_element_id
-                );
+                ];
             }
             else {
                 // If creating a childtype inside a linked datatype, then all instances of that
                 //  datatype that are currently displayed need to be reloaded
-                $return['d'] = array(
+                $return['d'] = [
                     'reload' => 'datatype',
                     'id' => $source_theme->getDataType()->getId()
-                );
+                ];
             }
         }
         catch (\Exception $e) {
@@ -1220,7 +1220,7 @@ class DisplaytemplateController extends ODRCustomController
      */
     public function reloadthemeelementAction($theme_element_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1272,10 +1272,10 @@ class DisplaytemplateController extends ODRCustomController
             // --------------------
 
             $datatype_id = null;
-            $return['d'] = array(
+            $return['d'] = [
                 'theme_element_id' => $theme_element_id,
                 'html' => $odr_render_service->reloadMasterDesignThemeElement($user, $theme_element)
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0xf0be4790;
@@ -1307,7 +1307,7 @@ class DisplaytemplateController extends ODRCustomController
      */
     public function reloaddatafieldAction($source_datatype_id, $theme_element_id, $datafield_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1358,10 +1358,10 @@ class DisplaytemplateController extends ODRCustomController
             // --------------------
 
             $datatype_id = null;
-            $return['d'] = array(
+            $return['d'] = [
                 'datafield_id' => $datafield_id,
                 'html' => $odr_render_service->reloadMasterDesignDatafield($user, $source_datatype, $theme_element, $datafield)
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0xe45c0214;
@@ -1390,10 +1390,10 @@ class DisplaytemplateController extends ODRCustomController
      */
     public function datatypepropertiesAction($datatype_id, $parent_datatype_id, $theme_element_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
-        $return['d'] = array();
+        $return['d'] = [];
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -1500,10 +1500,10 @@ class DisplaytemplateController extends ODRCustomController
 
             if ($parent_datatype_id !== '') {
                 $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
-                    array(
+                    [
                         'ancestor' => $parent_datatype_id,
                         'descendant' => $datatype_id
-                    )
+                    ]
                 );
                 if ($datatree == null)
                     throw new ODRNotFoundException('Datatree');
@@ -1513,10 +1513,10 @@ class DisplaytemplateController extends ODRCustomController
                     throw new ODRNotFoundException('DatatreeMeta');
 
                 $theme_datatype = $em->getRepository('ODRAdminBundle:ThemeDatatype')->findOneBy(
-                    array(
+                    [
                         'themeElement' => $theme_element_id,
                         'dataType' => $datatype_id,    // the id of the child/linked datatype
-                    )
+                    ]
                 );
                 if ( $theme_datatype == null )
                     throw new ODRNotFoundException('ThemeDatatype');
@@ -1549,14 +1549,14 @@ class DisplaytemplateController extends ODRCustomController
             $datatype_form = $this->createForm(
                 UpdateDataTypeForm::class,
                 $submitted_data,
-                array(
+                [
                     'datatype_id' => $datatype->getId(),
                     'is_target_datatype_admin' => $is_target_datatype_admin,
                     'is_top_level' => $is_top_level,
                     'is_link' => $is_link,
 
                     'single_linked_descendants' => $single_linked_descendants,
-                )
+                ]
             );
             $datatype_form->handleRequest($request);
 
@@ -1600,7 +1600,7 @@ class DisplaytemplateController extends ODRCustomController
                     // ...check that the new search slug isn't going to collide with other parts of the site
                     // TODO - make this automatic based on contents of routing files?
                     $search_slug_blacklist = $this->getParameter('odr.search_slug_blacklist');
-                    $invalid_slugs = explode('|', $search_slug_blacklist);
+                    $invalid_slugs = explode('|', (string) $search_slug_blacklist);
                     if ( in_array(strtolower($submitted_data->getSearchSlug()), $invalid_slugs) )
                         $datatype_form->addError( new FormError('This abbreviation is reserved for use by ODR') );
 
@@ -1610,7 +1610,7 @@ class DisplaytemplateController extends ODRCustomController
                         FROM ODRAdminBundle:DataTypeMeta AS dtm
                         WHERE dtm.searchSlug = :search_slug
                         AND dtm.deletedAt IS NULL'
-                    )->setParameters(array('search_slug' => $submitted_data->getSearchSlug()));
+                    )->setParameters(['search_slug' => $submitted_data->getSearchSlug()]);
                     $results = $query->getArrayResult();
 
                     if ( count($results) > 0 )
@@ -1652,7 +1652,7 @@ class DisplaytemplateController extends ODRCustomController
 
                     // Convert the submitted Form entity into an array of relevant properties
                     // This should only have properties listed in the UpdateDataTypeForm
-                    $properties = array(
+                    $properties = [
                         'externalIdField' => null,
                         'nameField' => null,
                         'sortField' => null,
@@ -1664,7 +1664,7 @@ class DisplaytemplateController extends ODRCustomController
                         'description' => $submitted_data->getDescription(),
 
                         'newRecordsArePublic' => $submitted_data->getNewRecordsArePublic(),
-                    );
+                    ];
 
                     // These datafields are permitted to be null
                     if ( $submitted_data->getExternalIdField() !== null )
@@ -1699,7 +1699,7 @@ class DisplaytemplateController extends ODRCustomController
                         $event = new DatatypeModifiedEvent($datatype, $user, $clear_datarecord_caches);
                         $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
                     }
-                    catch (\Exception $e) {
+                    catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
                         //  event
 //                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -1711,7 +1711,7 @@ class DisplaytemplateController extends ODRCustomController
                     // This controller action may have changed whether datafields can be deleted or
                     //  not (changes to other properties may also be possible)
                     $datatype_array = $database_info_service->getDatatypeArray($grandparent_datatype->getId());    // do want links here
-                    $datarecord_array = array();
+                    $datarecord_array = [];
                     $permissions_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
                     $datafield_properties = json_encode($datafield_info_service->getDatafieldProperties($datatype_array));
@@ -1722,17 +1722,17 @@ class DisplaytemplateController extends ODRCustomController
                     if ( !is_null($new_search_slug) ) {
                         $baseurl = $this->generateUrl(
                             'odr_search',
-                            array(
+                            [
                                 'search_slug' => $new_search_slug
-                            ),
+                            ],
                             UrlGeneratorInterface::ABSOLUTE_URL
                         );
                         // ...and need to redirect after that to the new database's master layout design page
                         $url = $this->generateUrl(
                             'odr_design_master_theme',
-                            array(
+                            [
                                 'datatype_id' => $datatype->getId(),
-                            )
+                            ]
                         );
 
                         // TODO - ...would be nice to not have to reload, but it seems unavoidable
@@ -1753,14 +1753,14 @@ class DisplaytemplateController extends ODRCustomController
                 $datatype_form = $this->createForm(
                     UpdateDataTypeForm::class,
                     $datatype_meta,
-                    array(
+                    [
                         'datatype_id' => $datatype->getId(),
                         'is_target_datatype_admin' => $is_target_datatype_admin,
                         'is_top_level' => $is_top_level,
                         'is_link' => $is_link,
 
                         'single_linked_descendants' => $single_linked_descendants,
-                    )
+                    ]
                 );
 
 
@@ -1789,12 +1789,12 @@ class DisplaytemplateController extends ODRCustomController
                     $datatree_form = $this->createForm(
                         UpdateDataTreeForm::class,
                         $datatree_meta,
-                        array(
+                        [
                             'is_link' => $is_link,
-                        )
+                        ]
                     )->createView();
 
-                    $results = array();
+                    $results = [];
                     if ($datatree_meta->getIsLink() == 0) {
                         // Determine whether a datarecord of this datatype has multiple child
                         //  datarecords...if so, then the "multiple allowed" property of the
@@ -1806,10 +1806,10 @@ class DisplaytemplateController extends ODRCustomController
                             WHERE parent.dataType = :parent_datatype AND child.dataType = :child_datatype AND parent.id != child.id
                             AND parent.deletedAt IS NULL AND child.deletedAt IS NULL'
                         )->setParameters(
-                            array(
+                            [
                                 'parent_datatype' => $parent_datatype_id,
                                 'child_datatype' => $datatype_id
-                            )
+                            ]
                         );
                         $results = $query->getArrayResult();
                     }
@@ -1825,15 +1825,15 @@ class DisplaytemplateController extends ODRCustomController
                             WHERE ancestor.dataType = :ancestor_datatype AND descendant.dataType = :descendant_datatype
                             AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
                         )->setParameters(
-                            array(
+                            [
                                 'ancestor_datatype' => $parent_datatype_id,
                                 'descendant_datatype' => $datatype_id
-                            )
+                            ]
                         );
                         $results = $query->getArrayResult();
                     }
 
-                    $tmp = array();
+                    $tmp = [];
                     foreach ($results as $num => $result) {
                         $ancestor_id = $result['ancestor_id'];
                         if ( isset($tmp[$ancestor_id]) ) {
@@ -1856,10 +1856,10 @@ class DisplaytemplateController extends ODRCustomController
                     $theme_datatype_form = $this->createForm(
                         UpdateThemeDatatypeForm::class,
                         $theme_datatype,
-                        array(
+                        [
                             'is_top_level' => $is_top_level,
                             'multiple_allowed' => $datatree->getMultipleAllowed(),
-                        )
+                        ]
                     )->createView();
                 }
 
@@ -1884,7 +1884,7 @@ class DisplaytemplateController extends ODRCustomController
                 // Return the slideout html
                 $return['d']['html'] = $templating->render(
                     'ODRAdminBundle:Displaytemplate:datatype_properties_form.html.twig',
-                    array(
+                    [
                         'show_name' => $show_name,
                         'show_description' => $show_description,
 
@@ -1905,7 +1905,7 @@ class DisplaytemplateController extends ODRCustomController
                         'theme_datatype' => $theme_datatype,
                         'theme_datatype_form' => $theme_datatype_form,  // not creating view here because form could be legitimately null
                         'theme_element' => $theme_element,
-                    )
+                    ]
                 );
             }
         }
@@ -1938,11 +1938,11 @@ class DisplaytemplateController extends ODRCustomController
 
         // Locate the ids of all datatypes that the given parent datatype links to
         $datatree_array = $datatree_info_service->getDatatreeArray();
-        $linked_descendants = $datatree_info_service->getLinkedDescendants( array($datatype->getId()), $datatree_array );
+        $linked_descendants = $datatree_info_service->getLinkedDescendants( [$datatype->getId()], $datatree_array );
 
         // The parent datatype should always be in here, otherwise no fields will get listed as
         //  candidates for a sortfield
-        $related_datatypes = array();
+        $related_datatypes = [];
         $related_datatypes[] = $datatype->getId();
 
         foreach ($linked_descendants as $num => $ldt_id) {
@@ -1974,7 +1974,7 @@ class DisplaytemplateController extends ODRCustomController
      */
     public function savedatatreeAction($datatree_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -2023,7 +2023,7 @@ class DisplaytemplateController extends ODRCustomController
             $child_datatype_id = $datatree->getDescendant()->getId();
 
             $force_multiple = false;
-            $results = array();
+            $results = [];
             if ($datatree->getIsLink() == 0) {
                 // Determine whether a datarecord of this datatype has multiple child datarecords...if so, then require the "multiple allowed" property of the datatree to remain true
                 $query = $em->createQuery(
@@ -2032,7 +2032,7 @@ class DisplaytemplateController extends ODRCustomController
                     JOIN ODRAdminBundle:DataRecord AS child WITH child.parent = parent
                     WHERE parent.dataType = :parent_datatype AND child.dataType = :child_datatype AND parent.id != child.id
                     AND parent.deletedAt IS NULL AND child.deletedAt IS NULL'
-                )->setParameters( array('parent_datatype' => $parent_datatype_id, 'child_datatype' => $child_datatype_id) );
+                )->setParameters( ['parent_datatype' => $parent_datatype_id, 'child_datatype' => $child_datatype_id] );
                 $results = $query->getArrayResult();
             }
             else {
@@ -2044,11 +2044,11 @@ class DisplaytemplateController extends ODRCustomController
                     JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
                     WHERE ancestor.dataType = :ancestor_datatype AND descendant.dataType = :descendant_datatype
                     AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
-                )->setParameters( array('ancestor_datatype' => $parent_datatype_id, 'descendant_datatype' => $child_datatype_id) );
+                )->setParameters( ['ancestor_datatype' => $parent_datatype_id, 'descendant_datatype' => $child_datatype_id] );
                 $results = $query->getArrayResult();
             }
 
-            $tmp = array();
+            $tmp = [];
             foreach ($results as $num => $result) {
                 $ancestor_id = $result['ancestor_id'];
                 if ( isset($tmp[$ancestor_id]) ) {
@@ -2082,9 +2082,9 @@ class DisplaytemplateController extends ODRCustomController
             $datatree_form = $this->createForm(
                 UpdateDataTreeForm::class,
                 $submitted_data,
-                array(
+                [
                     'is_link' => $datatree->getIsLink(),
-                )
+                ]
             );
 
             $datatree_form->handleRequest($request);
@@ -2096,13 +2096,13 @@ class DisplaytemplateController extends ODRCustomController
 
                 if ( $datatree_form->isValid() ) {
                     // If a value in the form changed, create a new DataTree entity to store the change
-                    $properties = array(
+                    $properties = [
 //                        'secondaryDataTree' => null,    // Not allowed to change this value through this controller action
 
                         'multiple_allowed' => $submitted_data->getMultipleAllowed(),
 //                        'is_link' => $submitted_data->getIsLink(),    // Not allowed to change this value through this controller action
                         'edit_behavior' => $submitted_data->getEditBehavior(),
-                    );
+                    ];
 
 //                    // This value is permitted to be null
 //                    if ( $submitted_data->getSecondaryDataTree() !== null )
@@ -2125,10 +2125,10 @@ class DisplaytemplateController extends ODRCustomController
                             WHERE dtsf.dataType = :ancestor_datatype_id AND dt = :descendant_datatype_id
                             AND dtsf.deletedAt IS NULL AND df.deletedAt IS NULL AND dt.deletedAt IS NULL'
                         )->setParameters(
-                            array(
+                            [
                                 'ancestor_datatype_id' => $ancestor_datatype->getId(),
                                 'descendant_datatype_id' => $descendant_datatype->getId(),
-                            )
+                            ]
                         );
                         $results = $query->getResult();
 
@@ -2138,8 +2138,8 @@ class DisplaytemplateController extends ODRCustomController
                             $clear_datarecord_cache = true;
 
                             /** @var DataTypeSpecialFields[] $results */
-                            $datafield_ids = array();
-                            $datatype_ids = array();
+                            $datafield_ids = [];
+                            $datatype_ids = [];
                             foreach ($results as $dtsf) {
                                 $datafield_ids[] = $dtsf->getDataField()->getId();
                                 $datatype_ids[] = $dtsf->getDataType()->getId();
@@ -2151,12 +2151,12 @@ class DisplaytemplateController extends ODRCustomController
                                 WHERE dtsf.dataType = :datatype_id AND dtsf.dataField IN (:datafield_ids)
                                 AND dtsf.deletedAt IS NULL'
                             )->setParameters(
-                                array(
+                                [
                                     'user' => $user->getId(),
                                     'now' => new \DateTime(),
                                     'datatype_id' => $ancestor_datatype->getId(),
                                     'datafield_ids' => $datafield_ids,
-                                )
+                                ]
                             );
                             $updated = $query->execute();
 
@@ -2179,7 +2179,7 @@ class DisplaytemplateController extends ODRCustomController
                         $event = new DatatypeModifiedEvent($ancestor_datatype, $user, $clear_datarecord_cache);
                         $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
                     }
-                    catch (\Exception $e) {
+                    catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
                         //  event
 //                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -2193,7 +2193,7 @@ class DisplaytemplateController extends ODRCustomController
                         FROM ODRAdminBundle:Theme AS t
                         WHERE t.dataType = :datatype_id
                         AND t.deletedAt IS NULL'
-                    )->setParameters( array('datatype_id' => $ancestor_datatype->getGrandparent()->getId()) );
+                    )->setParameters( ['datatype_id' => $ancestor_datatype->getGrandparent()->getId()] );
                     $results = $query->getArrayResult();
 
                     foreach ($results as $result)
@@ -2230,10 +2230,10 @@ class DisplaytemplateController extends ODRCustomController
      */
     public function datafieldpropertiesAction($datafield_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
-        $return['d'] = array();
+        $return['d'] = [];
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -2320,7 +2320,7 @@ class DisplaytemplateController extends ODRCustomController
             // TODO - incorrect fieldtypes show up as one of the fieldtypes required by the plugin, regardless of what it actually is
 
             // Determine which changes, if any, can be made to this datafield's fieldtype
-            $fieldtype_info = $datafield_info_service->canChangeFieldtype($datatype_array, $datafield->getDataType()->getId(), array($datafield->getId()));
+            $fieldtype_info = $datafield_info_service->canChangeFieldtype($datatype_array, $datafield->getDataType()->getId(), [$datafield->getId()]);
             $prevent_fieldtype_change = $fieldtype_info[$datafield->getId()]['prevent_change'];
             $prevent_fieldtype_change_message = $fieldtype_info[$datafield->getId()]['prevent_change_message'];
             $allowed_fieldtypes = $fieldtype_info[$datafield->getId()]['allowed_fieldtypes'];
@@ -2348,7 +2348,7 @@ class DisplaytemplateController extends ODRCustomController
             $datafield_form = $this->createForm(
                 UpdateDataFieldsForm::class,
                 $submitted_data,
-                array(
+                [
                     'is_derived_field' => $is_derived_field,
                     'allowed_fieldtypes' => $allowed_fieldtypes,
                     'current_typeclass' => $datafield->getFieldType()->getTypeClass(),
@@ -2358,7 +2358,7 @@ class DisplaytemplateController extends ODRCustomController
                     'has_tag_hierarchy' => $has_tag_hierarchy,
                     'single_uploads_only' => $single_uploads_only,
                     'has_multiple_uploads' => $has_multiple_uploads,
-                )
+                ]
             );
             $datafield_form->handleRequest($request);
 
@@ -2410,10 +2410,10 @@ class DisplaytemplateController extends ODRCustomController
 
                     // Determine whether an in-progress background job would interfere with a
                     //  potential change of fieldtype
-                    $new_job_data = array(
+                    $new_job_data = [
                         'job_type' => 'migrate',
                         'target_entity' => $datafield,
-                    );
+                    ];
                     $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
                     if ( !is_null($conflicting_job) )
                         throw new ODRConflictException('Unable to change the fieldtype of this Datafield since a background job is already in progress');
@@ -2568,7 +2568,7 @@ class DisplaytemplateController extends ODRCustomController
 
                     // ----------------------------------------
                     // Save all changes made via the submitted form
-                    $properties = array(
+                    $properties = [
                         'fieldType' => $submitted_data->getFieldType(),
 
                         'fieldName' => $submitted_data->getFieldName(),
@@ -2597,7 +2597,7 @@ class DisplaytemplateController extends ODRCustomController
                         'searchable' => $submitted_data->getSearchable(),
                         'publicDate' => $submitted_data->getPublicDate(),
                         'internal_reference_name' => $submitted_data->getInternalReferenceName(),
-                    );
+                    ];
                     $entity_modify_service->updateDatafieldMeta($user, $datafield, $properties);
                     $em->refresh($datafield);
 
@@ -2653,7 +2653,7 @@ class DisplaytemplateController extends ODRCustomController
                         //  of the cached datarecord entries, it doesn't need to be done here...
                         //  if required, WorkerController::migrateAction() will handle it
                     }
-                    catch (\Exception $e) {
+                    catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
                         //  event
 //                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -2696,7 +2696,7 @@ class DisplaytemplateController extends ODRCustomController
                 $datafield_form = $this->createForm(
                     UpdateDataFieldsForm::class,
                     $datafield_meta,
-                    array(
+                    [
                         'is_derived_field' => $is_derived_field,
                         'allowed_fieldtypes' => $allowed_fieldtypes,
                         'current_typeclass' => $datafield->getFieldType()->getTypeClass(),
@@ -2706,7 +2706,7 @@ class DisplaytemplateController extends ODRCustomController
                         'has_tag_hierarchy' => $has_tag_hierarchy,
                         'single_uploads_only' => $single_uploads_only,
                         'has_multiple_uploads' => $has_multiple_uploads,
-                    )
+                    ]
                 );
 
                 // The return array may already have some datafield properties in it, don't want to
@@ -2735,7 +2735,7 @@ class DisplaytemplateController extends ODRCustomController
                 // Render the html for the form
                 $return['d']['html'] = $templating->render(
                     'ODRAdminBundle:Displaytemplate:datafield_properties_form.html.twig',
-                    array(
+                    [
                         'is_derived_field' => $is_derived_field,
 
                         'must_be_unique' => $must_be_unique,
@@ -2754,7 +2754,7 @@ class DisplaytemplateController extends ODRCustomController
                         'datatype' => $datatype,
                         'datafield' => $datafield,
                         'datafield_form' => $datafield_form->createView(),
-                    )
+                    ]
                 );
             }
 
@@ -2869,7 +2869,7 @@ class DisplaytemplateController extends ODRCustomController
         $api_key = $this->container->getParameter('beanstalk_api_key');
         $pheanstalk = $this->get('pheanstalk');
 
-        $url = $this->generateUrl('odr_migrate_field', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+        $url = $this->generateUrl('odr_migrate_field', [], UrlGeneratorInterface::ABSOLUTE_URL);
 
 
         // ----------------------------------------
@@ -2883,7 +2883,7 @@ class DisplaytemplateController extends ODRCustomController
                'SELECT dr.id
                 FROM ODRAdminBundle:DataRecord AS dr
                 WHERE dr.dataType = :dataType AND dr.deletedAt IS NULL'
-            )->setParameters( array('dataType' => $datatype) );
+            )->setParameters( ['dataType' => $datatype] );
             $results = $query->getResult();
 
             if ( count($results) > 0 ) {
@@ -2894,7 +2894,7 @@ class DisplaytemplateController extends ODRCustomController
                 // Get/create an entity to track the progress of this datafield migration
                 $job_type = 'migrate';
                 $target_entity = 'datafield_'.$datafield->getId();
-                $additional_data = array('description' => '', 'old_fieldtype' => $old_fieldtype->getTypeName(), 'new_fieldtype' => $new_fieldtype->getTypeName());
+                $additional_data = ['description' => '', 'old_fieldtype' => $old_fieldtype->getTypeName(), 'new_fieldtype' => $new_fieldtype->getTypeName()];
                 $restrictions = 'datatype_'.$top_level_datatype_id;
                 $total = count($results);
                 $reuse_existing = false;
@@ -2911,7 +2911,7 @@ class DisplaytemplateController extends ODRCustomController
                     // Insert the new job into the queue
 //                $priority = 1024;   // should be roughly default priority
                     $payload = json_encode(
-                        array(
+                        [
                             "tracked_job_id" => $tracked_job_id,
                             "user_id" => $user->getId(),
                             "datarecord_id" => $datarecord_id,
@@ -2922,7 +2922,7 @@ class DisplaytemplateController extends ODRCustomController
                             "redis_prefix" => $redis_prefix,    // debug purposes only
                             "url" => $url,
                             "api_key" => $api_key,
-                        )
+                        ]
                     );
 
                     $pheanstalk->useTube('migrate_datafields')->put($payload);
@@ -2940,7 +2940,7 @@ class DisplaytemplateController extends ODRCustomController
             // Get/create an entity to track the progress of this datafield migration
             $job_type = 'migrate';
             $target_entity = 'datafield_'.$datafield->getId();
-            $additional_data = array('description' => '', 'old_fieldtype' => $old_fieldtype->getTypeName(), 'new_fieldtype' => $new_fieldtype->getTypeName());
+            $additional_data = ['description' => '', 'old_fieldtype' => $old_fieldtype->getTypeName(), 'new_fieldtype' => $new_fieldtype->getTypeName()];
             $restrictions = 'datatype_'.$top_level_datatype_id;
             $total = 1;
             $reuse_existing = false;
@@ -2949,7 +2949,7 @@ class DisplaytemplateController extends ODRCustomController
             $tracked_job_id = $tracked_job->getId();
 
             $payload = json_encode(
-                array(
+                [
                     "tracked_job_id" => $tracked_job_id,
                     "user_id" => $user->getId(),
                     "datarecord_id" => 0,    // NOTE - the background job uses a combination of SELECT/CAST/INSERT INTO to run...technically no individual datarecords are involved
@@ -2960,7 +2960,7 @@ class DisplaytemplateController extends ODRCustomController
                     "redis_prefix" => $redis_prefix,    // debug purposes only
                     "url" => $url,
                     "api_key" => $api_key,
-                )
+                ]
             );
 
             $pheanstalk->useTube('migrate_datafields')->put($payload);
@@ -2979,7 +2979,7 @@ class DisplaytemplateController extends ODRCustomController
      */
     public function getdeleteddatafieldsAction($datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -3020,14 +3020,14 @@ class DisplaytemplateController extends ODRCustomController
                'SELECT df
                 FROM ODRAdminBundle:DataFields AS df
                 WHERE df.dataType = :datatype AND df.deletedAt IS NOT NULL'
-            )->setParameters( array('datatype' => $datatype) );
+            )->setParameters( ['datatype' => $datatype] );
             $results = $query->getResult();
 
             $em->getFilters()->enable('softdeleteable');    // Re-enable the filter
 
             // Collapse results array
             $count = 0;
-            $datafields = array();
+            $datafields = [];
             foreach ($results as $num => $df) {
                 /** @var DataFields $df */
                 $date = $df->getDeletedAt()->format('Y-m-d').'_'.$count;
@@ -3038,14 +3038,14 @@ class DisplaytemplateController extends ODRCustomController
             krsort($datafields);
 
             // Get Templating Object
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Displaytemplate:undelete_fields_dialog_form.html.twig',
-                    array(
+                    [
                         'datafields' => $datafields,
-                    )
+                    ]
                 )
-            );
+            ];
 
         }
         catch (\Exception $e) {
@@ -3075,7 +3075,7 @@ class DisplaytemplateController extends ODRCustomController
      */
     public function undeleteDatafieldAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = "";
         $return['d'] = "";
@@ -3109,7 +3109,7 @@ $debug = false;
                'SELECT df
                 FROM ODRAdminBundle:DataFields AS df
                 WHERE df.id = :datafield_id'
-            )->setParameters( array('datafield_id' => $datafield_id) );
+            )->setParameters( ['datafield_id' => $datafield_id] );
             $results = $query->getResult();
 
             // Ensure datafield matches undelete conditions
@@ -3145,7 +3145,7 @@ $debug = false;
                'SELECT tef
                 FROM ODRAdminBundle:ThemeElementField AS tef
                 WHERE tef.dataFields = :datafield'
-            )->setParameters( array('datafield' => $datafield) );
+            )->setParameters( ['datafield' => $datafield] );
             $results = $query->getResult();
 
             if ( count($results) < 1 ) {
@@ -3161,7 +3161,7 @@ $debug = false;
 
             // Step 1.5: re-activate theme_datafield entries for theme 1
             /** @var ThemeDataField $theme_datafield */
-            $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy( array('dataFields' => $datafield->getId(), 'theme' => 1) );
+            $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy( ['dataFields' => $datafield->getId(), 'theme' => 1] );
             $theme_datafield->setActive(1);
             $em->persist($theme_datafield);
 
@@ -3174,7 +3174,7 @@ if ($debug)
                 FROM ODRAdminBundle:DataRecordFields AS drf
                 JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
                 WHERE drf.dataField = :datafield AND dr.deletedAt IS NULL'
-            )->setParameters( array('datafield' => $datafield) );
+            )->setParameters( ['datafield' => $datafield] );
             $results = $query->getResult();
 
             /** @var DataRecordFields[] $results */
@@ -3216,7 +3216,7 @@ if ($debug)
                'SELECT tef
                 FROM ODRAdminBundle:ThemeElementField AS tef
                 WHERE tef.dataFields = :datafield'
-            )->setParameters( array('datafield' => $datafield) );
+            )->setParameters( ['datafield' => $datafield] );
             $results = $query->getResult();
 /*
             // although it should never happen, need to deal with the possibility that there can be more than one theme_element_field for a datafield...
@@ -3269,7 +3269,7 @@ if ($debug)
                 FROM ODRAdminBundle:ThemeElementField AS tef
                 JOIN ODRAdminBundle:ThemeElement te WITH tef.themeElement = te
                 WHERE tef.dataFields = :datafield AND te.theme = :theme'
-            )->setParameters( array('datafield' => $datafield->getId(), 'theme' => 1) );
+            )->setParameters( ['datafield' => $datafield->getId(), 'theme' => 1] );
             $results = $query->getResult();
 
             /** @var ThemeElement $theme_element */
@@ -3281,7 +3281,7 @@ if ($debug)
 
                 // need to locate the first datafield-oriented theme element in this datatype
                 /** @var ThemeElement[] $theme_elements */
-                $theme_elements = array();
+                $theme_elements = [];
                 foreach ($datatype->getThemeElement() as $te) {
                     if ($te->getDeletedAt() === NULL && $te->getTheme()->getID() == 1)   // TODO - deleted check needed?
                         $theme_elements[$te->getDisplayOrder()] = $te;
@@ -3311,10 +3311,10 @@ if ($debug)
 
             $em->getFilters()->enable('softdeleteable');    // Re-enable the filter
 
-            $return['d'] = array(
+            $return['d'] = [
 //                'datatype_id' => $datafield->getDataType()->getId(),
                 'theme_element_id' => $theme_element->getId()
-            );
+            ];
 
         }
         catch (\Exception $e) {
@@ -3343,7 +3343,7 @@ if ($debug)
      */
     public function datatypepublicAction($datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -3382,16 +3382,16 @@ if ($debug)
             // If the datatype is public, make it non-public...if datatype is non-public, make it public
             if ( $datatype->isPublic() ) {
                 // Make the datatype non-public
-                $properties = array(
+                $properties = [
                     'publicDate' => new \DateTime('2200-01-01 00:00:00')
-                );
+                ];
                 $entity_modify_service->updateDatatypeMeta($user, $datatype, $properties);
             }
             else {
                 // Make the datatype public
-                $properties = array(
+                $properties = [
                     'publicDate' => new \DateTime()
-                );
+                ];
                 $entity_modify_service->updateDatatypeMeta($user, $datatype, $properties);
             }
 
@@ -3436,7 +3436,7 @@ if ($debug)
      */
     public function datafieldpublicAction($datafield_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -3480,16 +3480,16 @@ if ($debug)
             // If the datafield is public, make it non-public...if datafield is non-public, make it public
             if ( $datafield->isPublic() ) {
                 // Make the datafield non-public
-                $properties = array(
+                $properties = [
                     'publicDate' => new \DateTime('2200-01-01 00:00:00')
-                );
+                ];
                 $entity_modify_service->updateDatafieldMeta($user, $datafield, $properties);
             }
             else {
                 // Make the datafield public
-                $properties = array(
+                $properties = [
                     'publicDate' => new \DateTime()
-                );
+                ];
                 $entity_modify_service->updateDatafieldMeta($user, $datafield, $properties);
             }
 
@@ -3547,7 +3547,7 @@ if ($debug)
      */
     public function markdownhelpAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -3556,11 +3556,11 @@ if ($debug)
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Displaytemplate:markdown_help_dialog_form.html.twig'
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x6c5fbda1;
@@ -3586,7 +3586,7 @@ if ($debug)
      */
     public function savesearchnotesAction($datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -3639,10 +3639,10 @@ if ($debug)
 
 
             // Save any changes to the database
-            $properties = array(
+            $properties = [
                 'searchNotesUpper' => $upper_value,
                 'searchNotesLower' => $lower_value,
-            );
+            ];
             $entity_modify_service->updateDatatypeMeta($user, $datatype, $properties);
 
 
@@ -3686,7 +3686,7 @@ if ($debug)
      */
     public function syncwithtemplateAction($datatype_id, $sync_metadata, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -3736,19 +3736,19 @@ if ($debug)
             $api_key = $this->container->getParameter('beanstalk_api_key');
             $pheanstalk = $this->get('pheanstalk');
 
-            $url = $this->generateUrl('odr_sync_with_template_worker', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+            $url = $this->generateUrl('odr_sync_with_template_worker', [], UrlGeneratorInterface::ABSOLUTE_URL);
 
             // Create a job and insert into beanstalk's queue
 //            $priority = 1024;   // should be roughly default priority
             $payload = json_encode(
-                array(
+                [
                     "user_id" => $user->getId(),
                     "datatype_id" => $datatype->getId(),
 
                     "redis_prefix" => $redis_prefix,    // debug purposes only
                     "url" => $url,
                     "api_key" => $api_key,
-                )
+                ]
             );
 
             $pheanstalk->useTube('synch_template')->put($payload);
@@ -3761,15 +3761,15 @@ if ($debug)
 
             // ----------------------------------------
             // Redirect the user to the status checker
-            $return['d'] = array(
+            $return['d'] = [
                 'url' => $this->generateUrl(
                     'odr_design_check_sync_with_template',
-                    array(
+                    [
                         'datatype_id' => $datatype->getId(),
                         'sync_metadata' => $sync_metadata
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x0d869f58;
@@ -3798,7 +3798,7 @@ if ($debug)
      */
     public function checksyncwithtemplateAction($datatype_id, $sync_metadata, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -3839,15 +3839,15 @@ if ($debug)
             $em->refresh($datatype);
             if ($datatype->getDatatypeType() === 'synchronizing') {
                 // The datatype is still being synchronized
-                $return['d'] = array(
+                $return['d'] = [
                     'html' => $templating->render(
                         'ODRAdminBundle:Datatype:sync_status_checker.html.twig',
-                        array(
+                        [
                             'datatype' => $datatype,
                             'sync_metadata' => $sync_metadata,
-                        )
+                        ]
                     )
-                );
+                ];
             }
             else {
                 // The datatype is done being synchronized
@@ -3864,20 +3864,20 @@ if ($debug)
                 // Redirect the user back to the correct datatype
                 $url = $this->generateUrl(
                     'odr_design_master_theme',
-                    array(
+                    [
                         'datatype_id' => $target_datatype->getId()
-                    ),
+                    ],
                     false
                 );
 
-                $return['d'] = array(
+                $return['d'] = [
                     'html' => $templating->render(
                         'ODRAdminBundle:Datatype:sync_status_checker_redirect.html.twig',
-                        array(
+                        [
                             "url" => $url
-                        )
+                        ]
                     )
-                );
+                ];
             }
         }
         catch (\Exception $e) {
@@ -3905,7 +3905,7 @@ if ($debug)
      */
     public function getmultiplefieldpropertiesAction($datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -3953,16 +3953,14 @@ if ($debug)
             $token = $token_manager->getToken($token_key)->getValue();
 
             // Sort the datafields by name so they're easier to locate in the list
-            uasort($df_array, function ($a, $b) {
-                return strcmp($a['dataFieldMeta']['fieldName'], $b['dataFieldMeta']['fieldName']);
-            });
+            uasort($df_array, fn($a, $b) => strcmp((string) $a['dataFieldMeta']['fieldName'], (string) $b['dataFieldMeta']['fieldName']));
 
 
             // Going to also need a list of all fieldtypes, and which datafields can have their
             //  fieldtypes changed
             /** @var FieldType[] $all_fieldtypes */
             $all_fieldtypes = $em->getRepository('ODRAdminBundle:FieldType')->findAll();
-            $fieldtype_map = array();
+            $fieldtype_map = [];
             foreach ($all_fieldtypes as $ft)
                 $fieldtype_map[$ft->getId()] = $ft->getTypeName();
 
@@ -3971,18 +3969,18 @@ if ($debug)
 
             // ----------------------------------------
             // Render and return the dialog
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Displaytemplate:multi_datafield_properties_dialog_form.html.twig',
-                    array(
+                    [
                         'datafields' => $df_array,
                         'token' => $token,
 
                         'fieldtype_info' => $fieldtype_info,
                         'fieldtype_map' => $fieldtype_map,
-                    )
+                    ]
                 )
-            );
+            ];
 
         }
         catch (\Exception $e) {
@@ -4010,7 +4008,7 @@ if ($debug)
      */
     public function savemultiplefieldpropertiesAction($datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -4033,7 +4031,7 @@ if ($debug)
                     $post['fieldtypes'][$df_id] = intval($val);
             }
             else
-                $post['fieldtypes'] = array();
+                $post['fieldtypes'] = [];
 
 
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -4081,14 +4079,14 @@ if ($debug)
             //  migrate data between fieldtypes
             /** @var FieldType[] $tmp */
             $tmp = $em->getRepository('ODRAdminBundle:FieldType')->findAll();
-            $fieldtype_map = array();
+            $fieldtype_map = [];
             foreach ($tmp as $ft)
                 $fieldtype_map[$ft->getId()] = $ft;
             /** @var FieldType[] $fieldtype_map */
 
             /** @var DataFields[] $tmp */
-            $tmp = $em->getRepository('ODRAdminBundle:DataFields')->findBy( array('dataType' => $datatype->getId()) );
-            $datafield_map = array();
+            $tmp = $em->getRepository('ODRAdminBundle:DataFields')->findBy( ['dataType' => $datatype->getId()] );
+            $datafield_map = [];
             foreach ($tmp as $df)
                 $datafield_map[$df->getId()] = $df;
             /** @var DataFields[] $datafield_map */
@@ -4174,7 +4172,7 @@ if ($debug)
             $change_made = false;
 
             // Now that the form is valid, update all the datafields
-            $datafields_needing_events = array();
+            $datafields_needing_events = [];
             foreach ($df_array as $df_id => $df) {
                 $datafield = $datafield_map[$df_id];
 
@@ -4199,10 +4197,10 @@ if ($debug)
                 if ( $old_fieldtype->getId() !== $new_fieldtype->getId() ) {
                     // ...then need to verify that changing the fieldtype won't cause a conflict
                     //  with any in-progress background jobs
-                    $new_job_data = array(
+                    $new_job_data = [
                         'job_type' => 'migrate',
                         'target_entity' => $datafield,
-                    );
+                    ];
                     $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
                     if ( !is_null($conflicting_job) ) {
                         // Changing the fieldtype here would interfere with a currently running
@@ -4228,11 +4226,11 @@ if ($debug)
                 ) {
                     $change_made = true;
 
-                    $properties = array(
+                    $properties = [
                         'fieldType' => $new_fieldtype,
                         'searchable' => $post['searchable'][$df_id],
                         'publicDate' => $public_date,
-                    );
+                    ];
                     $entity_modify_service->updateDatafieldMeta($user, $datafield, $properties, true);    // don't flush immediately
 
                     // If the fieldtype changed...
@@ -4269,7 +4267,7 @@ if ($debug)
                         $event = new DatafieldModifiedEvent($df, $user);
                         $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
                     }
-                    catch (\Exception $e) {
+                    catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
                         //  event
 //                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -4282,7 +4280,7 @@ if ($debug)
                     $event = new DatatypeModifiedEvent($datatype, $user);
                     $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
 //                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -4290,9 +4288,9 @@ if ($debug)
                 }
             }
 
-            $return['d'] = array(
+            $return['d'] = [
                 'reload_child' => $change_made
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x96406f68;
@@ -4319,7 +4317,7 @@ if ($debug)
      */
     public function getspecialdatafieldsAction($datatype_id, $type, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -4379,18 +4377,18 @@ if ($debug)
 
             // ----------------------------------------
             // Render and return the dialog
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Displaytemplate:special_datafield_selection_dialog_form.html.twig',
-                    array(
+                    [
                         'token' => $token,
                         'purpose' => $type,
 
                         'available_datafields' => $available_datafields,
                         'current_datafields' => $current_datafields,
-                    )
+                    ]
                 )
-            );
+            ];
 
         }
         catch (\Exception $e) {
@@ -4417,7 +4415,7 @@ if ($debug)
      */
     public function savespecialdatafieldsAction($datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -4432,8 +4430,8 @@ if ($debug)
             if ( $purpose !== 'name' && $purpose !== 'sort' )
                 throw new ODRBadRequestException();
 
-            $seen_datafields = array();
-            $df_list = array();
+            $seen_datafields = [];
+            $df_list = [];
             if ( isset($post['datafields']) ) {
                 foreach ($post['datafields'] as $display_order => $df_id) {
                     $df_list[intval($df_id)] = intval($display_order);
@@ -4523,10 +4521,10 @@ if ($debug)
                 FROM ODRAdminBundle:DataFields df
                 WHERE df IN (:datafield_ids)
                 AND df.deletedAt IS NULL'
-            )->setParameters( array('datafield_ids' => array_keys($df_list)) );
+            )->setParameters( ['datafield_ids' => array_keys($df_list)] );
             $results = $query->getResult();
 
-            $df_lookup = array();
+            $df_lookup = [];
             foreach ($results as $df) {
                 /** @var DataFields $df */
                 $df_lookup[ $df->getId() ] = $df;
@@ -4541,10 +4539,10 @@ if ($debug)
                 FROM ODRAdminBundle:DataTypeSpecialFields dtsf
                 WHERE dtsf.dataType = :datatype_id AND dtsf.field_purpose = :purpose
                 AND dtsf.deletedAt IS NULL'
-            )->setParameters( array('datatype_id' => $datatype->getId(), 'purpose' => $field_purpose) );
+            )->setParameters( ['datatype_id' => $datatype->getId(), 'purpose' => $field_purpose] );
             $results = $query->getResult();
 
-            $entities = array();
+            $entities = [];
             foreach ($results as $dtsf) {
                 /** @var DataTypeSpecialFields $dtsf */
                 $entities[ $dtsf->getDataField()->getId() ] = $dtsf;
@@ -4567,9 +4565,9 @@ if ($debug)
                     $dtsf = $entities[$df_id];
                     if ( $display_order !== $dtsf->getDisplayOrder() ) {
                         // ...so ensure it's in the correct order
-                        $props = array(
+                        $props = [
                             'displayOrder' => $display_order
-                        );
+                        ];
                         $entity_modify_service->updateDatatypeSpecialField($user, $dtsf, $props, true);    // don't flush immediately...
                         $changes_made = true;
                     }
@@ -4597,7 +4595,7 @@ if ($debug)
                     $event = new DatatypeModifiedEvent($datatype, $user, true);    // Also need to rebuild datarecord cache entries because they store sort/name field values
                     $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
 //                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -4635,7 +4633,7 @@ if ($debug)
      */
     public function getstoredsearchkeysAction($datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -4678,15 +4676,15 @@ if ($debug)
 
             // TODO - going to need multiple stored search keys, eventually...
             // Load the current set of stored search keys for the datatype, if any exist...
-            $stored_search_keys = array();
-            $search_key_descriptions = array();
+            $stored_search_keys = [];
+            $search_key_descriptions = [];
             foreach ($datatype->getStoredSearchKeys() as $ssk) {
                 /** @var StoredSearchKey $ssk */
                 // Don't really want to use id to identify these things...due to soft-deletion,
                 //  any modifications would always require reloads
                 $uuid = md5($ssk->getSearchKey().'_'.$ssk->getCreatedBy()->getId());
 
-                $stored_search_keys[$uuid] = array(
+                $stored_search_keys[$uuid] = [
                     'search_key' => $ssk->getSearchKey(),
                     'label' => $ssk->getStorageLabel(),
                     'createdBy' => $ssk->getCreatedBy()->getUserString(),
@@ -4696,7 +4694,7 @@ if ($debug)
                     'defaultFor' => $ssk->getDefaultFor(),
 
                     'has_non_public_fields' => false,
-                );
+                ];
 
                 // Need to also keep track of whether the search key is valid or not...which is
                 //  made somewhat irritating because validateSearchKey() throws an error when it's
@@ -4709,7 +4707,7 @@ if ($debug)
                     // Also need a more readable description
                     $search_key_descriptions[$uuid] = $search_key_service->getReadableSearchKey( $ssk->getSearchKey() );
                 }
-                catch (ODRBadRequestException $e) {
+                catch (ODRBadRequestException) {
                     // If an error was thrown, then search key is not valid...but need to keep
                     //  checking the other search keys
                     $stored_search_keys[$uuid]['is_valid'] = false;
@@ -4720,7 +4718,7 @@ if ($debug)
             // ----------------------------------------
             // Need to get the info for the default/selected search key...
             $current_stored_search_key_uuid = '';
-            $search_params = array();
+            $search_params = [];
             foreach ($stored_search_keys as $uuid => $data) {
                 if ( $data['isDefault'] ) {
                     $current_stored_search_key_uuid = $uuid;
@@ -4736,12 +4734,12 @@ if ($debug)
 
             // Need the default search key for this dataype so the sidebar inside the dialog can be reset
             $empty_search_key = $search_key_service->encodeSearchKey(
-                array('dt_id' => $datatype->getId())
+                ['dt_id' => $datatype->getId()]
             );
 
             // If a stored search key exists, ensure the "fake" sidebar will show it by default
             $default_search_key = '';
-            $default_search_params = array();
+            $default_search_params = [];
             if ( !empty($stored_search_keys) ) {
                 foreach ($stored_search_keys as $ssk) {
                     // Should only be one stored search key, for the moment
@@ -4771,10 +4769,10 @@ if ($debug)
 
             // ----------------------------------------
             // Render and return the dialog
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Displaytemplate:stored_search_keys_dialog_form.html.twig',
-                    array(
+                    [
                         'search_key' => $default_search_key,
                         'search_params' => $default_search_params,
 
@@ -4799,9 +4797,9 @@ if ($debug)
 
                         // theme selection
 //                        'preferred_theme_id' => $preferred_theme_id,
-                    )
+                    ]
                 )
-            );
+            ];
 
         }
         catch (\Exception $e) {
@@ -4828,7 +4826,7 @@ if ($debug)
      */
     public function converttostoredsearchkeyAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -4918,12 +4916,12 @@ if ($debug)
 
             // ----------------------------------------
             // Render and return the dialog
-            $return['d'] = array(
+            $return['d'] = [
                 'search_key' => $search_key,
                 'readable_search_key' => $readable_search_key,
 
                 'contains_non_public_fields' => $contains_non_public_fields,
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x90291cc3;
@@ -4950,7 +4948,7 @@ if ($debug)
      */
     public function savestoredsearchkeysAction($datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -5023,10 +5021,10 @@ if ($debug)
                     // ...if so, then attempt to update it
                     /** @var StoredSearchKey $ssk */
                     $ssk = $stored_search_keys->first();
-                    $props = array(
+                    $props = [
                         'searchKey' => $search_key,
                         'defaultFor' => $defaultFor,
-                    );
+                    ];
                     $entity_modify_service->updateStoredSearchKey($user, $ssk, $props);
                 }
                 else {

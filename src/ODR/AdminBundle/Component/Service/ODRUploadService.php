@@ -41,58 +41,9 @@ class ODRUploadService
 {
 
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var CryptoService
-     */
-    private $crypto_service;
-
-    /**
-     * @var EntityCreationService
-     */
-    private $entity_creation_service;
-
-    /**
-     * @var EventDispatcherInterface
-     */
-    private $event_dispatcher;
-
-    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-
-    /**
-     * @var Pheanstalk
-     */
-    private $pheanstalk;
-
-    /**
-     * @var Router
-     */
-    private $router;
-
-    /**
-     * @var string
-     */
-    private $redis_prefix;
-
-    /**
-     * @var string
-     */
-    private $api_key;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * ODRUploadService constructor
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param CryptoService $crypto_service
      * @param EntityCreationService $entity_creation_service
      * @param EventDispatcherInterface $event_dispatcher
@@ -102,26 +53,8 @@ class ODRUploadService
      * @param string $api_key
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        CryptoService $crypto_service,
-        EntityCreationService $entity_creation_service,
-        EventDispatcherInterface $event_dispatcher,
-        Pheanstalk $pheanstalk,
-        Router $router,
-        string $redis_prefix,
-        string $api_key,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->crypto_service = $crypto_service;
-        $this->entity_creation_service = $entity_creation_service;
-        $this->event_dispatcher = $event_dispatcher;
-        $this->pheanstalk = $pheanstalk;
-        $this->router = $router;
-        $this->redis_prefix = $redis_prefix;
-        $this->api_key = $api_key;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly CryptoService $crypto_service, private readonly EntityCreationService $entity_creation_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly Pheanstalk $pheanstalk, private readonly Router $router, private readonly string $redis_prefix, private readonly string $api_key, private readonly Logger $logger)
+    {
     }
 
 
@@ -167,7 +100,7 @@ class ODRUploadService
             $event = new FilePreEncryptEvent($file, $drf->getDataField());
             $this->event_dispatcher->dispatch(FilePreEncryptEvent::NAME, $event);
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             // ...don't particularly want to rethrow the error since it'll interrupt
             //  everything downstream of the event...having file encryption interrupted is not
             //  acceptable though, so any errors need to disappear
@@ -205,12 +138,12 @@ class ODRUploadService
             // Need to use beanstalk to encrypt the file so the UI doesn't block on huge files
 
             // Generate the url for cURL to use
-            $url = $this->router->generate('odr_crypto_request', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+            $url = $this->router->generate('odr_crypto_request', [], UrlGeneratorInterface::ABSOLUTE_URL);
 
             // Insert the new job into the queue
             $priority = 1024;   // should be roughly default priority
             $payload = json_encode(
-                array(
+                [
                     "object_type" => 'file',
                     "object_id" => $file->getId(),
                     "crypto_type" => 'encrypt',
@@ -222,7 +155,7 @@ class ODRUploadService
                     "redis_prefix" => $this->redis_prefix,    // debug purposes only
                     "url" => $url,
                     "api_key" => $this->api_key,
-                )
+                ]
             );
 
             $delay = 1;
@@ -348,7 +281,7 @@ class ODRUploadService
             $event = new FilePostEncryptEvent($image, $datafield);
             $this->event_dispatcher->dispatch(FilePostEncryptEvent::NAME, $event);
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             // ...don't want to rethrow the error since it'll interrupt everything after this
             //  event
 //            if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -395,12 +328,12 @@ class ODRUploadService
             // Need to use beanstalk to encrypt the file so the UI doesn't block on huge files
 
             // Generate the url for cURL to use
-            $url = $this->router->generate('odr_crypto_request', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+            $url = $this->router->generate('odr_crypto_request', [], UrlGeneratorInterface::ABSOLUTE_URL);
 
             // Insert the new job into the queue
             $priority = 1024;   // should be roughly default priority
             $payload = json_encode(
-                array(
+                [
                     "object_type" => 'file',
                     "object_id" => $existing_file->getId(),
                     "crypto_type" => 'encrypt',
@@ -412,7 +345,7 @@ class ODRUploadService
                     "redis_prefix" => $this->redis_prefix,    // debug purposes only
                     "url" => $url,
                     "api_key" => $this->api_key,
-                )
+                ]
             );
 
             $delay = 1;
@@ -438,7 +371,7 @@ class ODRUploadService
 
         // In order to overwrite this Image, several of its properties need to be reset...same for
         //  any related resized images
-        $relevant_images = array();
+        $relevant_images = [];
         foreach ($existing_image->getChildren() as $i)
             $relevant_images[] = $i;
         $relevant_images[] = $existing_image;
@@ -516,7 +449,7 @@ class ODRUploadService
             $event = new DatarecordModifiedEvent($datarecord, $user);    // Do want to update the database here, unlike the image upload action
             $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             // ...don't want to rethrow the error since it'll interrupt everything after this
             //  event
 //            if ( $this->container->getParameter('kernel.environment') === 'dev' )

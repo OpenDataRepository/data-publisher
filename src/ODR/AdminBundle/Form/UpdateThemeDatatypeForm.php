@@ -38,14 +38,14 @@ class UpdateThemeDatatypeForm extends AbstractType
         $is_top_level = $options['is_top_level'];
         $multiple_allowed = $options['multiple_allowed'];
 
-        $display_choices = array(
+        $display_choices = [
             'Accordion' => ThemeDataType::ACCORDION_HEADER,
             'Tabbed' => ThemeDataType::TABBED_HEADER,
             'Select Box' => ThemeDataType::DROPDOWN_HEADER,
             'List' => ThemeDataType::LIST_HEADER,
             'Hide Header' => ThemeDataType::NO_HEADER,
             'Table' => ThemeDataType::DATATABLES_CONTENT,
-        );
+        ];
 
         $builder->add(
             'dataType',
@@ -60,14 +60,14 @@ class UpdateThemeDatatypeForm extends AbstractType
         $builder->add(
             'display_type',
             ChoiceType::class,
-            array(
+            [
                 'choices' => $display_choices,
                 'choices_as_values' => true,
                 'label'  => 'Display As',
                 'expanded' => false,
                 'multiple' => false,
                 'placeholder' => false
-            )
+            ]
         );
     }
 
@@ -90,6 +90,7 @@ class UpdateThemeDatatypeForm extends AbstractType
      *
      * @return string The prefix of the template block name
      */
+    #[\Override]
     public function getBlockPrefix()
     {
         return 'UpdateThemeDatatypeForm';
@@ -102,9 +103,9 @@ class UpdateThemeDatatypeForm extends AbstractType
     public function configureOptions(OptionsResolver $resolver)
     {
         $resolver->setDefaults(
-            array(
-                'data_class' => 'ODR\AdminBundle\Entity\ThemeDatatype',
-            )
+            [
+                'data_class' => \ODR\AdminBundle\Entity\ThemeDatatype::class,
+            ]
         );
 
         // Required options shouldn't have their defaults set

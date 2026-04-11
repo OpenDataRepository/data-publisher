@@ -30,7 +30,7 @@ class DataType
     const STATE_OPERATIONAL = "operational";
 
     // Convenience state so controllers can filter out datatypes that aren't ready for general use yet
-    const STATE_VIEWABLE = array(/*self::STATE_INCOMPLETE,*/ self::STATE_OPERATIONAL);
+    const STATE_VIEWABLE = [/*self::STATE_INCOMPLETE,*/ self::STATE_OPERATIONAL];
 
     // Datatypes in this state encountered some sort of error while cloning, and pretty much need
     //  manual intervention to be fixed...
@@ -1286,7 +1286,7 @@ class DataType
      */
     public function getNameFields()
     {
-        $namefields = array();
+        $namefields = [];
         if ( !is_null($this->dataTypeSpecialFields) ) {
             foreach ($this->dataTypeSpecialFields as $dtsf) {
                 /** @var DataTypeSpecialFields $dtsf */
@@ -1306,7 +1306,7 @@ class DataType
      */
     public function getSortFields()
     {
-        $sortfields = array();
+        $sortfields = [];
         if ( !is_null($this->dataTypeSpecialFields) ) {
             foreach ($this->dataTypeSpecialFields as $dtsf) {
                 /** @var DataTypeSpecialFields $dtsf */

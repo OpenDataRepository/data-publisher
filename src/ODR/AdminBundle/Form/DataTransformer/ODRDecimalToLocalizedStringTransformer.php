@@ -37,6 +37,7 @@ class ODRDecimalToLocalizedStringTransformer extends NumberToLocalizedStringTran
      *
      * {@inheritDoc}
      */
+    #[\Override]
     public function transform($value)
     {
         // The parent function throws an error when it receives the empty string, but apparently
@@ -59,6 +60,7 @@ class ODRDecimalToLocalizedStringTransformer extends NumberToLocalizedStringTran
      *
      * {@inheritdoc}
      */
+    #[\Override]
     public function reverseTransform($value)
     {
         if ( !ValidUtility::isValidDecimal($value) )

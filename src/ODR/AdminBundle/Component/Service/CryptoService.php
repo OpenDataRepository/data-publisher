@@ -37,34 +37,6 @@ class CryptoService
 {
 
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var LockService
-     */
-    private $lock_service;
-
-    /**
-     * @var EventDispatcherInterface
-     */
-    private $event_dispatcher;
-
-    // NOTE - $event_dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-
-    /**
-     * @var SecureRandom
-     */
-    private $generator;
-
-    /**
-     * @var CryptoAdapter
-     */
-    private $crypto_adapter;
-
-    /**
      * @var string
      */
     private $crypto_dir;
@@ -74,16 +46,11 @@ class CryptoService
      */
     private $odr_web_dir;
 
-    /**
-     * @var Logger
-     */
-    private $logger;
-
 
     /**
      * CryptoService constructor
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param LockService $lock_service
      * @param EventDispatcherInterface $event_dispatcher
      * @param SecureRandom $generator
@@ -93,23 +60,17 @@ class CryptoService
      * @param Logger $logger
      */
     public function __construct(
-        EntityManager $entity_manager,
-        LockService $lock_service,
-        EventDispatcherInterface $event_dispatcher,
-        SecureRandom $generator,
-        CryptoAdapter $crypto_adapter,
+        private readonly EntityManager $em,
+        private readonly LockService $lock_service,
+        private readonly EventDispatcherInterface $event_dispatcher,
+        private readonly SecureRandom $generator,
+        private readonly CryptoAdapter $crypto_adapter,
         string $crypto_dir,
         string $odr_web_dir,
-        Logger $logger
+        private readonly Logger $logger
     ) {
-        $this->em = $entity_manager;
-        $this->lock_service = $lock_service;
-        $this->event_dispatcher = $event_dispatcher;
-        $this->generator = $generator;
-        $this->crypto_adapter = $crypto_adapter;
         $this->crypto_dir = realpath($crypto_dir);
         $this->odr_web_dir = realpath($odr_web_dir);
-        $this->logger = $logger;
     }
 
 
@@ -228,13 +189,13 @@ class CryptoService
         $is_public = true;
         $local_filepath = '';
         if ($object_type === 'file') {
-            if ( strpos($local_filename, 'File_'.$object_id) === false )    // TODO - better way of doing this?
+            if ( !str_contains($local_filename, 'File_'.$object_id) )    // TODO - better way of doing this?
                 $is_public = false;
 
             $local_filepath = self::decryptFile($object_id, $local_filename);
         }
         else if ($object_type === 'image') {
-            if ( strpos($local_filename, 'Image_'.$object_id) === false )    // TODO - better way of doing this?
+            if ( !str_contains($local_filename, 'Image_'.$object_id) )    // TODO - better way of doing this?
                 $is_public = false;
 
             $local_filepath = self::decryptImage($object_id, $local_filename);
@@ -334,7 +295,7 @@ class CryptoService
                     throw new ODRException('Unable to decrypt chunk: '.$crypto_chunk_dir.'/'.'enc.'.$chunk_id);
                 }
 
-                fwrite($handle, $decrypted_data);
+                fwrite($handle, (string) $decrypted_data);
                 $chunk_id++;
             }
 
@@ -435,7 +396,7 @@ class CryptoService
             $event = new FilePostEncryptEvent($file, $datafield);
             $this->event_dispatcher->dispatch(FilePostEncryptEvent::NAME, $event);
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             // ...don't want to rethrow the error since it'll interrupt everything after this
             //  event
 //            if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -539,20 +500,20 @@ class CryptoService
 
         // ----------------------------------------
         // Also want to create checksums of each piece of the encrypted file/image
-        $results = array();
+        $results = [];
         if ($obj instanceof File) {
             $results = $this->em->getRepository('ODRAdminBundle:FileChecksum')->findBy(
-                array( 'file' => $obj->getId() )
+                [ 'file' => $obj->getId() ]
             );
         }
         else if ($obj instanceof Image) {
             $results = $this->em->getRepository('ODRAdminBundle:ImageChecksum')->findBy(
-                array( 'image' => $obj->getId() )
+                [ 'image' => $obj->getId() ]
             );
         }
         /** @var FileChecksum[]|ImageChecksum[] $results */
 
-        $existing_checksums = array();
+        $existing_checksums = [];
         foreach ($results as $result) {
             $existing_checksums[ $result->getChunkId() ] = $result;
         }

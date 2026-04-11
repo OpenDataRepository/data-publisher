@@ -19,34 +19,12 @@ class ArrayPluginReturn
 {
 
     /**
-     * @var array
-     */
-    private $datatype_array;
-
-    /**
-     * @var array
-     */
-    private $datarecord_array;
-
-    /**
-     * @var array
-     */
-    private $theme_array;
-
-
-    /**
      * @param array $datatype_array
      * @param array $datarecord_array
      * @param array $theme_array
      */
-    public function __construct(
-        array $datatype_array,
-        array $datarecord_array,
-        array $theme_array
-    ) {
-        $this->datatype_array = $datatype_array;
-        $this->datarecord_array = $datarecord_array;
-        $this->theme_array = $theme_array;
+    public function __construct(private readonly array $datatype_array, private readonly array $datarecord_array, private readonly array $theme_array)
+    {
     }
 
 

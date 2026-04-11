@@ -37,46 +37,6 @@ class ODREventSubscriber implements EventSubscriberInterface
 {
 
     /**
-     * @var string
-     */
-    private $env;
-
-    /**
-     * @var ContainerInterface
-     */
-    private $container;
-
-    /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var CacheService
-     */
-    private $cache_service;
-
-    /**
-     * @var DatarecordInfoService
-     */
-    private $datarecord_info_service;
-
-    /**
-     * @var DatatreeInfoService
-     */
-    private $datatree_info_service;
-
-    /**
-     * @var SearchService
-     */
-    private $search_service;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-    /**
      * @var boolean
      */
     private $debug;
@@ -85,9 +45,9 @@ class ODREventSubscriber implements EventSubscriberInterface
     /**
      * ODREventSubscriber constructor.
      *
-     * @param string $environment
+     * @param string $env
      * @param ContainerInterface $container
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param CacheService $cache_service
      * @param DatarecordInfoService $datarecord_info_service
      * @param DatatreeInfoService $datatree_info_service
@@ -95,25 +55,16 @@ class ODREventSubscriber implements EventSubscriberInterface
      * @param Logger $logger
      */
     public function __construct(
-        string $environment,
-        ContainerInterface $container,
-        EntityManager $entity_manager,
-        CacheService $cache_service,
-        DatarecordInfoService $datarecord_info_service,
-        DatatreeInfoService $datatree_info_service,
-        SearchService $search_service,
-        Logger $logger
+        private readonly string $env,
+        private readonly ContainerInterface $container,
+        private readonly EntityManager $em,
+        private readonly CacheService $cache_service,
+        private readonly DatarecordInfoService $datarecord_info_service,
+        private readonly DatatreeInfoService $datatree_info_service,
+        private readonly SearchService $search_service,
+        private readonly Logger $logger
     ) {
-        $this->env = $environment;
-        $this->container = $container;
-        $this->em = $entity_manager;
-        $this->cache_service = $cache_service;
-        $this->datarecord_info_service = $datarecord_info_service;
-        $this->datatree_info_service = $datatree_info_service;
-        $this->search_service = $search_service;
-        $this->logger = $logger;
-
-//        $this->debug = false;
+        //        $this->debug = false;
         $this->debug = true;
     }
 
@@ -123,7 +74,7 @@ class ODREventSubscriber implements EventSubscriberInterface
      */
     public static function getSubscribedEvents()
     {
-        return array(
+        return [
             // Datatype
             DatatypeCreatedEvent::NAME => 'onDatatypeCreated',
             DatatypeImportedEvent::NAME => 'onDatatypeImport',
@@ -158,7 +109,7 @@ class ODREventSubscriber implements EventSubscriberInterface
             PluginAttachEvent::NAME => 'onPluginAttach',
             PluginOptionsChangedEvent::NAME => 'onPluginOptionsChanged',
             PluginPreRemoveEvent::NAME => 'onPluginPreRemove',
-        );
+        ];
     }
 
 
@@ -202,11 +153,11 @@ class ODREventSubscriber implements EventSubscriberInterface
                 AND (rpi.dataType = :datatype_id OR rpi.dataField = :datafield_id)
                 AND rp.deletedAt IS NULL AND rpe.deletedAt IS NULL AND rpi.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'event_name' => $event_name,
                     'datatype_id' => $datatype_id,
                     'datafield_id' => $datafield_id,
-                )
+                ]
             );
         }
         else {
@@ -221,12 +172,12 @@ class ODREventSubscriber implements EventSubscriberInterface
                 AND (rpi.dataType = :datatype_id OR rpi.dataField = :datafield_id)
                 AND rp.deletedAt IS NULL AND rpe.deletedAt IS NULL AND rpi.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'event_name' => $event_name,
                     'plugin_classname' => $plugin_classname,
                     'datatype_id' => $datatype_id,
                     'datafield_id' => $datafield_id,
-                )
+                ]
             );
         }
         $results = $query->getArrayResult();
@@ -234,7 +185,7 @@ class ODREventSubscriber implements EventSubscriberInterface
 
         // Need two pieces of info from the previous query...which plugins listen to the event, and
         //  which function to call for each of those plugins
-        $ret = array();
+        $ret = [];
         foreach ($results as $result)
             $ret[ $result['pluginClassName'] ] = $result['eventCallable'];
 
@@ -254,10 +205,10 @@ class ODREventSubscriber implements EventSubscriberInterface
         foreach ($relevant_plugins as $plugin_classname => $event_callable) {
             // Need to load the plugin via the container...
             $render_plugin = $this->container->get($plugin_classname);
-            $listener = array(
+            $listener = [
                 0 => $render_plugin,
                 1 => $event_callable
-            );
+            ];
 
             try {
                 // ...so the relevant function in the plugin can get called
@@ -270,7 +221,7 @@ class ODREventSubscriber implements EventSubscriberInterface
             catch (\Throwable $e) {
                 // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
                 //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-                $base_info = array(self::class);
+                $base_info = [self::class];
                 $event_info = $event->getErrorInfo();
                 $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
             }
@@ -316,7 +267,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
@@ -391,7 +342,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
@@ -462,7 +413,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
@@ -524,7 +475,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
@@ -567,7 +518,7 @@ class ODREventSubscriber implements EventSubscriberInterface
 
             // Locate all datatypes that end up needing to load cache entries for the datatypes in
             //  $datatype_ids...
-            $datatype_ids = array($ancestor_datatype->getId());
+            $datatype_ids = [$ancestor_datatype->getId()];
             $all_linked_ancestors = $this->datatree_info_service->getLinkedAncestors($datatype_ids, $datatree_array, true);
             $all_linked_descendants = $this->datatree_info_service->getLinkedDescendants($datatype_ids, $datatree_array, true);
 
@@ -607,7 +558,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
@@ -658,11 +609,11 @@ class ODREventSubscriber implements EventSubscriberInterface
                 WHERE df.dataType IN (:datatype_id)
                 AND df.deletedAt IS NULL AND dtsf.deletedAt IS NULL AND l_dt.deletedAt IS NULL'
             )->setParameters(
-                array( 'datatype_id' => array( $datatype->getId() ) )
+                [ 'datatype_id' => [ $datatype->getId() ] ]
             );
             $results = $query->getArrayResult();
 
-            $datatypes_to_reset_order = array();
+            $datatypes_to_reset_order = [];
             foreach ($results as $result) {
                 $dt_id = $result['dt_id'];
                 $datatypes_to_reset_order[] = $dt_id;
@@ -693,7 +644,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
@@ -721,7 +672,7 @@ class ODREventSubscriber implements EventSubscriberInterface
             //  the default isEventRelevant() won't work
 //            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, null);
 
-            $event_name = get_class($event);
+            $event_name = $event::class;
             $event_name = substr($event_name, strrpos($event_name, "\\") + 1);
 
             // Need to have an extra join in there to pick up the cases where the DatarecordCreatedEvent
@@ -736,14 +687,14 @@ class ODREventSubscriber implements EventSubscriberInterface
                 AND (rpi.data_type_id = :datatype_id OR rpi_df.data_type_id = :datatype_id)
                 AND rp.deletedAt IS NULL AND rpe.deletedAt IS NULL
                 AND rpi.deletedAt IS NULL AND rpi_df.deletedAt IS NULL';
-            $params =  array(
+            $params =  [
                 'event_name' => $event_name,
                 'datatype_id' => $datatype->getId()
-            );
+            ];
             $conn = $this->em->getConnection();
             $results = $conn->executeQuery($query, $params);
 
-            $relevant_plugins = array();
+            $relevant_plugins = [];
             foreach ($results as $result) {
                 $plugin_classname = $result['pluginClassName'];
                 $event_callable = $result['event_callable'];
@@ -773,7 +724,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
@@ -811,7 +762,7 @@ class ODREventSubscriber implements EventSubscriberInterface
             //  updated...originally this only went up to the datarecord's grandparent, but that
             //  requirement got extended to include every single possible ancestor
             if ( $update_database ) {
-                $dr_list = $this->datarecord_info_service->findAllAncestors( array($datarecord->getId()) );
+                $dr_list = $this->datarecord_info_service->findAllAncestors( [$datarecord->getId()] );
                 if ( $this->debug )
                     $this->logger->debug('ODREventSubscriber::onDatarecordModified() for datarecord '.$datarecord->getId().'...updated datarecord ids: '.implode(', ', $dr_list));
 
@@ -819,8 +770,8 @@ class ODREventSubscriber implements EventSubscriberInterface
                    'UPDATE odr_data_record AS dr
                     SET dr.updated = NOW(), dr.updatedBy = '.$user->getId().'
                     WHERE dr.id IN (?) AND dr.deletedAt IS NULL';
-                $parameters = array(1 => $dr_list);
-                $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+                $parameters = [1 => $dr_list];
+                $types = [1 => DBALConnection::PARAM_INT_ARRAY];
 
                 $conn = $this->em->getConnection();
                 $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
@@ -839,7 +790,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
@@ -913,7 +864,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
@@ -978,7 +929,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
@@ -1022,10 +973,10 @@ class ODREventSubscriber implements EventSubscriberInterface
                 JOIN ODRAdminBundle:DataRecord grandparent WITH dr.grandparent = grandparent
                 WHERE dr.id IN (:datarecord_ids)
                 AND grandparent.deletedAt IS NULL'
-            )->setParameters( array('datarecord_ids' => $datarecord_ids) );
+            )->setParameters( ['datarecord_ids' => $datarecord_ids] );
             $results = $query->getArrayResult();
 
-            $datarecord_uuids = array();
+            $datarecord_uuids = [];
             foreach ($results as $result)
                 $datarecord_uuids[] = $result['unique_id'];
 
@@ -1065,8 +1016,8 @@ class ODREventSubscriber implements EventSubscriberInterface
                    'UPDATE odr_data_record AS dr
                     SET dr.updated = NOW(), dr.updatedBy = '.$user->getId().'
                     WHERE dr.id IN (?) AND dr.deletedAt IS NULL';
-                $parameters = array(1 => $records_to_clear);
-                $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+                $parameters = [1 => $records_to_clear];
+                $types = [1 => DBALConnection::PARAM_INT_ARRAY];
 
                 $conn = $this->em->getConnection();
                 $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
@@ -1086,10 +1037,10 @@ class ODREventSubscriber implements EventSubscriberInterface
                 AND df.deletedAt IS NULL AND dtsf.deletedAt IS NULL
                 AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'descendant_datatype' => $datatype->getId(),
                     'datarecord_ids' => $datarecord_ids
-                )
+                ]
             );
             $results = $query->getArrayResult();
 
@@ -1106,7 +1057,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
@@ -1152,7 +1103,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
@@ -1176,7 +1127,7 @@ class ODREventSubscriber implements EventSubscriberInterface
             $datafield = $event->getDatafield();
             $datatype = $datafield->getDataType();
 
-            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, $datafield);
+            $relevant_plugins = self::isEventRelevant($event::class, $datatype, $datafield);
             if ( !empty($relevant_plugins) ) {
                 // If so, then load each plugin and call their required function
                 self::relayEvent($relevant_plugins, $event);
@@ -1185,7 +1136,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
@@ -1209,7 +1160,7 @@ class ODREventSubscriber implements EventSubscriberInterface
             $datafield = $event->getDatafield();
             $datatype = $datafield->getDataType();
 
-            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, $datafield);
+            $relevant_plugins = self::isEventRelevant($event::class, $datatype, $datafield);
             if ( !empty($relevant_plugins) ) {
                 // If so, then load each plugin and call their required function
                 self::relayEvent($relevant_plugins, $event);
@@ -1221,7 +1172,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
@@ -1247,7 +1198,7 @@ class ODREventSubscriber implements EventSubscriberInterface
             $file = $event->getFile();
             $datarecord = $file->getDataRecord();
 
-            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, $datafield);
+            $relevant_plugins = self::isEventRelevant($event::class, $datatype, $datafield);
             if ( !empty($relevant_plugins) ) {
                 // If so, then load each plugin and call their required function
                 self::relayEvent($relevant_plugins, $event);
@@ -1265,7 +1216,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
@@ -1289,7 +1240,7 @@ class ODREventSubscriber implements EventSubscriberInterface
             $datafield = $event->getDatafield();
             $datatype = $datafield->getDataType();
 
-            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, $datafield);
+            $relevant_plugins = self::isEventRelevant($event::class, $datatype, $datafield);
             if ( !empty($relevant_plugins) ) {
                 // If so, then load each plugin and call their required function
                 self::relayEvent($relevant_plugins, $event);
@@ -1298,7 +1249,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
@@ -1323,7 +1274,7 @@ class ODREventSubscriber implements EventSubscriberInterface
             $datafield = $drf->getDataField();
             $datatype = $datafield->getDataType();
 
-            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, $datafield, $event->getPluginClassName());
+            $relevant_plugins = self::isEventRelevant($event::class, $datatype, $datafield, $event->getPluginClassName());
             if ( !empty($relevant_plugins) ) {
                 // If any plugins remain, then load each plugin and call their required function
                 self::relayEvent($relevant_plugins, $event);
@@ -1332,7 +1283,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
@@ -1358,7 +1309,7 @@ class ODREventSubscriber implements EventSubscriberInterface
             $datafield = $rpi->getDataField();
             $datatype = $rpi->getDataType();
 
-            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, $datafield, $rp->getPluginClassName());
+            $relevant_plugins = self::isEventRelevant($event::class, $datatype, $datafield, $rp->getPluginClassName());
             if ( !empty($relevant_plugins) ) {
                 // If any plugins remain, then load each plugin and call their required function
                 self::relayEvent($relevant_plugins, $event);
@@ -1367,7 +1318,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
@@ -1393,7 +1344,7 @@ class ODREventSubscriber implements EventSubscriberInterface
             $datafield = $rpi->getDataField();
             $datatype = $rpi->getDataType();
 
-            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, $datafield, $rp->getPluginClassName());
+            $relevant_plugins = self::isEventRelevant($event::class, $datatype, $datafield, $rp->getPluginClassName());
             if ( !empty($relevant_plugins) ) {
                 // If any plugins remain, then load each plugin and call their required function
                 self::relayEvent($relevant_plugins, $event);
@@ -1402,7 +1353,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
@@ -1428,7 +1379,7 @@ class ODREventSubscriber implements EventSubscriberInterface
             $datafield = $rpi->getDataField();
             $datatype = $rpi->getDataType();
 
-            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, $datafield, $rp->getPluginClassName());
+            $relevant_plugins = self::isEventRelevant($event::class, $datatype, $datafield, $rp->getPluginClassName());
             if ( !empty($relevant_plugins) ) {
                 // If any plugins remain, then load each plugin and call their required function
                 self::relayEvent($relevant_plugins, $event);
@@ -1437,7 +1388,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }
@@ -1490,7 +1441,7 @@ class ODREventSubscriber implements EventSubscriberInterface
 
 
             // Determine whether any render plugins should run something in response to this event
-            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, $datafield);
+            $relevant_plugins = self::isEventRelevant($event::class, $datatype, $datafield);
             if ( !empty($relevant_plugins) ) {
                 // If any plugins remain, then load each plugin and call their required function
                 self::relayEvent($relevant_plugins, $event);
@@ -1499,7 +1450,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
             //  intercept it before it interfered with anything, and it also wouldn't reach ODR
-            $base_info = array(self::class);
+            $base_info = [self::class];
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
         }

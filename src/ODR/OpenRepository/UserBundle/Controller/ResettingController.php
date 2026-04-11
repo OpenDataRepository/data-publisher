@@ -30,6 +30,7 @@ class ResettingController extends BaseController
      * Overrides FoSBundle:ResettingController:requestAction(), redirecting logged-in users to
      * their profile
      */
+    #[\Override]
     public function requestAction()
     {
         // Determine if user is logged in
@@ -52,6 +53,7 @@ class ResettingController extends BaseController
      * Overrides FoSBundle:ResettingController:sendEmailAction(), redirecting logged-in users to
      * their profile instead of sending out an email upon a password reset request
      */
+    #[\Override]
     public function sendEmailAction(Request $request)
     {
         // Determine if user is logged in
@@ -72,9 +74,9 @@ class ResettingController extends BaseController
         /** @var ODRUser $user */
         $user = $this->get('fos_user.user_manager')->findUserByUsernameOrEmail($username);
         if (null === $user) {
-            return $this->render('FOSUserBundle:Resetting:request.html.twig', array(
+            return $this->render('FOSUserBundle:Resetting:request.html.twig', [
                 'invalid_username' => $username
-            ));
+            ]);
         }
 
         // If this user has already requested a password, pass their email address to the relevant
@@ -82,9 +84,9 @@ class ResettingController extends BaseController
         if ($user->isPasswordRequestNonExpired($this->container->getParameter('fos_user.resetting.token_ttl'))) {
             return $this->render(
                 'FOSUserBundle:Resetting:passwordAlreadyRequested.html.twig',
-                array(
+                [
                     'username' => $username
-                )
+                ]
             );
         }
 
@@ -99,6 +101,7 @@ class ResettingController extends BaseController
      * Overrides FoSBundle:ResettingController:checkEmailAction(), redirecting logged-in users to
      * their profile instead of telling them to check their email after a password reset request
      */
+    #[\Override]
     public function checkEmailAction(Request $request)
     {
         // Determine if user is logged in
@@ -121,6 +124,7 @@ class ResettingController extends BaseController
      * Overrides FoSBundle:ResettingController:resetAction(), redirecting logged-in users to their
      * profile instead of resetting their password after a reset request
      */
+    #[\Override]
     public function resetAction(Request $request, $token)
     {
         // Determine if user is logged in
@@ -163,9 +167,9 @@ class ResettingController extends BaseController
         /** @var ODRUser $user */
         $user = $user_manager->findUserByUsernameOrEmail($username);
         if ( is_null($user) ) {
-            return $this->render('FOSUserBundle:Resetting:request.html.twig', array(
+            return $this->render('FOSUserBundle:Resetting:request.html.twig', [
                 'invalid_username' => $username
-            ));
+            ]);
         }
 
         // Reset the confirmation token and password request timestamp so sendEmailAction doesn't state "password already sent"

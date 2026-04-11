@@ -58,27 +58,6 @@ class LinkedDescendantMergerPlugin implements ArrayPluginInterface, PluginSettin
 {
 
     /**
-     * @var DatabaseInfoService
-     */
-    private $database_info_service;
-
-    /**
-     * @var SortService
-     */
-    private $sort_service;
-
-    /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * RRUFFSamplePlugin constructor.
      *
      * @param DatabaseInfoService $database_info_service
@@ -86,16 +65,8 @@ class LinkedDescendantMergerPlugin implements ArrayPluginInterface, PluginSettin
      * @param EngineInterface $templating
      * @param Logger $logger
      */
-    public function __construct(
-        DatabaseInfoService $database_info_service,
-        SortService $sort_service,
-        EngineInterface $templating,
-        Logger $logger
-    ) {
-        $this->database_info_service = $database_info_service;
-        $this->sort_service = $sort_service;
-        $this->templating = $templating;
-        $this->logger = $logger;
+    public function __construct(private readonly DatabaseInfoService $database_info_service, private readonly SortService $sort_service, private readonly EngineInterface $templating, private readonly Logger $logger)
+    {
     }
 
 
@@ -141,7 +112,7 @@ class LinkedDescendantMergerPlugin implements ArrayPluginInterface, PluginSettin
      */
     private function getCurrentPluginConfig($datatype)
     {
-        $config = array();
+        $config = [];
 
         // This function could be passed either a cached array or a datatype entity, so ensure the
         //  rest of the function has a cached array to work off of...
@@ -155,7 +126,7 @@ class LinkedDescendantMergerPlugin implements ArrayPluginInterface, PluginSettin
             // The datatype could haev more than one renderPluginInstance
             foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
                 if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.linked_descendant_merger' ) {
-                    $plugin_config = trim( $rpi['renderPluginOptionsMap']['plugin_config'] );
+                    $plugin_config = trim( (string) $rpi['renderPluginOptionsMap']['plugin_config'] );
 
                     // The config is stored as a string...there could be multiple linked descendants
                     //  in the confg, so they're separated first by '|'
@@ -165,10 +136,10 @@ class LinkedDescendantMergerPlugin implements ArrayPluginInterface, PluginSettin
                         $tmp = explode(':', $value);
 
                         // The src prefixes are separated by ','
-                        $config_tmp = array(
+                        $config_tmp = [
                             'src' => explode(',', $tmp[0]),
                             'dest' => $tmp[1]
-                        );
+                        ];
 
                         // In order for the plugin to work, it needs...
                         $save_config = true;
@@ -238,29 +209,29 @@ class LinkedDescendantMergerPlugin implements ArrayPluginInterface, PluginSettin
 
         // Going to recursively dig through the stacked datatype array, building up every possible
         //  prefix along the way
-        $counts = array();
-        $prefixes = array();
+        $counts = [];
+        $prefixes = [];
 
         self::buildPrefixes($stacked_dt, '', $prefixes, $counts);
 
         // There could be multiple descendants that are linked to more than once...
         // e.g, if the structure looks like {A->B->D, A->B->E, A->C->D, A->D->E}, then both D and E
         //  are eligible for this plugin to work on
-        $dt_groups = array();
+        $dt_groups = [];
         foreach ($counts as $dt_id => $count) {
             // If the datatype is eligible, then it'll have been counted more than once
             if ( $count > 1 ) {
-                $dt_groups[$dt_id] = array(
-                    'src' => array(),
-                    'dest' => array(),
-                );
+                $dt_groups[$dt_id] = [
+                    'src' => [],
+                    'dest' => [],
+                ];
 
                 // Wrapping each datatype id in underscores during buildPrefixes() was done so that
                 //  this part can just use strpos() to find all prefixes involving a datatype
                 foreach ($prefixes as $prefix => $label) {
-                    if ( strpos($prefix, '_'.$dt_id.'_') !== false ) {
+                    if ( str_contains((string) $prefix, '_'.$dt_id.'_') ) {
                         // ...do need to undo the wrapping though before saving it for real
-                        $trimmed_prefix = substr($prefix, 1, -1);
+                        $trimmed_prefix = substr((string) $prefix, 1, -1);
                         $trimmed_prefix = str_replace('__', '_', $trimmed_prefix);
 
                         $dt_groups[$dt_id]['src'][$trimmed_prefix] = $label;
@@ -386,7 +357,7 @@ class LinkedDescendantMergerPlugin implements ArrayPluginInterface, PluginSettin
      * @return ArrayPluginReturn|null
      * @throws \Exception
      */
-    public function execute($datarecord_array, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array())
+    public function execute($datarecord_array, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = [])
     {
         try {
             // ----------------------------------------
@@ -422,18 +393,18 @@ class LinkedDescendantMergerPlugin implements ArrayPluginInterface, PluginSettin
             // ----------------------------------------
             // Because this plugin could be getting called on a descendant datatype, $datarecord_array
             //  could have multiple datarecords...
-            $modified_datarecord_array = array();
+            $modified_datarecord_array = [];
             foreach ($datarecord_array as $datarecord_id => $datarecord) {
                 // Need to have a copy of the original children datarecords in the top-level datarecord...
                 $datarecord['original_children'] = $datarecord['children'];
 
                 // For each datarecord belonging to this datatype...
-                $dr_list = array();
+                $dr_list = [];
                 foreach ($plugin_config as $num => $dt_group) {
                     // The plugin could've been configured to run on multiple linked descendant
                     //  datatypes at the same time, so the lists need to be separated according to
                     //  the relevant config
-                    $dr_list[$num] = array();
+                    $dr_list[$num] = [];
 
                     foreach ($dt_group['src'] as $prefix_num => $prefix) {
                         // ...pull out this datarecord's descendants that are listed by the config
@@ -492,7 +463,7 @@ class LinkedDescendantMergerPlugin implements ArrayPluginInterface, PluginSettin
         $new_prefix = substr($prefix, strpos($prefix, '_')+1);
 
         // If the new prefix doesn't have an underscore, then the descendant is bottom-level...
-        if ( strpos($new_prefix, '_') === false ) {
+        if ( !str_contains($new_prefix, '_') ) {
             // ...which means recursion is no longer necessary
             if ( isset($datarecord['children'][$new_prefix]) ) {
                 // This record has descendants of this datatype...
@@ -501,7 +472,7 @@ class LinkedDescendantMergerPlugin implements ArrayPluginInterface, PluginSettin
                 // ...they need to still be available near their original location, in case there
                 //  are render plugins that rely on their existence...
                 if ( !isset($datarecord['original_children']) )
-                    $datarecord['original_children'] = array();
+                    $datarecord['original_children'] = [];
                 $datarecord['original_children'][$new_prefix] = $datarecord['children'][$new_prefix];
 
                 // ...but don't want twig to attempt to render them
@@ -511,7 +482,7 @@ class LinkedDescendantMergerPlugin implements ArrayPluginInterface, PluginSettin
             }
             else {
                 // Otherwise, no descendants of this datatype exist...no records to return
-                return array();
+                return [];
             }
         }
         else {
@@ -519,7 +490,7 @@ class LinkedDescendantMergerPlugin implements ArrayPluginInterface, PluginSettin
             $descendant_dt_id = substr($new_prefix, 0, strpos($new_prefix, '_'));
             if ( isset($datarecord['children'][$descendant_dt_id]) ) {
                 // There could be multiple descendant datarecords, so need to loop over all of them
-                $dr_list = array();
+                $dr_list = [];
 
                 foreach ($datarecord['children'][$descendant_dt_id] as $descendant_dr_id => $descendant_dr) {
                     // Get any records from this descendant that match the prefix...
@@ -537,7 +508,7 @@ class LinkedDescendantMergerPlugin implements ArrayPluginInterface, PluginSettin
             }
             else {
                 // Otherwise, no descendants of this datatype exist...no records to return
-                return array();
+                return [];
             }
         }
     }
@@ -559,13 +530,13 @@ class LinkedDescendantMergerPlugin implements ArrayPluginInterface, PluginSettin
         $new_prefix = substr($dest_prefix, strpos($dest_prefix, '_')+1);
 
         // If the new prefix doesn't have an underscore, then the descendant is bottom-level...
-        if ( strpos($new_prefix, '_') === false ) {
+        if ( !str_contains($new_prefix, '_') ) {
             // ...which means recursion is no longer necessary.  Ensure that the datarecord array
             //  has the correct entries to store these records from $dr_list...
             if ( !isset($datarecord['children']) )
-                $datarecord['children'] = array();
+                $datarecord['children'] = [];
             if ( !isset($datarecord['children'][$new_prefix]) )
-                $datarecord['children'][$new_prefix] = array();
+                $datarecord['children'][$new_prefix] = [];
 
             // ...need to ensure the list of datarecords is sorted prior to storing it
             $subset_str = implode(',', array_keys($dr_list));
@@ -607,7 +578,7 @@ class LinkedDescendantMergerPlugin implements ArrayPluginInterface, PluginSettin
      */
     public function getRenderPluginOptionsOverride($user, $is_datatype_admin, $render_plugin, $datatype, $datafield = null, $render_plugin_instance = null)
     {
-        $custom_rpo_html = array();
+        $custom_rpo_html = [];
         foreach ($render_plugin->getRenderPluginOptionsDef() as $rpo) {
             /** @var RenderPluginOptionsDef $rpo */
             if ( $rpo->getUsesCustomRender() ) {
@@ -619,12 +590,12 @@ class LinkedDescendantMergerPlugin implements ArrayPluginInterface, PluginSettin
                 // ...which allows a template to be rendered
                 $custom_rpo_html[$rpo->getId()] = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:Base:LinkedMerger/plugin_settings_dialog_field_list_override.html.twig',
-                    array(
+                    [
                         'rpo_id' => $rpo->getId(),
 
                         'available_config' => $available_configurations,
                         'current_config' => $current_plugin_config,
-                    )
+                    ]
                 );
             }
         }

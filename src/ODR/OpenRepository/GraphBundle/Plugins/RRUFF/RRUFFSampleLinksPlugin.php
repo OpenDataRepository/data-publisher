@@ -27,52 +27,6 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
 {
 
     /**
-     * @var string
-     */
-    private $baseurl;
-
-    /**
-     * @var string
-     */
-    private $wordpress_site_baseurl;
-
-    /**
-     * @var bool
-     */
-    private $odr_wordpress_integrated;
-
-    /**
-     * @var string
-     */
-    private $environment;
-
-    /**
-     * @var DatabaseInfoService
-     */
-    private $database_info_service;
-
-    /**
-     * @var SearchKeyService
-     */
-    private $search_key_service;
-
-    /**
-     * @var Router
-     */
-    private $router;
-
-    /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * RRUFF Sample Links Plugin constructor
      *
      * @param string $baseurl
@@ -85,26 +39,8 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
      * @param EngineInterface $templating
      * @param Logger $logger
      */
-    public function __construct(
-        string $baseurl,
-        string $wordpress_site_baseurl,
-        bool $odr_wordpress_integrated,
-        string $environment,
-        DatabaseInfoService $database_info_service,
-        SearchKeyService $search_key_service,
-        Router $router,
-        EngineInterface $templating,
-        Logger $logger
-    ) {
-        $this->baseurl = $baseurl;
-        $this->wordpress_site_baseurl = $wordpress_site_baseurl;
-        $this->odr_wordpress_integrated = $odr_wordpress_integrated;
-        $this->environment = $environment;
-        $this->database_info_service = $database_info_service;
-        $this->search_key_service = $search_key_service;
-        $this->router = $router;
-        $this->templating = $templating;
-        $this->logger = $logger;
+    public function __construct(private readonly string $baseurl, private readonly string $wordpress_site_baseurl, private readonly bool $odr_wordpress_integrated, private readonly string $environment, private readonly DatabaseInfoService $database_info_service, private readonly SearchKeyService $search_key_service, private readonly Router $router, private readonly EngineInterface $templating, private readonly Logger $logger)
+    {
     }
 
 
@@ -147,7 +83,7 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecord, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $datatype_permissions = array(), $datafield_permissions = array())
+    public function execute($datarecord, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $datatype_permissions = [], $datafield_permissions = [])
     {
         try {
             // ----------------------------------------
@@ -221,7 +157,7 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
             // ----------------------------------------
             // Going to attempt to extract these values from a child record using the "IMA Plugin"
             $mineral_name_value = null;
-            $structural_group_tag_data = array();
+            $structural_group_tag_data = [];
 
             $ima_plugin_dt_id = $ima_plugin_dt['id'];
             if ( !isset($datarecord['children'][$ima_plugin_dt_id]) ) {
@@ -246,7 +182,7 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
 
             // ----------------------------------------
             // If the RRUFF Sample datatype has a default search key...
-            $default_search_params = array('dt_id' => $datatype['id']);
+            $default_search_params = ['dt_id' => $datatype['id']];
             if ( !is_null($mineral_name_value) || !empty($structural_group_tag_data) ) {
                 if ( $datatype['default_search_key'] !== '' ) {
                     // ...then two of the three generated links need to be based off of it
@@ -266,16 +202,16 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
                 $mineral_name_search_key = $this->search_key_service->encodeSearchKey($params);
                 $mineral_search_url = $this->router->generate(
                     'odr_search_render',
-                    array(
+                    [
                         'search_theme_id' => 0,
                         'search_key' => $mineral_name_search_key
-                    )
+                    ]
                 );
             }
 
             $structural_group_string = '';
             if ( !empty($structural_group_tag_data) ) {
-                $structural_group_data = array();
+                $structural_group_data = [];
 
                 foreach ($structural_group_tag_data as $num => $tag_data) {
                     // Going to create a search key for this that's based off the default for this
@@ -296,17 +232,17 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
                     $tag_search_key = $this->search_key_service->encodeSearchKey($params);
                     $tag_search_url = $this->router->generate(
                         'odr_search_render',
-                        array(
+                        [
                             'search_theme_id' => 0,
                             'search_key' => $tag_search_key
-                        )
+                        ]
                     );
                     $tag_value = $tag_data['value'];
 
-                    $structural_group_data[] = array('label' => $tag_value, 'search_url' => $tag_search_url);
+                    $structural_group_data[] = ['label' => $tag_value, 'search_url' => $tag_search_url];
                 }
 
-                $strings = array();
+                $strings = [];
                 foreach ($structural_group_data as $num => $data)
                     $strings[] = '<a target="_blank" href="#'.$data['search_url'].'">'.$data['label'].'</a>';
                 $structural_group_string = implode(', ', $strings);
@@ -316,9 +252,9 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
             $amcsd_search_url = '';
             if ( !is_null($mineral_name_value) && $amcsd_dt_id !== 0 ) {
                 // Need to also consider AMCSD's default search key if it has one...
-                $params = array(
+                $params = [
                     'dt_id' => $amcsd_dt_id
-                );
+                ];
 
                 // AMCSD's default search key is stored in its datatype array...
                 $amcsd_dt_array = $this->database_info_service->getDatatypeArray($amcsd_dt_id, false);
@@ -347,10 +283,10 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
                 $mineral_name_search_key = $this->search_key_service->encodeSearchKey($params);
                 $amcsd_search_url = $amcsd_baseurl.$this->router->generate(
                     'odr_search_render',
-                    array(
+                    [
                         'search_theme_id' => 0,
                         'search_key' => $mineral_name_search_key
-                    )
+                    ]
                 );
             }
 
@@ -362,14 +298,14 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
             // Otherwise, render and return a bit of HTML for the themeElement to display
             return $this->templating->render(
                 'ODROpenRepositoryGraphBundle:RRUFF:RRUFFSampleLinks/rruff_sample_links_themeElement.html.twig',
-                array(
+                [
                     'mineral_name_value' => $mineral_name_value,
                     'mineral_search_url' => $mineral_search_url,
 
                     'structural_group_string' => $structural_group_string,
 
                     'amcsd_search_url' => $amcsd_search_url,
-                )
+                ]
             );
         }
         catch (\Exception $e) {
@@ -392,7 +328,7 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
     private function findMineralNameValue($is_datatype_admin, $ima_dt, $ima_dr, $mineral_name_df_id)
     {
         // Might as well get the typeclass so the dataRecordField entry doesn't have to be brute-forced...
-        $mineral_name_typeclass = lcfirst($ima_dt['dataFields'][$mineral_name_df_id]['dataFieldMeta']['fieldType']['typeClass']);
+        $mineral_name_typeclass = lcfirst((string) $ima_dt['dataFields'][$mineral_name_df_id]['dataFieldMeta']['fieldType']['typeClass']);
 
         // NOTE: the IMA Plugin requires this field to have a value, so it should always exist
 
@@ -427,7 +363,7 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
         // Verify that the given datarecord has at least one selected tag before attempting to
         //  determine if it's a "Structural Group" tag...
         if ( !isset($child_dr['dataRecordFields'][$tags_df_id]) || empty($child_dr['dataRecordFields'][$tags_df_id]['tagSelection']) )
-            return array();
+            return [];
 
         // Otherwise, extract which tags are selected for later
         $selected_tags = $child_dr['dataRecordFields'][$tags_df_id]['tagSelection'];
@@ -442,7 +378,7 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
         // The top-level tag should be named "Mineral Groups"....
         $mineral_groups_tag = null;
         foreach ($tags as $tag_id => $tag) {
-            if ( strtolower($tag['tagName']) === 'mineral groups') {
+            if ( strtolower((string) $tag['tagName']) === 'mineral groups') {
                 $mineral_groups_tag = $tag;
                 break;
             }
@@ -453,14 +389,14 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
                 throw new \Exception('Unable to find the required "Mineral Groups" tag inside the "'.$dt_name.'" datatype');
             else
                 // ...because if they're not, then the user can't do anything about it
-                return array();
+                return [];
         }
 
 
         // ...and the second level should be named "Structural groups"
         $structural_groups_tag = null;
         foreach ($mineral_groups_tag['children'] as $tag_id => $tag) {
-            if ( strtolower($tag['tagName']) === 'structural groups') {
+            if ( strtolower((string) $tag['tagName']) === 'structural groups') {
                 $structural_groups_tag = $tag;
                 break;
             }
@@ -471,7 +407,7 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
                 throw new \Exception('Unable to find the required "Structural Groups" tag inside the "'.$dt_name.'" datatype');
             else
                 // ...because if they're not, then the user can't do anything about it
-                return array();
+                return [];
         }
 
 
@@ -480,10 +416,10 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
 
         // ...the datarecord array can now be used to find which tags are actually selected and
         //  have the "Structural Groups" tag as their parent
-        $all_tags = array();
+        $all_tags = [];
         foreach ($selected_tags as $tag_id => $tag) {
             if ( $tag['selected'] === 1 && isset($all_structual_groups[$tag_id]) )
-                $all_tags[] = array('id' => $tag_id, 'value' => $all_structual_groups[$tag_id]['tagName']);
+                $all_tags[] = ['id' => $tag_id, 'value' => $all_structual_groups[$tag_id]['tagName']];
         }
         return $all_tags;
     }

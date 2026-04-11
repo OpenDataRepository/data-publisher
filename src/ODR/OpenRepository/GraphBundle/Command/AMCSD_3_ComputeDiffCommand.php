@@ -56,7 +56,7 @@ class AMCSD_3_ComputeDiffCommand extends ContainerAwareCommand
                 $job = $pheanstalk->watch('amcsd_3_diff')->ignore('default')->reserve();
 
                 // Get Job Data
-                $data = json_decode($job->getData(), true);
+                $data = json_decode((string) $job->getData(), true);
                 $user_id = $data['user_id'];
                 $redis_prefix = $data['redis_prefix'];
                 $api_key = $data['api_key'];

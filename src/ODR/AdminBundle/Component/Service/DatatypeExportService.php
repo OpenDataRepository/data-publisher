@@ -25,60 +25,17 @@ class DatatypeExportService
 {
 
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var DatabaseInfoService
-     */
-    private $dbi_service;
-
-    /**
-     * @var PermissionsManagementService
-     */
-    private $pm_service;
-
-    /**
-     * @var ThemeInfoService
-     */
-    private $theme_service;
-
-    /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * DatatypeExportService constructor.
      *
-     * @param EntityManager $entity_manager
-     * @param DatabaseInfoService $database_info_service
-     * @param PermissionsManagementService $permissions_service
-     * @param ThemeInfoService $theme_info_service
+     * @param EntityManager $em
+     * @param DatabaseInfoService $dbi_service
+     * @param PermissionsManagementService $pm_service
+     * @param ThemeInfoService $theme_service
      * @param EngineInterface $templating
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        DatabaseInfoService $database_info_service,
-        PermissionsManagementService $permissions_service,
-        ThemeInfoService $theme_info_service,
-        EngineInterface $templating,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->dbi_service = $database_info_service;
-        $this->pm_service = $permissions_service;
-        $this->theme_service = $theme_info_service;
-        $this->templating = $templating;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly DatabaseInfoService $dbi_service, private readonly PermissionsManagementService $pm_service, private readonly ThemeInfoService $theme_service, private readonly EngineInterface $templating, private readonly Logger $logger)
+    {
     }
 
 
@@ -109,7 +66,7 @@ class DatatypeExportService
         // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
         $include_links = true;
 
-        $datarecord_array = array();
+        $datarecord_array = [];
         $datatype_array = $this->dbi_service->getDatatypeArray($datatype->getId(), $include_links);
         $theme_array = $this->theme_service->getThemeArray($master_theme->getId());
 
@@ -128,7 +85,7 @@ class DatatypeExportService
         // Render the DataRecord
         $str = $this->templating->render(
             $template,
-            array(
+            [
                 'datatype_array' => $stacked_datatype_array,
                 'theme_array' => $stacked_theme_array,
 
@@ -138,7 +95,7 @@ class DatatypeExportService
                 'using_metadata' => $using_metadata,
                 'baseurl' => $baseurl,
                 'version' => $version,
-            )
+            ]
         );
 
         // If returning as json, reformat the data because twig can't correctly format this type of data
@@ -251,7 +208,7 @@ class DatatypeExportService
         }
 
         // Get rid of any trailing commas at the very end of the string
-        while ( substr($trimmed_str, -1) === ',' )
+        while ( str_ends_with($trimmed_str, ',') )
             $trimmed_str = substr($trimmed_str, 0, -1);
 
         return $trimmed_str;

@@ -63,7 +63,7 @@ class SearchSidebarController extends ODRCustomController
      */
     public function reloadsearchdatafieldAction($datafield_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -101,10 +101,10 @@ class SearchSidebarController extends ODRCustomController
             $searchable = $datafield->getSearchable();
             if ( $searchable === DataFields::NOT_SEARCHABLE ) {
                 // Don't attempt to re-render the datafield if it's "not searchable"
-                $return['d'] = array(
+                $return['d'] = [
                     'needs_update' => false,
                     'html' => ''
-                );
+                ];
             }
             else {
                 // Datafield is searchable, so it has an HTML element on the sidebar
@@ -113,16 +113,16 @@ class SearchSidebarController extends ODRCustomController
                 $df_array = $datatype_array[$datatype->getId()]['dataFields'][$datafield->getId()];
 
                 $templating = $this->get('templating');
-                $return['d'] = array(
+                $return['d'] = [
                     'needs_update' => true,
                     'html' => $templating->render(
                         'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig',
-                        array(
+                        [
                             'datatype_id' => $datatype->getId(),
                             'datafield' => $df_array,
-                        )
+                        ]
                     )
-                );
+                ];
             }
         }
         catch (\Exception $e) {
@@ -150,7 +150,7 @@ class SearchSidebarController extends ODRCustomController
      */
     public function reloadsearchsidebarAction($search_key, $intent, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -232,11 +232,11 @@ class SearchSidebarController extends ODRCustomController
             $preferred_theme = $em->getRepository('ODRAdminBundle:Theme')->find($preferred_theme_id);
 
             $templating = $this->get('templating');
-            $return['d'] = array(
+            $return['d'] = [
                 'num_params' => count($search_params),
                 'html' => $templating->render(
                     'ODROpenRepositorySearchBundle:Default:search_sidebar.html.twig',
-                    array(
+                    [
                         'search_key' => $search_key,
                         'search_params' => $search_params,
 
@@ -257,9 +257,9 @@ class SearchSidebarController extends ODRCustomController
 
                         // theme selection
                         'preferred_theme' => $preferred_theme,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0xaf1f4a0f;
@@ -288,7 +288,7 @@ class SearchSidebarController extends ODRCustomController
      */
     public function reloadinversesearchkeyAction($search_theme_id, $search_key, $inverse_datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'json';
         $return['d'] = '';
@@ -304,7 +304,7 @@ class SearchSidebarController extends ODRCustomController
             $search_params = $search_key_service->decodeSearchKey($search_key);
 
             // ...but only want to datatype id from it, because it's going to be completely replaced
-            $new_search_params = array('dt_id' => $search_params['dt_id']);
+            $new_search_params = ['dt_id' => $search_params['dt_id']];
 
             $inverse_datatype_id = intval($inverse_datatype_id);
             if ( $inverse_datatype_id > -1 ) {
@@ -323,10 +323,10 @@ class SearchSidebarController extends ODRCustomController
             // ...and generate/return a URL to run a new search with/without the 'inverse' param
             $path_str = $this->generateUrl(
                 'odr_search_render',
-                array(
+                [
                     'search_theme_id' => $search_theme_id,
                     'search_key' => $new_search_key
-                )
+                ]
             );
             $return['d'] = $path_str;
         }
@@ -356,7 +356,7 @@ class SearchSidebarController extends ODRCustomController
      */
     public function reloadinverselinkingsearchkeyAction($datatype_id, $inverse_datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'json';
         $return['d'] = '';
@@ -407,7 +407,7 @@ class SearchSidebarController extends ODRCustomController
             // ----------------------------------------
             // Need to determine whether the user is targetting a particular datatype id for inverse
             //  searching...
-            $search_params = array('dt_id' => $target_datatype->getId());
+            $search_params = ['dt_id' => $target_datatype->getId()];
             if ( $inverse_datatype_id !== -1 && $inverse_datatype_id !== $target_datatype->getId() )
                 $search_params['inverse'] = $inverse_datatype_id;
             $search_key = $search_key_service->encodeSearchKey($search_params);
@@ -424,11 +424,11 @@ class SearchSidebarController extends ODRCustomController
             $preferred_theme = $em->getRepository('ODRAdminBundle:Theme')->find($preferred_theme_id);
 
             $templating = $this->get('templating');
-            $return['d'] = array(
+            $return['d'] = [
                 'num_params' => count($search_params),
                 'html' => $templating->render(
                     'ODROpenRepositorySearchBundle:Default:search_sidebar.html.twig',
-                    array(
+                    [
                         'search_key' => $search_key,
                         'search_params' => $search_params,
 
@@ -449,9 +449,9 @@ class SearchSidebarController extends ODRCustomController
 
                         // theme selection
                         'preferred_theme' => $preferred_theme,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0xb741181a;
@@ -479,7 +479,7 @@ class SearchSidebarController extends ODRCustomController
      */
     public function reloadinversestoredsearchkeyAction($datatype_id, $inverse_datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -530,7 +530,7 @@ class SearchSidebarController extends ODRCustomController
             // ----------------------------------------
             // Need to determine whether the user is targetting a particular datatype id for inverse
             //  searching...
-            $search_params = array('dt_id' => $datatype_id);
+            $search_params = ['dt_id' => $datatype_id];
             if ( $inverse_datatype_id !== -1 && $inverse_datatype_id !== $target_datatype->getId() )
                 $search_params['inverse'] = $inverse_datatype_id;
             $search_key = $search_key_service->encodeSearchKey($search_params);
@@ -549,11 +549,11 @@ class SearchSidebarController extends ODRCustomController
 //            $preferred_theme = $em->getRepository('ODRAdminBundle:Theme')->find($preferred_theme_id);
 
             $templating = $this->get('templating');
-            $return['d'] = array(
+            $return['d'] = [
                 'num_params' => count($search_params),
                 'html' => $templating->render(
                     'ODROpenRepositorySearchBundle:Default:search_sidebar.html.twig',
-                    array(
+                    [
                         'search_key' => $search_key,
                         'search_params' => $search_params,
 
@@ -574,9 +574,9 @@ class SearchSidebarController extends ODRCustomController
 
                         // theme selection
 //                        'preferred_theme' => $preferred_theme,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x3af5bd73;
@@ -605,7 +605,7 @@ class SearchSidebarController extends ODRCustomController
      */
     public function getavailablesidebarlayoutsAction($datatype_id, $intent, $search_key, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'json';
         $return['d'] = '';
@@ -657,7 +657,7 @@ class SearchSidebarController extends ODRCustomController
             //  as part of the "default_for" entry
             $formatted_intent = ucfirst( str_replace('_', ' ', $intent) );
 
-            $available_intents = array();
+            $available_intents = [];
             foreach (SearchSidebarService::PAGE_INTENT as $num => $str)
                 $available_intents[$str] = ucfirst( str_replace('_', ' ', $str) );
 
@@ -677,7 +677,7 @@ class SearchSidebarController extends ODRCustomController
             //  useful information that needs displaying...
             $return['d'] = $templating->render(
                 'ODROpenRepositorySearchBundle:Default:choose_sidebar_layout.html.twig',
-                array(
+                [
                     'user' => $user,
                     'is_datatype_admin' => $is_datatype_admin,
                     'is_super_admin' => $is_super_admin,
@@ -692,7 +692,7 @@ class SearchSidebarController extends ODRCustomController
                     'intent' => $intent,
                     'formatted_intent' => $formatted_intent,
                     'available_intents' => $available_intents,
-                )
+                ]
             );
         }
         catch (\Exception $e) {
@@ -759,7 +759,7 @@ class SearchSidebarController extends ODRCustomController
      */
     public function createsidebarlayoutAction($datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -796,9 +796,9 @@ class SearchSidebarController extends ODRCustomController
             $sidebar_layout = $entity_create_service->createSidebarLayout($user, $datatype);
 
             // Return the id of the new entity
-            $return['d'] = array(
+            $return['d'] = [
                 'sidebar_layout_id' => $sidebar_layout->getId(),
-            );
+            ];
 
             // Delete the cached list of sidebar layouts
             $cache_service->delete('sidebar_layout_ids');
@@ -830,7 +830,7 @@ class SearchSidebarController extends ODRCustomController
      */
     public function modifysidebarlayoutAction($datatype_id, $sidebar_layout_id, $intent, $search_key, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -879,7 +879,7 @@ class SearchSidebarController extends ODRCustomController
             // --------------------
 
             // This "inverse search" mode is bullshit
-            $search_params = array('dt_id' => $datatype->getId());
+            $search_params = ['dt_id' => $datatype->getId()];
             if ( !is_null($sidebar_layout->getInverseDatatype()) )
                 $search_params['inverse'] = $sidebar_layout->getInverseDatatype()->getId();
 
@@ -899,10 +899,10 @@ class SearchSidebarController extends ODRCustomController
             );
 
             // Render and return the page
-            $return['d'] = array(
+            $return['d'] = [
                 'datatype_id' => $datatype->getId(),
                 'html' => $odr_render_service->getSidebarDesignHTML($user, $sidebar_layout, $sidebar_array, $intent, $search_key),
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x17ec0229;
@@ -929,7 +929,7 @@ class SearchSidebarController extends ODRCustomController
      */
     public function savesidebarlayoutpropertiesAction($sidebar_layout_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -973,9 +973,9 @@ class SearchSidebarController extends ODRCustomController
             $sidebar_layout_form = $this->createForm(
                 UpdateSidebarLayoutForm::class,
                 $submitted_data,
-                array(
+                [
                     'datatype_ids' => $inverse_datatype_ids,
-                )
+                ]
             );
             $sidebar_layout_form->handleRequest($request);
 
@@ -988,7 +988,7 @@ class SearchSidebarController extends ODRCustomController
                 $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
                 if ( $is_wordpress_integrated ) {
                     $submitted_data->setLayoutName( stripslashes($submitted_data->getLayoutName()) );
-                    $submitted_data->setLayoutDescription( stripslashes($submitted_data->getLayoutDescription()) );
+                    $submitted_data->setLayoutDescription( stripslashes((string) $submitted_data->getLayoutDescription()) );
                 }
 
                 $submitted_data->setLayoutName( trim($submitted_data->getLayoutName()) );
@@ -1004,12 +1004,12 @@ class SearchSidebarController extends ODRCustomController
 
                 if ( $sidebar_layout_form->isValid() ) {
                     // Save any changes made in the form
-                    $properties = array(
+                    $properties = [
                         'inverseDataType' => null,
 
                         'layoutName' => $submitted_data->getLayoutName(),
                         'layoutDescription' => $submitted_data->getLayoutDescription(),
-                    );
+                    ];
                     // This value is permitted to be null
                     if ( !is_null($submitted_data->getInverseDataType()) )
                         $properties['inverseDataType'] = $submitted_data->getInverseDataType();
@@ -1048,7 +1048,7 @@ class SearchSidebarController extends ODRCustomController
      */
     public function sidebarsearchabletoggleAction($datafield_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1085,15 +1085,15 @@ class SearchSidebarController extends ODRCustomController
 
             // Toggle the datafield's current searchable status
             if ( $datafield->getSearchable() === DataFields::NOT_SEARCHABLE ) {
-                $properties = array(
+                $properties = [
                     'searchable' => DataFields::SEARCHABLE
-                );
+                ];
                 $entity_modify_service->updateDatafieldMeta($user, $datafield, $properties);
             }
             else {
-                $properties = array(
+                $properties = [
                     'searchable' => DataFields::NOT_SEARCHABLE
-                );
+                ];
                 $entity_modify_service->updateDatafieldMeta($user, $datafield, $properties);
             }
 
@@ -1123,10 +1123,10 @@ class SearchSidebarController extends ODRCustomController
      */
     public function sidebarlayoutsharedAction($sidebar_layout_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
-        $return['d'] = array();
+        $return['d'] = [];
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -1165,18 +1165,18 @@ class SearchSidebarController extends ODRCustomController
             // Toggle the shared status of the specified layout...
             if ( $sidebar_layout->isShared() ) {
                 // Layout is currently shared...
-                $properties = array(
+                $properties = [
                     'shared' => false,
-                );
+                ];
                 $entity_modify_service->updateSidebarLayoutMeta($user, $sidebar_layout, $properties);
 
                 $return['d']['public'] = false;
             }
             else {
                 // Layout is not currently shared...
-                $properties = array(
+                $properties = [
                     'shared' => true,
-                );
+                ];
                 $entity_modify_service->updateSidebarLayoutMeta($user, $sidebar_layout, $properties);
 
                 $return['d']['public'] = true;
@@ -1208,7 +1208,7 @@ class SearchSidebarController extends ODRCustomController
      */
     public function setdatabasedefaultlayoutAction($intent, $sidebar_layout_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1259,10 +1259,10 @@ class SearchSidebarController extends ODRCustomController
                 JOIN odr_sidebar_layout_meta AS slm ON slm.sidebar_layout_id = sl.id
                 WHERE sl.data_type_id = :datatype_id AND (slm.default_for & :intent_id)
                 AND sl.deletedAt IS NULL AND slm.deletedAt IS NULL';
-            $params = array(
+            $params = [
                 'datatype_id' => $datatype->getId(),
                 'intent_id' => $intent_id,
-            );
+            ];
             $conn = $em->getConnection();
             $results = $conn->executeQuery($query, $params);
 
@@ -1273,9 +1273,9 @@ class SearchSidebarController extends ODRCustomController
                     /** @var SidebarLayout $sl */
                     $sl = $em->getRepository('ODRAdminBundle:SidebarLayout')->find($sl_id);
                     $new_defaults = $sl->getDefaultFor() - $intent_id;
-                    $properties = array(
+                    $properties = [
                         'defaultFor' => $new_defaults
-                    );
+                    ];
 
                     $entity_modify_service->updateSidebarLayoutMeta($user, $sl, $properties, true);    // Don't flush immediately...
                 }
@@ -1283,10 +1283,10 @@ class SearchSidebarController extends ODRCustomController
 
             // ...afterward, specify this layout as the default (and shared, if it isn't already)
             $new_defaults = $sidebar_layout->getDefaultFor() + $intent_id;
-            $properties = array(
+            $properties = [
                 'shared' => true,
                 'defaultFor' => $new_defaults
-            );
+            ];
             $entity_modify_service->updateSidebarLayoutMeta($user, $sidebar_layout, $properties);
 
             $return['d'] = "success";
@@ -1317,7 +1317,7 @@ class SearchSidebarController extends ODRCustomController
      */
     public function unsetdatabasedefaultlayoutAction($intent, $sidebar_layout_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1364,10 +1364,10 @@ class SearchSidebarController extends ODRCustomController
             // Only do stuff if the layout is currently the default for this page type...
             if ( ($sidebar_layout->getDefaultFor() & $intent_id) ) {
                 $new_defaults = $sidebar_layout->getDefaultFor() - $intent_id;
-                $properties = array(
+                $properties = [
                     'shared' => true,
                     'defaultFor' => $new_defaults
-                );
+                ];
                 $entity_modify_service->updateSidebarLayoutMeta($user, $sidebar_layout, $properties);
             }
             else {
@@ -1404,7 +1404,7 @@ class SearchSidebarController extends ODRCustomController
      */
     public function unsetpersonaldefaultlayoutAction($intent, $sidebar_layout_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1449,10 +1449,10 @@ class SearchSidebarController extends ODRCustomController
             // Only do stuff if the user has a relevant sidebarLayoutPreferences entry...
             /** @var SidebarLayoutPreferences $slp */
             $slp = $em->getRepository('ODRAdminBundle:SidebarLayoutPreferences')->findOneBy(
-                array(
+                [
                     'sidebarLayout' => $sidebar_layout->getId(),
                     'createdBy' => $user->getId(),
-                )
+                ]
             );
 
             if ($slp == null ) {
@@ -1502,7 +1502,7 @@ class SearchSidebarController extends ODRCustomController
      */
     public function deletesidebarlayoutAction($sidebar_layout_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1561,10 +1561,10 @@ class SearchSidebarController extends ODRCustomController
                 WHERE slm.sidebarLayout = :sidebar_layout_id
                 AND slm.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'now' => new \DateTime(),
                     'sidebar_layout_id' => $sidebar_layout->getId(),
-                )
+                ]
             );
             $rows = $query->execute();
 
@@ -1575,10 +1575,10 @@ class SearchSidebarController extends ODRCustomController
                 WHERE slp.sidebarLayout = :sidebar_layout_id
                 AND slp.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'now' => new \DateTime(),
                     'sidebar_layout_id' => $sidebar_layout->getId(),
-                )
+                ]
             );
             $rows = $query->execute();
 
@@ -1589,10 +1589,10 @@ class SearchSidebarController extends ODRCustomController
                 WHERE slm.sidebarLayout = :sidebar_layout_id
                 AND slm.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'now' => new \DateTime(),
                     'sidebar_layout_id' => $sidebar_layout->getId(),
-                )
+                ]
             );
             $rows = $query->execute();
 
@@ -1603,11 +1603,11 @@ class SearchSidebarController extends ODRCustomController
                 WHERE sl.id = :sidebar_layout_id
                 AND sl.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'now' => new \DateTime(),
                     'user' => $user->getId(),
                     'sidebar_layout_id' => $sidebar_layout->getId(),
-                )
+                ]
             );
             $rows = $query->execute();
 
@@ -1640,7 +1640,7 @@ class SearchSidebarController extends ODRCustomController
      */
     public function clonelayoutAction($sidebar_layout_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1738,9 +1738,9 @@ class SearchSidebarController extends ODRCustomController
             $em->flush();
             $em->refresh($new_sidebar_layout);
 
-            $return['d'] = array(
+            $return['d'] = [
                 'new_sidebar_layout_id' => $new_sidebar_layout->getId()
-            );
+            ];
 
             // Delete the cached list of sidebar layouts
             $cache_service->delete('sidebar_layout_ids');
@@ -1768,10 +1768,10 @@ class SearchSidebarController extends ODRCustomController
      */
     public function datafieldlayoutstatusAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
-        $return['d'] = array();
+        $return['d'] = [];
 
         try {
             // Get post data
@@ -1837,13 +1837,13 @@ class SearchSidebarController extends ODRCustomController
 
             if ( !is_null($datafield) ) {
                 // Verify that the datafield is valid for this sidebar layout
-                $dt_array = array();
+                $dt_array = [];
                 if ( is_null($sidebar_layout->getInverseDatatype()) )
                     $dt_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), true);    // do need links here
                 else
                     $dt_array = $database_info_service->getDatatypeArray($sidebar_layout->getInverseDatatype()->getId(), true);
 
-                $dr_array = array();
+                $dr_array = [];
                 $permissions_service->filterByGroupPermissions($dt_array, $dr_array, $user_permissions);
 
                 $found = false;
@@ -1862,10 +1862,10 @@ class SearchSidebarController extends ODRCustomController
             // What to do depends on what state is desired...
             /** @var SidebarLayoutMap $sidebar_layout_map */
             $sidebar_layout_map = $em->getRepository('ODRAdminBundle:SidebarLayoutMap')->findOneBy(
-                array(
+                [
                     'sidebarLayout' => $sidebar_layout,
                     'dataField' => $datafield,    // NOTE: could be null
-                )
+                ]
             );
 
             $html = '';
@@ -1905,7 +1905,7 @@ class SearchSidebarController extends ODRCustomController
 
                     // It's easier if PHP renders and returns the HTML for the fake sidebar for the
                     //  UI...do not fallback to the "master" layout here
-                    $search_params = array('dt_id' => $datatype->getId());
+                    $search_params = ['dt_id' => $datatype->getId()];
                     if ( !is_null($sidebar_layout->getInverseDatatype()) )
                         $search_params['inverse'] = $sidebar_layout->getInverseDatatype()->getId();
 
@@ -1940,7 +1940,7 @@ class SearchSidebarController extends ODRCustomController
      */
     public function datafieldlayoutorderAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1955,20 +1955,20 @@ class SearchSidebarController extends ODRCustomController
 
             $sidebar_layout_id = $post['sidebar_layout_id'];
 
-            $always_display = array();
+            $always_display = [];
             if ( isset($post['always_display']) ) {
                 foreach ($post['always_display'] as $display_order => $df_id)
                     $always_display[$display_order] = intval($df_id);
             }
 
-            $extended_display = array();
+            $extended_display = [];
             if ( isset($post['extended_display']) ) {
                 foreach ($post['extended_display'] as $display_order => $df_id)
                     $extended_display[$display_order] = intval($df_id);
             }
 
             // Verify that each datafield only shows up once across the entire post
-            $df_ids = array();
+            $df_ids = [];
             foreach ($always_display as $num => $df_id) {
                 if ( isset($df_ids[$df_id]) )
                     throw new ODRBadRequestException('Invalid Form');
@@ -2011,7 +2011,7 @@ class SearchSidebarController extends ODRCustomController
 
 
             // Need to verify that the datafields make sense for this sidebar layout...
-            $dt_array = array();
+            $dt_array = [];
             if ( is_null($sidebar_layout->getInverseDatatype()) )
                 $dt_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), true);    // do need links here
             else
@@ -2073,29 +2073,29 @@ class SearchSidebarController extends ODRCustomController
             if ( $df_id !== 0 ) {
                 // This should reference an existing datafield...
                 $sl_dfm = $repo_sidebar_layout_map->findOneBy(
-                    array(
+                    [
                         'sidebarLayout' => $sidebar_layout,
                         'dataField' => $df_id,
-                    )
+                    ]
                 );
             }
             else {
                 // This should reference the "general search" input...
                 $sl_dfm = $repo_sidebar_layout_map->findOneBy(
-                    array(
+                    [
                         'sidebarLayout' => $sidebar_layout,
                         'dataField' => null,
-                    )
+                    ]
                 );
             }
             /** @var SidebarLayoutMap $sl_dfm */
 
             // The SidebarLayoutMap entry shouldn't be null at this point
             if ( !is_null($sl_dfm) ) {
-                $properties = array(
+                $properties = [
                     'category' => $category,
                     'displayOrder' => $display_order
-                );
+                ];
                 $entity_modify_service->updateSidebarLayoutMap($user, $sl_dfm, $properties);
             }
             else {

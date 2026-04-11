@@ -24,25 +24,13 @@ class QanalyzePlugin implements DatafieldPluginInterface
 {
 
     /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * QanalyzePlugin constructor.
      *
      * @param EngineInterface $templating
      * @param Logger $logger
      */
-    public function __construct(EngineInterface $templating, Logger $logger) {
-        $this->templating = $templating;
-        $this->logger = $logger;
+    public function __construct(private readonly EngineInterface $templating, private readonly Logger $logger)
+    {
     }
 
 
@@ -128,16 +116,16 @@ class QanalyzePlugin implements DatafieldPluginInterface
             // ----------------------------------------
             // The values of these fields are used as regular expressions, so they may need to have
             //  certain characters escaped first
-            $search = array(
+            $search = [
                 ".", "*", "+", "?", "^",
                 "$", "{", "}", "(", ")",
                 "|", "[", "]", "/"
-            );
-            $replacement = array(
+            ];
+            $replacement = [
                 "\\.", "\\*", "\\+", "\\?", "\\^",
                 "\\$", "\\{", "\\}", "\\(", "\\)",
                 "\\|", "\\[", "\\]", "\\/"
-            );
+            ];
 
             if ($label_field !== '')
                 $label_field = str_replace($search, $replacement, $label_field);
@@ -155,28 +143,15 @@ class QanalyzePlugin implements DatafieldPluginInterface
             if ( isset($datarecord['dataRecordFields'][ $datafield['id'] ]) ) {
                 $drf = $datarecord['dataRecordFields'][ $datafield['id'] ];
                 $entity = '';
-                switch ( $datafield['dataFieldMeta']['fieldType']['typeClass'] ) {
-                    case 'IntegerValue':
-                        $entity = $drf['integerValue'];
-                        break;
-                    case 'ShortVarchar':
-                        $entity = $drf['shortVarchar'];
-                        break;
-                    case 'MediumVarchar':
-                        $entity = $drf['mediumVarchar'];
-                        break;
-                    case 'LongVarchar':
-                        $entity = $drf['longVarchar'];
-                        break;
-                    case 'LongText':
-                        $entity = $drf['longText'];
-                        break;
-
-                    default:
-                        throw new \Exception('Invalid Fieldtype');
-                        break;
-                }
-                $value = trim( $entity[0]['value'] );
+                $entity = match ($datafield['dataFieldMeta']['fieldType']['typeClass']) {
+                    'IntegerValue' => $drf['integerValue'],
+                    'ShortVarchar' => $drf['shortVarchar'],
+                    'MediumVarchar' => $drf['mediumVarchar'],
+                    'LongVarchar' => $drf['longVarchar'],
+                    'LongText' => $drf['longText'],
+                    default => throw new \Exception('Invalid Fieldtype'),
+                };
+                $value = trim( (string) $entity[0]['value'] );
             }
             else {
                 // No datarecordfield entry for this datarecord/datafield pair...because of the
@@ -195,12 +170,12 @@ class QanalyzePlugin implements DatafieldPluginInterface
                 if ($always_display_run_button || $value > 0) {
                     $output = $this->templating->render(
                         'ODROpenRepositoryGraphBundle:Chemin:Qanalyze/qanalyze.html.twig',
-                        array(
+                        [
                             'label_field' => $label_field,
                             'xrd_field' => $xrd_field,
                             'phase_field' => $phase_field,
                             'wavelength_field' => $wavelength_field,
-                        )
+                        ]
                     );
                 }
             }

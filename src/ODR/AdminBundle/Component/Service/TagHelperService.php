@@ -31,68 +31,18 @@ class TagHelperService
 {
 
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var CacheService
-     */
-    private $cache_service;
-
-    /**
-     * @var EntityCreationService
-     */
-    private $entity_create_service;
-
-    /**
-     * @var EntityMetaModifyService
-     */
-    private $entity_modify_service;
-
-    /**
-     * @var LockService
-     */
-    private $lock_service;
-
-    /**
-     * @var CsrfTokenManager
-     */
-    private $token_manager;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * TagHelperService constructor.
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param CacheService $cache_service
-     * @param EntityCreationService $entity_creation_service
-     * @param EntityMetaModifyService $entity_meta_modify_service
+     * @param EntityCreationService $entity_create_service
+     * @param EntityMetaModifyService $entity_modify_service
      * @param LockService $lock_service
      * @param CsrfTokenManager $token_manager
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        CacheService $cache_service,
-        EntityCreationService $entity_creation_service,
-        EntityMetaModifyService $entity_meta_modify_service,
-        LockService $lock_service,
-        CsrfTokenManager $token_manager,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->cache_service = $cache_service;
-        $this->entity_create_service = $entity_creation_service;
-        $this->entity_modify_service = $entity_meta_modify_service;
-        $this->lock_service = $lock_service;
-        $this->token_manager = $token_manager;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly EntityCreationService $entity_create_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly LockService $lock_service, private readonly CsrfTokenManager $token_manager, private readonly Logger $logger)
+    {
     }
 
 
@@ -135,9 +85,9 @@ class TagHelperService
                 AND dt.deletedAt IS NULL AND df.deletedAt IS NULL
                 AND c_t.deletedAt IS NULL AND tt.deletedAt IS NULL AND p_t.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'grandparent_datatype_id' => $grandparent_datatype_id
-                )
+                ]
             );
             $results = $query->getArrayResult();
 
@@ -145,7 +95,7 @@ class TagHelperService
             //  array here in case the above query returns nothing...
             // The rest of ODR is already designed to not assume any of the potentially three levels
             //  of this array exist, so this shouldn't cause a problem
-            $tag_hierarchy = array($grandparent_datatype_id => array());
+            $tag_hierarchy = [$grandparent_datatype_id => []];
 
             foreach ($results as $result) {
                 $dt_id = $result['dt_id'];
@@ -158,11 +108,11 @@ class TagHelperService
                 }
 
                 if ( !isset($tag_hierarchy[$dt_id]) )
-                    $tag_hierarchy[$dt_id] = array();
+                    $tag_hierarchy[$dt_id] = [];
                 if ( !isset($tag_hierarchy[$dt_id][$df_id]) )
-                    $tag_hierarchy[$dt_id][$df_id] = array();
+                    $tag_hierarchy[$dt_id][$df_id] = [];
                 if ( !isset($tag_hierarchy[$dt_id][$df_id][$parent_tag_id]) )
-                    $tag_hierarchy[$dt_id][$df_id][$parent_tag_id] = array();
+                    $tag_hierarchy[$dt_id][$df_id][$parent_tag_id] = [];
 
                 $tag_hierarchy[$dt_id][$df_id][$parent_tag_id][$child_tag_id] = '';
             }
@@ -191,14 +141,14 @@ class TagHelperService
     public function stackTagArray($tag_list, $tag_tree)
     {
         // Traverse the tag tree to create a list of tags which have parents
-        $child_tags = array();
+        $child_tags = [];
         foreach ($tag_tree as $parent_tag_id => $children) {
             foreach ($children as $child_tag_id => $tmp)
                 $child_tags[$child_tag_id] = '';
         }
 
         // Create an array to store the stacked data in...
-        $stacked_tags = array();
+        $stacked_tags = [];
         foreach ($tag_list as $tag_id => $tag) {
             // Tags which have parents aren't top-level
             if ( !isset($child_tags[$tag_id]) )
@@ -235,7 +185,7 @@ class TagHelperService
     private function stackTagArray_worker($tag_list, $tag_tree, $parent_tag_id)
     {
         // Create an array of all of $parent_tag_id's children
-        $tmp = array();
+        $tmp = [];
         foreach ($tag_tree[$parent_tag_id] as $child_tag_id => $num)
             $tmp[$child_tag_id] = $tag_list[$child_tag_id];
 
@@ -277,9 +227,9 @@ class TagHelperService
 
         // Now that all child tags are ordered, order the top-level tags
         if ($sort_by_name)
-            uasort($stacked_tag_array, "self::tagSort_name");
+            uasort($stacked_tag_array, self::tagSort_name(...));
         else
-            uasort($stacked_tag_array, "self::tagSort_displayOrder");
+            uasort($stacked_tag_array, self::tagSort_displayOrder(...));
     }
 
 
@@ -301,9 +251,9 @@ class TagHelperService
 
         // Now that all children of this "tag group" are ordered, order the "tag group" itself
         if ($sort_by_name)
-            uasort($tag_array, "self::tagSort_name");
+            uasort($tag_array, self::tagSort_name(...));
         else
-            uasort($tag_array, "self::tagSort_displayOrder");
+            uasort($tag_array, self::tagSort_displayOrder(...));
 
         return $tag_array;
     }
@@ -319,7 +269,7 @@ class TagHelperService
      */
     private function tagSort_name($a, $b)
     {
-        return strnatcasecmp($a['tagMeta']['tagName'], $b['tagMeta']['tagName']);
+        return strnatcasecmp((string) $a['tagMeta']['tagName'], (string) $b['tagMeta']['tagName']);
     }
 
 
@@ -358,7 +308,7 @@ class TagHelperService
      */
     public function generateCSRFTokens($datatype_array)
     {
-        $token_list = array();
+        $token_list = [];
         foreach ($datatype_array as $dt_id => $dt) {
             foreach ($dt['dataFields'] as $df_id => $df) {
 
@@ -389,15 +339,15 @@ class TagHelperService
      */
     public function convertTagsForListImport($stacked_tags)
     {
-        $stacked_tag_array = array();
+        $stacked_tag_array = [];
         foreach ($stacked_tags as $tag_id => $tag_entry) {
-            $tag = array(
+            $tag = [
                 'id' => $tag_id,
-                'tagMeta' => array(
+                'tagMeta' => [
                     'tagName' => $tag_entry['tagMeta']['tagName'],
-                ),
+                ],
                 'tagUuid' => $tag_entry['tagUuid'],
-            );
+            ];
 
             if ( isset($tag_entry['children']) )
                 $tag['children'] = self::convertTagsForListImport($tag_entry['children']);
@@ -434,19 +384,19 @@ class TagHelperService
 
             // Acceptable to store tags by name here, since none of its siblings *should* have the
             //  exact same name...
-            $existing_tag_array[$tag_name] = array(
+            $existing_tag_array[$tag_name] = [
                 'id' => $uuid,
-                'tagMeta' => array(
+                'tagMeta' => [
                     'tagName' => $tag_name
-                ),
+                ],
 //                'tagUuid' => $uuid,    // Don't need this just for rendering
-            );
+            ];
         }
 
         // If there are more children/grandchildren to the tag to add...
         if ( count($new_tags) > 1 ) {
             // ...get any children the existing tag already has
-            $existing_child_tags = array();
+            $existing_child_tags = [];
             if ( isset($existing_tag_array[$tag_name]['children']) )
                 $existing_child_tags = $existing_tag_array[$tag_name]['children'];
 
@@ -526,7 +476,7 @@ class TagHelperService
             // Need to invert the provided hierarchies so that the code can look up the parent
             //  tag when given a child tag
             if ( is_null($inversed_tag_hierarchy) ) {
-                $inversed_tag_hierarchy = array();
+                $inversed_tag_hierarchy = [];
                 foreach ($tag_hierarchy as $parent_tag_id => $children) {
                     foreach ($children as $child_tag_id => $tmp)
                         $inversed_tag_hierarchy[$child_tag_id] = $parent_tag_id;
@@ -552,19 +502,19 @@ class TagHelperService
             JOIN ODRAdminBundle:Tags t WITH ts.tag = t
             WHERE ts.dataRecordFields = :drf_id
             AND ts.deletedAt IS NULL AND t.deletedAt IS NULL'
-        )->setParameters( array('drf_id' => $drf->getId()) );
+        )->setParameters( ['drf_id' => $drf->getId()] );
         $results = $query->getArrayResult();
 
-        $current_selections = array();
+        $current_selections = [];
         foreach ($results as $result) {
             $tag_id = $result['t_id'];
             $tag_selection_id = $result['ts_id'];
             $value = $result['ts_value'];
 
-            $current_selections[$tag_id] = array(
+            $current_selections[$tag_id] = [
                 'ts_id' => $tag_selection_id,
                 'value' => $value,
-            );
+            ];
         }
 
         // ...in order to tweak the array of desired selections to get rid of the '!' character
@@ -591,7 +541,7 @@ class TagHelperService
 //        $this->logger->debug('-- desired selections: '.print_r($desired_selections, true));
 
         // ...though if a tag hierarchy is involved...
-        $cascade_deselections = array();
+        $cascade_deselections = [];
         if ( !is_null($tag_hierarchy) ) {
             // ...but if a tag hierarcy is involved then we're not quite done yet...the desired
             //  changes might need to cascade up/down/around to other tags in the hierarchy
@@ -619,10 +569,10 @@ class TagHelperService
             foreach ($desired_selections as $tag_id => $value) {
                 if ( $value === 0 && isset($tag_hierarchy[$tag_id]) ) {
 
-                    $descendant_tag_ids = array();
-                    $current_parent_tags = array($tag_id => '');
+                    $descendant_tag_ids = [];
+                    $current_parent_tags = [$tag_id => ''];
                     while ( !empty($current_parent_tags) ) {
-                        $tmp = array();
+                        $tmp = [];
                         foreach ($current_parent_tags as $t_id => $str) {
                             if ( isset($tag_hierarchy[$t_id]) ) {
                                 foreach ($tag_hierarchy[$t_id] as $child_tag_id => $str) {
@@ -704,7 +654,7 @@ class TagHelperService
         // Now that the array of desired selections covers any tag hierarcy shennanigans, split it
         //  apart into two arrays...creating a new tag selection is different than updating an
         //  existing one
-        $new_selections = $changed_selections = array();
+        $new_selections = $changed_selections = [];
         foreach ($desired_selections as $tag_id => $value) {
             if ( !isset($current_selections[$tag_id]) ) {
                 // If the tag selection doesn't already exist...
@@ -747,12 +697,12 @@ class TagHelperService
                 FROM ODRAdminBundle:Tags t
                 WHERE t.id IN (:tag_ids)
                 AND t.deletedAt IS NULL'
-            )->setParameters( array('tag_ids' => $tag_ids ) );
+            )->setParameters( ['tag_ids' => $tag_ids ] );
             /** @var Tags[] $results */
             $results = $query->getResult();
 
             /** @var Tags[] $tag_lookup */
-            $tag_lookup = array();
+            $tag_lookup = [];
             foreach ($results as $t)
                 $tag_lookup[ $t->getId() ] = $t;
 
@@ -777,15 +727,15 @@ class TagHelperService
                 WHERE t.id IN (:tag_ids) AND ts.dataRecordFields = :drf_id
                 AND t.deletedAt IS NULL AND ts.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'tag_ids' => $tag_ids,
                     'drf_id' => $drf->getId(),
-                )
+                ]
             );
             $results = $query->getResult();
 
             /** @var TagSelection[] $tag_selection_lookup */
-            $tag_selection_lookup = array();
+            $tag_selection_lookup = [];
             foreach ($results as $ts) {
                 /** @var TagSelection $ts */
                 $tag_selection_lookup[ $ts->getTag()->getId() ] = $ts;
@@ -794,7 +744,7 @@ class TagHelperService
             // Perform the modifications
             foreach ($changed_selections as $t_id => $value) {
                 $tag_selection = $tag_selection_lookup[$t_id];
-                $props = array('selected' => $value);
+                $props = ['selected' => $value];
 
                 $this->entity_modify_service->updateTagSelection($user, $tag_selection, $props, true, $created);    // delay flush
 

@@ -32,28 +32,13 @@ class RRUFFSpecialReferencePlugin implements ThemeElementPluginInterface
 {
 
     /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * RRUFF Special Reference Plugin constructor
      *
      * @param EngineInterface $templating
      * @param Logger $logger
      */
-    public function __construct(
-        EngineInterface $templating,
-        Logger $logger
-    ) {
-        $this->templating = $templating;
-        $this->logger = $logger;
+    public function __construct(private readonly EngineInterface $templating, private readonly Logger $logger)
+    {
     }
 
 
@@ -96,7 +81,7 @@ class RRUFFSpecialReferencePlugin implements ThemeElementPluginInterface
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecord, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $datatype_permissions = array(), $datafield_permissions = array())
+    public function execute($datarecord, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $datatype_permissions = [], $datafield_permissions = [])
     {
         try {
             // ----------------------------------------
@@ -176,11 +161,11 @@ class RRUFFSpecialReferencePlugin implements ThemeElementPluginInterface
             $rendering_options['context'] = 'html';
 
             // Could have multiple references in here, so need to get them one by one
-            $references = array();
+            $references = [];
             foreach ($reference_datarecord_array as $dr_id => $ref_dr) {
                 $ref_text = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:RRUFF:RRUFFSpecialReference/rruff_special_reference_execute.html.twig',
-                    array(
+                    [
                         'is_datatype_admin' => $is_datatype_admin,
                         'plugin_options' => $plugin_options,
 
@@ -191,9 +176,9 @@ class RRUFFSpecialReferencePlugin implements ThemeElementPluginInterface
                         'datafield_permissions' => $datafield_permissions,
 
                         'reference_datatype_array' => $reference_datatype_array,
-                        'reference_datarecord_array' => array($dr_id => $ref_dr),
+                        'reference_datarecord_array' => [$dr_id => $ref_dr],
                         'reference_theme_array' => $reference_theme_array,
-                    )
+                    ]
                 );
 
                 // Save the reference if it got rendered
@@ -207,12 +192,12 @@ class RRUFFSpecialReferencePlugin implements ThemeElementPluginInterface
                 // ...then put them inside an html wrapper before returning
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:RRUFF:RRUFFSpecialReference/rruff_special_reference_themeElement.html.twig',
-                    array(
+                    [
                         'references' => $references,
                         'plugin_options' => $plugin_options,
 
                         'reference_datatype_array' => $reference_datatype_array,
-                    )
+                    ]
                 );
             }
 

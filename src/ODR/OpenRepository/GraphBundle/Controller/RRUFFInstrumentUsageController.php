@@ -55,7 +55,7 @@ class RRUFFInstrumentUsageController extends ODRCustomController
      */
     public function redirectAction($datarecord_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -127,31 +127,31 @@ class RRUFFInstrumentUsageController extends ODRCustomController
             if ( isset($datarecord_array[$datarecord_id]['dataRecordFields'][$instrument_name_df_id]['longVarchar'][0]) )
                 $instrument_name_df_value = $datarecord_array[$datarecord_id]['dataRecordFields'][$instrument_name_df_id]['longVarchar'][0]['value'];
 
-            $search_params = array(
+            $search_params = [
                 'dt_id' => $target_datatype_id,
                 $instrument_name_df_id => '"'.$instrument_name_df_value.'"',
-            );
+            ];
             $search_key = $search_key_service->encodeSearchKey($search_params);
 
             // The search key can then be part of a route...
             $url = $router->generate(
                 'odr_search_render',
-                array(
+                [
                     'search_theme_id' => 0,
                     'search_key' => $search_key,
-                )
+                ]
             );
 
             // ...that the page can render directly
-            $return['d'] = array(
+            $return['d'] = [
                 'datatype_id' => $datatype->getId(),
                 'html' => $templating->render(
                     'ODROpenRepositoryGraphBundle:RRUFF:RRUFFInstrumentUsage/page.html.twig',
-                    array(
+                    [
                         'url' => $url
-                    )
+                    ]
                 )
-            );
+            ];
 
         }
         catch (\Exception $e) {

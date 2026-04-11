@@ -36,52 +36,16 @@ class SearchService
 {
 
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var CacheService
-     */
-    private $cache_service;
-
-    /**
-     * @var DatatreeInfoService
-     */
-    private $datatree_info_service;
-
-    /**
-     * @var SearchQueryService
-     */
-    private $search_query_service;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * SearchService constructor.
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param CacheService $cache_service
      * @param DatatreeInfoService $datatree_info_service
      * @param SearchQueryService $search_query_service
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        CacheService $cache_service,
-        DatatreeInfoService $datatree_info_service,
-        SearchQueryService $search_query_service,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->cache_service = $cache_service;
-        $this->datatree_info_service = $datatree_info_service;
-        $this->search_query_service = $search_query_service;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly DatatreeInfoService $datatree_info_service, private readonly SearchQueryService $search_query_service, private readonly Logger $logger)
+    {
     }
 
 
@@ -134,7 +98,7 @@ class SearchService
             // Attempt to find the cached result for this radio option...
             $result = $this->cache_service->get('cached_search_ro_'.$radio_option_id);
             if ( !$result )
-                $result = array();
+                $result = [];
 
             // If it doesn't exist...
             if ( empty($result) ) {
@@ -153,7 +117,7 @@ class SearchService
             ) {
                 // Unselected tags and those required to be merged by AND can be intersected
                 //  together in any order...but need to be sure to use the correct array
-                $tmp = array();
+                $tmp = [];
                 if ($value === 0)
                     $tmp = $result[0];
                 else
@@ -201,10 +165,10 @@ class SearchService
 
 
         // ...then return the search result
-        $result = array(
+        $result = [
             'dt_id' => $datafield->getDataType()->getId(),
             'records' => $end_result
-        );
+        ];
 
         return $result;
     }
@@ -244,7 +208,7 @@ class SearchService
             // Attempt to find the cached result for this radio option...
             $result = $this->cache_service->get('cached_search_template_ro_'.$radio_option_uuid);
             if ( !$result )
-                $result = array();
+                $result = [];
 
             // If it doesn't exist...
             if ( !isset($result[$value]) ) {
@@ -270,7 +234,7 @@ class SearchService
             if ($merge_using_OR) {
                 // If first run, then start from empty array due to using isset() below
                 if ( is_null($end_result) )
-                    $end_result = array();
+                    $end_result = [];
 
                 $end_result = self::templateResultsUnion($end_result, $result[$value]);
             }
@@ -309,11 +273,11 @@ class SearchService
     {
         foreach ($second_array as $dt_id => $df_list) {
             if ( !isset($first_array[$dt_id]) )
-                $first_array[$dt_id] = array();
+                $first_array[$dt_id] = [];
 
             foreach ($df_list as $df_id => $dr_list) {
                 if ( !isset($first_array[$dt_id][$df_id]) )
-                    $first_array[$dt_id][$df_id] = array();
+                    $first_array[$dt_id][$df_id] = [];
 
                 foreach ($dr_list as $dr_id => $num)
                     $first_array[$dt_id][$df_id][$dr_id] = 1;
@@ -406,7 +370,7 @@ class SearchService
             // Attempt to find the cached result for this tag...
             $result = $this->cache_service->get('cached_search_tag_'.$tag_id);
             if ( !$result )
-                $result = array();
+                $result = [];
 
             // If it doesn't exist...
             if ( empty($result) ) {
@@ -425,7 +389,7 @@ class SearchService
             ) {
                 // Unselected tags and those required to be merged by AND can be intersected
                 //  together in any order...but need to be sure to use the correct array
-                $tmp = array();
+                $tmp = [];
                 if ($value === 0)
                     $tmp = $result[0];
                 else
@@ -473,10 +437,10 @@ class SearchService
 
 
         // ...then return the search result
-        $result = array(
+        $result = [
             'dt_id' => $datafield->getDataType()->getId(),
             'records' => $end_result
-        );
+        ];
 
         return $result;
     }
@@ -526,7 +490,7 @@ class SearchService
             // Attempt to find the cached result for this tag...
             $result = $this->cache_service->get('cached_search_template_tag_'.$tag_uuid);
             if ( !$result )
-                $result = array();
+                $result = [];
 
             // If it doesn't exist...
             if ( !isset($result[$value]) ) {
@@ -548,7 +512,7 @@ class SearchService
             if ($merge_using_OR) {
                 // If first run, then start from empty array due to using isset() below
                 if ( is_null($end_result) )
-                    $end_result = array();
+                    $end_result = [];
 
                 $end_result = self::templateResultsUnion($end_result, $result[$value]);
             }
@@ -594,7 +558,7 @@ class SearchService
         // See if this search result is already cached...
         $cached_searches = $this->cache_service->get('cached_search_df_'.$datafield->getId());
         if ( !$cached_searches )
-            $cached_searches = array();
+            $cached_searches = [];
 
         if ( isset($cached_searches[$value]) )
             return $cached_searches[$value];
@@ -607,10 +571,10 @@ class SearchService
             $value
         );
 
-        $end_result = array(
+        $end_result = [
             'dt_id' => $datafield->getDataType()->getId(),
             'records' => $result
-        );
+        ];
 
         // ...then recache the search result
         $cached_searches[$value] = $end_result;
@@ -646,7 +610,7 @@ class SearchService
         // See if this search result is already cached...
         $cached_searches = $this->cache_service->get('cached_search_template_df_'.$template_datafield->getFieldUuid());
         if ( !$cached_searches )
-            $cached_searches = array();
+            $cached_searches = [];
 
         if ( isset($cached_searches[$value]) )
             return $cached_searches[$value];
@@ -691,7 +655,7 @@ class SearchService
         // See if this search result is already cached...
         $cached_searches = $this->cache_service->get('cached_search_df_'.$datafield->getId());
         if ( !$cached_searches )
-            $cached_searches = array();
+            $cached_searches = [];
 
         if ( isset($cached_searches[$value]) )
             return $cached_searches[$value];
@@ -705,16 +669,16 @@ class SearchService
         );
 
         // Convert the matching tag names into an array of matching tag ids
-        $selections = array();
+        $selections = [];
         foreach ($matching_tags as $tag_id => $tag_data) {
             $selections[$tag_id] = 1;
         }
 
         // No point running a further search if no tags matched the search term...
-        $end_result = array(
+        $end_result = [
             'dt_id' => $datafield->getDataType()->getId(),
-            'records' => array(),
-        );
+            'records' => [],
+        ];
 
         if ( !empty($selections) ) {
             // ...but if at least one tag was found, then run another search based off the tag ids
@@ -759,7 +723,7 @@ class SearchService
         // See if this search result is already cached...
         $cached_searches = $this->cache_service->get('cached_search_template_df_'.$template_datafield->getFieldUuid());
         if ( !$cached_searches )
-            $cached_searches = array();
+            $cached_searches = [];
 
         if ( isset($cached_searches[$value]) )
             return $cached_searches[$value];
@@ -774,7 +738,7 @@ class SearchService
         );
 
         // Convert the matching tag names into an array that self::searchTagDatafield() can use
-        $selections = array();
+        $selections = [];
         foreach ($matching_tags as $tag_id => $tag_data) {
             $tag_uuid = $tag_data['tag_uuid'];
 
@@ -820,7 +784,7 @@ class SearchService
         // See if this search result is already cached...
         $cached_searches = $this->cache_service->get('cached_search_template_df_'.$template_datafield->getFieldUuid().'_fieldstats');
         if ( !$cached_searches )
-            $cached_searches = array();
+            $cached_searches = [];
 
         $value = 'all';    // Easier to understand with this value in here
         if ( isset($cached_searches[$value]) )
@@ -864,7 +828,7 @@ class SearchService
         // See if this search result is already cached...
         $cached_searches = $this->cache_service->get('cached_search_template_df_'.$template_datafield->getFieldUuid().'_fieldstats');
         if ( !$cached_searches )
-            $cached_searches = array();
+            $cached_searches = [];
 
         $value = 'all';    // Easier to understand with this value in here
         if ( isset($cached_searches[$value]) )
@@ -909,10 +873,10 @@ class SearchService
     {
         // ----------------------------------------
         // Don't continue if called on the wrong type of datafield
-        $allowed_typeclasses = array(
+        $allowed_typeclasses = [
             'File',
             'Image',
-        );
+        ];
         $typeclass = $datafield->getFieldType()->getTypeClass();
         if ( !in_array($typeclass, $allowed_typeclasses) )
             throw new ODRBadRequestException('searchFileOrImageDatafield() called with '.$typeclass.' datafield', 0xab627079);
@@ -939,19 +903,19 @@ class SearchService
 
 
         // Overwrite the search terms array, since these three searches are going to be independent
-        $search_terms = array(
+        $search_terms = [
             'filename' => $filename,
             'public_status' => $public_status,
             'quality' => $quality,
-        );
-        $datarecord_lists = array();
+        ];
+        $datarecord_lists = [];
 
 
         // ----------------------------------------
         // See if this search result is already cached...
         $cached_searches = $this->cache_service->get('cached_search_df_'.$datafield->getId());
         if ( !$cached_searches )
-            $cached_searches = array();
+            $cached_searches = [];
 
         $involves_empty_string = false;
         foreach ($search_terms as $key => $value) {
@@ -1046,11 +1010,11 @@ class SearchService
                 $result = array_intersect_key($result, $dr_list);
         }
 
-        $end_result = array(
+        $end_result = [
             'dt_id' => $datafield->getDataType()->getId(),
             'records' => $result,
             'guard' => $involves_empty_string,
-        );
+        ];
 
         // ...and recache the search result
         $this->cache_service->set('cached_search_df_'.$datafield->getId(), $cached_searches);
@@ -1076,10 +1040,10 @@ class SearchService
 
         // ----------------------------------------
         // Don't continue if called on the wrong type of datafield
-        $allowed_typeclasses = array(
+        $allowed_typeclasses = [
             'File',
             'Image',
-        );
+        ];
         $typeclass = $template_datafield->getFieldType()->getTypeClass();
         if ( !in_array($typeclass, $allowed_typeclasses) )
             throw new ODRBadRequestException('searchFileOrImageTemplateDatafield() called with '.$typeclass.' datafield', 0x45eca2a7);
@@ -1108,11 +1072,11 @@ class SearchService
 
 
         // Overwrite the search terms array, since these three searches are going to be independent
-        $search_terms = array(
+        $search_terms = [
             'filename' => $filename,
             'public_status' => $public_status,
             'quality' => $quality,
-        );
+        ];
         $results = null;
 
 
@@ -1120,7 +1084,7 @@ class SearchService
         // See if this search result is already cached...
         $cached_searches = $this->cache_service->get('cached_search_template_df_'.$template_datafield->getFieldUuid());
         if ( !$cached_searches )
-            $cached_searches = array();
+            $cached_searches = [];
 
         $involves_empty_string = false;
         foreach ($search_terms as $key => $value) {
@@ -1133,8 +1097,7 @@ class SearchService
                         $template_datafield->getId(),
                         $template_datafield->getTemplateFieldUuid(),
                         $typeclass,
-                        $key,
-                        $value
+                        $key
                     );
 
                     // Store for later...
@@ -1175,8 +1138,7 @@ class SearchService
                     $template_datafield->getId(),
                     $template_datafield->getTemplateFieldUuid(),
                     $typeclass,
-                    'public_status',
-                    0    // find non-public files/images
+                    'public_status'    // find non-public files/images
                 );
             }
             if ( !isset($cached_searches['public_status'][1]) ) {
@@ -1185,8 +1147,7 @@ class SearchService
                     $template_datafield->getId(),
                     $template_datafield->getTemplateFieldUuid(),
                     $typeclass,
-                    'public_status',
-                    1    // find public files/images
+                    'public_status'    // find public files/images
                 );
             }
 
@@ -1265,19 +1226,19 @@ class SearchService
         // Going to need to get any cached entries first...
         $cached_searches = $this->cache_service->get('cached_search_df_'.$datafield->getId());
         if ( !$cached_searches )
-            $cached_searches = array();
+            $cached_searches = [];
 
         // The search for this field is rather complicated...it's usually going to be searched as
         //  a series of "ranges" in 1/2/3D space.  Multiple series are separated by the '|' character...
-        $entries = array(0 => $value);
-        if ( strpos($value, '|') !== false )
+        $entries = [0 => $value];
+        if ( str_contains($value, '|') )
             $entries = explode('|', $value);
 
 
         // ...they're separated in the search term because they need to be searched separately
         // e.g.  can't search for the ranges (x > 2 AND x < 3) and (x > 5 AND x < 6) in the same query,
         //  because you can't have a value that's simultaneously less than 3 and greater than 5
-        $datarecord_lists = array();
+        $datarecord_lists = [];
         foreach ($entries as $entry) {
             if ( !isset($cached_searches[$entry]) ) {
                 // If the search for this entry isn't cached, then need to run it again...
@@ -1308,11 +1269,11 @@ class SearchService
         }
 
         // ...then return the search result
-        $result = array(
+        $result = [
             'dt_id' => $datafield->getDataType()->getId(),
             'records' => $end_result,
 //            'guard' => $result['guard'],    // NOTE: not needed until negation is implemented
-        );
+        ];
 
         return $result;
     }
@@ -1344,19 +1305,19 @@ class SearchService
         // Going to need to get any cached entries first...
         $cached_searches = $this->cache_service->get('cached_search_template_df_'.$template_datafield->getFieldUuid());
         if ( !$cached_searches )
-            $cached_searches = array();
+            $cached_searches = [];
 
         // The search for this field is rather complicated...it's usually going to be searched as
         //  a series of "ranges" in 1/2/3D space.  Multiple series are separated by the '|' character...
-        $entries = array(0 => $value);
-        if ( strpos($value, '|') !== false )
+        $entries = [0 => $value];
+        if ( str_contains($value, '|') )
             $entries = explode('|', $value);
 
 
         // ...they're separated in the search term because they need to be searched separately
         // e.g.  can't search for the ranges (x > 2 AND x < 3) and (x > 5 AND x < 6) in the same query,
         //  because you can't have a value that's simultaneously less than 3 and greater than 5
-        $end_result = array();
+        $end_result = [];
 
         foreach ($entries as $entry) {
             if ( !isset($cached_searches[$entry]) ) {
@@ -1428,7 +1389,7 @@ class SearchService
         // Going to need to get any cached entries first...
         $cached_searches = $this->cache_service->get('cached_search_df_'.$datafield->getId());
         if ( !$cached_searches )
-            $cached_searches = array();
+            $cached_searches = [];
 
         // Since this version of the search can only handle a single range, both the caching and
         //  the mysql parts are easier
@@ -1454,11 +1415,11 @@ class SearchService
 
         // ----------------------------------------
         // Return the search result
-        $result = array(
+        $result = [
             'dt_id' => $datafield->getDataType()->getId(),
             'records' => $dr_list,
 //            'guard' => $result['guard'],    // NOTE: not needed until negation is implemented
-        );
+        ];
 
         return $result;
     }
@@ -1474,7 +1435,7 @@ class SearchService
      *
      * @return array
      */
-    public function searchXYZTemplateDatafield_simple($datafield, $x_value, $y_value, $z_value)
+    public function searchXYZTemplateDatafield_simple($datafield, $x_value, $y_value, $z_value): never
     {
         throw new ODRNotImplementedException("need an example to work from", 0xbc71d1e7);
     }
@@ -1504,14 +1465,14 @@ class SearchService
     {
         // ----------------------------------------
         // Don't continue if called on the wrong type of datafield
-        $allowed_typeclasses = array(
+        $allowed_typeclasses = [
             'IntegerValue',
             'DecimalValue',
             'ShortVarchar',
             'MediumVarchar',
             'LongVarchar',
             'LongText'
-        );
+        ];
         $typeclass = $datafield->getFieldType()->getTypeClass();
         if ( !in_array($typeclass, $allowed_typeclasses) )
             throw new ODRBadRequestException('searchTextOrNumberDatafield() called with '.$typeclass.' datafield', 0x58a164e0);
@@ -1521,7 +1482,7 @@ class SearchService
         // See if this search result is already cached...
         $cached_searches = $this->cache_service->get('cached_search_df_'.$datafield->getId());
         if ( !$cached_searches )
-            $cached_searches = array();
+            $cached_searches = [];
 
         // Since MYSQL's collation is case-insensitive, the php caching should treat it the same
         $cache_key = mb_strtolower($value);
@@ -1538,11 +1499,11 @@ class SearchService
             $value
         );
 
-        $end_result = array(
+        $end_result = [
             'dt_id' => $datafield->getDataType()->getId(),
             'records' => $result['records'],
             'guard' => $result['guard'],
-        );
+        ];
 
         // ...then recache the search result
         $cached_searches[$cache_key] = $end_result;
@@ -1585,14 +1546,14 @@ class SearchService
     {
         // ----------------------------------------
         // Don't continue if called on the wrong type of datafield
-        $allowed_typeclasses = array(
+        $allowed_typeclasses = [
             'IntegerValue',
             'DecimalValue',
             'ShortVarchar',
             'MediumVarchar',
             'LongVarchar',
             'LongText'
-        );
+        ];
         $typeclass = $datafield->getFieldType()->getTypeClass();
         if ( !in_array($typeclass, $allowed_typeclasses) )
             throw new ODRBadRequestException('searchTextOrNumberDatafieldGeneral() called with '.$typeclass.' datafield', 0x5a207c9c);
@@ -1602,7 +1563,7 @@ class SearchService
         // See if this search result is already cached...
         $cached_searches = $this->cache_service->get('cached_search_df_'.$datafield->getId());
         if ( !$cached_searches )
-            $cached_searches = array();
+            $cached_searches = [];
 
         // Since MYSQL's collation is case-insensitive, the php caching should treat it the same
         $cache_key = mb_strtolower($value);
@@ -1610,7 +1571,7 @@ class SearchService
         // General searches that aren't negated...e.g. "Gold"...should be treated the same as a
         //  regular search
         $is_negated = false;
-        if ( substr($cache_key, 0, 1) === '!' )
+        if ( str_starts_with($cache_key, '!') )
             $is_negated = true;
 
         // General searches that are negated...e.g. "!Gold"...need to instead be searched without
@@ -1631,11 +1592,11 @@ class SearchService
             $cache_key
         );
 
-        $end_result = array(
+        $end_result = [
             'dt_id' => $datafield->getDataType()->getId(),
             'records' => $result['records'],
             'guard' => $result['guard'],
-        );
+        ];
 
         // ...then recache the search result
         $cached_searches[$cache_key] = $end_result;
@@ -1659,14 +1620,14 @@ class SearchService
     {
         // ----------------------------------------
         // Don't continue if called on the wrong type of datafield
-        $allowed_typeclasses = array(
+        $allowed_typeclasses = [
             'IntegerValue',
             'DecimalValue',
             'ShortVarchar',
             'MediumVarchar',
             'LongVarchar',
             'LongText'
-        );
+        ];
         $typeclass = $template_datafield->getFieldType()->getTypeClass();
         if ( !in_array($typeclass, $allowed_typeclasses) )
             throw new ODRBadRequestException('searchTextOrNumberTemplateDatafield() called with '.$typeclass.' datafield', 0xf902a74c);
@@ -1678,7 +1639,7 @@ class SearchService
         // See if this search result is already cached...
         $cached_searches = $this->cache_service->get('cached_search_template_df_'.$template_datafield->getFieldUuid());
         if ( !$cached_searches )
-            $cached_searches = array();
+            $cached_searches = [];
 
         // Since MYSQL's collation is case-insensitive, the php caching should treat it the same
         $cache_key = mb_strtolower($value);
@@ -1730,7 +1691,7 @@ class SearchService
 
         $cached_searches = $this->cache_service->get('cached_search_df_'.$datafield->getId());
         if ( !$cached_searches )
-            $cached_searches = array();
+            $cached_searches = [];
 
         if ( isset($cached_searches[$boolean_value]) )
             return $cached_searches[$boolean_value];
@@ -1753,16 +1714,16 @@ class SearchService
 
 
         // ...then recache the search result
-        $cache_entry = array(
-            0 => array(
+        $cache_entry = [
+            0 => [
                 'dt_id' => $datafield->getDataType()->getId(),
                 'records' => $result[0]
-            ),
-            1 => array(
+            ],
+            1 => [
                 'dt_id' => $datafield->getDataType()->getId(),
                 'records' => $result[1]
-            ),
-        );
+            ],
+        ];
         $this->cache_service->set('cached_search_df_'.$datafield->getId(), $cache_entry);
 
         // ...then return it
@@ -1798,7 +1759,7 @@ class SearchService
 
         $cached_searches = $this->cache_service->get('cached_search_template_df_'.$template_datafield->getFieldUuid());
         if ( !$cached_searches )
-            $cached_searches = array();
+            $cached_searches = [];
 
         if ( isset($cached_searches[$boolean_value]) )
             return $cached_searches[$boolean_value];
@@ -1873,7 +1834,7 @@ class SearchService
         $recached = false;
         $cached_searches = $this->cache_service->get('cached_search_df_'.$datafield->getId());
         if ( !$cached_searches )
-            $cached_searches = array();
+            $cached_searches = [];
 
 
         if ( !is_null($value) ) {
@@ -1912,9 +1873,9 @@ class SearchService
 
                 // Store the result back in the cache
                 $recached = true;
-                $cached_searches[$before_key] = array(
+                $cached_searches[$before_key] = [
                     'records' => $before_ids
-                );
+                ];
             }
             else {
                 // Entry set, load array of datarecords ids
@@ -1933,9 +1894,9 @@ class SearchService
 
                 // Store the result back in the cache
                 $recached = true;
-                $cached_searches[$after_key] = array(
+                $cached_searches[$after_key] = [
                     'records' => $after_ids
-                );
+                ];
             }
             else {
                 // Entry set, load array of datarecords ids
@@ -1953,10 +1914,10 @@ class SearchService
             $this->cache_service->set('cached_search_df_'.$datafield->getId(), $cached_searches);
 
         // ...then return it
-        $end_result = array(
+        $end_result = [
             'dt_id' => $datafield->getDataType()->getId(),
             'records' => $result
-        );
+        ];
 
         return $end_result;
     }
@@ -2006,7 +1967,7 @@ class SearchService
         $recached = false;
         $cached_searches = $this->cache_service->get('cached_search_template_df_'.$template_datafield->getFieldUuid());
         if ( !$cached_searches )
-            $cached_searches = array();
+            $cached_searches = [];
 
 
         $before_ids = null;
@@ -2014,17 +1975,17 @@ class SearchService
             // Entry not set, run query to get current results set
             $before_ids = $this->search_query_service->searchDatetimeTemplateDatafield(
                 $template_datafield->getFieldUuid(),
-                array(
+                [
                     'before' => $before,
                     'after' => new \DateTime('1980-01-01 00:00:00')
-                )
+                ]
             );
 
             // Store the result back in the cache
             $recached = true;
-            $cached_searches[$before_key] = array(
+            $cached_searches[$before_key] = [
                 'records' => $before_ids
-            );
+            ];
         }
         else {
             // Entry set, load array of datarecords ids
@@ -2037,17 +1998,17 @@ class SearchService
             // Entry not set, run query to get current results set
             $after_ids = $this->search_query_service->searchDatetimeTemplateDatafield(
                 $template_datafield->getFieldUuid(),
-                array(
+                [
                     'before' => new \DateTime('9999-12-30 00:00:00'),    // value is intentional, see above
                     'after' => $after
-                )
+                ]
             );
 
             // Store the result back in the cache
             $recached = true;
-            $cached_searches[$after_key] = array(
+            $cached_searches[$after_key] = [
                 'records' => $after_ids
-            );
+            ];
         }
         else {
             // Entry set, load array of datarecords ids
@@ -2100,7 +2061,7 @@ class SearchService
         $recached = false;
         $cached_searches = $this->cache_service->get('cached_search_dt_'.$datatype->getId().'_created');
         if ( !$cached_searches )
-            $cached_searches = array();
+            $cached_searches = [];
 
 
         $before_ids = null;
@@ -2109,17 +2070,17 @@ class SearchService
             $before_ids = $this->search_query_service->searchCreatedModified(
                 $datatype->getId(),
                 'created',
-                array(
+                [
                     'before' => $before,
                     'after' => new \DateTime('1980-01-01 00:00:00')
-                )
+                ]
             );
 
             // Store the result back in the cache
             $recached = true;
-            $cached_searches[$before_key] = array(
+            $cached_searches[$before_key] = [
                 'records' => $before_ids
-            );
+            ];
         }
         else {
             // Entry set, load array of datarecords ids
@@ -2133,17 +2094,17 @@ class SearchService
             $after_ids = $this->search_query_service->searchCreatedModified(
                 $datatype->getId(),
                 'created',
-                array(
+                [
                     'before' => new \DateTime('9999-12-31 00:00:00'),
                     'after' => $after
-                )
+                ]
             );
 
             // Store the result back in the cache
             $recached = true;
-            $cached_searches[$after_key] = array(
+            $cached_searches[$after_key] = [
                 'records' => $after_ids
-            );
+            ];
         }
         else {
             // Entry set, load array of datarecords ids
@@ -2160,10 +2121,10 @@ class SearchService
             $this->cache_service->set('cached_search_dt_'.$datatype->getId().'_created', $cached_searches);
 
         // ...then return it
-        $end_result = array(
+        $end_result = [
             'dt_id' => $datatype->getId(),
             'records' => $result
-        );
+        ];
 
         return $end_result;
     }
@@ -2201,7 +2162,7 @@ class SearchService
         $recached = false;
         $cached_searches = $this->cache_service->get('cached_search_dt_'.$datatype->getId().'_modified');
         if ( !$cached_searches )
-            $cached_searches = array();
+            $cached_searches = [];
 
 
         $before_ids = null;
@@ -2210,17 +2171,17 @@ class SearchService
             $before_ids = $this->search_query_service->searchCreatedModified(
                 $datatype->getId(),
                 'modified',
-                array(
+                [
                     'before' => $before,
                     'after' => new \DateTime('1980-01-01 00:00:00')
-                )
+                ]
             );
 
             // Store the result back in the cache
             $recached = true;
-            $cached_searches[$before_key] = array(
+            $cached_searches[$before_key] = [
                 'records' => $before_ids
-            );
+            ];
         }
         else {
             // Entry set, load array of datarecords ids
@@ -2234,17 +2195,17 @@ class SearchService
             $after_ids = $this->search_query_service->searchCreatedModified(
                 $datatype->getId(),
                 'modified',
-                array(
+                [
                     'before' => new \DateTime('9999-12-31 00:00:00'),
                     'after' => $after
-                )
+                ]
             );
 
             // Store the result back in the cache
             $recached = true;
-            $cached_searches[$after_key] = array(
+            $cached_searches[$after_key] = [
                 'records' => $after_ids
-            );
+            ];
         }
         else {
             // Entry set, load array of datarecords ids
@@ -2261,10 +2222,10 @@ class SearchService
             $this->cache_service->set('cached_search_dt_'.$datatype->getId().'_modified', $cached_searches);
 
         // ...then return it
-        $end_result = array(
+        $end_result = [
             'dt_id' => $datatype->getId(),
             'records' => $result
-        );
+        ];
 
         return $end_result;
     }
@@ -2284,7 +2245,7 @@ class SearchService
         // See if the search result is already cached...
         $cached_searches = $this->cache_service->get('cached_search_dt_'.$datatype->getId().'_createdBy');
         if ( !$cached_searches )
-            $cached_searches = array();
+            $cached_searches = [];
 
         if ( isset($cached_searches[$target_user_id]) )
             return $cached_searches[$target_user_id];
@@ -2295,15 +2256,15 @@ class SearchService
         $result = $this->search_query_service->searchCreatedModified(
             $datatype->getId(),
             'createdBy',
-            array(
+            [
                 'user' => $target_user_id
-            )
+            ]
         );
 
-        $end_result = array(
+        $end_result = [
             'dt_id' => $datatype->getId(),
             'records' => $result
-        );
+        ];
 
 
         // ...then recache the search result
@@ -2329,7 +2290,7 @@ class SearchService
         // See if the search result is already cached...
         $cached_searches = $this->cache_service->get('cached_search_dt_'.$datatype->getId().'_modifiedBy');
         if ( !$cached_searches )
-            $cached_searches = array();
+            $cached_searches = [];
 
         if ( isset($cached_searches[$target_user_id]) )
             return $cached_searches[$target_user_id];
@@ -2340,15 +2301,15 @@ class SearchService
         $result = $this->search_query_service->searchCreatedModified(
             $datatype->getId(),
             'modifiedBy',
-            array(
+            [
                 'user' => $target_user_id
-            )
+            ]
         );
 
-        $end_result = array(
+        $end_result = [
             'dt_id' => $datatype->getId(),
             'records' => $result
-        );
+        ];
 
 
         // ...then recache the search result
@@ -2379,7 +2340,7 @@ class SearchService
 
         $cached_searches = $this->cache_service->get('cached_search_dt_'.$datatype->getId().'_public_status');
         if ( !$cached_searches )
-            $cached_searches = array();
+            $cached_searches = [];
 
         if ( isset($cached_searches[$key]) )
             return $cached_searches[$key];
@@ -2392,10 +2353,10 @@ class SearchService
             $is_public
         );
 
-        $end_result = array(
+        $end_result = [
             'dt_id' => $datatype->getId(),
             'records' => $result
-        );
+        ];
 
 
         // ...then recache the search result
@@ -2431,7 +2392,7 @@ class SearchService
     {
         // In order to properly build the search arrays, all child/linked datarecords with some
         //  connection to the datatype being searched on need to be located...
-        $list = array();
+        $list = [];
 
         if (!$search_as_linked_datatype) {
             // The given $datatype_id is either the target datatype being searched on, or some other
@@ -2477,7 +2438,7 @@ class SearchService
     {
         // In order to properly build the "inverse" search arrays, child/linked datarecords with
         //  some connection to the datatype being searched on need to be located...
-        $list = array();
+        $list = [];
 
         if ( $is_linked_type ) {
             // The datatype being searched on (irrelevant to this function) somehow links to the
@@ -2530,11 +2491,11 @@ class SearchService
                 WHERE dr.dataType = :datatype_id
                 AND dr.deletedAt IS NULL
                 AND parent.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
-            )->setParameters( array('datatype_id' => $datatype_id) );
+            )->setParameters( ['datatype_id' => $datatype_id] );
             $results = $query->getArrayResult();
 
             //
-            $datarecords = array();
+            $datarecords = [];
             foreach ($results as $result)
                 $datarecords[ $result['id'] ] = $result['unique_id'];
 
@@ -2568,10 +2529,10 @@ class SearchService
                 WHERE mdt.unique_id = :template_uuid
                 AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL
                 AND (dr.deletedAt IS NULL OR dr.id IS NULL)'
-            )->setParameters(array('template_uuid' => $template_uuid));
+            )->setParameters(['template_uuid' => $template_uuid]);
             $results = $query->getArrayResult();
 
-            $list = array();
+            $list = [];
             foreach ($results as $result) {
                 $dt_id = $result['dt_id'];
                 $dr_id = $result['dr_id'];
@@ -2581,7 +2542,7 @@ class SearchService
                 //  search functions (currently just the radio search) have to use queries that
                 //  will tell them what the datafields are even if nothing matches
                 if ( !isset($list[$dt_id]) )
-                    $list[$dt_id] = array();
+                    $list[$dt_id] = [];
 
                 // It's possible that the derived datatype doesn't have any datarecords
                 if ( !is_null($dr_id) )
@@ -2632,7 +2593,7 @@ class SearchService
         $related_datatypes = $this->datatree_info_service->getAssociatedDatatypes($datatype_id, true);
 
         // The resulting array depends on the contents of each of the related datatypes
-        $searchable_datafields = array();
+        $searchable_datafields = [];
         foreach ($related_datatypes as $num => $dt_id) {
             $df_list = $this->cache_service->get('cached_search_dt_'.$dt_id.'_datafields');
             if (!$df_list) {
@@ -2651,7 +2612,7 @@ class SearchService
                     WHERE dt.id = :datatype_id
                     AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL 
                     AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL AND ft.deletedAt IS NULL'
-                )->setParameters( array('datatype_id' => $dt_id) );
+                )->setParameters( ['datatype_id' => $dt_id] );
                 $results = $query->getArrayResult();
 
                 // If no searchable datafields in this datatype, just continue on to the next
@@ -2659,12 +2620,12 @@ class SearchService
                     continue;
 
                 // Only need these once...
-                $df_list = array(
+                $df_list = [
                     'dt_public_date' => $results[0]['dt_public_date']->format('Y-m-d'),
-                    'datafields' => array(
-                        'non_public' => array()
-                    )
-                );
+                    'datafields' => [
+                        'non_public' => []
+                    ]
+                ];
 
                 // Insert each of the datafields into the array...
                 foreach ($results as $result) {
@@ -2688,21 +2649,21 @@ class SearchService
                         $df_uuid = $result['df_uuid'];    // required for cross-template searching
 
                         if ($result['df_public_date']->format('Y-m-d') !== '2200-01-01') {
-                            $df_list['datafields'][$df_id] = array(
+                            $df_list['datafields'][$df_id] = [
                                 'searchable' => $searchable,
                                 'typeclass' => $typeclass,
                                 'field_uuid' => $df_uuid,
-                            );
+                            ];
 
                             if ( $typeclass === 'Radio' || $typeclass === 'Tag' )
                                 $df_list['datafields'][$df_id]['default_merge'] = $default_merge;
                         }
                         else {
-                            $df_list['datafields']['non_public'][$df_id] = array(
+                            $df_list['datafields']['non_public'][$df_id] = [
                                 'searchable' => $searchable,
                                 'typeclass' => $typeclass,
                                 'field_uuid' => $df_uuid,
-                            );
+                            ];
 
                             if ( $typeclass === 'Radio' || $typeclass === 'Tag' )
                                 $df_list['datafields']['non_public'][$df_id]['default_merge'] = $default_merge;
@@ -2739,7 +2700,7 @@ class SearchService
         $related_datatypes = self::getRelatedTemplateDatatypesByUUID($template_uuid);
 
         // The resulting array depends on the contents of each of the related datatypes
-        $searchable_datafields = array();
+        $searchable_datafields = [];
         foreach ($related_datatypes as $num => $dt_uuid) {
             $df_list = $this->cache_service->get('cached_search_template_dt_'.$dt_uuid.'_datafields');
             if (!$df_list) {
@@ -2755,7 +2716,7 @@ class SearchService
                     WHERE dt.unique_id = :datatype_uuid
                     AND dt.deletedAt IS NULL AND df.deletedAt IS NULL
                     AND dfm.deletedAt IS NULL AND ft.deletedAt IS NULL'
-                )->setParameters( array('datatype_uuid' => $dt_uuid) );
+                )->setParameters( ['datatype_uuid' => $dt_uuid] );
                 $results = $query->getArrayResult();
 
                 // If no searchable datafields in this datatype, just continue on to the next
@@ -2763,10 +2724,10 @@ class SearchService
                     continue;
 
                 // Only need these once...
-                $df_list = array(
+                $df_list = [
                     'dt_id' => $results[0]['dt_id'],
-                    'datafields' => array(),
-                );
+                    'datafields' => [],
+                ];
 
                 // Insert each of the datafields into the array...
                 foreach ($results as $result) {
@@ -2780,11 +2741,11 @@ class SearchService
                     $df_id = $result['df_id'];
                     $df_uuid = $result['df_uuid'];
 
-                    $df_list['datafields'][$df_id] = array(
+                    $df_list['datafields'][$df_id] = [
                         'searchable' => $searchable,
                         'typeclass' => $typeclass,
                         'field_uuid' => $df_uuid,
-                    );
+                    ];
                 }
 
                 // Store the result back in the cache
@@ -2819,14 +2780,14 @@ class SearchService
             WHERE dt.id IN (:datatype_ids) AND dt.is_master_type = 1
             AND dt.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'datatype_ids' => $related_datatypes
-            )
+            ]
         );
         $results = $query->getArrayResult();
 
         // Will always have at least one result in here...order doesn't matter
-        $dt_uuids = array();
+        $dt_uuids = [];
         foreach ($results as $result)
             $dt_uuids[] = $result['dt_uuid'];
 
@@ -2847,10 +2808,10 @@ class SearchService
         // Convert the template uuid into a datatype id if possible...
         /** @var DataType $datatype */
         $datatype = $this->em->getRepository('ODRAdminBundle:DataType')->findOneBy(
-            array(
+            [
                 'unique_id' => $template_uuid,
                 'is_master_type' => 1
-            )
+            ]
         );
         if ($datatype == null)
             throw new ODRNotFoundException('Datatype', false, 0x76e87ad5);

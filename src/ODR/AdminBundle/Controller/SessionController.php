@@ -57,7 +57,7 @@ class SessionController extends ODRCustomController
      */
     public function pagelengthAction($length, $intent, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -124,7 +124,7 @@ class SessionController extends ODRCustomController
      */
     public function searchlinkpagelengthAction($remote_datatype_id, $length, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -170,7 +170,7 @@ class SessionController extends ODRCustomController
      */
     public function toggleshoweditableAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -240,7 +240,7 @@ class SessionController extends ODRCustomController
      */
     public function editshowsallAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -310,7 +310,7 @@ class SessionController extends ODRCustomController
      */
     public function csvexportshowsallAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -384,7 +384,7 @@ class SessionController extends ODRCustomController
      */
     public function applythemeAction($datatype_id, $page_type, $theme_id, $persist, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -482,7 +482,7 @@ class SessionController extends ODRCustomController
      */
     public function applysidebarlayoutAction($datatype_id, $intent, $sidebar_layout_id, $persist, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -585,7 +585,7 @@ class SessionController extends ODRCustomController
      */
     public function sortSearchResultsViewAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -602,7 +602,7 @@ class SessionController extends ODRCustomController
             $df_dir = $post['df_dir'];
 
             // Clean up the provided df_list/df_dir arrays
-            $new_df_list = $new_df_dir = array();
+            $new_df_list = $new_df_dir = [];
             foreach ($df_list as $num => $df_id) {
                 if ( $df_id !== '' ) {
                     $new_df_list[] = intval($df_id);
@@ -649,7 +649,7 @@ class SessionController extends ODRCustomController
             $available_sortfields = $tmp['available_fields'];
 
             // Build a new set of sort criteria from the previously cleaned post data
-            $sort_datafields = $sort_directions = array();
+            $sort_datafields = $sort_directions = [];
             foreach ($new_df_list as $num => $df_id) {
                 $found = false;
                 foreach ($available_sortfields as $dt_id => $dt_data) {

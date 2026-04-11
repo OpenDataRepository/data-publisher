@@ -69,7 +69,7 @@ class LinkController extends ODRCustomController
             $resource_owner = $this->get('hwi_oauth.resource_owner.'.$resource);
 
             // Don't continue if already connected to this resource
-            $user_link = $em->getRepository('ODROpenRepositoryOAuthClientBundle:UserLink')->findOneBy( array('user' => $user->getId(), 'providerName' => strtolower($resource)) );
+            $user_link = $em->getRepository('ODROpenRepositoryOAuthClientBundle:UserLink')->findOneBy( ['user' => $user->getId(), 'providerName' => strtolower($resource)] );
             if ($user_link)
                 throw new ODRException('Already connected to resource');
 
@@ -94,7 +94,7 @@ class LinkController extends ODRCustomController
             $start = strpos($auth_url, '&state=') + strlen('&state=');
 
             $state = null;
-            if ( strpos($auth_url, '&', $start) !== false ) {
+            if ( str_contains(substr($auth_url, $start), '&') ) {
                 // The &state parameter is not at the end of $auth_url
                 $length = strpos($auth_url, '&', $start) - $start;
                 $state = substr($auth_url, $start, $length);
@@ -163,7 +163,7 @@ class LinkController extends ODRCustomController
 
             // ----------------------------------------
             // If the user has a link to the specified OAuth resource, remove it
-            $user_link = $em->getRepository('ODROpenRepositoryOAuthClientBundle:UserLink')->findOneBy( array('user' => $user->getId(), 'providerName' => strtolower($resource)) );
+            $user_link = $em->getRepository('ODROpenRepositoryOAuthClientBundle:UserLink')->findOneBy( ['user' => $user->getId(), 'providerName' => strtolower($resource)] );
             if ($user_link == null) {
                 // Can't disconnect when you're not actually connected...
                 throw new ODRException('Not connected to resource');

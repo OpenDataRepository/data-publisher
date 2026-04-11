@@ -64,7 +64,7 @@ class ODRGroupController extends ODRCustomController
      */
     public function managegroupsAction($datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -106,14 +106,14 @@ class ODRGroupController extends ODRCustomController
 
 
             // Render and return the wrapper HTML
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:ODRGroup:permissions_wrapper.html.twig',
-                    array(
+                    [
                         'datatype' => $datatype,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x4996d75a;
@@ -139,7 +139,7 @@ class ODRGroupController extends ODRCustomController
      */
     public function grouplistAction($datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -187,10 +187,10 @@ class ODRGroupController extends ODRCustomController
                 JOIN g.groupMeta AS gm
                 WHERE g.dataType = :datatype_id
                 AND g.deletedAt IS NULL AND gm.deletedAt IS NULL'
-            )->setParameters( array('datatype_id' => $datatype->getId()) );
+            )->setParameters( ['datatype_id' => $datatype->getId()] );
             $results = $query->getArrayResult();
 
-            $group_list = array();
+            $group_list = [];
             foreach ($results as $num => $result) {
                 $group_list[$num] = $result;
                 $group_list[$num]['groupMeta'] = $group_list[$num]['groupMeta'][0];
@@ -198,15 +198,15 @@ class ODRGroupController extends ODRCustomController
 //print_r($group_list);  exit();
 
             // Render and return the wrapper HTML
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:ODRGroup:group_list.html.twig',
-                    array(
+                    [
                         'datatype' => $datatype,
                         'group_list' => $group_list,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0xe68cb492;
@@ -232,7 +232,7 @@ class ODRGroupController extends ODRCustomController
      */
     public function addgroupAction($datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -305,7 +305,7 @@ class ODRGroupController extends ODRCustomController
      */
     public function deletegroupAction($group_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -360,10 +360,10 @@ class ODRGroupController extends ODRCustomController
                 JOIN ODRAdminBundle:UserGroup AS ug WITH ug.user = u
                 WHERE ug.group = :group_id
                 AND ug.deletedAt IS NULL'
-            )->setParameters( array('group_id' => $group_id) );
+            )->setParameters( ['group_id' => $group_id] );
             $results = $query->getArrayResult();
 
-            $user_list = array();
+            $user_list = [];
             foreach ($results as $result)
                 $user_list[] = $result['user_id'];
 
@@ -376,11 +376,11 @@ class ODRGroupController extends ODRCustomController
                 SET ug.deletedAt = :now, ug.deletedBy = :user_id
                 WHERE ug.group = :group_id AND ug.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'now' => new \DateTime(),
                     'user_id' => $user->getId(),
                     'group_id' => $group_id
-                )
+                ]
             );
             $rows = $query->execute();
 
@@ -389,7 +389,7 @@ class ODRGroupController extends ODRCustomController
                'UPDATE ODRAdminBundle:GroupDatatypePermissions AS gdtp
                 SET gdtp.deletedAt = :now
                 WHERE gdtp.group = :group_id AND gdtp.deletedAt IS NULL'
-            )->setParameters( array('now' => new \DateTime(), 'group_id' => $group_id) );
+            )->setParameters( ['now' => new \DateTime(), 'group_id' => $group_id] );
             $rows = $query->execute();
 
             // Delete all GroupDatafieldPermissions entities
@@ -397,7 +397,7 @@ class ODRGroupController extends ODRCustomController
                'UPDATE ODRAdminBundle:GroupDatafieldPermissions AS gdfp
                 SET gdfp.deletedAt = :now
                 WHERE gdfp.group = :group_id AND gdfp.deletedAt IS NULL'
-            )->setParameters( array('now' => new \DateTime(), 'group_id' => $group_id) );
+            )->setParameters( ['now' => new \DateTime(), 'group_id' => $group_id] );
             $rows = $query->execute();
 
 
@@ -442,7 +442,7 @@ class ODRGroupController extends ODRCustomController
      */
     public function grouppropertiesAction($group_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -507,9 +507,9 @@ class ODRGroupController extends ODRCustomController
             $group_form = $this->createForm(
                 UpdateGroupForm::class,
                 $submitted_data,
-                array(
+                [
                     'is_super_admin' => $is_super_admin,
-                )
+                ]
             );
 
             $group_form->handleRequest($request);
@@ -530,11 +530,11 @@ class ODRGroupController extends ODRCustomController
                 if ($group_form->isValid()) {
                     // If a value in the form changed, create a new GroupMeta entity to store the change
                     // TODO - datarecord_restriction, but in a way that doesn't suck
-                    $properties = array(
+                    $properties = [
                         'groupName' => $submitted_data->getGroupName(),
                         'groupDescription' => $submitted_data->getGroupDescription(),
                         'datarecord_restriction' => $submitted_data->getDatarecordRestriction(),
-                    );
+                    ];
                     $entity_modify_service->updateGroupMeta($user, $group, $properties);
 
 
@@ -548,10 +548,10 @@ class ODRGroupController extends ODRCustomController
                             JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
                             WHERE ug.group = :group_id
                             AND ug.deletedAt IS NULL'
-                        )->setParameters( array('group_id' => $group->getId()) );
+                        )->setParameters( ['group_id' => $group->getId()] );
                         $results = $query->getArrayResult();
 
-                        $user_list = array();
+                        $user_list = [];
                         foreach ($results as $result)
                             $user_list[] = $result['user_id'];
 
@@ -583,7 +583,7 @@ class ODRGroupController extends ODRCustomController
                 // Return the slideout html
                 $return['d'] = $templating->render(
                     'ODRAdminBundle:ODRGroup:group_properties_form.html.twig',
-                    array(
+                    [
                         'datatype' => $datatype,
                         'group' => $group,
                         'group_form' => $group_form->createView(),
@@ -591,7 +591,7 @@ class ODRGroupController extends ODRCustomController
                         'prevent_all_changes' => $prevent_all_changes,
                         'is_super_admin' => $is_super_admin,
                         'readable_search_key' => $readable_search_key,
-                    )
+                    ]
                 );
                 $return['prevent_all_changes'] = $prevent_all_changes;
             }
@@ -621,7 +621,7 @@ class ODRGroupController extends ODRCustomController
      */
     public function datatypegroupmembersAction($datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -673,10 +673,10 @@ class ODRGroupController extends ODRCustomController
 
                 WHERE dt.id = :datatype_id
                 AND dt.deletedAt IS NULL AND g.deletedAt IS NULL AND gm.deletedAt IS NULL'
-            )->setParameters( array('datatype_id' => $datatype_id) );
+            )->setParameters( ['datatype_id' => $datatype_id] );
             $results = $query->getArrayResult();
 
-            $group_list = array();
+            $group_list = [];
             foreach ($results as $result) {
                 foreach ($result['groups'] as $num => $g) {
                     $group_id = $g['id'];
@@ -684,7 +684,7 @@ class ODRGroupController extends ODRCustomController
                     $group_list[$group_id] = $g;
                     $group_list[$group_id]['groupMeta'] = $g['groupMeta'][0];
 
-                    $group_list[$group_id]['users'] = array();
+                    $group_list[$group_id]['users'] = [];
 
                     if ( isset($group_list[$group_id]['userGroups']) ) {
                         foreach ($g['userGroups'] as $num => $ug) {
@@ -706,10 +706,10 @@ class ODRGroupController extends ODRCustomController
             // Render and return the user list
             $return['d'] = $templating->render(
                 'ODRAdminBundle:ODRGroup:user_list_datatype.html.twig',
-                array(
+                [
                     'datatype' => $datatype,
                     'group_list' => $group_list,
-                )
+                ]
             );
         }
         catch (\Exception $e) {
@@ -737,7 +737,7 @@ class ODRGroupController extends ODRCustomController
      */
     public function manageusergroupsAction($user_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -761,7 +761,7 @@ class ODRGroupController extends ODRCustomController
             $datatype_permissions = $permissions_service->getDatatypePermissions($admin_user);
 
             // Deny access when the user isn't an admin of any datatype
-            $datatypes_with_admin_permission = array();
+            $datatypes_with_admin_permission = [];
             foreach ($datatype_permissions as $dt_id => $dt_permission) {
                 if ( isset($dt_permission['dt_admin']) && $dt_permission['dt_admin'] == 1 )
                     $datatypes_with_admin_permission[$dt_id] = 1;
@@ -799,23 +799,23 @@ class ODRGroupController extends ODRCustomController
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND g.deletedAt IS NULL AND gm.deletedAt IS NULL
                 ORDER BY dtm.shortName'
             )->setParameters(
-                array(
+                [
                     'datatype_ids' => $top_level_datatypes,
                     'setup_steps' => DataType::STATE_VIEWABLE
-                )
+                ]
             );
             $results = $query->getArrayResult();
 
             // ...mostly because the user may not have admin permissions to the "template group"
             //  datatype that they do have admin permissions for
-            $dt_name_lookup = array();
+            $dt_name_lookup = [];
             foreach ($results as $dt_num => $dt) {
                 $dt_uuid = $dt['unique_id'];
                 if ( isset($dt['dataTypeMeta'][0]['shortName']) )
                     $dt_name_lookup[$dt_uuid] = $dt['dataTypeMeta'][0]['shortName'];
             }
 
-            $datatypes = array();
+            $datatypes = [];
             foreach ($results as $dt_num => $dt) {
                 $dt_id = $dt['id'];
                 $dt_uuid = $dt['unique_id'];
@@ -855,7 +855,7 @@ class ODRGroupController extends ODRCustomController
 
             // Now that all the groups have been organized per datatype, split the templates from
             //  the datatypes
-            $templates = array();
+            $templates = [];
             foreach ($datatypes as $dt_id => $dt) {
                 if ( $dt['is_master_type'] ) {
                     $templates[$dt_id] = $dt;
@@ -867,24 +867,24 @@ class ODRGroupController extends ODRCustomController
             // ----------------------------------------
             // Also going to need which groups the target user is currently a member of
             /** @var UserGroup[] $user_groups */
-            $user_groups = $em->getRepository('ODRAdminBundle:UserGroup')->findBy( array('user' => $user->getId()) );
+            $user_groups = $em->getRepository('ODRAdminBundle:UserGroup')->findBy( ['user' => $user->getId()] );
 
-            $user_group_list = array();
+            $user_group_list = [];
             foreach ($user_groups as $user_group)
                 $user_group_list[ $user_group->getGroup()->getId() ] = 1;
 
             // Also store a quick indication of whether a user belongs to any group for this datatype
-            $user_datatype_group_membership = array();
+            $user_datatype_group_membership = [];
             foreach ($user_groups as $user_group)
                 $user_datatype_group_membership[ $user_group->getGroup()->getDataType()->getId() ] = 1;
 
 
             // ----------------------------------------
             // Render and return the interface
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:ODRGroup:manage_user_groups.html.twig',
-                    array(
+                    [
                         'target_user' => $user,
 
                         'dt_name_lookup' => $dt_name_lookup,
@@ -893,9 +893,9 @@ class ODRGroupController extends ODRCustomController
 
                         'user_group_list' => $user_group_list,
                         'user_datatype_group_membership' => $user_datatype_group_membership,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x09f55927;
@@ -923,7 +923,7 @@ class ODRGroupController extends ODRCustomController
      */
     public function changeusergroupAction($user_id, $group_id, $value, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1000,7 +1000,7 @@ class ODRGroupController extends ODRCustomController
                 JOIN ODRAdminBundle:Group AS g WITH ug.group = g
                 WHERE ug.user = :user_id AND g.dataType = :datatype_id
                 AND ug.deletedAt IS NULL AND g.deletedAt IS NULL'
-            )->setParameters( array('user_id' => $user->getId(), 'datatype_id' => $datatype->getId()) );
+            )->setParameters( ['user_id' => $user->getId(), 'datatype_id' => $datatype->getId()] );
             $results = $query->getArrayResult();
 
             $in_datatype_group = false;
@@ -1042,7 +1042,7 @@ class ODRGroupController extends ODRCustomController
      */
     public function grouppermissionsAction($group_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1104,7 +1104,7 @@ class ODRGroupController extends ODRCustomController
 
             // ----------------------------------------
             // Need three blocks of HTML for group administration...
-            $return['d'] = array();
+            $return['d'] = [];
 
 
             // ...first is the html for assigning datafield permissions
@@ -1119,10 +1119,10 @@ class ODRGroupController extends ODRCustomController
                 JOIN ODRAdminBundle:UserGroup AS ug WITH ug.user = u
                 WHERE ug.group = :group_id
                 AND u.enabled = 1 AND ug.deletedAt IS NULL'
-            )->setParameters( array('group_id' => $group_id) );
+            )->setParameters( ['group_id' => $group_id] );
             $results = $query->getArrayResult();
 
-            $user_list = array();
+            $user_list = [];
             foreach ($results as $result) {
                 $user_id = $result['id'];
 
@@ -1132,10 +1132,10 @@ class ODRGroupController extends ODRCustomController
 
             $return['d']['user_list_html'] = $templating->render(
                 'ODRAdminBundle:ODRGroup:user_list.html.twig',
-                array(
+                [
                     'group' => $group,
                     'user_list' => $user_list,
-                )
+                ]
             );
 
 
@@ -1144,9 +1144,9 @@ class ODRGroupController extends ODRCustomController
             $group_form = $this->createForm(
                 UpdateGroupForm::class,
                 $group_meta,
-                array(
+                [
                     'is_super_admin' => $is_super_admin,
-                )
+                ]
             );
 
             $readable_search_key = '';
@@ -1156,7 +1156,7 @@ class ODRGroupController extends ODRCustomController
 
             $return['d']['group_properties_html'] = $templating->render(
                 'ODRAdminBundle:ODRGroup:group_properties_form.html.twig',
-                array(
+                [
                     'datatype' => $datatype,
                     'group' => $group,
                     'group_form' => $group_form->createView(),
@@ -1164,7 +1164,7 @@ class ODRGroupController extends ODRCustomController
                     'prevent_all_changes' => $prevent_all_changes,
                     'is_super_admin' => $is_super_admin,
                     'readable_search_key' => $readable_search_key,
-                )
+                ]
             );
             $return['d']['prevent_all_changes'] = $prevent_all_changes;
         }
@@ -1195,7 +1195,7 @@ class ODRGroupController extends ODRCustomController
      */
     public function savedatatypepermissionAction($group_id, $datatype_id, $value, $permission, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1246,10 +1246,10 @@ class ODRGroupController extends ODRCustomController
 
             /** @var GroupDatatypePermissions $gdtp */
             $gdtp = $em->getRepository('ODRAdminBundle:GroupDatatypePermissions')->findOneBy(
-                array(
+                [
                     'group' => $group->getId(),
                     'dataType' => $datatype->getId()
-                )
+                ]
             );
             if ($gdtp == null)
                 throw new ODRNotFoundException('GroupDatatypePermissions');
@@ -1283,10 +1283,10 @@ class ODRGroupController extends ODRCustomController
                         FROM ODRAdminBundle:GroupDatatypePermissions AS gdtp
                         WHERE gdtp.group = :group_id
                         AND gdtp.deletedAt IS NULL'
-                    )->setParameters( array('group_id' => $group->getId()) );
+                    )->setParameters( ['group_id' => $group->getId()] );
                     $results = $query->getResult();
 
-                    $properties = array(
+                    $properties = [
                         'can_view_datatype' => 1,
                         'can_view_datarecord' => 1,
                         'can_add_datarecord' => 1,
@@ -1294,7 +1294,7 @@ class ODRGroupController extends ODRCustomController
                         'can_change_public_status' => 1,
                         'can_design_datatype' => 1,    // TODO - implement this permission
                         'is_datatype_admin' => 1,
-                    );
+                    ];
 
                     foreach ($results as $gdtp)
                         $entity_modify_service->updateGroupDatatypePermission($admin_user, $gdtp, $properties, true);    // Don't flush immediately
@@ -1309,13 +1309,13 @@ class ODRGroupController extends ODRCustomController
                         WHERE gdfp.group = :group_id
                         AND (gdfp.can_view_datafield = 0 OR gdfp.can_edit_datafield = 0)
                         AND gdfp.deletedAt IS NULL AND df.deletedAt IS NULL'
-                    )->setParameters( array('group_id' => $group->getId()) );
+                    )->setParameters( ['group_id' => $group->getId()] );
                     $results = $query->getResult();
 
-                    $properties = array(
+                    $properties = [
                         'can_view_datafield' => 1,
                         'can_edit_datafield' => 1,
-                    );
+                    ];
 
                     foreach ($results as $gdfp)
                         $entity_modify_service->updateGroupDatafieldPermission($admin_user, $gdfp, $properties, true);    // Don't flush immediately...
@@ -1329,13 +1329,13 @@ class ODRGroupController extends ODRCustomController
                         FROM ODRAdminBundle:GroupDatatypePermissions AS gdtp
                         WHERE gdtp.group = :group_id
                         AND gdtp.deletedAt IS NULL'
-                    )->setParameters( array('group_id' => $group->getId()) );
+                    )->setParameters( ['group_id' => $group->getId()] );
                     $results = $query->getResult();
 
-                    $properties = array(
+                    $properties = [
                         'can_design_datatype' => 0,    // TODO - implement this permission
                         'is_datatype_admin' => 0,
-                    );
+                    ];
                     foreach ($results as $gdtp)
                         $entity_modify_service->updateGroupDatatypePermission($admin_user, $gdtp, $properties, true);    // Don't flush immediately...
                     $em->flush();
@@ -1343,7 +1343,7 @@ class ODRGroupController extends ODRCustomController
             }
             else {
                 // Make the requested change to this group's permissions
-                $properties = array();
+                $properties = [];
                 switch ($permission) {
                     case 'dt_view':
                         $properties['can_view_datatype'] = $value;
@@ -1371,13 +1371,13 @@ class ODRGroupController extends ODRCustomController
                     // If the "can_view_datatype" permission is deselected, ensure all other
                     //  permissions are deselected as well...if the 'is_datatype_admin' permission
                     //  was set to 1, then this block of code can't be reached
-                    $properties = array(
+                    $properties = [
                         'can_view_datatype' => 0,
                         'can_view_datarecord' => 0,
                         'can_add_datarecord' => 0,
                         'can_delete_datarecord' => 0,
                         'can_change_public_status' => 0,
-                    );
+                    ];
                 }
 
                 // Update the database
@@ -1394,10 +1394,10 @@ class ODRGroupController extends ODRCustomController
                 JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
                 WHERE ug.group = :group_id
                 AND ug.deletedAt IS NULL'
-            )->setParameters( array('group_id' => $group->getId()) );
+            )->setParameters( ['group_id' => $group->getId()] );
             $results = $query->getArrayResult();
 
-            $user_list = array();
+            $user_list = [];
             foreach ($results as $result)
                 $user_list[] = $result['user_id'];
 
@@ -1436,7 +1436,7 @@ class ODRGroupController extends ODRCustomController
      */
     public function savedatafieldpermissionAction($group_id, $datafield_id, $value, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1489,10 +1489,10 @@ class ODRGroupController extends ODRCustomController
 
             /** @var GroupDatafieldPermissions $gdfp */
             $gdfp = $em->getRepository('ODRAdminBundle:GroupDatafieldPermissions')->findOneBy(
-                array(
+                [
                     'group' => $group->getId(),
                     'dataField' => $datafield->getId()
-                )
+                ]
             );
             if ($gdfp == null)
                 throw new ODRNotFoundException('GroupDatafieldPermissions');
@@ -1501,10 +1501,10 @@ class ODRGroupController extends ODRCustomController
             //  permissions as well
             /** @var GroupDatatypePermissions $gdtp */
             $gdtp = $em->getRepository('ODRAdminBundle:GroupDatatypePermissions')->findOneBy(
-                array(
+                [
                     'group' => $group->getId(),
                     'dataType' => $datatype->getId()
-                )
+                ]
             );
             if ($gdtp == null)
                 throw new ODRNotFoundException('GroupDatatypePermissions');
@@ -1521,20 +1521,20 @@ class ODRGroupController extends ODRCustomController
 
 
             // Make the requested change to this group's permissions
-            $properties = array();
-            $cache_update = array();
+            $properties = [];
+            $cache_update = [];
 
             if ($value == 2) {
                 $properties['can_edit_datafield'] = 1;
                 $properties['can_view_datafield'] = 1;
 
-                $cache_update = array('view' => 1, 'edit' => 1);
+                $cache_update = ['view' => 1, 'edit' => 1];
             }
             else if ($value == 1) {
                 $properties['can_edit_datafield'] = 0;
                 $properties['can_view_datafield'] = 1;
 
-                $cache_update = array('view' => 1);
+                $cache_update = ['view' => 1];
             }
             else if ($value == 0) {
                 $properties['can_edit_datafield'] = 0;
@@ -1553,10 +1553,10 @@ class ODRGroupController extends ODRCustomController
                 JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
                 WHERE ug.group = :group_id
                 AND ug.deletedAt IS NULL'
-            )->setParameters( array('group_id' => $group->getId()) );
+            )->setParameters( ['group_id' => $group->getId()] );
             $results = $query->getArrayResult();
 
-            $user_list = array();
+            $user_list = [];
             foreach ($results as $result)
                 $user_list[] = $result['user_id'];
 

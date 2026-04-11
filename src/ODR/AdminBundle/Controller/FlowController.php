@@ -264,13 +264,13 @@ class FlowController extends ODRCustomController
                 case 'csv_import_file_storage':
 //                case 'xml_import_file_storage':
                     $maxsize = max( intval($validation_params['file']['maxSize']), intval($validation_params['image']['maxSize']) );
-                    $validation_params = array(
+                    $validation_params = [
                         'maxSize' => $maxsize,
                         'maxSizeErrorMessage' => 'The uploaded file is too large.  Allowed maximum size is '.$maxsize.' MB.',
 //                        'mimeTypes' => array_unique( array_merge($validation_params['file']['mimeTypes'], $validation_params['image']['mimeTypes']) ),
-                        'mimeTypes' => array(),
+                        'mimeTypes' => [],
                         'mimeTypesErrorMessage' => 'Please upload a valid file for later importing.',   // TODO
-                    );
+                    ];
                     break;
                 default:
                     throw new ODRBadRequestException('Invalid upload type');
@@ -317,7 +317,7 @@ class FlowController extends ODRCustomController
                 $expected_size = intval( $post->get('flowTotalSize') );
                 $current_chunk_size = intval( $post->get('flowCurrentChunkSize') );
                 $identifier = $post->get('flowIdentifier');
-                $original_filename = trim( $post->get('flowFilename') );
+                $original_filename = trim( (string) $post->get('flowFilename') );
 
                 // TODO - unescape the filename if coming from a wordpress install?
 

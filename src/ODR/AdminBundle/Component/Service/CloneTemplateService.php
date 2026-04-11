@@ -46,74 +46,6 @@ class CloneTemplateService
 {
 
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var EntityMetaModifyService
-     */
-    private $emm_service;
-
-    /**
-     * @var CacheService
-     */
-    private $cache_service;
-
-    /**
-     * @var CloneThemeService
-     */
-    private $ct_service;
-
-    /**
-     * @var DatabaseInfoService
-     */
-    private $dbi_service;
-
-    /**
-     * @var DatatreeInfoService
-     */
-    private $dti_service;
-
-    /**
-     * @var EntityCreationService
-     */
-    private $ec_service;
-
-    /**
-     * @var LockService
-     */
-    private $lock_service;
-
-    /**
-     * @var PermissionsManagementService
-     */
-    private $pm_service;
-
-    /**
-     * @var ThemeInfoService
-     */
-    private $ti_service;
-
-    /**
-     * @var UUIDService
-     */
-    private $uuid_service;
-
-    /**
-     * @var EventDispatcherInterface
-     */
-    private $event_dispatcher;
-
-    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-    /**
      * @var DataType[]
      */
     private $template_datatypes;
@@ -177,64 +109,50 @@ class CloneTemplateService
     /**
      * CloneTemplateService constructor.
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param CacheService $cache_service
-     * @param CloneThemeService $clone_theme_service
-     * @param DatabaseInfoService $database_info_service
-     * @param DatatreeInfoService $datatree_info_service
-     * @param EntityCreationService $entity_creation_service
-     * @param EntityMetaModifyService $entity_meta_modify_service
+     * @param CloneThemeService $ct_service
+     * @param DatabaseInfoService $dbi_service
+     * @param DatatreeInfoService $dti_service
+     * @param EntityCreationService $ec_service
+     * @param EntityMetaModifyService $emm_service
      * @param LockService $lock_service
-     * @param PermissionsManagementService $permissions_service
-     * @param ThemeInfoService $theme_info_service
+     * @param PermissionsManagementService $pm_service
+     * @param ThemeInfoService $ti_service
      * @param UUIDService $uuid_service
      * @param EventDispatcherInterface $event_dispatcher
      * @param Logger $logger
      */
     public function __construct(
-        EntityManager $entity_manager,
-        CacheService $cache_service,
-        CloneThemeService $clone_theme_service,
-        DatabaseInfoService $database_info_service,
-        DatatreeInfoService $datatree_info_service,
-        EntityCreationService $entity_creation_service,
-        EntityMetaModifyService $entity_meta_modify_service,
-        LockService $lock_service,
-        PermissionsManagementService $permissions_service,
-        ThemeInfoService $theme_info_service,
-        UUIDService $uuid_service,
-        EventDispatcherInterface $event_dispatcher,
-        Logger $logger
+        private readonly EntityManager $em,
+        private readonly CacheService $cache_service,
+        private readonly CloneThemeService $ct_service,
+        private readonly DatabaseInfoService $dbi_service,
+        private readonly DatatreeInfoService $dti_service,
+        private readonly EntityCreationService $ec_service,
+        private readonly EntityMetaModifyService $emm_service,
+        private readonly LockService $lock_service,
+        private readonly PermissionsManagementService $pm_service,
+        private readonly ThemeInfoService $ti_service,
+        private readonly UUIDService $uuid_service,
+        private readonly EventDispatcherInterface $event_dispatcher,
+        private readonly Logger $logger
     ) {
-        $this->em = $entity_manager;
-        $this->cache_service = $cache_service;
-        $this->ct_service = $clone_theme_service;
-        $this->dbi_service = $database_info_service;
-        $this->dti_service = $datatree_info_service;
-        $this->ec_service = $entity_creation_service;
-        $this->emm_service = $entity_meta_modify_service;
-        $this->lock_service = $lock_service;
-        $this->pm_service = $permissions_service;
-        $this->ti_service = $theme_info_service;
-        $this->uuid_service = $uuid_service;
-        $this->event_dispatcher = $event_dispatcher;
-        $this->logger = $logger;
+        $this->template_datatypes = [];
+        $this->template_datafields = [];
+        $this->template_radio_options = [];
+        $this->template_tags = [];
 
-        $this->template_datatypes = array();
-        $this->template_datafields = array();
-        $this->template_radio_options = array();
-        $this->template_tags = array();
+        $this->derived_datatypes = [];
+        $this->derived_datafields = [];
+        $this->derived_radio_options = [];
+        $this->derived_tags = [];
+        $this->derived_tag_trees = [];
 
-        $this->derived_datatypes = array();
-        $this->derived_datafields = array();
-        $this->derived_radio_options = array();
-        $this->derived_tags = array();
-        $this->derived_tag_trees = array();
+        $this->modified_linked_datatypes = [];
 
-        $this->modified_linked_datatypes = array();
-
-        $this->created_datafields = array();
-        $this->created_dtsf_entries = array();
+        $this->created_datafields = [];
+        $this->created_dtsf_entries = [];
     }
 
 
@@ -446,7 +364,7 @@ class CloneTemplateService
     private function cleanDatatypeArray($datatype)
     {
         // Only want to keep these keys...defining it this way because isset() is faster than in_array()
-        $keep = array(
+        $keep = [
             'id' => 1,
 //            'revision' => 1,
 //            'unique_id' => 1,
@@ -465,9 +383,9 @@ class CloneTemplateService
 //            'sortFields' => 1,
 
             'copy_theme_structure' => 1,
-        );
+        ];
 
-        $meta_keep = array(
+        $meta_keep = [
 //            'master_revision' => 1,
 //            'master_published_revision' => 1,
 //            'tracking_master_revision' => 1,
@@ -481,7 +399,7 @@ class CloneTemplateService
 //            'newRecordsArePublic' => 1,
 //            'externalIdField' => 1,
 //            'backgroundImageField' => 1,
-        );
+        ];
 
         // NOTE - derived datatypes don't really have much of a reason to change external_id/name/sort
         //  fields (assuming the template is properly designed), but actually enforcing this is both
@@ -532,7 +450,7 @@ class CloneTemplateService
     private function cleanDatafieldArray($datafields)
     {
         // Only want to keep these keys...defining it this way because isset() is faster than in_array()
-        $keep = array(
+        $keep = [
             'id' => 1,
             'dataFieldMeta' => 1,
 //            'is_master_field' => 1,
@@ -543,13 +461,13 @@ class CloneTemplateService
             'radioOptions' => 1,
             'tags' => 1,
             'tagTree' => 1,
-        );
-        $keep_df_meta = array(
+        ];
+        $keep_df_meta = [
             'is_unique' => 1,
             'allow_multiple_uploads' => 1,
             'radio_option_name_sort' => 1,
             'tags_allow_multiple_levels' => 1,
-        );
+        ];
         // NOTE - if adding/removing any of these datafieldMeta entries, need to modify both
         //  DisplaytemplateController and UpdateDataFieldsForm as well
 
@@ -571,7 +489,7 @@ class CloneTemplateService
 
             // Flatten the array of radio options if it exists
             if ( isset($df['radioOptions']) ) {
-                $new_ro_list = array();
+                $new_ro_list = [];
                 foreach ($df['radioOptions'] as $num => $ro)
                     $new_ro_list[ $ro['radioOptionUuid'] ] = $ro['optionName'];
                 $datafields[$df_id]['radioOptions'] = $new_ro_list;
@@ -580,8 +498,8 @@ class CloneTemplateService
             // If tag tree entries exist, they need to be flattened and stored by tagUuid instead
             //  of by tag ID...since they're stacked, this needs to be done recursively
             if ( isset($df['tags']) ) {
-                $new_tag_list = array();
-                $new_tag_tree = array();
+                $new_tag_list = [];
+                $new_tag_tree = [];
                 self::cleanTagArray($df['tags'], $new_tag_list, $new_tag_tree, null);
 
                 $datafields[$df_id]['tags'] = $new_tag_list;
@@ -609,15 +527,15 @@ class CloneTemplateService
             $display_order = $tag['tagMeta']['displayOrder'];
 
             // Flatten the tag array and store by uuid...
-            $new_tag_list[$tag_uuid] = array(
+            $new_tag_list[$tag_uuid] = [
                 'tagName' => $tag_name,
                 'displayOrder' => $display_order,
-            );
+            ];
 
             // Also convert the tag tree from parent_id => array of child_ids to store uuids instead
             if ( !is_null($parent_tag_uuid) ) {
                 if ( !isset($new_tag_tree[$parent_tag_uuid]) )
-                    $new_tag_tree[$parent_tag_uuid] = array();
+                    $new_tag_tree[$parent_tag_uuid] = [];
                 $new_tag_tree[$parent_tag_uuid][$tag_uuid] = '';
             }
 
@@ -711,7 +629,7 @@ class CloneTemplateService
                         // Need to check radio options...
                         if ( isset($template_datafields[$master_df_id]['radioOptions']) ) {
                             $template_options = $template_datafields[$master_df_id]['radioOptions'];
-                            $derived_options = array();
+                            $derived_options = [];
                             if ( isset($derived_datafields[$df_id]['radioOptions']) )
                                 $derived_options = $derived_datafields[$df_id]['radioOptions'];
 
@@ -722,18 +640,18 @@ class CloneTemplateService
                                 $template_array[$t_dt_id]['dataFields'][$master_df_id]['radioOptions'] = $radio_option_changelists;
                             }
                             else {
-                                $template_array[$t_dt_id]['dataFields'][$master_df_id]['radioOptions'] = array(
-                                    'created' => array(),
-                                    'updated' => array(),
-                                    'deleted' => array(),
-                                );
+                                $template_array[$t_dt_id]['dataFields'][$master_df_id]['radioOptions'] = [
+                                    'created' => [],
+                                    'updated' => [],
+                                    'deleted' => [],
+                                ];
                             }
                         }
 
                         // Need to check tags...
                         if ( isset($template_datafields[$master_df_id]['tags']) ) {
                             $template_tags = $template_datafields[$master_df_id]['tags'];
-                            $derived_tags = array();
+                            $derived_tags = [];
                             if ( isset($derived_datafields[$df_id]['tags']) )
                                 $derived_tags = $derived_datafields[$df_id]['tags'];
 
@@ -749,11 +667,11 @@ class CloneTemplateService
                             }
                             else {
                                 // Can't leave these lying around
-                                $template_array[$t_dt_id]['dataFields'][$master_df_id]['tags'] = array(
-                                    'created' => array(),
-                                    'updated' => array(),
-                                    'deleted' => array(),
-                                );
+                                $template_array[$t_dt_id]['dataFields'][$master_df_id]['tags'] = [
+                                    'created' => [],
+                                    'updated' => [],
+                                    'deleted' => [],
+                                ];
                             }
                         }
 
@@ -769,7 +687,7 @@ class CloneTemplateService
                             }
                             else {
                                 // Can't leave these lying around
-                                $template_array[$t_dt_id]['dataFields'][$master_df_id]['tagTree'] = array();
+                                $template_array[$t_dt_id]['dataFields'][$master_df_id]['tagTree'] = [];
                             }
                         }
 
@@ -851,7 +769,7 @@ class CloneTemplateService
 
         // If the derived datatype matches the template datatype, then return that no changes need to be made
         if ( !$has_datatype_changes && !$has_datafield_changes && !$has_childtype_changes )
-            return array();
+            return [];
         else
             return $template_array;
     }
@@ -867,11 +785,11 @@ class CloneTemplateService
      */
     private function buildRadioOptionsChangelist($template_options, $derived_options)
     {
-        $changelist = array(
-            'created' => array(),
-            'updated' => array(),
-            'deleted' => array(),
-        );
+        $changelist = [
+            'created' => [],
+            'updated' => [],
+            'deleted' => [],
+        ];
 
         // Check every radio option listed in the template datatype...
         foreach ($template_options as $ro_uuid => $option_name) {
@@ -898,7 +816,7 @@ class CloneTemplateService
         if ( !empty($changelist['created']) || !empty($changelist['updated']) || !empty($changelist['deleted']) )
             return $changelist;
         else
-            return array();
+            return [];
     }
 
 
@@ -912,11 +830,11 @@ class CloneTemplateService
      */
     private function buildTagsChangelist($template_tags, $derived_tags)
     {
-        $changelist = array(
-            'created' => array(),
-            'updated' => array(),
-            'deleted' => array(),
-        );
+        $changelist = [
+            'created' => [],
+            'updated' => [],
+            'deleted' => [],
+        ];
 
         // Check every tag listed in the template datatype...
         foreach ($template_tags as $tag_uuid => $tag_data) {
@@ -956,7 +874,7 @@ class CloneTemplateService
         if ( !empty($changelist['created']) || !empty($changelist['updated']) || !empty($changelist['deleted']) )
             return $changelist;
         else
-            return array();
+            return [];
     }
 
 
@@ -970,10 +888,10 @@ class CloneTemplateService
      */
     private function buildTagTreeChangelist($template_tag_hierarchy, $derived_tag_hierarchy)
     {
-        $changelist = array(
-            'created' => array(),
-            'deleted' => array(),
-        );
+        $changelist = [
+            'created' => [],
+            'deleted' => [],
+        ];
 
         // For every tag tree entry listed in the template datatype...
         foreach ($template_tag_hierarchy as $parent_tag_uuid => $child_tags) {
@@ -984,7 +902,7 @@ class CloneTemplateService
                 ) {
                     // ...then the derived datatype needs a new tag tree entry
                     if ( !isset($changelist['created'][$parent_tag_uuid]) )
-                        $changelist['created'][$parent_tag_uuid] = array();
+                        $changelist['created'][$parent_tag_uuid] = [];
                     $changelist['created'][$parent_tag_uuid][$child_tag_uuid] = '';
                 }
             }
@@ -999,7 +917,7 @@ class CloneTemplateService
                 ) {
                     // ...then the derived datatype needs to delete a tag tree entry
                     if ( !isset($changelist['deleted'][$parent_tag_uuid]) )
-                        $changelist['deleted'][$parent_tag_uuid] = array();
+                        $changelist['deleted'][$parent_tag_uuid] = [];
                     $changelist['deleted'][$parent_tag_uuid][$child_tag_uuid] = '';
                 }
             }
@@ -1009,7 +927,7 @@ class CloneTemplateService
         if ( !empty($changelist['created']) || !empty($changelist['deleted']) )
             return $changelist;
         else
-            return array();
+            return [];
     }
 
 
@@ -1129,7 +1047,7 @@ class CloneTemplateService
         $this->cache_service->delete('top_level_themes');
         $this->cache_service->delete('cached_datatree_array');
 
-        $modified_top_level_datatypes = array();
+        $modified_top_level_datatypes = [];
         foreach ($this->derived_datatypes as $dt) {
             // Don't remember whether $this->derived_datatypes contains linked datatypes or not...
             //  ...do it this way to be safe
@@ -1144,7 +1062,7 @@ class CloneTemplateService
                 $event = new DatatypeImportedEvent($dt, $user);
                 $this->event_dispatcher->dispatch(DatatypeImportedEvent::NAME, $event);
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
 //                if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -1171,13 +1089,13 @@ class CloneTemplateService
             WHERE g.dataType IN (:datatype_ids)
             AND g.deletedAt IS NULL AND ug.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'datatype_ids' => array_keys($modified_top_level_datatypes)
-            )
+            ]
         );
         $results = $query->getArrayResult();
 
-        $affected_users = array();
+        $affected_users = [];
         foreach ($results as $result) {
             $user_id = $result['user_id'];
 
@@ -1191,7 +1109,7 @@ class CloneTemplateService
            'SELECT u.id AS user_id
             FROM ODROpenRepositoryUserBundle:User AS u
             WHERE u.roles LIKE :role'
-        )->setParameters( array('role' => '%ROLE_SUPER_ADMIN%') );
+        )->setParameters( ['role' => '%ROLE_SUPER_ADMIN%'] );
         $results = $query->getArrayResult();
 
         foreach ($results as $result) {
@@ -1348,7 +1266,7 @@ class CloneTemplateService
      */
     private function hydrateDatatypes($grandparent_ids, $query_datatypes, $type)
     {
-        $hydrated_datatypes = array();
+        $hydrated_datatypes = [];
 
         $query_str =
            'SELECT dt
@@ -1366,15 +1284,15 @@ class CloneTemplateService
         }
 
         $query = $this->em->createQuery($query_str)->setParameters(
-            array(
+            [
                 'grandparent_ids' => $grandparent_ids,
                 'datatype_ids' => $query_datatypes,
-            )
+            ]
         );
         $results = $query->getResult();
 
         /** @var DataType $dt */
-        $logging_contents = array();
+        $logging_contents = [];
         foreach ($results as $dt) {
             $hydrated_datatypes[$dt->getId()] = $dt;
             $logging_contents[$dt->getId()] = $dt->getShortName();
@@ -1397,7 +1315,7 @@ class CloneTemplateService
      */
     private function hydrateDatafields($grandparent_ids, $query_datafields, $type)
     {
-        $hydrated_datafields = array();
+        $hydrated_datafields = [];
 
         $query_str =
            'SELECT df
@@ -1416,15 +1334,15 @@ class CloneTemplateService
         }
 
         $query = $this->em->createQuery($query_str)->setParameters(
-            array(
+            [
                 'grandparent_ids' => $grandparent_ids,
                 'datafield_ids' => $query_datafields,
-            )
+            ]
         );
         $results = $query->getResult();
 
         /** @var DataFields $df */
-        $logging_contents = array();
+        $logging_contents = [];
         foreach ($results as $df) {
             $hydrated_datafields[$df->getId()] = $df;
             $logging_contents[$df->getId()] = $df->getFieldName();
@@ -1447,7 +1365,7 @@ class CloneTemplateService
      */
     private function hydrateRadioOptions($grandparent_ids, $query_radio_options, $type)
     {
-        $hydrated_radio_options = array();
+        $hydrated_radio_options = [];
 
         $query_str =
            'SELECT ro
@@ -1468,15 +1386,15 @@ class CloneTemplateService
         }
 
         $query = $this->em->createQuery($query_str)->setParameters(
-            array(
+            [
                 'grandparent_ids' => $grandparent_ids,
                 'ro_uuids' => $query_radio_options,
-            )
+            ]
         );
         $results = $query->getResult();
 
         /** @var RadioOptions $ro */
-        $logging_contents = array();
+        $logging_contents = [];
         foreach ($results as $ro) {
             $hydrated_radio_options[$ro->getRadioOptionUuid()] = $ro;
             $logging_contents[$ro->getRadioOptionUuid()] = $ro->getOptionName();
@@ -1499,7 +1417,7 @@ class CloneTemplateService
      */
     private function hydrateTags($grandparent_ids, $query_tags, $type)
     {
-        $hydrated_tags = array();
+        $hydrated_tags = [];
 
         $query_str =
            'SELECT t
@@ -1520,15 +1438,15 @@ class CloneTemplateService
         }
 
         $query = $this->em->createQuery($query_str)->setParameters(
-            array(
+            [
                 'grandparent_ids' => $grandparent_ids,
                 'tag_uuids' => $query_tags,
-            )
+            ]
         );
         $results = $query->getResult();
 
         /** @var Tags $t */
-        $logging_contents = array();
+        $logging_contents = [];
         foreach ($results as $t) {
             $hydrated_tags[$t->getTagUuid()] = $t;
             $logging_contents[$t->getTagUuid()] = $t->getTagName();
@@ -1549,14 +1467,14 @@ class CloneTemplateService
      */
     private function hydrateTagTrees($grandparent_ids, $tag_trees)
     {
-        $hydrated_tag_trees = array();
+        $hydrated_tag_trees = [];
 
-        $pieces = array();
-        $params = array('grandparent_ids' => $grandparent_ids);
+        $pieces = [];
+        $params = ['grandparent_ids' => $grandparent_ids];
 
         $count = 0;
         foreach ($tag_trees as $key => $num) {
-            $tag_uuids = explode('|', $key);
+            $tag_uuids = explode('|', (string) $key);
             $pieces[] = '(parent.tagUuid = :parent_uuid_'.$count.' AND child.tagUuid = :child_uuid_'.$count.')';
 
             $params['parent_uuid_'.$count] = $tag_uuids[0];
@@ -1626,7 +1544,7 @@ class CloneTemplateService
         // ----------------------------------------
         // Update datatype properties if needed
         if ( isset($diff_array['dataTypeMeta']) ) {
-            $props = array();
+            $props = [];
             foreach ($diff_array['dataTypeMeta'] as $key => $value) {
                 $props[$key] = $value;
                 $this->logger->debug('CloneTemplateService:'.$indent_text.' -- setting "'.$key.'" to "'.$value.'"...');
@@ -1638,7 +1556,7 @@ class CloneTemplateService
 
         // ----------------------------------------
         // Create/modify all datafields necessary
-        $local_created_datafields = array();
+        $local_created_datafields = [];
         if ( isset($diff_array['dataFields']) ) {
             foreach ($diff_array['dataFields'] as $df_id => $df) {
                 // Locate an existing datafield in the derived datatype that has $master_df as its
@@ -1724,7 +1642,7 @@ class CloneTemplateService
                 else if ( !empty($df['dataFieldMeta']) ) {
                     // If the derived datafield does exist, then ensure that several relevant
                     //  properties remain in sync with its master datafield
-                    $props = array();
+                    $props = [];
                     foreach ($df['dataFieldMeta'] as $key => $value) {
                         $props[$key] = $value;
                         $this->logger->debug('CloneTemplateService:'.$indent_text.' -- setting "'.$key.'" to "'.$value.'"...');
@@ -1753,11 +1671,11 @@ class CloneTemplateService
                         // If this array entry doesn't exist, then this is a new datafield...all
                         //  radio options are therefore meant to be created
                         $ro_list = $df['radioOptions'];
-                        $df['radioOptions'] = array(
+                        $df['radioOptions'] = [
                             'created' => $ro_list,
-                            'updated' => array(),
-                            'deleted' => array(),
-                        );
+                            'updated' => [],
+                            'deleted' => [],
+                        ];
                     }
 
                     foreach ($df['radioOptions']['created'] as $ro_uuid => $option_name) {
@@ -1813,10 +1731,10 @@ class CloneTemplateService
                             SET rs.deletedAt = :now
                             WHERE rs.radioOption = :radio_option_id AND rs.deletedAt IS NULL'
                         )->setParameters(
-                            array(
+                            [
                                 'now' => new \DateTime(),
                                 'radio_option_id' => $derived_ro->getId(),
-                            )
+                            ]
                         );
                         $rows = $query->execute();
 
@@ -1831,11 +1749,11 @@ class CloneTemplateService
                         // If this array entry doesn't exist, then this is a new datafield...all
                         //  tags are therefore meant to be created
                         $tag_list = $df['tags'];
-                        $df['tags'] = array(
+                        $df['tags'] = [
                             'created' => $tag_list,
-                            'updated' => array(),
-                            'deleted' => array(),
-                        );
+                            'updated' => [],
+                            'deleted' => [],
+                        ];
                     }
 
                     foreach ($df['tags']['created'] as $tag_uuid => $tag_data) {
@@ -1865,10 +1783,10 @@ class CloneTemplateService
                         // The derived datatype has this tag, and it needs renaming
                         $derived_tag = $this->derived_tags[$tag_uuid];
 
-                        $properties = array(
+                        $properties = [
                             'tagName' => $tag_data['tagName'],
                             'displayOrder' => $tag_data['displayOrder'],
-                        );
+                        ];
                         $this->emm_service->updateTagMeta($user, $derived_tag, $properties, true);    // Don't want to immediately flush these changes
 
                         $this->logger->debug('CloneTemplateService:'.$indent_text.' -- updated tag '.$tag_uuid.' to "'.$tag_data['tagName'].'", displayOrder '.$tag_data['displayOrder'].' (derived_df: '.$derived_df->getId().') (derived_dt: '.$derived_datatype->getId().')');
@@ -1895,10 +1813,10 @@ class CloneTemplateService
                             SET ts.deletedAt = :now
                             WHERE ts.tag = :tag_id AND ts.deletedAt IS NULL'
                         )->setParameters(
-                            array(
+                            [
                                 'now' => new \DateTime(),
                                 'tag_id' => $derived_tag->getId(),
-                            )
+                            ]
                         );
                         $rows = $query->execute();
 
@@ -1913,10 +1831,10 @@ class CloneTemplateService
                         // If this array entry doesn't exist, then this is a new datafield...all
                         //  tag tree entries are therefore meant to be created
                         $tag_tree_list = $df['tagTree'];
-                        $df['tagTree'] = array(
+                        $df['tagTree'] = [
                             'created' => $tag_tree_list,
-                            'deleted' => array(),
-                        );
+                            'deleted' => [],
+                        ];
                     }
 
                     foreach ($df['tagTree']['created'] as $parent_tag_uuid => $child_tags) {
@@ -2116,10 +2034,10 @@ class CloneTemplateService
                             AND t.deletedAt IS NULL AND te.deletedAt IS NULL
                             AND tem.deletedAt IS NULL AND tdt.deletedAt IS NULL'
                         )->setParameters(
-                            array(
+                            [
                                 'template_theme' => $template_master_theme->getId(),
                                 'template_datatype' => $master_datatype->getId(),
-                            )
+                            ]
                         );
                         /** @var ThemeElementMeta $template_te_meta */
                         $sub_result = $query->getResult();
@@ -2176,10 +2094,10 @@ class CloneTemplateService
                         WHERE t.id = :master_theme_id AND tdt.dataType = :linked_datatype_id
                         AND t.deletedAt IS NULL AND te.deletedAt IS NULL AND tdt.deletedAt IS NULL'
                     )->setParameters(
-                        array(
+                        [
                             'master_theme_id' => $master_theme->getId(),
                             'linked_datatype_id' => $derived_child_datatype->getId()
-                        )
+                        ]
                     );
                     $results = $query->getArrayResult();
 
@@ -2217,7 +2135,7 @@ class CloneTemplateService
                     self::cloneRenderPlugins($indent_text, $user, $derived_child_theme, $derived_child_datatype, null);
 
                     // Need to set the external_id fields for the new datatype...
-                    $child_properties = array();
+                    $child_properties = [];
                     if ( !is_null($master_datatype->getExternalIdField()) ) {
                         $child_df = $this->created_datafields[ $master_datatype->getExternalIdField()->getId() ];
                         $child_properties['externalIdField'] = $child_df;

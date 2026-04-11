@@ -28,47 +28,15 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 class FieldtypeMigrationService
 {
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var CacheService
-     */
-    private $cache_service;
-
-    /**
-     * @var EventDispatcherInterface
-     */
-    private $event_dispatcher;
-
-    // NOTE - $event_dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * FieldtypeMigrationService constructor
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param CacheService $cache_service
      * @param EventDispatcherInterface $event_dispatcher
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        CacheService $cache_service,
-        EventDispatcherInterface $event_dispatcher,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->cache_service = $cache_service;
-        $this->event_dispatcher = $event_dispatcher;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly Logger $logger)
+    {
     }
 
 
@@ -90,12 +58,12 @@ class FieldtypeMigrationService
 //            throw new ODRBadRequestException('FieldtypeMigrationService::ReportOnTextConvert() called on master datafield '.$datafield_id.' "'.$datafield->getFieldName().'"', 0x51ae1528);
 
         // This should only get called when coming from text fields
-        $mapping = array(
+        $mapping = [
             'ShortVarchar' => 'odr_short_varchar',
             'MediumVarchar' => 'odr_medium_varchar',
             'LongVarchar' => 'odr_long_varchar',
             'LongText' => 'odr_long_text',
-        );
+        ];
 
         $old_typeclass = $datafield->getFieldType()->getTypeClass();
 //        switch ($old_typeclass) {
@@ -151,7 +119,7 @@ class FieldtypeMigrationService
         $conn = $this->em->getConnection();
         $results = $conn->executeQuery($query);
 
-        $data = array();
+        $data = [];
         if ( !$return_values ) {
             foreach ($results as $result) {
                 $dr_id = $result['dr_id'];
@@ -165,7 +133,7 @@ class FieldtypeMigrationService
                 $old_value = $result['old_value'];
                 $new_value = $result['new_value'];
 
-                $data[$dr_id] = array('gdr_id' => $gdr_id, 'old_value' => $old_value, 'new_value' => $new_value);
+                $data[$dr_id] = ['gdr_id' => $gdr_id, 'old_value' => $old_value, 'new_value' => $new_value];
             }
         }
 
@@ -191,18 +159,18 @@ class FieldtypeMigrationService
 //            throw new ODRBadRequestException('FieldtypeMigrationService::ReportOnTextConvert() called on master datafield '.$datafield_id.' "'.$datafield->getFieldName().'"', 0x51ae1528);
 
         // This should only get called when coming from Integer/Decimal/Datetime fields
-        $mapping = array(
+        $mapping = [
             'IntegerValue' => 'odr_integer_value',
             'DecimalValue' => 'odr_decimal_value',
             'DatetimeValue' => 'odr_datetime_value',
-        );
+        ];
         $old_typeclass = $datafield->getFieldType()->getTypeClass();
 
         $query = '';
         if ( !$return_values ) {
             // Migration only cares about the records with values that won't "fit" into text fieldtypes
             //  ...but because of the typeclasses this is called with, there won't ever be a problem
-            return array();
+            return [];
         }
         else {
             // Reports want a link to the record's edit page and the before/after values
@@ -221,7 +189,7 @@ class FieldtypeMigrationService
         $conn = $this->em->getConnection();
         $results = $conn->executeQuery($query);
 
-        $data = array();
+        $data = [];
 //        if ( !$return_values ) {
 //            foreach ($results as $result) {
 //                $dr_id = $result['dr_id'];
@@ -235,7 +203,7 @@ class FieldtypeMigrationService
                 $old_value = $result['old_value'];
                 $new_value = $result['new_value'];
 
-                $data[$dr_id] = array('gdr_id' => $gdr_id, 'old_value' => $old_value, 'new_value' => $new_value);
+                $data[$dr_id] = ['gdr_id' => $gdr_id, 'old_value' => $old_value, 'new_value' => $new_value];
             }
 //        }
 
@@ -259,13 +227,13 @@ class FieldtypeMigrationService
 //            throw new ODRBadRequestException('FieldtypeMigrationService::ReportOnIntegerConvert() called on master datafield '.$datafield_id.' "'.$datafield->getFieldName().'"', 0xe15e7ebf);
 
         // This should only get called when coming from text or decimal fields
-        $mapping = array(
+        $mapping = [
             'DecimalValue' => 'odr_decimal_value',
             'ShortVarchar' => 'odr_short_varchar',
             'MediumVarchar' => 'odr_medium_varchar',
             'LongVarchar' => 'odr_long_varchar',
             'LongText' => 'odr_long_text',
-        );
+        ];
 
         $old_typeclass = $datafield->getFieldType()->getTypeClass();
         switch ($old_typeclass) {
@@ -322,13 +290,13 @@ class FieldtypeMigrationService
                 AND df.deletedAt IS NULL';
             $results = $conn->executeQuery($query);
 
-            $data = array();
+            $data = [];
             foreach ($results as $result) {
                 $gdr_id = $result['gdr_id'];
                 $dr_id = $result['dr_id'];
                 $old_value = $result['value'];
 
-                $data[$dr_id] = array('gdr_id' => $gdr_id, 'old_value' => $old_value, 'new_value' => '', 'pass' => '');
+                $data[$dr_id] = ['gdr_id' => $gdr_id, 'old_value' => $old_value, 'new_value' => '', 'pass' => ''];
             }
 
             // ...and the second to get the values that mysql can cast without throwing an exception
@@ -376,12 +344,12 @@ class FieldtypeMigrationService
 //            throw new ODRBadRequestException('FieldtypeMigrationService::ReportOnDecimalConvert() called on master datafield '.$datafield_id.' "'.$datafield->getFieldName().'"', 0x01248acb);
 
         // This should only get called when coming from text fields
-        $mapping = array(
+        $mapping = [
             'ShortVarchar' => 'odr_short_varchar',
             'MediumVarchar' => 'odr_medium_varchar',
             'LongVarchar' => 'odr_long_varchar',
             'LongText' => 'odr_long_text',
-        );
+        ];
 
         $old_typeclass = $datafield->getFieldType()->getTypeClass();
         switch ($old_typeclass) {
@@ -449,13 +417,13 @@ class FieldtypeMigrationService
                 AND df.deletedAt IS NULL';
             $results = $conn->executeQuery($query);
 
-            $data = array();
+            $data = [];
             foreach ($results as $result) {
                 $gdr_id = $result['gdr_id'];
                 $dr_id = $result['dr_id'];
                 $old_value = $result['value'];
 
-                $data[$dr_id] = array('gdr_id' => $gdr_id, 'old_value' => $old_value, 'new_value' => '', 'pass' => '');
+                $data[$dr_id] = ['gdr_id' => $gdr_id, 'old_value' => $old_value, 'new_value' => '', 'pass' => ''];
             }
 
             // Going to use CAST() repeatedly to get other data...
@@ -557,7 +525,7 @@ class FieldtypeMigrationService
             AND df.deletedAt IS NULL';
         $results = $conn->executeQuery($query);
 
-        $data = array();
+        $data = [];
         foreach ($results as $result) {
             $gdr_id = $result['gdr_id'];
             $dr_id = $result['dr_id'];
@@ -565,7 +533,7 @@ class FieldtypeMigrationService
             $selected = $result['selected'];
 
             if ( !isset($data[$dr_id]) )
-                $data[$dr_id] = array('gdr_id' => $gdr_id, 'ro_list' => array());
+                $data[$dr_id] = ['gdr_id' => $gdr_id, 'ro_list' => []];
 
             if ( $selected == 1 )
                 $data[$dr_id]['ro_list'][$ro_id] = 1;

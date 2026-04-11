@@ -54,7 +54,7 @@ class ClearTagRebuildCommand extends ContainerAwareCommand
             else
                 $job = $pheanstalk->watch('tag_rebuild')->ignore('default')->reserve();
 
-            $data = json_decode($job->getData());
+            $data = json_decode((string) $job->getData());
             $job_source = $data->redis_prefix;
 
 

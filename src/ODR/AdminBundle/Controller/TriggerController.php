@@ -53,7 +53,7 @@ class TriggerController extends ODRCustomController
      */
     public function homeAction($datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -95,15 +95,15 @@ class TriggerController extends ODRCustomController
             // Render the required version of the page
             $html = $templating->render(
                 'ODRAdminBundle:Trigger:home.html.twig',
-                array(
+                [
                     'stacked_datatype_array' => $stacked_dt_array,
-                )
+                ]
             );
 
-            $return['d'] = array(
+            $return['d'] = [
                 'datatype_id' => $datatype->getId(),
                 'html' => $html,
-            );
+            ];
 
         }
         catch (\Exception $e) {
@@ -130,7 +130,7 @@ class TriggerController extends ODRCustomController
      */
     public function triggerdatatypecachewipeAction($datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -199,7 +199,7 @@ class TriggerController extends ODRCustomController
      */
     public function triggerdatafieldcachewipeAction($datafield_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -271,7 +271,7 @@ class TriggerController extends ODRCustomController
      */
     public function triggertagrebuildAction($datafield_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -317,10 +317,10 @@ class TriggerController extends ODRCustomController
             // ----------------------------------------
             // Check whether any jobs that are currently running would interfere with a newly
             //  created 'tag_rebuild' job for this datatype
-            $new_job_data = array(
+            $new_job_data = [
                 'job_type' => 'tag_rebuild',
                 'target_entity' => $datafield,
-            );
+            ];
 
             $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
@@ -334,7 +334,7 @@ class TriggerController extends ODRCustomController
                 FROM ODRAdminBundle:DataRecord dr
                 WHERE dr.dataType = :datatype_id
                 AND dr.deletedAt IS NULL'
-            )->setParameters( array('datatype_id' => $datatype->getId()) );
+            )->setParameters( ['datatype_id' => $datatype->getId()] );
             $results = $query->getArrayResult();
 
             if ( !empty($results) ) {
@@ -344,7 +344,7 @@ class TriggerController extends ODRCustomController
                 // Create a tracked job for this...
                 $job_type = 'tag_rebuild';
                 $target_entity = 'datafield_'.$datafield_id;
-                $additional_data = array('description' => 'Tag Rebuild of Datafield '.$datafield_id.', DataType '.$datatype->getId());
+                $additional_data = ['description' => 'Tag Rebuild of Datafield '.$datafield_id.', DataType '.$datatype->getId()];
                 $restrictions = 'datatype_'.$top_level_datatype->getId();
 
                 $total = intval( count($results) / $records_per_job );
@@ -362,12 +362,12 @@ class TriggerController extends ODRCustomController
                 $api_key = $this->container->getParameter('beanstalk_api_key');
                 $pheanstalk = $this->get('pheanstalk');
                 $redis_prefix = $this->container->getParameter('memcached_key_prefix');    // debug purposes only
-                $url = $this->generateUrl('odr_tag_rebuild_worker', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+                $url = $this->generateUrl('odr_tag_rebuild_worker', [], UrlGeneratorInterface::ABSOLUTE_URL);
 
                 $priority = 1024;   // should be roughly default priority
                 $delay = 1;
 
-                $datarecord_list = array();
+                $datarecord_list = [];
                 $count = 0;
                 foreach ($results as $result) {
                     $dr_id = $result["dr_id"];
@@ -377,7 +377,7 @@ class TriggerController extends ODRCustomController
                     if ( ($count % $records_per_job) === 0) {
 
                         $priority = 1024;   // should be roughly default priority
-                        $payload = array(
+                        $payload = [
                             "job_type" => 'tag_rebuild',
                             "tracked_job_id" => $tracked_job_id,
 
@@ -388,19 +388,19 @@ class TriggerController extends ODRCustomController
                             "redis_prefix" => $redis_prefix,    // debug purposes only
                             "url" => $url,
                             "api_key" => $api_key,
-                        );
+                        ];
                         $payload = json_encode($payload);
 
                         $pheanstalk->useTube('tag_rebuild')->put($payload, $priority, $delay);
 
                         // Reset for next pile of datarecords
-                        $datarecord_list = array();
+                        $datarecord_list = [];
                     }
                 }
 
                 // Update any remaining datarecords
                 if ( !empty($datarecord_list) ) {
-                    $payload = array(
+                    $payload = [
                         "job_type" => 'tag_rebuild',
                         "tracked_job_id" => $tracked_job_id,
 
@@ -411,7 +411,7 @@ class TriggerController extends ODRCustomController
                         "redis_prefix" => $redis_prefix,    // debug purposes only
                         "url" => $url,
                         "api_key" => $api_key,
-                    );
+                    ];
                     $payload = json_encode($payload);
 
                     $pheanstalk->useTube('tag_rebuild')->put($payload, $priority, $delay);

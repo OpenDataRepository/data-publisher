@@ -52,7 +52,7 @@ class CloneDatatypeMonitorCommand extends ContainerAwareCommand
             // Run command until manually stopped
 
 
-            $pids = array();
+            $pids = [];
             exec("ps auxww |grep 'odr_datatype:clone_master'", $pids);
 
             $output->writeln( 'PIDS OUTPUT: ' . var_export($pids));

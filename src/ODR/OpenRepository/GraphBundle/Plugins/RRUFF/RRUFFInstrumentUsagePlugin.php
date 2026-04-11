@@ -37,55 +37,12 @@ class RRUFFInstrumentUsagePlugin implements DatafieldPluginInterface, TableResul
 {
 
     /**
-     * @var string
-     */
-    private $environment;
-
-    /**
-     * @var string
-     */
-    private $site_baseurl;
-
-    /**
-     * @var DatabaseInfoService
-     */
-    private $database_info_service;
-
-    /**
-     * @var Router $router
-     */
-    private $router;
-
-    /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * RRUFFInstrumentUsagePlugin constructor.
      *
      * @param EngineInterface $templating
      */
-    public function __construct(
-        string $environment,
-        string $site_baseurl,
-        DatabaseInfoService $database_info_service,
-        Router $router,
-        EngineInterface $templating,
-        Logger $logger
-    ) {
-        $this->environment = $environment;
-        $this->site_baseurl = $site_baseurl;
-        $this->database_info_service = $database_info_service;
-        $this->router = $router;
-        $this->templating = $templating;
-        $this->logger = $logger;
+    public function __construct(private readonly string $environment, private readonly string $site_baseurl, private readonly DatabaseInfoService $database_info_service, private readonly Router $router, private readonly EngineInterface $templating, private readonly Logger $logger)
+    {
     }
 
     /**
@@ -169,10 +126,10 @@ class RRUFFInstrumentUsagePlugin implements DatafieldPluginInterface, TableResul
                 ) {
                     $output = $this->templating->render(
                         'ODROpenRepositoryGraphBundle:RRUFF:RRUFFInstrumentUsage/rruffinstrumentusage_error.html.twig',
-                        array(
+                        [
                             'problem_option' => $problem_option,
                             'is_datatype_admin' => $is_datatype_admin,
-                        )
+                        ]
                     );
                 }
                 else {
@@ -186,7 +143,7 @@ class RRUFFInstrumentUsagePlugin implements DatafieldPluginInterface, TableResul
             else if ( $rendering_options['context'] === 'display' ) {
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:RRUFF:RRUFFInstrumentUsage/rruffinstrumentusage_display_datafield.html.twig',
-                    array(
+                    [
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,
 
@@ -194,13 +151,13 @@ class RRUFFInstrumentUsagePlugin implements DatafieldPluginInterface, TableResul
                         'render_in_display' => $render_in_display,
 
                         'target_url' => $url,
-                    )
+                    ]
                 );
             }
             else if ( $rendering_options['context'] === 'edit' ) {
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:RRUFF:RRUFFInstrumentUsage/rruffinstrumentusage_edit_datafield.html.twig',
-                    array(
+                    [
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,
 
@@ -208,7 +165,7 @@ class RRUFFInstrumentUsagePlugin implements DatafieldPluginInterface, TableResul
                         'render_in_edit' => $render_in_edit,
 
                         'target_url' => $url,
-                    )
+                    ]
                 );
             }
             else {
@@ -241,9 +198,9 @@ class RRUFFInstrumentUsagePlugin implements DatafieldPluginInterface, TableResul
         $options = $render_plugin_instance['renderPluginOptionsMap'];
         $button_label = $options['button_label'];
 
-        return array(
+        return [
             $link_field_df_id => '<a target="_blank" href="'.$url.'">'.$button_label.'&nbsp;<i class="fa fa-external-link"></i></a>',
-        );
+        ];
     }
 
 
@@ -280,9 +237,9 @@ class RRUFFInstrumentUsagePlugin implements DatafieldPluginInterface, TableResul
 
         $route = $this->router->generate(
             'odr_plugin_rruff_instrument_usage_redirect',
-            array(
+            [
                 'datarecord_id' => $datarecord['id']
-            )
+            ]
         );
 
         // This generates the final value for the table cell

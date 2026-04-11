@@ -82,68 +82,9 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
 {
 
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var CacheService
-     */
-    private $cache_service;
-
-    /**
-     * @var DatabaseInfoService
-     */
-    private $database_info_service;
-
-    /**
-     * @var DatarecordInfoService
-     */
-    private $datarecord_info_service;
-
-    /**
-     * @var EntityCreationService
-     */
-    private $entity_create_service;
-
-    /**
-     * @var EntityMetaModifyService
-     */
-    private $entity_modify_service;
-
-    /**
-     * @var LockService
-     */
-    private $lock_service;
-
-    /**
-     * @var EventDispatcherInterface
-     */
-    private $event_dispatcher;
-
-    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-
-    /**
-     * @var CsrfTokenManager
-     */
-    private $token_manager;
-
-    /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * RRUFF Cell Parameters Plugin constructor
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param CacheService $cache_service
      * @param DatabaseInfoService $database_info_service
      * @param DatarecordInfoService $datarecord_info_service
@@ -155,30 +96,8 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
      * @param EngineInterface $templating
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        CacheService $cache_service,
-        DatabaseInfoService $database_info_service,
-        DatarecordInfoService $datarecord_info_service,
-        EntityCreationService $entity_create_service,
-        EntityMetaModifyService $entity_modify_service,
-        LockService $lock_service,
-        EventDispatcherInterface $event_dispatcher,
-        CsrfTokenManager $token_manager,
-        EngineInterface $templating,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->cache_service = $cache_service;
-        $this->database_info_service = $database_info_service;
-        $this->datarecord_info_service = $datarecord_info_service;
-        $this->entity_create_service = $entity_create_service;
-        $this->entity_modify_service = $entity_modify_service;
-        $this->lock_service = $lock_service;
-        $this->event_dispatcher = $event_dispatcher;
-        $this->token_manager = $token_manager;
-        $this->templating = $templating;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly DatabaseInfoService $database_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly EntityCreationService $entity_create_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly LockService $lock_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly CsrfTokenManager $token_manager, private readonly EngineInterface $templating, private readonly Logger $logger)
+    {
     }
 
 
@@ -208,7 +127,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
     /**
      * {@inheritDoc}
      */
-    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
+    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = [], $datatype_permissions = [], $datafield_permissions = [], $token_list = [])
     {
 
         try {
@@ -229,7 +148,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                 $initial_theme_id = $t_id;
 
             // There *should* only be a single datarecord in $datarecords...
-            $datarecord = array();
+            $datarecord = [];
             foreach ($datarecords as $dr_id => $dr)
                 $datarecord = $dr;
 
@@ -258,7 +177,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
 
             // ----------------------------------------
             // Need to check for derivation problems before rendering...
-            $problem_fields = array();
+            $problem_fields = [];
             if ( $rendering_options['context'] === 'display' || $rendering_options['context'] === 'edit' ) {
                 $derivation_problems = self::findDerivationProblems($plugin_data);
 
@@ -271,7 +190,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
             // ----------------------------------------
             // Going to need several field identifiers, so various fields can be saved/reloaded at
             //  the same time
-            $field_identifiers = array(
+            $field_identifiers = [
                 'Crystal System' => 'ShortVarcharForm_'.$datarecord['id'].'_'.$fields['Crystal System']['id'],
                 'Point Group' => 'ShortVarcharForm_'.$datarecord['id'].'_'.$fields['Point Group']['id'],
                 'Space Group' => 'ShortVarcharForm_'.$datarecord['id'].'_'.$fields['Space Group']['id'],
@@ -279,7 +198,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
 
                 // Need this one for the a/b/c/alpha/beta/gamma fields
                 'Calculated Volume' => 'ShortVarcharForm_'.$datarecord['id'].'_'.$fields['Calculated Volume']['id'],
-            );
+            ];
 
             // Output depends on which context the plugin is being executed from
             $output = '';
@@ -300,8 +219,8 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
 
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:RRUFF:CellParams/cellparams_display_fieldarea.html.twig',
-                    array(
-                        'datatype_array' => array($initial_datatype_id => $datatype),
+                    [
+                        'datatype_array' => [$initial_datatype_id => $datatype],
                         'datarecord' => $datarecord,
                         'theme_array' => $theme_array,
 
@@ -322,7 +241,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                         'problem_fields' => $problem_fields,
 
                         'field_values' => $field_values,
-                    )
+                    ]
                 );
             }
             else if ( $rendering_options['context'] === 'edit' ) {
@@ -347,9 +266,9 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
 
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:RRUFF:CellParams/cellparams_edit_fieldarea.html.twig',
-                    array(
-                        'datatype_array' => array($initial_datatype_id => $datatype),
-                        'datarecord_array' => array($datarecord['id'] => $datarecord),
+                    [
+                        'datatype_array' => [$initial_datatype_id => $datatype],
+                        'datarecord_array' => [$datarecord['id'] => $datarecord],
                         'theme_array' => $theme_array,
 
                         'target_datatype_id' => $initial_datatype_id,
@@ -377,17 +296,17 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                         'crystal_systems' => CrystallographyDef::$crystal_systems,
                         'point_groups' => $point_groups,
                         'space_groups' => $space_groups,
-                    )
+                    ]
                 );
             }
             else if ( $rendering_options['context'] === 'fake_edit' ) {
 
-                $prevent_user_edit_df_ids = array(
+                $prevent_user_edit_df_ids = [
                     $fields['Crystal System']['id'],
                     $fields['Point Group']['id'],
                     $fields['Space Group']['id'],
                     $fields['Lattice']['id'],
-                );
+                ];
 
                 // This field is optional to allow RRUFF X-Ray Diffraction to use this plugin
                 if ( isset($fields['Cell Parameter ID']['id']) )
@@ -410,9 +329,9 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
 
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:RRUFF:CellParams/cellparams_fakeedit_fieldarea.html.twig',
-                    array(
-                        'datatype_array' => array($initial_datatype_id => $datatype),
-                        'datarecord_array' => array($datarecord['id'] => $datarecord),
+                    [
+                        'datatype_array' => [$initial_datatype_id => $datatype],
+                        'datarecord_array' => [$datarecord['id'] => $datarecord],
                         'theme_array' => $theme_array,
 
                         'target_datatype_id' => $initial_datatype_id,
@@ -437,7 +356,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                         'crystal_systems' => CrystallographyDef::$crystal_systems,
                         'point_groups' => $point_groups,
                         'space_groups' => $space_groups,
-                    )
+                    ]
                 );
             }
 
@@ -461,8 +380,8 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
      */
     private function getPluginData($datatype, $datarecord, $is_datatype_admin)
     {
-        $plugin_fields = array();
-        $field_values = array();
+        $plugin_fields = [];
+        $field_values = [];
 
         // Locate the relevant render plugin instance
         $rpm_entries = null;
@@ -474,7 +393,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
         }
 
         // Want to locate the values for most of the mapped datafields
-        $optional_fields = array(
+        $optional_fields = [
             'Cell Parameter ID' => 0,    // this one can be non-public
 
             // These four only exist to make the data easier to import
@@ -482,7 +401,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
             'Pressure' => 0,
             'Temperature' => 0,
             'Notes' => 0
-        );
+        ];
 
         foreach ($rpm_entries as $rpf_name => $rpf_df) {
             // Need to find the real datafield entry in the primary datatype array
@@ -571,10 +490,10 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
             }
         }
 
-        return array(
+        return [
             'fields' => $plugin_fields,
             'values' => $field_values,
-        );
+        ];
     }
 
 
@@ -591,7 +510,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
         $values = $plugin_data['values'];
 
         // Only interested in the contents of datafields mapped to these rpf entries
-        $derivations = array(
+        $derivations = [
             'Space Group' => 'Lattice',
 
             'a' => 'Calculated Volume',
@@ -600,9 +519,9 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
             'alpha' => 'Calculated Volume',
             'beta' => 'Calculated Volume',
             'gamma' => 'Calculated Volume',
-        );
+        ];
 
-        $problems = array();
+        $problems = [];
         foreach ($derivations as $source_rpf_name => $dest_rpf_name) {
             if ( (isset($values[$source_rpf_name]) && $values[$source_rpf_name] !== '')
                 && (!isset($values[$dest_rpf_name]) || $values[$dest_rpf_name] === '')
@@ -634,10 +553,10 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
      */
     private function applySymmetryCSS($value)
     {
-        if ( strpos($value, '-') !== false )
+        if ( str_contains($value, '-') )
             $value = preg_replace('/-(\d)/', '<span class="overbar">$1</span>', $value);
-        if ( strpos($value, '_') !== false )
-            $value = preg_replace('/_(\d)/', '<sub>$1</sub>', $value);
+        if ( str_contains((string) $value, '_') )
+            $value = preg_replace('/_(\d)/', '<sub>$1</sub>', (string) $value);
 
         return $value;
     }
@@ -712,7 +631,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
             return $tmp;
 
         // Convert the array of point groups into more of a lookup table...
-        $tmp = array();
+        $tmp = [];
         foreach (CrystallographyDef::$point_groups as $crystal_system => $pgs) {
             foreach ($pgs as $pg)
                 $tmp[ strval($pg) ] = $crystal_system;
@@ -752,7 +671,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
             return $tmp;
 
         // Convert the array of space groups into more of a lookup table...
-        $tmp = array();
+        $tmp = [];
         foreach (CrystallographyDef::$space_group_mapping as $point_group => $sg_num_list) {
             foreach ($sg_num_list as $sg_num) {
                 foreach (CrystallographyDef::$space_groups[$sg_num] as $space_group)
@@ -793,11 +712,11 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
             AND rp.deletedAt IS NULL AND rpi.deletedAt IS NULL AND rpm.deletedAt IS NULL
             AND df.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'plugin_classname' => 'odr_plugins.rruff.cell_parameters',
                 'datatype' => $datatype->getId(),
                 'field_name' => 'Cell Parameter ID'
-            )
+            ]
         );
         $results = $query->getResult();
         if ( count($results) !== 1 ) {
@@ -831,7 +750,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
 
         // Create a new storage entity with the new value
         $this->entity_create_service->createStorageEntity($user, $datarecord, $datafield, $new_value, false);    // guaranteed to not need a PostUpdate event
-        $this->logger->debug('Setting df '.$datafield->getId().' "Cell Parameter ID" of new dr '.$datarecord->getId().' to "'.$new_value.'"...', array(self::class, 'onDatarecordCreate()'));
+        $this->logger->debug('Setting df '.$datafield->getId().' "Cell Parameter ID" of new dr '.$datarecord->getId().' to "'.$new_value.'"...', [self::class, 'onDatarecordCreate()']);
 
         // No longer need the lock
         $lockHandler->release();
@@ -843,7 +762,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
             $event = new DatafieldModifiedEvent($datafield, $user);
             $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             // ...don't want to rethrow the error since it'll interrupt everything after this
             //  event
 //            if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -875,9 +794,9 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
             WHERE e.data_field_id = :datafield AND e.deletedAt IS NULL
             ORDER BY e.value DESC
             LIMIT 0,1';
-        $params = array(
+        $params = [
             'datafield' => $datafield_id,
-        );
+        ];
         $conn = $this->em->getConnection();
         $results = $conn->executeQuery($query, $params);
 
@@ -936,7 +855,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                 $source_value = $source_entity->getValue();
                 if ($typeclass === 'DatetimeValue')
                     $source_value = $source_value->format('Y-m-d H:i:s');
-                $this->logger->debug('Attempting to derive a value from dt '.$datatype->getId().', dr '.$datarecord->getId().', df '.$datafield->getId().' ('.$rpf_name.'): "'.$source_value.'"...', array(self::class, 'onPostUpdate()'));
+                $this->logger->debug('Attempting to derive a value from dt '.$datatype->getId().', dr '.$datarecord->getId().', df '.$datafield->getId().' ('.$rpf_name.'): "'.$source_value.'"...', [self::class, 'onPostUpdate()']);
 
                 // Store the renderpluginfield name that will be modified
                 $is_dimension_field = false;
@@ -988,11 +907,11 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                 $this->entity_modify_service->updateStorageEntity(
                     $user,
                     $destination_entity,
-                    array('value' => $derived_value),
+                    ['value' => $derived_value],
                     false,    // no sense trying to delay flush
                     false    // don't fire PostUpdate event...nothing depends on these fields
                 );
-                $this->logger->debug(' -- updating datafield '.$destination_entity->getDataField()->getId().' ('.$dest_rpf_name.'), '.$typeclass.' '.$destination_entity->getId().' with the value "'.$derived_value.'"...', array(self::class, 'onPostUpdate()'));
+                $this->logger->debug(' -- updating datafield '.$destination_entity->getDataField()->getId().' ('.$dest_rpf_name.'), '.$typeclass.' '.$destination_entity->getId().' with the value "'.$derived_value.'"...', [self::class, 'onPostUpdate()']);
 
                 // This only works because the datafields getting updated aren't files/images or
                 //  radio/tag fields
@@ -1000,7 +919,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
         }
         catch (\Exception $e) {
             // Can't really display the error to the user yet, but can log it...
-            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'onPostUpdate()', 'user '.$user->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()));
+            $this->logger->debug('-- (ERROR) '.$e->getMessage(), [self::class, 'onPostUpdate()', 'user '.$user->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()]);
 
             if ( !is_null($destination_entity) ) {
                 // If an error was thrown, attempt to ensure any derived fields are blank
@@ -1013,7 +932,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
         finally {
             // Would prefer if these happened regardless of success/failure...
             if ( !is_null($destination_entity) ) {
-                $this->logger->debug('All changes saved', array(self::class, 'onPostUpdate()', 'dt '.$datatype->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()));
+                $this->logger->debug('All changes saved', [self::class, 'onPostUpdate()', 'dt '.$datatype->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()]);
                 self::clearCacheEntries($datarecord, $user, $destination_entity);
 
                 // Provide a reference to the entity that got changed
@@ -1080,7 +999,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                     $source_value = $source_entity->getValue();
                     if ($typeclass === 'DatetimeValue')
                         $source_value = $source_value->format('Y-m-d H:i:s');
-                    $this->logger->debug('Attempting to derive a value from dt '.$datatype->getId().', dr '.$datarecord->getId().', df '.$datafield->getId().' ('.$rpf_name.'): "'.$source_value.'"...', array(self::class, 'onMassEditTrigger()'));
+                    $this->logger->debug('Attempting to derive a value from dt '.$datatype->getId().', dr '.$datarecord->getId().', df '.$datafield->getId().' ('.$rpf_name.'): "'.$source_value.'"...', [self::class, 'onMassEditTrigger()']);
 
                     // Store the renderpluginfield name that will be modified
                     $is_dimension_field = false;
@@ -1131,11 +1050,11 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                     $this->entity_modify_service->updateStorageEntity(
                         $user,
                         $destination_entity,
-                        array('value' => $derived_value),
+                        ['value' => $derived_value],
                         false,    // no sense trying to delay flush
                         false    // don't fire PostUpdate event...nothing depends on these fields
                     );
-                    $this->logger->debug(' -- updating datafield '.$destination_entity->getDataField()->getId().' ('.$dest_rpf_name.'), '.$typeclass.' '.$destination_entity->getId().' with the value "'.$derived_value.'"...', array(self::class, 'onMassEditTrigger()'));
+                    $this->logger->debug(' -- updating datafield '.$destination_entity->getDataField()->getId().' ('.$dest_rpf_name.'), '.$typeclass.' '.$destination_entity->getId().' with the value "'.$derived_value.'"...', [self::class, 'onMassEditTrigger()']);
 
                     // This only works because the datafields getting updated aren't files/images or
                     //  radio/tag fields
@@ -1144,7 +1063,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
         }
         catch (\Exception $e) {
             // Can't really display the error to the user yet, but can log it...
-            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'onMassEditTrigger()', 'user '.$user->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()));
+            $this->logger->debug('-- (ERROR) '.$e->getMessage(), [self::class, 'onMassEditTrigger()', 'user '.$user->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()]);
 
             if ( !is_null($destination_entity) ) {
                 // If an error was thrown, attempt to ensure any derived fields are blank
@@ -1157,7 +1076,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
         finally {
             // Would prefer if these happened regardless of success/failure...
             if ( !is_null($destination_entity) ) {
-                $this->logger->debug('All changes saved', array(self::class, 'onMassEditTrigger()', 'dt '.$datatype->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()));
+                $this->logger->debug('All changes saved', [self::class, 'onMassEditTrigger()', 'dt '.$datatype->getId(), 'dr '.$datarecord->getId(), 'df '.$datafield->getId()]);
                 self::clearCacheEntries($datarecord, $user, $destination_entity);
             }
         }
@@ -1181,7 +1100,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
             return null;
 
         // Only interested in changes made to the datafields mapped to these rpf entries
-        $relevant_datafields = array(
+        $relevant_datafields = [
             'Space Group' => 'Lattice',
 
             // Need to define it this way for PostUpdateEvent...
@@ -1194,7 +1113,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
 
             // Need to also define it this way for MassEditTriggerEvent...
             'Calculated Volume' => 'Calculated Volume',
-        );
+        ];
 
         foreach ($dt_array[$datatype->getId()]['renderPluginInstances'] as $rpi_id => $rpi) {
             if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.cell_parameters' ) {
@@ -1258,7 +1177,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
     {
         // Don't execute on instances of other render plugins
         if ( $render_plugin_instance['renderPlugin']['pluginClassName'] !== 'odr_plugins.rruff.cell_parameters' )
-            return array();
+            return [];
         $render_plugin_map = $render_plugin_instance['renderPluginMap'];
 
         // This plugin has two derived fields...
@@ -1276,10 +1195,10 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
 
         // Since a datafield could be derived from multiple datafields, the source datafields need
         //  to be in an array
-        return array(
-            $lattice_df_id => array($space_group_df_id),
-            $calculated_volume_df_id => array($a_df_id, $b_df_id, $c_df_id, $alpha_df_id, $beta_df_id, $gamma_df_id),
-        );
+        return [
+            $lattice_df_id => [$space_group_df_id],
+            $calculated_volume_df_id => [$a_df_id, $b_df_id, $c_df_id, $alpha_df_id, $beta_df_id, $gamma_df_id],
+        ];
     }
 
 
@@ -1301,16 +1220,16 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                 $this->entity_modify_service->updateStorageEntity(
                     $user,
                     $destination_storage_entity,
-                    array('value' => ''),
+                    ['value' => ''],
                     false,    // no point delaying flush
                     false    // don't fire PostUpdate event...nothing depends on these fields
                 );
-                $this->logger->debug('-- -- updating dr '.$dr->getId().', df '.$df->getId().' to have the value ""...', array(self::class, 'saveOnError()'));
+                $this->logger->debug('-- -- updating dr '.$dr->getId().', df '.$df->getId().' to have the value ""...', [self::class, 'saveOnError()']);
             }
         }
         catch (\Exception $e) {
             // Some other error...no way to recover from it
-            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'saveOnError()', 'user '.$user->getId(), 'dr '.$dr->getId(), 'df '.$df->getId()));
+            $this->logger->debug('-- (ERROR) '.$e->getMessage(), [self::class, 'saveOnError()', 'user '.$user->getId(), 'dr '.$dr->getId(), 'df '.$df->getId()]);
         }
     }
 
@@ -1341,7 +1260,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
             $event = new DatarecordModifiedEvent($datarecord, $user);
             $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             // ...don't want to rethrow the error since it'll interrupt everything after this
             //  event
 //            if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -1358,16 +1277,16 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
         // Only override when called from the 'edit' context...the 'display' context might be a
         //  possibility in the future, but this plugin doesn't need to override there
         if ( $rendering_context !== 'edit' )
-            return array();
+            return [];
 
         // Sanity checks
         if ( $render_plugin_instance->getRenderPlugin()->getPluginClassName() !== 'odr_plugins.rruff.cell_parameters' )
-            return array();
+            return [];
         $datatype = $datafield->getDataType();
         if ( $datatype->getId() !== $datarecord->getDataType()->getId() )
-            return array();
+            return [];
         if ( $render_plugin_instance->getDataType()->getId() !== $datatype->getId() )
-            return array();
+            return [];
 
 
         // Need to check some things with the data...
@@ -1380,7 +1299,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
         // If the previous function decided there was a plugin config issue, then don't execute
         //  the plugin
         if ( is_null($plugin_data) )
-            return array();
+            return [];
 
         // Only need to check for derivation/uniqueness problems when reloading in edit mode
         if ( $rendering_context === 'edit' ) {
@@ -1389,11 +1308,11 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
             if ( isset($derivation_problems[$datafield->getId()]) ) {
                 // The derived field does not have a value, but the source field does...render the
                 //  plugin's template instead of the default
-                return array(
-                    'token_list' => array(),    // so ODRRenderService generates CSRF tokens
+                return [
+                    'token_list' => [],    // so ODRRenderService generates CSRF tokens
                     'template_name' => 'ODROpenRepositoryGraphBundle:RRUFF:CellParams/cellparams_edit_datafield_reload.html.twig',
                     'problem_fields' => $derivation_problems,
-                );
+                ];
             }
         }
 
@@ -1408,20 +1327,20 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
         if ( isset($plugin_fields[$datafield->getId()]['rpf_name']) )
             $rpf_name = $plugin_fields[$datafield->getId()]['rpf_name'];
         if ( $rpf_name === '' )
-            return array();
+            return [];
 
         // Going to need several field identifiers, so various fields can be saved/reloaded at the
         //  same time
-        $df_lookup = array();
+        $df_lookup = [];
         foreach ($plugin_fields as $df_id => $df)
             $df_lookup[ $df['rpf_name'] ] = $df_id;
 
-        $field_identifiers = array(
+        $field_identifiers = [
             'Crystal System' => 'ShortVarcharForm_'.$datarecord->getId().'_'.$df_lookup['Crystal System'],
             'Point Group' => 'ShortVarcharForm_'.$datarecord->getId().'_'.$df_lookup['Point Group'],
             'Space Group' => 'ShortVarcharForm_'.$datarecord->getId().'_'.$df_lookup['Space Group'],
             'Lattice' => 'ShortVarcharForm_'.$datarecord->getId().'_'.$df_lookup['Lattice'],
-        );
+        ];
 
         if ( $rpf_name === 'Crystal System'
             || $rpf_name === 'Point Group'
@@ -1443,8 +1362,8 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
             $token_id .= '_Form';
             $form_token = $this->token_manager->getToken($token_id)->getValue();
 
-            return array(
-                'token_list' => array(),    // so ODRRenderService generates CSRF tokens
+            return [
+                'token_list' => [],    // so ODRRenderService generates CSRF tokens
                 'template_name' => 'ODROpenRepositoryGraphBundle:RRUFF:CellParams/cellparams_edit_symmetry_datafield.html.twig',
 
                 'field_identifiers' => $field_identifiers,
@@ -1453,11 +1372,11 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                 'crystal_systems' => CrystallographyDef::$crystal_systems,
                 'point_groups' => $point_groups,
                 'space_groups' => $space_groups,
-            );
+            ];
         }
 
         // Otherwise, don't want to override the default reloading for this field
-        return array();
+        return [];
     }
 
 
@@ -1470,15 +1389,15 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
             throw new ODRException('Invalid plugin config');
 
         // Only interested in overriding datafields mapped to these rpf entries
-        $relevant_datafields = array(
+        $relevant_datafields = [
             'Space Group' => 'Lattice',
 
             // Due to the calculated volume requiring six different fields, it's better to have the
             //  thingy on the one field...
             'Calculated Volume' => 'Calculated Volume',
-        );
+        ];
 
-        $ret = array();
+        $ret = [];
         foreach ($render_plugin_instance['renderPluginMap'] as $rpf_name => $rpf) {
             if ( isset($relevant_datafields[$rpf_name]) )
                 $ret[] = $rpf['id'];
@@ -1494,15 +1413,15 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
     public function getMassEditTriggerFields($render_plugin_instance)
     {
         // Only interested in overriding datafields mapped to these rpf entries
-        $relevant_datafields = array(
+        $relevant_datafields = [
             'Space Group' => 'Lattice',
 
             // Due to the calculated volume requiring six different fields, it's better to have the
             //  thingy on the one field...
             'Calculated Volume' => 'Calculated Volume',
-        );
+        ];
 
-        $trigger_fields = array();
+        $trigger_fields = [];
         foreach ($render_plugin_instance['renderPluginMap'] as $rpf_name => $rpf) {
             if ( isset($relevant_datafields[$rpf_name]) ) {
                 // The relevant fields should only have the MassEditTrigger event activated when the
@@ -1521,10 +1440,10 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
     public function getTableResultsOverrideValues($render_plugin_instance, $datarecord, $datafield = null)
     {
         // This render plugin might need to modify three different fields...
-        $values = array();
+        $values = [];
 
         // ...it's easier if all relevant values are found first
-        $current_values = array();
+        $current_values = [];
         foreach ($render_plugin_instance['renderPluginMap'] as $rpf_name => $rpf) {
             switch ($rpf_name) {
                 case 'Point Group':
@@ -1532,10 +1451,10 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                 case 'Calculated Volume':
                     // This is a field of interest...
                     $df_id = $rpf['id'];
-                    $current_values[$rpf_name] = array(
+                    $current_values[$rpf_name] = [
                         'id' => $df_id,
                         'value' => ''
-                    );
+                    ];
 
                     // Need to look through the datarecord to find the current value...all of these
                     //  fields are guaranteed to be ShortVarchar fields

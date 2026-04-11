@@ -93,17 +93,17 @@ class RemoteController extends Controller
                 AND dt.setup_step IN (:setup_steps) AND dt.metadata_for IS NULL
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'datatypes' => $top_level_datatypes,
                     'is_master_type' => false,
                     'public_date' => '2200-01-01 00:00:00',
                     'setup_steps' => DataType::STATE_VIEWABLE
-                )
+                ]
             );
             $results = $query->getArrayResult();
 
             // Do a bit of cleanup on the database results...
-            $datatypes = array();
+            $datatypes = [];
             foreach ($results as $num => $dt) {
                 $dt_id = $dt['id'];
                 $datatypes[$dt_id] = $dt;
@@ -126,7 +126,7 @@ class RemoteController extends Controller
 
             $html = $this->renderView(
                 'ODROpenRepositorySearchBundle:Remote:index.html.twig',
-                array(
+                [
                     'site_baseurl' => $site_baseurl,
                     'odr_wordpress_integrated' => $is_wordpress_integrated,
                     'wordpress_site_baseurl' => $wordpress_site_baseurl,
@@ -137,7 +137,7 @@ class RemoteController extends Controller
 
                     'datatypes' => $datatypes,
                     'metadata' => $metadata,
-                )
+                ]
             );
         }
         catch (\Exception $e) {
@@ -165,7 +165,7 @@ class RemoteController extends Controller
      */
     public function selectAction($datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -216,7 +216,7 @@ class RemoteController extends Controller
 
             // Filter it down to the ones that can be searched
             $include_general_search = false;
-            $permitted_datafields = array();
+            $permitted_datafields = [];
             foreach ($searchable_datafields as $dt_id => $dt_data) {
                 if ( $dt_data['dt_public_date'] !== '2200-01-01' ) {
                     // Datatype is public, look through its public datafields...
@@ -254,7 +254,7 @@ class RemoteController extends Controller
                         if ( $df_data['searchable'] !== DataFields::NOT_SEARCHABLE ) {
                             // ...then it should be displayed in the interface
                             if ( !isset($permitted_datafields[$dt_id]) )
-                                $permitted_datafields[$dt_id] = array();
+                                $permitted_datafields[$dt_id] = [];
                             $permitted_datafields[$dt_id][$key] = $df;
 
                             // Should also enable the "general search" input
@@ -269,17 +269,17 @@ class RemoteController extends Controller
             $theme_array = $theme_info_service->getThemeArray($master_theme->getId());
 
             // Need to stack both arrays
-            $dt_array = array( $datatype_id => $database_info_service->stackDatatypeArray($dt_array, $datatype_id) );
-            $theme_array = array( $master_theme->getId() => $theme_info_service->stackThemeArray($theme_array, $master_theme->getId()) );
+            $dt_array = [ $datatype_id => $database_info_service->stackDatatypeArray($dt_array, $datatype_id) ];
+            $theme_array = [ $master_theme->getId() => $theme_info_service->stackThemeArray($theme_array, $master_theme->getId()) ];
 
 
             // ----------------------------------------
             /** @var TwigEngine $templating */
             $templating = $this->get('templating');
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODROpenRepositorySearchBundle:Remote:select_ajax.html.twig',
-                    array(
+                    [
                         'datatype_id' => $datatype_id,
                         'datatype_array' => $dt_array,
                         'theme_id' => $master_theme->getId(),
@@ -287,9 +287,9 @@ class RemoteController extends Controller
 
                         'include_general_search' => $include_general_search,
                         'permitted_datafields' => $permitted_datafields,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x6df67221;
@@ -315,7 +315,7 @@ class RemoteController extends Controller
      */
     public function configAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -369,15 +369,15 @@ class RemoteController extends Controller
 
             // Need the datafield info
             $dt_array = $database_info_service->getDatatypeArray($datatype_id, true);    // should contain links
-            $datafields = array();
+            $datafields = [];
 
             // If the "general search" checkbox was selected, create an entry for it in the final
             //  array since it won't be in the cached datatype array
             if ( isset($datafield_ids['gen']) ) {
-                $datafields['gen'] = array(
+                $datafields['gen'] = [
                     'datafield_name' => 'All Fields',
                     'element_name' => 'general_search',
-                );
+                ];
             }
 
             // Verify that the provided datafields are searchable and public
@@ -398,10 +398,10 @@ class RemoteController extends Controller
 
                             // ...only save the field if it's both searchable and public
                             if ( $is_searchable && $is_public ) {
-                                $datafields[$df_id] = array(
+                                $datafields[$df_id] = [
                                     'datafield_name' => $dfm['fieldName'],
                                     'element_name' => strtolower(str_replace(' ', '_', $dfm['fieldName'])),
-                                );
+                                ];
                             }
                         }
                     }
@@ -431,25 +431,25 @@ class RemoteController extends Controller
 
             $long_config = $templating->render(
                 'ODROpenRepositorySearchBundle:Remote:odr_remote_search_inline.html.twig',
-                array(
+                [
                     'protocol' => $protocol,
                     'baseurl' => $site_baseurl,
                     'datatype_id' => $datatype_id,
                     'search_slug' => $datatype->getSearchSlug(),
                     'datafields' => $datafields,
-                )
+                ]
             );
 
             // ...so it can get escaped properly
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODROpenRepositorySearchBundle:Remote:config_data_wrapper.html.twig',
-                    array(
+                    [
 //                        'short_config' => $short_config,
                         'long_config' => $long_config,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x55fd8b23;
@@ -486,15 +486,15 @@ class RemoteController extends Controller
             if ($minified) {
                 $js = $templating->render(
                     'ODROpenRepositorySearchBundle:Remote:odr_remote_search_min.js.twig',
-                    array(
-                    )
+                    [
+                    ]
                 );
             }
             else {
                 $js = $templating->render(
                     'ODROpenRepositorySearchBundle:Remote:odr_remote_search.js.twig',
-                    array(
-                    )
+                    [
+                    ]
                 );
             }
 
@@ -545,7 +545,7 @@ class RemoteController extends Controller
      */
     public function examplesAction($type, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -571,28 +571,28 @@ class RemoteController extends Controller
                 $template = 'ODROpenRepositorySearchBundle:Remote:config_example_adv_alt.html.twig';
 
             $template_type = 'basic';
-            if ( strpos($type, 'adv') !== false )
+            if ( str_contains($type, 'adv') )
                 $template_type = 'adv';
 
             // Need to render the example separately...
             $str = $templating->render(
                 $template,
-                array(
+                [
                     'site_baseurl' => $site_baseurl,
-                )
+                ]
             );
 
             // ...so it can get escaped properly
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODROpenRepositorySearchBundle:Remote:config_example_wrapper.html.twig',
-                    array(
+                    [
                         'site_baseurl' => $site_baseurl,
                         'template_type' => $template_type,
                         'str' => $str
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0xee3fe022;

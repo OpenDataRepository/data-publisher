@@ -49,7 +49,7 @@ class StatisticsController extends ODRCustomController
     public function logViewAction(Request $request)
     {
         try {
-            $this->container->get('logger')->debug('logViewAction called with params: ' . $request->getContent(), array('source' => 0x98765432));
+            $this->container->get('logger')->debug('logViewAction called with params: ' . $request->getContent(), ['source' => 0x98765432]);
             // Get JSON data from request body
             $content = $request->getContent();
             $post = json_decode($content, true);
@@ -77,7 +77,7 @@ class StatisticsController extends ODRCustomController
                 $is_search_result
             );
 
-            return new JsonResponse(array('success' => true));
+            return new JsonResponse(['success' => true]);
 
         } catch (\Exception $e) {
             $source = 0xd8e7e394;
@@ -108,7 +108,7 @@ class StatisticsController extends ODRCustomController
             $post = json_decode($content, true);
             $parse_time = (microtime(true) - $parse_start) * 1000;
 
-            $logger->debug('logBatchViewAction - JSON parse time: ' . round($parse_time, 2) . 'ms', array('source' => 0xa1b2c3d4));
+            $logger->debug('logBatchViewAction - JSON parse time: ' . round($parse_time, 2) . 'ms', ['source' => 0xa1b2c3d4]);
 
             if (!$post || !isset($post['records']) || !is_array($post['records'])) {
                 throw new ODRBadRequestException('Missing or invalid records array');
@@ -118,7 +118,7 @@ class StatisticsController extends ODRCustomController
             $is_search_result = isset($post['is_search_result']) ? (bool)$post['is_search_result'] : true;
 
             if (empty($records)) {
-                return new JsonResponse(array('success' => true, 'logged' => 0));
+                return new JsonResponse(['success' => true, 'logged' => 0]);
             }
 
             // Get IP address and user agent
@@ -127,14 +127,14 @@ class StatisticsController extends ODRCustomController
             $user_agent = $request->headers->get('User-Agent', 'Unknown');
             $request_info_time = (microtime(true) - $request_info_start) * 1000;
 
-            $logger->debug('logBatchViewAction - Request info time: ' . round($request_info_time, 2) . 'ms', array('source' => 0xa1b2c3d4));
+            $logger->debug('logBatchViewAction - Request info time: ' . round($request_info_time, 2) . 'ms', ['source' => 0xa1b2c3d4]);
 
             /** @var StatisticsService $statistics_service */
             $service_start = microtime(true);
             $statistics_service = $this->container->get('odr.statistics_service');
             $service_time = (microtime(true) - $service_start) * 1000;
 
-            $logger->debug('logBatchViewAction - Service instantiation time: ' . round($service_time, 2) . 'ms', array('source' => 0xa1b2c3d4));
+            $logger->debug('logBatchViewAction - Service instantiation time: ' . round($service_time, 2) . 'ms', ['source' => 0xa1b2c3d4]);
 
             $loop_start = microtime(true);
             $logged_count = 0;
@@ -165,23 +165,23 @@ class StatisticsController extends ODRCustomController
 
                 if ($logged_count === 0) {
                     // Log first iteration timing
-                    $logger->debug('logBatchViewAction - First logRecordView time: ' . round($log_time, 2) . 'ms', array('source' => 0xa1b2c3d4));
+                    $logger->debug('logBatchViewAction - First logRecordView time: ' . round($log_time, 2) . 'ms', ['source' => 0xa1b2c3d4]);
                 }
 
                 $logged_count++;
             }
             $loop_time = (microtime(true) - $loop_start) * 1000;
 
-            $logger->debug('logBatchViewAction - Total loop time for ' . $logged_count . ' records: ' . round($loop_time, 2) . 'ms (' . round($loop_time / $logged_count, 2) . 'ms avg)', array('source' => 0xa1b2c3d4));
+            $logger->debug('logBatchViewAction - Total loop time for ' . $logged_count . ' records: ' . round($loop_time, 2) . 'ms (' . round($loop_time / $logged_count, 2) . 'ms avg)', ['source' => 0xa1b2c3d4]);
 
             $total_time = (microtime(true) - $start_time) * 1000;
-            $logger->debug('logBatchViewAction - TOTAL time: ' . round($total_time, 2) . 'ms', array('source' => 0xa1b2c3d4));
+            $logger->debug('logBatchViewAction - TOTAL time: ' . round($total_time, 2) . 'ms', ['source' => 0xa1b2c3d4]);
 
-            return new JsonResponse(array(
+            return new JsonResponse([
                 'success' => true,
                 'logged' => $logged_count,
                 'total' => count($records)
-            ));
+            ]);
 
         } catch (\Exception $e) {
             $source = 0xa1b2c3d4;
@@ -262,7 +262,7 @@ class StatisticsController extends ODRCustomController
                 $datarecord->getId()
             );
 
-            return new JsonResponse(array('success' => true));
+            return new JsonResponse(['success' => true]);
 
         } catch (\Exception $e) {
             $source = 0x7f6a3b82;
@@ -326,10 +326,10 @@ class StatisticsController extends ODRCustomController
                 $granularity
             );
 
-            return new JsonResponse(array(
+            return new JsonResponse([
                 'success' => true,
                 'statistics' => $stats
-            ));
+            ]);
 
         } catch (\Exception $e) {
             $source = 0xa4c2d9f1;
@@ -393,10 +393,10 @@ class StatisticsController extends ODRCustomController
                 $include_bots
             );
 
-            return new JsonResponse(array(
+            return new JsonResponse([
                 'success' => true,
                 'statistics' => $stats
-            ));
+            ]);
 
         } catch (\Exception $e) {
             $source = 0xb8f3a615;
@@ -466,10 +466,10 @@ class StatisticsController extends ODRCustomController
                 $include_bots
             );
 
-            return new JsonResponse(array(
+            return new JsonResponse([
                 'success' => true,
                 'geographic_stats' => $stats
-            ));
+            ]);
 
         } catch (\Exception $e) {
             $source = 0xc7d4e928;
@@ -526,12 +526,12 @@ class StatisticsController extends ODRCustomController
             // Render template
             $html = $this->renderView(
                 'ODRAdminBundle:Statistics:dashboard.html.twig',
-                array(
+                [
                     'datatype' => $datatype,
                     'multi_site_mode' => true,
                     'stats' => $stats,
                     'user' => $user
-                )
+                ]
             );
 
             $response = new Response($html);
@@ -580,14 +580,14 @@ class StatisticsController extends ODRCustomController
             $end_date = $end_date_str ? new \DateTime($end_date_str) : new \DateTime();
 
             // Parse datatype IDs filter
-            $datatype_ids = array();
+            $datatype_ids = [];
             if (!empty($datatype_ids_str)) {
-                $datatype_ids = array_map('intval', explode(',', $datatype_ids_str));
+                $datatype_ids = array_map(intval(...), explode(',', (string) $datatype_ids_str));
             }
 
             // If datatype IDs are specified, expand to include all descendant datatypes
             // This ensures we have statistics for child datatypes needed for aggregation
-            $expanded_datatype_ids = array();
+            $expanded_datatype_ids = [];
             if (!empty($datatype_ids)) {
                 /** @var \ODR\AdminBundle\Component\Service\DatatreeInfoService $datatree_info_service */
                 $datatree_info_service = $this->container->get('odr.datatree_info_service');
@@ -627,16 +627,16 @@ class StatisticsController extends ODRCustomController
             $total_views = 0;
             $total_downloads = 0;
             $search_result_views = 0;
-            $timeline = array();
-            $geographic = array();
-            $bot_stats = array(
+            $timeline = [];
+            $geographic = [];
+            $bot_stats = [
                 'human_views' => 0,
                 'human_downloads' => 0,
                 'bot_views' => 0,
                 'bot_downloads' => 0
-            );
-            $by_datatype = array();
-            $countries = array();
+            ];
+            $by_datatype = [];
+            $countries = [];
 
             foreach ($stats as $stat) {
                 $views = $stat->getViewCount();
@@ -662,7 +662,7 @@ class StatisticsController extends ODRCustomController
 
                 // Timeline
                 if (!isset($timeline[$date])) {
-                    $timeline[$date] = array('date' => $date, 'view_count' => 0, 'download_count' => 0);
+                    $timeline[$date] = ['date' => $date, 'view_count' => 0, 'download_count' => 0];
                 }
                 // Only count views from originally requested datatypes
                 if ($is_original_datatype) {
@@ -673,7 +673,7 @@ class StatisticsController extends ODRCustomController
                 // Geographic
                 if ($country) {
                     if (!isset($geographic[$country])) {
-                        $geographic[$country] = array('view_count' => 0, 'download_count' => 0);
+                        $geographic[$country] = ['view_count' => 0, 'download_count' => 0];
                         $countries[$country] = true;
                     }
                     // Only count views from originally requested datatypes
@@ -701,7 +701,7 @@ class StatisticsController extends ODRCustomController
                 // By datatype
                 if ($dt_id > 0) {
                     if (!isset($by_datatype[$dt_id])) {
-                        $by_datatype[$dt_id] = array('view_count' => 0, 'download_count' => 0);
+                        $by_datatype[$dt_id] = ['view_count' => 0, 'download_count' => 0];
                     }
                     $by_datatype[$dt_id]['view_count'] += $views;
                     $by_datatype[$dt_id]['download_count'] += $downloads;
@@ -717,12 +717,12 @@ class StatisticsController extends ODRCustomController
             $logger = $this->get('logger');
 
             $logger->info('StatisticsController::getSummaryAction() - Starting download aggregation');
-            $logger->info('StatisticsController::getSummaryAction() - Initial by_datatype', array('by_datatype' => $by_datatype));
+            $logger->info('StatisticsController::getSummaryAction() - Initial by_datatype', ['by_datatype' => $by_datatype]);
 
             // First, identify top-level datatypes - we only want to aggregate UP to these
             // This avoids double-counting where a child's downloads would be counted both
             // in its own aggregation and its parent's aggregation
-            $top_level_datatype_ids = array();
+            $top_level_datatype_ids = [];
             $datatree_array = $datatree_info_service->getDatatreeArray();
 
             foreach ($by_datatype as $dt_id => $stats) {
@@ -734,12 +734,12 @@ class StatisticsController extends ODRCustomController
 
             $logger->info(
                 'StatisticsController::getSummaryAction() - Identified top-level datatypes',
-                array('top_level_datatypes' => $top_level_datatype_ids)
+                ['top_level_datatypes' => $top_level_datatype_ids]
             );
 
             // Now aggregate downloads ONLY for top-level datatypes
             // This ensures each download is counted exactly once
-            $aggregated_downloads = array();
+            $aggregated_downloads = [];
             foreach ($top_level_datatype_ids as $top_dt_id) {
                 // Skip if this top-level datatype isn't in the results
                 if (!isset($by_datatype[$top_dt_id])) {
@@ -753,17 +753,17 @@ class StatisticsController extends ODRCustomController
                 );
 
                 // Remove the current datatype from the list to get only descendants
-                $descendant_datatype_ids = array_diff($associated_datatype_ids, array($top_dt_id));
+                $descendant_datatype_ids = array_diff($associated_datatype_ids, [$top_dt_id]);
 
                 $logger->info(
                     'StatisticsController::getSummaryAction() - Processing top-level datatype',
-                    array(
+                    [
                         'top_datatype_id' => $top_dt_id,
                         'associated_datatypes' => $associated_datatype_ids,
                         'descendant_datatypes' => $descendant_datatype_ids,
                         'descendant_count' => count($descendant_datatype_ids),
                         'original_downloads' => $by_datatype[$top_dt_id]['download_count']
-                    )
+                    ]
                 );
 
                 // Sum downloads from all descendant datatypes
@@ -773,30 +773,30 @@ class StatisticsController extends ODRCustomController
                         $descendant_downloads += $by_datatype[$descendant_dt_id]['download_count'];
                         $logger->info(
                             'StatisticsController::getSummaryAction() - Found descendant datatype with downloads',
-                            array(
+                            [
                                 'top_datatype_id' => $top_dt_id,
                                 'descendant_datatype_id' => $descendant_dt_id,
                                 'descendant_download_count' => $by_datatype[$descendant_dt_id]['download_count'],
                                 'running_total' => $descendant_downloads
-                            )
+                            ]
                         );
                     } else {
                         $logger->info(
                             'StatisticsController::getSummaryAction() - Descendant datatype NOT in by_datatype array (no stats in this period)',
-                            array(
+                            [
                                 'top_datatype_id' => $top_dt_id,
                                 'descendant_datatype_id' => $descendant_dt_id
-                            )
+                            ]
                         );
                     }
                 }
 
                 $logger->info(
                     'StatisticsController::getSummaryAction() - Total descendant downloads for top-level datatype',
-                    array(
+                    [
                         'top_datatype_id' => $top_dt_id,
                         'descendant_downloads' => $descendant_downloads
-                    )
+                    ]
                 );
 
                 // Store the aggregated download count for this top-level datatype
@@ -813,7 +813,7 @@ class StatisticsController extends ODRCustomController
 
                 $logger->info(
                     'StatisticsController::getSummaryAction() - Updated top-level datatype download count',
-                    array(
+                    [
                         'top_datatype_id' => $top_dt_id,
                         'original_downloads' => $original_downloads,
                         'original_views' => $original_views,
@@ -821,16 +821,16 @@ class StatisticsController extends ODRCustomController
                         'new_download_total' => $by_datatype[$top_dt_id]['download_count'],
                         'views_unchanged' => $by_datatype[$top_dt_id]['view_count'],
                         'full_stats' => $by_datatype[$top_dt_id]
-                    )
+                    ]
                 );
             }
 
-            $logger->info('StatisticsController::getSummaryAction() - Final by_datatype', array('by_datatype' => $by_datatype));
+            $logger->info('StatisticsController::getSummaryAction() - Final by_datatype', ['by_datatype' => $by_datatype]);
 
             // Sort timeline by date
             ksort($timeline);
 
-            return new JsonResponse(array(
+            return new JsonResponse([
                 'success' => true,
                 'total_views' => $total_views,
                 'total_downloads' => $total_downloads,
@@ -840,7 +840,7 @@ class StatisticsController extends ODRCustomController
                 'geographic' => $geographic,
                 'bot_stats' => $bot_stats,
                 'by_datatype' => $by_datatype
-            ));
+            ]);
 
         } catch (\Exception $e) {
             $source = 0xe0f6a146;
@@ -886,13 +886,11 @@ class StatisticsController extends ODRCustomController
                 ->getQuery()
                 ->getArrayResult();
 
-            $datatypeIds = array_map(function($row) {
-                return $row['dt_id'];
-            }, $datatypeIdsWithStats);
+            $datatypeIds = array_map(fn($row) => $row['dt_id'], $datatypeIdsWithStats);
 
             // Now get ONLY TOP-LEVEL datatypes with their metadata
             // Top-level datatypes are identified by: dt.id = grandparent.id
-            $datatypes = array();
+            $datatypes = [];
             if (!empty($datatypeIds)) {
                 $qb = $em->createQueryBuilder();
                 $qb->select('dt')
@@ -910,12 +908,12 @@ class StatisticsController extends ODRCustomController
             }
 
             // Convert to array for template
-            $datatypes_array = array();
+            $datatypes_array = [];
             foreach ($datatypes as $dt) {
-                $datatypes_array[] = array(
+                $datatypes_array[] = [
                     'id' => $dt->getId(),
                     'shortName' => $dt->getShortName()
-                );
+                ];
             }
 
             // Get URL parameters for WordPress integration
@@ -925,25 +923,25 @@ class StatisticsController extends ODRCustomController
             // Render template
             $html = $this->renderView(
                 'ODRAdminBundle:Statistics:dashboard.html.twig',
-                array(
+                [
                     'datatypes' => $datatypes_array,
                     'multi_site_mode' => true,
                     'site_baseurl' => $site_baseurl,
                     'wordpress_site_baseurl' => $wordpress_site_baseurl
-                )
+                ]
             );
 
             // $response = new Response($html);
             // $response->headers->set('Content-Type', 'text/html');
             // return $response;
 
-            $return = array(
+            $return = [
                     "r" => 0,
                     "t" => "",
-                    "d" => array(
+                    "d" => [
                         'html' => $html
-                    )
-            );
+                    ]
+            ];
 
             $response = new Response(json_encode($return));
             $response->headers->set('Content-Type', 'application/json');
@@ -986,7 +984,7 @@ class StatisticsController extends ODRCustomController
 
             // Get the system user for created_by/updated_by
             /** @var ODRUser $user */
-            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->findOneBy(array('id' => 1));
+            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->findOneBy(['id' => 1]);
             if (!$user) {
                 // Fallback - try to get current user or use ID 1
                 $token = $this->container->get('security.token_storage')->getToken();
@@ -1049,10 +1047,10 @@ class StatisticsController extends ODRCustomController
 
             $em->flush();
 
-            return new JsonResponse(array(
+            return new JsonResponse([
                 'success' => true,
                 'count' => $stored_count
-            ));
+            ]);
 
         } catch (\Exception $e) {
             $source = 0xf1a7b259;
@@ -1085,15 +1083,15 @@ class StatisticsController extends ODRCustomController
                 ->getQuery()
                 ->getResult();
 
-            $patterns = array();
+            $patterns = [];
             foreach ($bots as $bot) {
                 $patterns[] = $bot->getPattern();
             }
 
-            return new JsonResponse(array(
+            return new JsonResponse([
                 'success' => true,
                 'bots' => $patterns
-            ));
+            ]);
 
         } catch (\Exception $e) {
             $source = 0xa2b8c36a;
@@ -1135,7 +1133,7 @@ class StatisticsController extends ODRCustomController
 
             // Get the system user
             /** @var ODRUser $user */
-            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->findOneBy(array('id' => 1));
+            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->findOneBy(['id' => 1]);
 
             // Query hourly statistics for this date
             $start_of_day = (clone $date)->setTime(0, 0, 0);
@@ -1153,20 +1151,20 @@ class StatisticsController extends ODRCustomController
                 ->getResult();
 
             // Aggregate by datatype, datarecord, file, country, province, is_bot
-            $aggregated = array();
+            $aggregated = [];
 
             foreach ($hourly_stats as $stat) {
-                $key = implode('|', array(
+                $key = implode('|', [
                     $stat->getDataType() ? $stat->getDataType()->getId() : 'null',
                     $stat->getDataRecord() ? $stat->getDataRecord()->getId() : 'null',
                     $stat->getFile() ? $stat->getFile()->getId() : 'null',
                     $stat->getCountry() ?: 'null',
                     $stat->getProvince() ?: 'null',
                     $stat->getIsBot() ? '1' : '0'
-                ));
+                ]);
 
                 if (!isset($aggregated[$key])) {
-                    $aggregated[$key] = array(
+                    $aggregated[$key] = [
                         'datatype' => $stat->getDataType(),
                         'datarecord' => $stat->getDataRecord(),
                         'file' => $stat->getFile(),
@@ -1176,7 +1174,7 @@ class StatisticsController extends ODRCustomController
                         'view_count' => 0,
                         'download_count' => 0,
                         'search_result_view_count' => 0
-                    );
+                    ];
                 }
 
                 $aggregated[$key]['view_count'] += $stat->getViewCount();
@@ -1281,12 +1279,12 @@ class StatisticsController extends ODRCustomController
 
             $em->flush();
 
-            return new JsonResponse(array(
+            return new JsonResponse([
                 'success' => true,
                 'count' => $stored_count,
                 'updated' => $updated_count,
                 'total' => $stored_count + $updated_count
-            ));
+            ]);
 
         } catch (\Exception $e) {
             $source = 0xb3c9d47b;
@@ -1338,10 +1336,10 @@ class StatisticsController extends ODRCustomController
 
             $deleted_count = $query->execute();
 
-            return new JsonResponse(array(
+            return new JsonResponse([
                 'success' => true,
                 'count' => $deleted_count
-            ));
+            ]);
 
         } catch (\Exception $e) {
             $source = 0xc4dad58c;
@@ -1380,7 +1378,7 @@ class StatisticsController extends ODRCustomController
 
             // Get the system user
             /** @var ODRUser $user */
-            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->findOneBy(array('id' => 1));
+            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->findOneBy(['id' => 1]);
 
             $patterns = $post['patterns'];
             $added = 0;
@@ -1388,7 +1386,7 @@ class StatisticsController extends ODRCustomController
             $deactivated = 0;
 
             // Get existing patterns
-            $existing_patterns = array();
+            $existing_patterns = [];
             $existing_bots = $em->getRepository('ODRAdminBundle:StatisticsBotList')
                 ->createQueryBuilder('b')
                 ->where('b.deletedAt IS NULL')
@@ -1400,13 +1398,13 @@ class StatisticsController extends ODRCustomController
             }
 
             // Track which patterns we've seen
-            $seen_patterns = array();
+            $seen_patterns = [];
 
             // Add or update patterns
             foreach ($patterns as $pattern_data) {
                 $pattern = $pattern_data['pattern'];
-                $bot_name = isset($pattern_data['bot_name']) ? $pattern_data['bot_name'] : $pattern;
-                $is_active = isset($pattern_data['is_active']) ? $pattern_data['is_active'] : true;
+                $bot_name = $pattern_data['bot_name'] ?? $pattern;
+                $is_active = $pattern_data['is_active'] ?? true;
 
                 $seen_patterns[$pattern] = true;
 
@@ -1445,12 +1443,12 @@ class StatisticsController extends ODRCustomController
 
             $em->flush();
 
-            return new JsonResponse(array(
+            return new JsonResponse([
                 'success' => true,
                 'added' => $added,
                 'updated' => $updated,
                 'deactivated' => $deactivated
-            ));
+            ]);
 
         } catch (\Exception $e) {
             $source = 0xd5ebe69d;

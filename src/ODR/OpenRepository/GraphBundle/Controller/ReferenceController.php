@@ -50,7 +50,7 @@ class ReferenceController extends ODRCustomController
      */
     public function renderAction($request_datarecord_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -164,7 +164,7 @@ class ReferenceController extends ODRCustomController
 
             // The first argument for the plugin service should only be a single cached datarecord
             //  entry, wrapped with its own id
-            $plugin_dr_array = array($request_datarecord_id => $datarecord_info_service->stackDatarecordArray($datarecord_array, $request_datarecord_id));
+            $plugin_dr_array = [$request_datarecord_id => $datarecord_info_service->stackDatarecordArray($datarecord_array, $request_datarecord_id)];
 
             // The argument for the parent datarecord array does not need to be wrapped
             $plugin_parent_dr_array = null;
@@ -176,7 +176,7 @@ class ReferenceController extends ODRCustomController
 
             // ----------------------------------------
             // Need some additional data so twig doesn't complain when rendering
-            $rendering_options = array(
+            $rendering_options = [
                 'is_link' => 0,    // these three values don't really matter at the moment
                 'display_type' => 0,
                 'multiple_allowed' => 0,
@@ -184,7 +184,7 @@ class ReferenceController extends ODRCustomController
                 'is_top_level' => $is_top_level,
                 'context' => 'html',    // like 'text', but want files/urls...
                 'is_datatype_admin' => $is_datatype_admin,
-            );
+            ];
 
             /** @var DatatypePluginInterface $svc */
             $svc = $this->container->get($plugin_classname);

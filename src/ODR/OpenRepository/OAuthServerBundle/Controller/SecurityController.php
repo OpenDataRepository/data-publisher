@@ -31,7 +31,7 @@ class SecurityController extends Controller
 
         // Add the following lines
         if ($session->has('_security.target_path')) {
-            if (false !== strpos($session->get('_security.target_path'), $this->generateUrl('fos_oauth_server_authorize'))) {
+            if (str_contains((string) $session->get('_security.target_path'), $this->generateUrl('fos_oauth_server_authorize'))) {
                 $session->set('_fos_oauth_server.ensure_logout', true);
             }
         }
@@ -43,11 +43,11 @@ class SecurityController extends Controller
         // TODO - this doesn't seem to actually do anything on authentication failure
         $helper = $this->get('security.authentication_utils');
 
-        return $this->render('ODROpenRepositoryOAuthServerBundle:Security:oauth_login.html.twig', array(
+        return $this->render('ODROpenRepositoryOAuthServerBundle:Security:oauth_login.html.twig', [
             'last_username' => $helper->getLastUsername(),
             'error'         => $helper->getLastAuthenticationError(),
             'csrf_token'    => $csrfToken
-        ));
+        ]);
     }
 
 

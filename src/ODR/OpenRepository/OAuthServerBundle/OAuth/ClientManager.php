@@ -20,19 +20,12 @@ use Doctrine\ORM\EntityManager;
 class ClientManager
 {
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-
-    /**
      * ClientManager constructor.
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      */
-    public function __construct(EntityManager $entity_manager)
+    public function __construct(private readonly EntityManager $em)
     {
-        $this->em = $entity_manager;
     }
 
 
@@ -45,9 +38,9 @@ class ClientManager
      */
     public function getOwnedClients($user)
     {
-        $owned_clients = $this->em->getRepository('ODROpenRepositoryOAuthServerBundle:Client')->findBy(array('owner' => $user->getId()));
+        $owned_clients = $this->em->getRepository('ODROpenRepositoryOAuthServerBundle:Client')->findBy(['owner' => $user->getId()]);
         if ($owned_clients == null)
-            return array();
+            return [];
 
         return $owned_clients;
     }

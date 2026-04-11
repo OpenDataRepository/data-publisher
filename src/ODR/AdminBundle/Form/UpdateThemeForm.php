@@ -41,19 +41,19 @@ class UpdateThemeForm extends AbstractType
         $builder->add(
             'templateName',
             TextType::class,
-            array(
+            [
                 'required' => true,
                 'label' => 'Theme Name',
-            )
+            ]
         );
 
         $builder->add(
             'templateDescription',
             TextareaType::class,
-            array(
+            [
                 'required' => true,
                 'label' => 'Theme Description',
-            )
+            ]
         );
 
         $builder->add(
@@ -79,55 +79,55 @@ class UpdateThemeForm extends AbstractType
         $builder->add(
             'disableSearchSidebar',
             CheckboxType::class,
-            array(
+            [
                 'required' => true,
                 'label' => 'Disable the search sidebar when in use'
-            )
+            ]
         );
 
         if ( !$is_master_theme ) {
             $builder->add(
                 'themeVisibility',
                 ChoiceType::class,
-                array(
-                    'choices' => array(
+                [
+                    'choices' => [
                         'Any' => ThemeMeta::ANY_CONTEXT,
                         'Search Results Only' => ThemeMeta::SHORT_CONTEXT,
                         'Display/Edit Only' => ThemeMeta::LONG_CONTEXT,
-                    ),
+                    ],
                     'label'  => 'Allow Layout to be used for: ',
                     'expanded' => false,
                     'multiple' => false,
                     'placeholder' => false
-                )
+                ]
             );
         }
 
         $builder->add(
             'isTableTheme',
             CheckboxType::class,
-            array(
+            [
                 'required' => true,
                 'label' => 'Render as Table when used for Search Results?'
-            )
+            ]
         );
 
         $builder->add(
             'displaysAllResults',
             CheckboxType::class,
-            array(
+            [
                 'required' => true,
                 'label' => 'Render up to 10,000 records (Table layouts only, potentially slow)'
-            )
+            ]
         );
 
         $builder->add(
             'enableHorizontalScrolling',
             CheckboxType::class,
-            array(
+            [
                 'required' => true,
                 'label' => 'Force Table layouts to scroll horizontally instead of responsively hiding columns'
-            )
+            ]
         );
     }
 
@@ -150,6 +150,7 @@ class UpdateThemeForm extends AbstractType
      *
      * @return string The prefix of the template block name
      */
+    #[\Override]
     public function getBlockPrefix()
     {
         return 'UpdateThemeForm';
@@ -162,9 +163,9 @@ class UpdateThemeForm extends AbstractType
     public function configureOptions(OptionsResolver $resolver)
     {
         $resolver->setDefaults(
-            array(
-                'data_class' => 'ODR\AdminBundle\Entity\ThemeMeta'
-            )
+            [
+                'data_class' => \ODR\AdminBundle\Entity\ThemeMeta::class
+            ]
         );
 
         // Required options should not have defaults set

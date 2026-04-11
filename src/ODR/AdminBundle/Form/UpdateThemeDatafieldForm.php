@@ -87,6 +87,7 @@ class UpdateThemeDatafieldForm extends AbstractType
      *
      * @return string The prefix of the template block name
      */
+    #[\Override]
     public function getBlockPrefix()
     {
         return 'UpdateThemeDatafieldForm';
@@ -99,9 +100,9 @@ class UpdateThemeDatafieldForm extends AbstractType
     public function configureOptions(OptionsResolver $resolver)
     {
         $resolver->setDefaults(
-            array(
-                'data_class' => 'ODR\AdminBundle\Entity\ThemeDataField',
-            )
+            [
+                'data_class' => \ODR\AdminBundle\Entity\ThemeDataField::class,
+            ]
         );
     }
 }

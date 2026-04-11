@@ -31,19 +31,19 @@ class ODRMarkdownParserService extends CommonMarkConverter implements MarkdownPa
     public function __construct()
     {
         // These are the currently available configuration options
-        $config = array(
-            'renderer' => array(
+        $config = [
+            'renderer' => [
                 'block_separator' => "\n",
                 'inner_separator' => "\n",
                 'soft_break'      => "\n",
-            ),
+            ],
             'enable_em' => true,        // controls whether italic stuff is rendered
             'enable_strong' => true,    // controls whether bold stuff is rendered
             'use_asterisk' => true,
             'use_underscore' => true,
             'html_input' => 'strip',     // defaults to 'escape'
             'allow_unsafe_links' => false,
-        );
+        ];
 
         // Not needed now, but look at https://github.com/thephpleague/commonmark-extras for
         //  examples on how to add extensions to this

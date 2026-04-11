@@ -63,7 +63,7 @@ class CryptoCommand extends ContainerAwareCommand
 //                $crypto_service = $this->getContainer()->get('odr.crypto_service');
 
                 // Get Job Data
-                $data = json_decode($job->getData()); 
+                $data = json_decode((string) $job->getData()); 
 
                 // 
                 $logger->info('CryptoCommand.php: '.$data->crypto_type.' request for '.$data->object_type.' '.$data->object_id.' from '.$data->redis_prefix.'...');
@@ -106,7 +106,7 @@ class CryptoCommand extends ContainerAwareCommand
                     $ch = curl_init();
 
                     // Create the required parameters to send
-                    $parameters = array(
+                    $parameters = [
                         'object_type' => $data->object_type,
                         'object_id' => $data->object_id,
                         'local_filename' => $data->local_filename,
@@ -116,11 +116,11 @@ class CryptoCommand extends ContainerAwareCommand
                         'desired_filename' => $data->desired_filename,
 
                         'api_key' => $data->api_key
-                    );
+                    ];
 
                     // Set the options for the POST request
                     curl_setopt_array($ch,
-                        array(
+                        [
                             CURLOPT_POST => 1,
                             CURLOPT_HEADER => 0,
                             CURLOPT_URL => $data->url,
@@ -131,7 +131,7 @@ class CryptoCommand extends ContainerAwareCommand
                             CURLOPT_FORBID_REUSE => 1,
                             CURLOPT_TIMEOUT => 0,   // TODO - actual timeout value instead of "never"?
                             CURLOPT_POSTFIELDS => http_build_query($parameters)
-                        )
+                        ]
                     );
 
                     // Send the request

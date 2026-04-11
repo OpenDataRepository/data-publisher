@@ -62,7 +62,7 @@ class XMLImportController extends ODRCustomController
                 $return .= "<b>Fatal Error $error->code</b>: ";
                 break;
         }
-        $return .= trim($error->message);
+        $return .= trim((string) $error->message);
         if ($error->file) {
             $return .=    " in <b>$error->file</b>";
         }
@@ -101,7 +101,7 @@ class XMLImportController extends ODRCustomController
      */
     public function importAction($datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -143,13 +143,13 @@ class XMLImportController extends ODRCustomController
 
             // Insert the new job into the queue
             $payload = json_encode(
-                array(
+                [
                     "datatype_id" => $datatype->getId(),
                     "user_id" => $user->getId(),
                     "redis_prefix" => $redis_prefix,    // debug purposes only
                     "url" => $url,
                     "api_key" => $api_key,
-                )
+                ]
             );
             $pheanstalk->useTube('import_datatype')->put($payload);
         }
@@ -177,7 +177,7 @@ class XMLImportController extends ODRCustomController
      */
     public function importstartAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -210,8 +210,8 @@ class XMLImportController extends ODRCustomController
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid job data');
 
-            $schema_path = dirname(__FILE__).'/../../../../web/uploads/xsd/';
-            $xml_path = dirname(__FILE__).'/../../../../web/uploads/xml/user_'.$user_id.'/';
+            $schema_path = __DIR__.'/../../../../web/uploads/xsd/';
+            $xml_path = __DIR__.'/../../../../web/uploads/xml/user_'.$user_id.'/';
             $ret = '';
 
 
@@ -254,14 +254,14 @@ class XMLImportController extends ODRCustomController
                 $url .= $router->generate('odr_xml_import_validate');
 
                 $payload = json_encode(
-                    array(
+                    [
                         'xml_filename' => $xml_filename,
                         'api_key' => $beanstalk_api_key,
                         'url' => $url,
                         'redis_prefix' => $redis_prefix,    // debug purposes only
                         'datatype_id' => $datatype_id,
                         'user_id' => $user_id
-                    )
+                    ]
                 );
                 $pheanstalk->useTube('validate_import')->put($payload);
 
@@ -292,7 +292,7 @@ class XMLImportController extends ODRCustomController
      */
     public function importvalidateAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -330,8 +330,8 @@ class XMLImportController extends ODRCustomController
             // Enable user error handling
             libxml_use_internal_errors(true);
 
-            $schema_path = dirname(__FILE__).'/../../../../web/uploads/xsd/';
-            $xml_path = dirname(__FILE__).'/../../../../web/uploads/xml/user_'.$user_id.'/';
+            $schema_path = __DIR__.'/../../../../web/uploads/xsd/';
+            $xml_path = __DIR__.'/../../../../web/uploads/xml/user_'.$user_id.'/';
             $ret = '';
 
 
@@ -395,14 +395,14 @@ class XMLImportController extends ODRCustomController
                     $url .= $router->generate('odr_xml_import_worker');
 
                     $payload = json_encode(
-                        array(
+                        [
                             'xml_filename' => $xml_filename,
                             'api_key' => $beanstalk_api_key,
                             'url' => $url,
                             'redis_prefix' => $redis_prefix,    // debug purposes only
                             'datatype_id' => $datatype_id,
                             'user_id' => $user_id
-                        )
+                        ]
                     );
                     $pheanstalk->useTube('import_datarecord')->put($payload);
                     $ret .= 'No schema errors in "'.$xml_filename.'", scheduled for import'."\n";
@@ -438,7 +438,7 @@ class XMLImportController extends ODRCustomController
      */
     public function importworkerAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -477,7 +477,7 @@ class XMLImportController extends ODRCustomController
 
             // Enable user error handling
             libxml_use_internal_errors(true);
-            $xml_path = dirname(__FILE__).'/../../../../web/uploads/xml/user_'.$user_id.'/';
+            $xml_path = __DIR__.'/../../../../web/uploads/xml/user_'.$user_id.'/';
             $ret = "\n----------\n";
 
             // Load the file as an XML Document
@@ -500,7 +500,7 @@ $write = false;
 
             foreach ($xml_datarecords->childNodes as $xml_datarecord) {
                 // Need to keep track of the entities created for this import
-                $created_objects = array();
+                $created_objects = [];
                 $import_ret = null;
 
                 $indent = 0;
@@ -530,10 +530,10 @@ if ($write) {
                     $em->refresh($grandparent);
 
                     // Create all datarecordfield and storage entities required for this datarecord
-                    $created_objects = array($grandparent);
+                    $created_objects = [$grandparent];
 }
 else {
-    $grandparent = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy( array("dataType" => $parent_datatype->getId()) );   // DEBUGGING
+    $grandparent = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy( ["dataType" => $parent_datatype->getId()] );   // DEBUGGING
 }
 
                     $ret .= 'Creating new datarecord...'."\n";
@@ -656,7 +656,7 @@ if ($write) {
     {
         // Need to keep track of whether an error occurred or not, and the objects created up to the point of the error
         $error_during_import = false;
-        $created_objects = array();
+        $created_objects = [];
 
         // ----------------------------------------
         // Import metadata about this datarecord
@@ -749,8 +749,8 @@ if ($write) {
         // Need to deal with any occurence of child/linked datatypes now...
         $parent_external_id = $datarecord->getExternalId();  // TODO - possible problem due to datafield getting changed earlier?
 
-        $child_datatypes = array();
-        $linked_datatypes = array();
+        $child_datatypes = [];
+        $linked_datatypes = [];
         if (!$error_during_import) {
             // Grab all linked/child types that the importer might have to deal with
             $query = $em->createQuery(
@@ -758,7 +758,7 @@ if ($write) {
                 FROM ODRAdminBundle:DataTree AS dt
                 WHERE dt.ancestor = :datatype OR dt.descendant = :datatype
                 AND dt.deletedAt IS NULL'
-            )->setParameters( array('datatype' => $datatype) );
+            )->setParameters( ['datatype' => $datatype] );
             $results = $query->getResult();
             foreach ($results as $num => $datatree) {
                 /** @var DataTree $datatree */
@@ -838,10 +838,10 @@ if ($write) {
                                     $em->refresh($child_datarecord);
 
                                     // Save the new child datarecord incase it needs to get deleted on an error
-                                    $created_objects = array_merge($created_objects, array($child_datarecord));
+                                    $created_objects = array_merge($created_objects, [$child_datarecord]);
 }
 else {
-    $child_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy( array("dataType" => $child_datatype->getId()) );   // DEBUGGING
+    $child_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy( ["dataType" => $child_datatype->getId()] );   // DEBUGGING
 }
                                 }
                                 else {
@@ -939,7 +939,7 @@ if ($write) {
 
         // ----------------------------------------
         // Return results of importing this datarecord
-        $return = array();
+        $return = [];
         $return['status'] = $ret;
         $return['error'] = $error_during_import;
         $return['objects'] = $created_objects;
@@ -959,7 +959,7 @@ if ($write) {
      */
     private function getODRMetadata($xml_entity, $metadata_type)
     {
-        $odr_metadata = array();
+        $odr_metadata = [];
         $metadata_type = '_'.$metadata_type.'_metadata';
 
         // Look for the metadata element
@@ -1002,10 +1002,10 @@ if ($write) {
     {
         $status = '';
 
-        $return = array();
+        $return = [];
         $return['status'] = '';
         $return['error'] = false;
-        $return['objects'] = array();
+        $return['objects'] = [];
 
         // Shouldn't happen, obviously
         if ($xml_element == null) {
@@ -1029,10 +1029,10 @@ if ($write) {
                 // Going to need these
                 $repo_datarecordfields = $entity_manager->getRepository('ODRAdminBundle:DataRecordFields');
                 $repo_file = $entity_manager->getRepository('ODRAdminBundle:File');
-                $drf = $repo_datarecordfields->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
+                $drf = $repo_datarecordfields->findOneBy( ['dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()] );
 
                 // Store the files listed in the xml file
-                $changelist = array();
+                $changelist = [];
                 $need_flush = false;
 
 
@@ -1086,7 +1086,7 @@ if ($write) {
 
                     $priority = 1024;   // should be roughly default priority
                     $payload = json_encode(
-                        array(
+                        [
                             "object_type" => 'File',
                             "drf_id" => $drf->getId(),
                             "user_id" => $user->getId(),
@@ -1097,7 +1097,7 @@ if ($write) {
                             "redis_prefix" => $redis_prefix,    // debug purposes only
                             "url" => $url,
                             "api_key" => $api_key,
-                        )
+                        ]
                     );
 
                     $delay = 1;
@@ -1126,7 +1126,7 @@ if ($write) {
 
                     // Grab all uploaded files in this datafield
                     /** @var File[] $files */
-                    $files = $repo_file->findBy( array("dataRecordFields" => $drf->getId()) );
+                    $files = $repo_file->findBy( ["dataRecordFields" => $drf->getId()] );
                     foreach ($files as $file) {
                         // If the file wasn't listed in the xml file...
                         $filename = $file->getOriginalFileName();
@@ -1150,7 +1150,7 @@ if ($write) {
                     $entity_manager->flush();
 }
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 $return['error'] = true;
             }
         }
@@ -1161,10 +1161,10 @@ if ($write) {
                 // Going to need these
                 $repo_datarecordfields = $entity_manager->getRepository('ODRAdminBundle:DataRecordFields');
                 $repo_image = $entity_manager->getRepository('ODRAdminBundle:Image');
-                $drf = $repo_datarecordfields->findOneBy( array('dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()) );
+                $drf = $repo_datarecordfields->findOneBy( ['dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()] );
 
                 // Store the images listed in the xml file
-                $changelist = array();
+                $changelist = [];
                 $need_flush = false;
 
 
@@ -1219,7 +1219,7 @@ if ($write) {
 
                     $priority = 1024;   // should be roughly default priority
                     $payload = json_encode(
-                        array(
+                        [
                             "object_type" => 'Image',
                             "drf_id" => $drf->getId(),
                             "user_id" => $user->getId(),
@@ -1230,7 +1230,7 @@ if ($write) {
                             "redis_prefix" => $redis_prefix,    // debug purposes only
                             "url" => $url,
                             "api_key" => $api_key,
-                        )
+                        ]
                     );
 
                     $delay = 1;
@@ -1261,7 +1261,7 @@ if ($write) {
 
                     // Grab all uploaded files in this datafield
                     /** @var Image[] $images */
-                    $images = $repo_image->findBy( array("dataRecordFields" => $drf->getId()) );
+                    $images = $repo_image->findBy( ["dataRecordFields" => $drf->getId()] );
                     foreach ($images as $image) {
                         // If the file wasn't listed in the xml file...
                         $filename = $image->getOriginalFileName();
@@ -1290,7 +1290,7 @@ if ($write) {
                     $entity_manager->flush();
 }
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 $return['error'] = true;
             }
         }
@@ -1303,12 +1303,12 @@ if ($write) {
                 $repo_radio_option = $entity_manager->getRepository('ODRAdminBundle:RadioOptions');
 
                 /** @var DataRecordFields $drf */
-                $drf = $repo_datarecordfields->findOneBy( array("dataField" => $datafield->getId(), "dataRecord" => $datarecord->getId()) );
+                $drf = $repo_datarecordfields->findOneBy( ["dataField" => $datafield->getId(), "dataRecord" => $datarecord->getId()] );
                 /** @var RadioOptions[] $radio_options */
-                $radio_options = $repo_radio_option->findBy( array("dataFields" => $datafield->getId()) );  // TEMP
+                $radio_options = $repo_radio_option->findBy( ["dataFields" => $datafield->getId()] );  // TEMP
 
                 // Keep track of which radio options were changed
-                $changelist = array();
+                $changelist = [];
                 $need_flush = false;
 
 
@@ -1340,14 +1340,14 @@ if ($write) {
 
                     // Attempt to locate a radio_selction object for this
                     /** @var RadioSelection $radio_selection */
-                    $radio_selection = $repo_radio_selection->findOneBy( array("radioOption" => $radio_option->getId(), "dataRecordFields" => $drf->getId()) );
+                    $radio_selection = $repo_radio_selection->findOneBy( ["radioOption" => $radio_option->getId(), "dataRecordFields" => $drf->getId()] );
 
 if ($write) {
                     // TODO - WARNING, THIS WILL NO LONGER WORK RIGHT BECAUSE THOSE TWO FUNCTIONS FLUSH
                     if ($radio_selection == null) {
                         // Create a new RadioSelection object
                         $radio_selection = parent::ODR_addRadioSelection($entity_manager, $user, $radio_option, $drf);
-                        parent::ODR_copyRadioSelection($entity_manager, $user, $radio_selection, array('selected' => $option_value));
+                        parent::ODR_copyRadioSelection($entity_manager, $user, $radio_selection, ['selected' => $option_value]);
                         $need_flush = true;
 
                         // Store the radio option so they can all be deleted if an error occurs
@@ -1361,7 +1361,7 @@ if ($write) {
 
                             // Create a new radio selection
                             $radio_selection = parent::ODR_addRadioSelection($entity_manager, $user, $radio_option, $drf);
-                            parent::ODR_copyRadioSelection($entity_manager, $user, $radio_selection, array('selected' => $option_value));
+                            parent::ODR_copyRadioSelection($entity_manager, $user, $radio_selection, ['selected' => $option_value]);
 
                             $entity_manager->persist($radio_selection);
                             $need_flush = true;
@@ -1382,7 +1382,7 @@ if ($write) {
 
                     // Grab all radio selection objects for this datafield
                     /** @var RadioSelection[] $radio_selections */
-                    $radio_selections = $repo_radio_selection->findBy( array("dataRecordFields" => $drf->getId()) );
+                    $radio_selections = $repo_radio_selection->findBy( ["dataRecordFields" => $drf->getId()] );
                     foreach ($radio_selections as $rs) {
                         // If the radio option wasn't listed in the xml file...
                         $radio_option = $rs->getRadioOption();
@@ -1411,7 +1411,7 @@ if ($write) {
 }
 
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 $return['error'] = true;
             }
         }
@@ -1430,7 +1430,7 @@ if ($write) {
 
                 // Locate the field in the database
                 $classname = "ODR\\AdminBundle\\Entity\\".$typeclass;
-                $my_obj = $entity_manager->getRepository($classname)->findOneBy( array("dataField" => $datafield->getId(), "dataRecord" => $datarecord->getId()) );
+                $my_obj = $entity_manager->getRepository($classname)->findOneBy( ["dataField" => $datafield->getId(), "dataRecord" => $datarecord->getId()] );
 
                 $update_storage_entity = true;
                 $new_value = $value;
@@ -1473,7 +1473,7 @@ if ($write) {
 
                 $status .= $value;
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 $return['error'] = true;
             }
         }
@@ -1493,7 +1493,7 @@ if ($write) {
      */
     public function importfileAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1545,7 +1545,7 @@ $write = false;
             $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
             /** @var DataRecordFields $drf */
             $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->find($drf_id);
-            $path_prefix = dirname(__FILE__).'/../../../../web/';
+            $path_prefix = __DIR__.'/../../../../web/';
             $storage_path = 'uploads/xml/user_'.$user_id.'/storage/';
 
             // Ensure storage directory exists
@@ -1554,9 +1554,9 @@ $write = false;
 
             $my_obj = null;
             if ($object_type == 'File')
-                $my_obj = $repo_file->findOneBy( array('originalFileName' => $original_name, 'dataRecordFields' => $drf_id) );
+                $my_obj = $repo_file->findOneBy( ['originalFileName' => $original_name, 'dataRecordFields' => $drf_id] );
             else if ($object_type == 'Image')
-                $my_obj = $repo_image->findOneBy( array('originalFileName' => $original_name, 'dataRecordFields' => $drf_id, 'original' => true) );
+                $my_obj = $repo_image->findOneBy( ['originalFileName' => $original_name, 'dataRecordFields' => $drf_id, 'original' => true] );
             else
                 throw new \Exception('Invalid Form');
             /** @var File|Image $my_obj */
@@ -1576,7 +1576,7 @@ $write = false;
 
                 // Set the options for the cURL request
                 curl_setopt_array($ch,
-                    array(
+                    [
                         CURLOPT_HEADER => 0,
                         CURLOPT_URL => $href,
                         CURLOPT_RETURNTRANSFER => 1,
@@ -1584,7 +1584,7 @@ $write = false;
                         CURLOPT_FRESH_CONNECT => 1,
                         CURLOPT_FORBID_REUSE => 1,
                         CURLOPT_TIMEOUT => 120,  // TODO - timeout length?
-                    )
+                    ]
                 );
 
                 // Send the request

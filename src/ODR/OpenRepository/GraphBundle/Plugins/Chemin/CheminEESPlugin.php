@@ -24,25 +24,13 @@ class CheminEESPlugin implements DatatypePluginInterface
 {
 
     /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * CheminEESPlugin constructor.
      *
      * @param EngineInterface $templating
      * @param Logger $logger
      */
-    public function __construct(EngineInterface $templating, Logger $logger) {
-        $this->templating = $templating;
-        $this->logger = $logger;
+    public function __construct(private readonly EngineInterface $templating, private readonly Logger $logger)
+    {
     }
 
 
@@ -85,7 +73,7 @@ class CheminEESPlugin implements DatatypePluginInterface
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
+    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = [], $datatype_permissions = [], $datafield_permissions = [], $token_list = [])
     {
 
         try {
@@ -97,7 +85,7 @@ class CheminEESPlugin implements DatatypePluginInterface
             $fields = $render_plugin_instance['renderPluginMap'];
 
             // Retrieve mapping between datafields and render plugin fields
-            $datafield_mapping = array();
+            $datafield_mapping = [];
             foreach ($fields as $rpf_name => $rpf_df) {
                 // Need to find the real datafield entry in the primary datatype array
                 $rpf_df_id = $rpf_df['id'];
@@ -122,7 +110,7 @@ class CheminEESPlugin implements DatatypePluginInterface
 
                 // Grab the field name specified in the plugin's config file to use as an array key
                 $key = strtolower( str_replace(' ', '_', $rpf_name) );
-                $datafield_mapping[$key] = array('datafield' => $df);
+                $datafield_mapping[$key] = ['datafield' => $df];
             }
 
 
@@ -132,7 +120,7 @@ class CheminEESPlugin implements DatatypePluginInterface
             // ...the first part being a key that matches across all the different file types
             $datarecord_id = '';
 
-            $file_data = array();
+            $file_data = [];
             foreach ($datarecords as $dr_id => $dr) {
                 // Store the datarecord id to use to name the plugin's table later on
                 $datarecord_id = $dr_id;
@@ -143,7 +131,7 @@ class CheminEESPlugin implements DatatypePluginInterface
                             $original_filename = $file['fileMeta']['originalFileName'];
 
                             // Don't want the file's original extension
-                            $pieces = explode('.', $original_filename);
+                            $pieces = explode('.', (string) $original_filename);
 
                             // Only want the identifying info at the beginning of the filename
                             $pieces = explode('_', $pieces[0]);
@@ -153,7 +141,7 @@ class CheminEESPlugin implements DatatypePluginInterface
 
                             // Want to store all types of files under the same identifying info
                             if ( !isset($file_data[$shortened_filename]) )
-                                $file_data[$shortened_filename] = array();
+                                $file_data[$shortened_filename] = [];
 
                             // Identify file type
                             switch($df_id) {
@@ -177,10 +165,10 @@ class CheminEESPlugin implements DatatypePluginInterface
             // Render and return the graph html
             $output = $this->templating->render(
                 'ODROpenRepositoryGraphBundle:Chemin:CheminEES/chemin_ees.html.twig',
-                array(
+                [
                     'file_data' => $file_data,
                     'chemin_ees_table' => 'chemin_ees_table_'.$datarecord_id,
-                )
+                ]
             );
             return $output;
         }

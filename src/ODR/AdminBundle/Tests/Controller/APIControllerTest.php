@@ -10,7 +10,7 @@ class APIControllerTest extends WebTestCase
     public static $client = "";
 
     public static $token = "";
-    public static $headers = array();
+    public static $headers = [];
 
     // public static $base_url = "https://ahed-dev.nasawestprime.com/ahed-api/api/v3";
     // public static $base_url = "http://office-dev/app_dev.php/api/v3";
@@ -34,14 +34,14 @@ class APIControllerTest extends WebTestCase
         $debug = ((getenv("DEBUG") == "APIController" || getenv("DEBUG") == __FUNCTION__) ? true : false);
         // $timer = (getenv("TIMER") == "1" ? true : false);
 
-        $post_data = json_encode(array(
+        $post_data = json_encode([
             'username' => 'nate@opendatarepository.org',
             'password' => 'n518se'
-        ));
+        ]);
 
         $cp = new CurlUtility(
             self::$base_url . '/token',
-            array('Content-type: application/json'),
+            ['Content-type: application/json'],
             false,
             true,
             __FUNCTION__
@@ -53,19 +53,19 @@ class APIControllerTest extends WebTestCase
         // Show the actual content if debug enabled.
         ($debug ? fwrite(STDERR, 'Token Data:' . $content) : '');
 
-        $token = json_decode($content, true);
+        $token = json_decode((string) $content, true);
 
         if (!is_array($token)) {
-            ($debug ? fwrite(STDERR, $token) . "\n" : '');
+            ($debug ? fwrite(STDERR, (string) $token) . "\n" : '');
         }
 
         // Token value should be set
         $this->assertTrue(isset($token['token']));
 
         self::$token = $token['token'];
-        self::$headers = array(
+        self::$headers = [
             'HTTP_AUTHORIZATION' => "Bearer {$token['token']}",
-        );
+        ];
 
         ($debug ? fwrite(STDERR, print_r(self::$headers, true) . "\n") : '');
     }
@@ -97,10 +97,10 @@ class APIControllerTest extends WebTestCase
         // Show the actual content if debug enabled.
         ($debug ? fwrite(STDERR, 'Content pulled.' . "\n") : '');
 
-        $template = json_decode($content, true);
+        $template = json_decode((string) $content, true);
 
         if (!is_array($template)) {
-            ($debug ? fwrite(STDERR, $content) . "\n" : '');
+            ($debug ? fwrite(STDERR, (string) $content) . "\n" : '');
         }
 
         // Should redirect to login
@@ -123,11 +123,11 @@ class APIControllerTest extends WebTestCase
 
         ($debug ? fwrite(STDERR, 'Content: ' . print_r($headers, true) . "\n") : '');
 
-        $post_data = array(
+        $post_data = [
             'user_email' => 'nathan.a.stone@nasa.gov',
             'first_name' => 'Nathan',
             'last_name' => 'Stone',
-        );
+        ];
 
         $cp = new CurlUtility(
             self::$base_url . '/user',
@@ -140,7 +140,7 @@ class APIControllerTest extends WebTestCase
         $response = $cp->post($post_data);
         ($debug ? fwrite(STDERR, 'Content: ' . print_r($response, true) . "\n") : '');
 
-        $user = json_decode($response['response'], true);
+        $user = json_decode((string) $response['response'], true);
         ($debug ? fwrite(STDERR, 'User: ' . print_r($user, true) . "\n") : '');
 
         // Should have the user_email at least
@@ -156,12 +156,12 @@ class APIControllerTest extends WebTestCase
 
         $headers[] = 'Authorization: Bearer ' . self::$token;
 
-        $post_data = array(
+        $post_data = [
             'user_email' => 'nathan.a.stone@nasa.gov',
             'first_name' => 'Nathan',
             'last_name' => 'Stone',
             'template_uuid' => self::$template_uuid,
-        );
+        ];
 
         $cp = new CurlUtility(
             self::$base_url . '/dataset',
@@ -174,12 +174,12 @@ class APIControllerTest extends WebTestCase
         $code = $response['code'];
         ($debug ? fwrite(STDERR, 'Response Code: ' . $code . "\n") : '');
         ($debug ? fwrite(STDERR, 'Dataset: ' . $response['response']) : '');
-        $created_dataset = json_decode($response['response'], true);
+        $created_dataset = json_decode((string) $response['response'], true);
         ($debug ? fwrite(STDERR, 'Dataset: ' . print_r($created_dataset, true) . "\n") : '');
-        self::$created_dataset = array(
+        self::$created_dataset = [
             'user_email' => 'nathan.a.stone@nasa.gov',
             'dataset' => $created_dataset
-        );
+        ];
         ($debug ? fwrite(STDERR, 'Dataset UUID AA: ' . self::$created_dataset['dataset']['database_uuid'] . "\n") : '');
 
         // Should have the user_email at least
@@ -198,7 +198,7 @@ class APIControllerTest extends WebTestCase
             $field = self::$created_dataset['dataset']['fields'][$i];
             if ($field['template_field_uuid'] == '08088a9') {
                 // Name field update name
-                $field['value'] = "Test Dataset " . rand(1000000, 9999999);
+                $field['value'] = "Test Dataset " . random_int(1000000, 9999999);
                 self::$created_dataset['dataset']['fields'][$i] = $field;
             }
         }
@@ -213,7 +213,7 @@ class APIControllerTest extends WebTestCase
         );
 
         $response = $cp->put($put_data);
-        $code = json_decode($response['code'], true);
+        $code = json_decode((string) $response['code'], true);
         /*
         $updated_dataset = json_decode($response['response'], true);
         self::$created_dataset['dataset'] = $updated_dataset;
@@ -234,17 +234,17 @@ class APIControllerTest extends WebTestCase
                     {
                         "field_name": "First Name",
                         "template_field_uuid": "0143860",
-                        "value": "John_' . rand(100000, 999999) . '"
+                        "value": "John_' . random_int(100000, 999999) . '"
                     },
                     {
                         "field_name": "Last Name",
                         "template_field_uuid": "4d9ea52",
-                        "value": "Doe_' . rand(100000, 999999) . '"
+                        "value": "Doe_' . random_int(100000, 999999) . '"
                     },
                     {
                         "field_name": "Contact Email",
                         "template_field_uuid": "e3dcbc9",
-                        "value": "random_person_' . rand(100000, 999999) . '@nasa.gov"
+                        "value": "random_person_' . random_int(100000, 999999) . '@nasa.gov"
                     },
                     {
                         "field_name": "Person Website",
@@ -260,7 +260,7 @@ class APIControllerTest extends WebTestCase
                             {
                                 "name": "Sub unit name",
                                 "template_field_uuid": "0b8a9f3",
-                                "value": "Sub_Unit_' . rand(100000000, 999999999) . '"
+                                "value": "Sub_Unit_' . random_int(100000000, 999999999) . '"
                             }
                         ],
                         "records": [
@@ -271,7 +271,7 @@ class APIControllerTest extends WebTestCase
                                     {
                                         "name": "City",
                                         "template_field_uuid": "3503e92",
-                                        "value": "City_' . rand(100000000, 999999999) . '"
+                                        "value": "City_' . random_int(100000000, 999999999) . '"
                                     },
                                     {
                                         "name": "State/Province (Only USA and Canada)",
@@ -319,7 +319,7 @@ class APIControllerTest extends WebTestCase
         );
 
         $response = $cp->put($put_data);
-        $code = json_decode($response['code'], true);
+        $code = json_decode((string) $response['code'], true);
         /*
         $updated_dataset = json_decode($response['response'], true);
         self::$created_dataset['dataset'] = $updated_dataset;
@@ -381,7 +381,7 @@ class APIControllerTest extends WebTestCase
                     ]
                 }
             ]
-                
+
         }';
 
 
@@ -438,7 +438,7 @@ class APIControllerTest extends WebTestCase
         // Show the actual content if debug enabled.
         ($debug ? fwrite(STDERR, 'Dataset Content Pulled: ' . $content . "\n") : '');
 
-        self::$created_dataset['dataset'] = json_decode($content, true);
+        self::$created_dataset['dataset'] = json_decode((string) $content, true);
 
         // Should redirect to login
         $this->assertTrue(isset(self::$created_dataset['dataset']['record_uuid']));
@@ -472,10 +472,10 @@ class APIControllerTest extends WebTestCase
         ($debug ? fwrite(STDERR, 'Content pulled: ' . $content . "\n") : '');
 
         self::$created_datarecord = self::$created_dataset;
-        self::$created_datarecord['dataset'] = json_decode($content, true);
+        self::$created_datarecord['dataset'] = json_decode((string) $content, true);
 
         if (!is_array(self::$created_datarecord['dataset'])) {
-            ($debug ? fwrite(STDERR, $content) . "\n" : '');
+            ($debug ? fwrite(STDERR, (string) $content) . "\n" : '');
         }
 
         // Should redirect to login
@@ -520,11 +520,11 @@ class APIControllerTest extends WebTestCase
         );
 
         $response = $cp->put($put_data);
-        $updated_dataset = json_decode($response['response'], true);
+        $updated_dataset = json_decode((string) $response['response'], true);
         // self::$created_datarecord['dataset'] = $updated_dataset;
         ($debug ? fwrite(STDERR, 'Updated dataset: ' . var_export($updated_dataset, true) . "\n") : '');
 
-        $code = json_decode($response['code'], true);
+        $code = json_decode((string) $response['code'], true);
         ($debug ? fwrite(STDERR, 'Datarecord UUID: ' . self::$created_datarecord['dataset']['database_uuid'] . "\n") : '');
 
         $this->assertTrue($code == 302 || $code == 200);
@@ -553,10 +553,10 @@ class APIControllerTest extends WebTestCase
         // Show the actual content if debug enabled.
         ($debug ? fwrite(STDERR, 'Content pulled: ' . $content . "\n") : '');
 
-        self::$created_datarecord['dataset'] = json_decode($content, true);
+        self::$created_datarecord['dataset'] = json_decode((string) $content, true);
 
         if (!is_array(self::$created_datarecord['dataset'])) {
-            ($debug ? fwrite(STDERR, $content) . "\n" : '');
+            ($debug ? fwrite(STDERR, (string) $content) . "\n" : '');
         }
 
         // Should redirect to login
@@ -584,9 +584,9 @@ class APIControllerTest extends WebTestCase
         // send a file
         curl_setopt($request, CURLOPT_POST, true);
 
-        curl_setopt($request, CURLOPT_HTTPHEADER, array(
+        curl_setopt($request, CURLOPT_HTTPHEADER, [
             "Authorization: Bearer " . self::$token
-        ));
+        ]);
 
         $file_name = __DIR__  . '/../../TestResources/Image_14044.jpeg';
         ($debug ? fwrite(STDERR, $file_name) : '');
@@ -602,14 +602,14 @@ class APIControllerTest extends WebTestCase
         curl_setopt(
             $request,
             CURLOPT_POSTFIELDS,
-            array(
+            [
                 'name' => 'Test File Name',
                 'dataset_uuid' => self::$created_datarecord['dataset']['records'][0]['database_uuid'],
                 'record_uuid' => self::$created_datarecord['dataset']['records'][0]['record_uuid'],
                 'template_field_uuid' => '3d51d4ca9d3fccd4f182a56c259e',
                 'user_email' => 'nathan.a.stone@nasa.gov',
                 'file' => $curl_file
-            ));
+            ]);
 
         // output the response
         ($debug ? fwrite(STDERR, 'TESZ TEST TEST TSETSTE STE STET') : '');

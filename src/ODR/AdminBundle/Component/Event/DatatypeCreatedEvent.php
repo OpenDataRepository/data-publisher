@@ -26,16 +26,6 @@ class DatatypeCreatedEvent extends Event implements ODREventInterface
     // Best practice is apparently to have the Event class define the event name
     const NAME = 'odr.event.datatype_created_event';
 
-    /**
-     * @var DataType
-     */
-    private $datatype;
-
-    /**
-     * @var ODRUser
-     */
-    private $user;
-
 
     /**
      * DatatypeCreatedEvent constructor.
@@ -43,12 +33,8 @@ class DatatypeCreatedEvent extends Event implements ODREventInterface
      * @param DataType $datatype
      * @param ODRUser $user
      */
-    public function __construct(
-        DataType $datatype,
-        ODRUser $user
-    ) {
-        $this->datatype = $datatype;
-        $this->user = $user;
+    public function __construct(private readonly DataType $datatype, private readonly ODRUser $user)
+    {
     }
 
 
@@ -88,9 +74,9 @@ class DatatypeCreatedEvent extends Event implements ODREventInterface
      */
     public function getErrorInfo()
     {
-        return array(
+        return [
             self::NAME,
             'dt '.$this->datatype->getId(),
-        );
+        ];
     }
 }

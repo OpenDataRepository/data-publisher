@@ -49,9 +49,9 @@ class MassEditCommand extends ContainerAwareCommand
                 $job = $pheanstalk->watch('mass_edit')->ignore('default')->reserve();
 
                 // Get Job Data
-                $data = json_decode($job->getData()); 
+                $data = json_decode((string) $job->getData()); 
 
-                $parameters = array();
+                $parameters = [];
                 if ($data->job_type == 'public_status_change') {
                     //
                     $logger->info('MassEditCommand.php: public_status_change request for DataRecord '.$data->datarecord_id.' from '.$data->redis_prefix.'...');
@@ -60,7 +60,7 @@ class MassEditCommand extends ContainerAwareCommand
                     $output->writeln('public_status_change request for DataRecord '.$data->datarecord_id.' from '.$data->redis_prefix.'...');
 
                     // Create the required parameters to send
-                    $parameters = array(
+                    $parameters = [
                         'tracked_job_id' => $data->tracked_job_id,
                         'user_id' => $data->user_id,
 
@@ -68,7 +68,7 @@ class MassEditCommand extends ContainerAwareCommand
                         'public_status' => $data->public_status,
 
                         'api_key' => $data->api_key
-                    );
+                    ];
                 }
                 else if ($data->job_type == 'value_change') {
                     //
@@ -78,7 +78,7 @@ class MassEditCommand extends ContainerAwareCommand
                     $output->writeln('value_change request for DataRecord '.$data->datarecord_id.' Datafield '.$data->datafield_id.' from '.$data->redis_prefix.'...');
 
                     // Create the required parameters to send
-                    $parameters = array(
+                    $parameters = [
                         'tracked_job_id' => $data->tracked_job_id,
                         'user_id' => $data->user_id,
 
@@ -86,7 +86,7 @@ class MassEditCommand extends ContainerAwareCommand
                         'datafield_id' => $data->datafield_id,
 
                         'api_key' => $data->api_key
-                    );
+                    ];
 
                     $has_data = $has_event = false;
                     if ( property_exists($data, 'value') ) {
@@ -109,7 +109,7 @@ class MassEditCommand extends ContainerAwareCommand
                 $ch = curl_init();
 
                 // Set the options for the POST request
-                curl_setopt_array($ch, array(
+                curl_setopt_array($ch, [
                         CURLOPT_POST => 1,
                         CURLOPT_HEADER => 0,
                         CURLOPT_URL => $data->url,
@@ -118,7 +118,7 @@ class MassEditCommand extends ContainerAwareCommand
                         CURLOPT_FORBID_REUSE => 1,
                         CURLOPT_TIMEOUT => 120, 
                         CURLOPT_POSTFIELDS => http_build_query($parameters)
-                    )
+                    ]
                 );
 
                 // Send the request

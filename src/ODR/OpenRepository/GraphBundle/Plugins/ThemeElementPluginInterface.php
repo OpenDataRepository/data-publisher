@@ -42,7 +42,7 @@ interface ThemeElementPluginInterface
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecord, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $datatype_permissions = array(), $datafield_permissions = array());
+    public function execute($datarecord, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $datatype_permissions = [], $datafield_permissions = []);
 
     /**
      * Returns placeholder HTML for a themeElement RenderPlugin for design mode.

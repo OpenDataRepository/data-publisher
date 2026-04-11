@@ -28,21 +28,6 @@ class DatarecordCreatedEvent extends Event implements ODREventInterface
     // Best practice is apparently to have the Event class define the event name
     const NAME = 'odr.event.datarecord_created_event';
 
-    /**
-     * @var DataRecord
-     */
-    private $datarecord;
-
-    /**
-     * @var ODRUser
-     */
-    private $user;
-
-    /**
-     * @var DataRecord|null
-     */
-    private $linked_ancestor_datarecord;
-
 
     /**
      * DatarecordCreatedEvent constructor.
@@ -51,14 +36,8 @@ class DatarecordCreatedEvent extends Event implements ODREventInterface
      * @param ODRUser $user
      * @param DataRecord|null $linked_ancestor_datarecord
      */
-    public function __construct(
-        DataRecord $datarecord,
-        ODRUser $user,
-        ?DataRecord $linked_ancestor_datarecord
-    ) {
-        $this->datarecord = $datarecord;
-        $this->user = $user;
-        $this->linked_ancestor_datarecord = $linked_ancestor_datarecord;
+    public function __construct(private readonly DataRecord $datarecord, private readonly ODRUser $user, private readonly ?DataRecord $linked_ancestor_datarecord)
+    {
     }
 
 
@@ -110,9 +89,9 @@ class DatarecordCreatedEvent extends Event implements ODREventInterface
      */
     public function getErrorInfo()
     {
-        return array(
+        return [
             self::NAME,
             'dr '.$this->datarecord->getId(),
-        );
+        ];
     }
 }

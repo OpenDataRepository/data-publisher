@@ -58,6 +58,7 @@ class Client extends BaseClient
      *
      * @return integer
      */
+    #[\Override]
     public function getId()
     {
         return $this->id;

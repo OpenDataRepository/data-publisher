@@ -52,19 +52,19 @@ class UpdateDataFieldsForm extends AbstractType
         $builder->add(
             'field_name',
             TextType::class,
-            array(
+            [
                 'required' => true,
                 'label'  => 'Field Name',
-            )
+            ]
         );
 
         $builder->add(
             'description',
             TextareaType::class,
-            array(
+            [
                 'required' => true,
                 'label'  => 'Description',
-            )
+            ]
         );
 
 /*
@@ -84,21 +84,19 @@ class UpdateDataFieldsForm extends AbstractType
         );
 */
 
-        $fieldtype_options = array(
-            'class' => 'ODR\AdminBundle\Entity\FieldType',
+        $fieldtype_options = [
+            'class' => \ODR\AdminBundle\Entity\FieldType::class,
 
-            'query_builder' => function(EntityRepository $er) use ($allowed_fieldtypes) {
-                return $er->createQueryBuilder('ft')
-                    ->where('ft.id IN (:types)')
-                    ->setParameter('types', $allowed_fieldtypes);
-            },
+            'query_builder' => fn(EntityRepository $er) => $er->createQueryBuilder('ft')
+                ->where('ft.id IN (:types)')
+                ->setParameter('types', $allowed_fieldtypes),
 
             'label' => 'Field Type',
             'choice_label' => 'typeName',
             'expanded' => false,
             'multiple' => false,
             'placeholder' => false,
-        );
+        ];
         if ( $prevent_fieldtype_change )
             $fieldtype_options['disabled'] = true;
 
@@ -113,18 +111,18 @@ class UpdateDataFieldsForm extends AbstractType
             $builder->add(
                 'markdown_text',
                 TextareaType::class,
-                array(
+                [
                     'required' => true,
                     'label' => 'Markdown Text',
-                )
+                ]
             );
         }
 
 
-        $is_unique_options = array(
+        $is_unique_options = [
             'label'  => 'Unique',
             'required' => false
-        );
+        ];
         if ( $must_be_unique || $is_derived_field )
             $is_unique_options['disabled'] = true;
 
@@ -141,10 +139,10 @@ class UpdateDataFieldsForm extends AbstractType
             $builder->add(
                 'force_numeric_sort',
                 CheckboxType::class,
-                array(
+                [
                     'label' => 'Always sort numerically',
                     'required' => false
-                )
+                ]
             );
         }
 
@@ -155,10 +153,10 @@ class UpdateDataFieldsForm extends AbstractType
             || $current_typeclass == 'LongVarchar' || $current_typeclass == 'LongText'
             || $current_typeclass == 'XYZData'
         ) {
-            $prevent_user_edits_options =  array(
+            $prevent_user_edits_options =  [
                 'label'  => 'Prevent User Edits',
                 'required' => false
-            );
+            ];
             if ( $no_user_edits )
                 $prevent_user_edits_options['disabled'] = true;
 
@@ -177,8 +175,8 @@ class UpdateDataFieldsForm extends AbstractType
             $builder->add(
                 'children_per_row',
                 ChoiceType::class,
-                array(
-                    'choices' => array(
+                [
+                    'choices' => [
                         '1' => '1',
                         '2' => '2',
                         '3' => '3',
@@ -186,13 +184,13 @@ class UpdateDataFieldsForm extends AbstractType
                         '5' => '5',
                         '6' => '6',
                         '8' => '8'
-                    ),
+                    ],
                     'choices_as_values' => true,
                     'label'  => '',     // label set in Displaytemplate::datafield_properties_form.html.twig
                     'expanded' => false,
                     'multiple' => false,
                     'placeholder' => false
-                )
+                ]
             );
         }
 
@@ -208,7 +206,7 @@ class UpdateDataFieldsForm extends AbstractType
 
         if ( $current_typeclass === 'Radio' || $current_typeclass === 'Tag' ) {
             // These two properties only make sense for Radio or Tag fields
-            $name_sort_options = array('label' => $name_sort_label, 'required' => false);
+            $name_sort_options = ['label' => $name_sort_label, 'required' => false];
             if ( $is_derived_field )
                 $name_sort_options['disabled'] = true;
 
@@ -221,37 +219,37 @@ class UpdateDataFieldsForm extends AbstractType
             $builder->add(
                 'radio_option_display_unselected',
                 CheckboxType::class,
-                array(
+                [
                     'label' => $display_unselected_label,
                     'required' => false
-                )
+                ]
             );
 
             $builder->add(
                 'merge_by_AND',
                 CheckboxType::class,
-                array(
+                [
                     'label' => $merge_by_and_label,
                     'required' => false
-                )
+                ]
             );
 
             $builder->add(
                 'search_can_request_both_merges',
                 CheckboxType::class,
-                array(
+                [
                     'label' => $multi_merge_label,
                     'required' => false
-                )
+                ]
             );
         }
 
         if ( $current_typeclass === 'Tag' ) {
             // These properties only make sense for tag fields
-            $tags_allow_multiple_levels_options = array(
+            $tags_allow_multiple_levels_options = [
                 'label' => 'Allow multiple levels of tags',
                 'required' => false
-            );
+            ];
             if ( $has_tag_hierarchy || $is_derived_field )
                 $tags_allow_multiple_levels_options['disabled'] = true;
 
@@ -264,10 +262,10 @@ class UpdateDataFieldsForm extends AbstractType
             $builder->add(
                 'tags_allow_non_admin_edit',
                 CheckboxType::class,
-                array(
+                [
                     'label' => 'Non-admins can add/move/delete tags',
                     'required' => false
-                )
+                ]
             );
         }
 
@@ -276,19 +274,19 @@ class UpdateDataFieldsForm extends AbstractType
             $builder->add(
                 'xyz_data_column_names',
                 TextType::class,
-                array(
+                [
                     'label' => 'Comma-delimited list of column names',
                     'required' => false
-                )
+                ]
             );
 
             $builder->add(
                 'xyz_data_multirange_search',
                 CheckboxType::class,
-                array(
+                [
                     'label' => 'Use multirange search UI',
                     'required' => false
-                )
+                ]
             );
         }
 
@@ -297,16 +295,16 @@ class UpdateDataFieldsForm extends AbstractType
             $builder->add(
                 'searchable',
                 ChoiceType::class,
-                array(
-                    'choices' => array(
+                [
+                    'choices' => [
                         'No' => DataFields::NOT_SEARCHABLE,
                         'Yes' => DataFields::SEARCHABLE,
-                    ),
+                    ],
                     'label' => 'Searchable',
                     'expanded' => false,
                     'multiple' => false,
                     'placeholder' => false
-                )
+                ]
             );
 
             // In early May 2024, the 'searchable' property got changed from allowing four values
@@ -334,10 +332,10 @@ class UpdateDataFieldsForm extends AbstractType
 
         if ( $current_typeclass === 'File' || $current_typeclass === 'Image' ) {
             // These three properties only make sense for File or Image fields
-            $allow_multiple_uploads_options = array(
+            $allow_multiple_uploads_options = [
                 'label' => 'Allow Multiple Uploads',
                 'required' => false
-            );
+            ];
             if ( $has_multiple_uploads || $single_uploads_only || $is_derived_field )
                 $allow_multiple_uploads_options['disabled'] = true;
 
@@ -350,10 +348,10 @@ class UpdateDataFieldsForm extends AbstractType
             $builder->add(
                 'newFilesArePublic',
                 CheckboxType::class,
-                array(
+                [
                     'label' => 'Uploaded '.$current_typeclass.'s default to Public',
                     'required' => false
-                )
+                ]
             );
 /*
             $builder->add(
@@ -368,22 +366,22 @@ class UpdateDataFieldsForm extends AbstractType
             $builder->add(
                 'quality_str',
                 TextType::class,
-                array(
+                [
                     'label' => 'Quality Type'
 
                     // NOTE: the actual implementation is spread between InitDatafieldPropertiesForm()
                     //  in design_ajax.html.twig, and datafield_properties_form.html.twig
-                )
+                ]
             );
         }
 
         $builder->add(
             'internal_reference_name',
             TextType::class,
-            array(
+            [
                 'required' => true,
                 'label' => 'Internal Reference Name',
-            )
+            ]
         );
     }
 
@@ -406,6 +404,7 @@ class UpdateDataFieldsForm extends AbstractType
      *
      * @return string The prefix of the template block name
      */
+    #[\Override]
     public function getBlockPrefix()
     {
         return 'DatafieldsForm';
@@ -417,8 +416,8 @@ class UpdateDataFieldsForm extends AbstractType
      */
     public function configureOptions(OptionsResolver $resolver)
     {
-        $resolver->setDefaults(array(
-            'data_class' => 'ODR\AdminBundle\Entity\DataFieldsMeta',
+        $resolver->setDefaults([
+            'data_class' => \ODR\AdminBundle\Entity\DataFieldsMeta::class,
 
             'is_derived_field' => null,
             'allowed_fieldtypes' => null,
@@ -429,7 +428,7 @@ class UpdateDataFieldsForm extends AbstractType
             'has_tag_hierarchy' => null,
             'single_uploads_only' => null,
             'has_multiple_uploads' => null,
-        ));
+        ]);
 
         $resolver->setRequired('is_derived_field');
         $resolver->setRequired('allowed_fieldtypes');

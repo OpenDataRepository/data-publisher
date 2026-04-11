@@ -38,40 +38,38 @@ class UpdateSidebarLayoutForm extends AbstractType
         $builder->add(
             'inverseDataType',
             EntityType::class,
-            array(
-                'class' => 'ODR\AdminBundle\Entity\DataType',
-                'query_builder' => function(EntityRepository $er) use ($datatype_ids) {
-                    return $er->createQueryBuilder('dt')
-                        ->leftJoin('dt.dataTypeMeta', 'dtm')
-                        ->where('dt.id IN (?1)')
-                        ->orderBy('dtm.shortName', 'ASC')
-                        ->setParameter(1, $datatype_ids);
-                },
+            [
+                'class' => \ODR\AdminBundle\Entity\DataType::class,
+                'query_builder' => fn(EntityRepository $er) => $er->createQueryBuilder('dt')
+                    ->leftJoin('dt.dataTypeMeta', 'dtm')
+                    ->where('dt.id IN (?1)')
+                    ->orderBy('dtm.shortName', 'ASC')
+                    ->setParameter(1, $datatype_ids),
 
                 'label' => 'Inverse Datatype',
                 'choice_label' => 'short_name',
                 'expanded' => false,
                 'multiple' => false,
                 'placeholder' => 'NONE',
-            )
+            ]
         );
 
         $builder->add(
             'layoutName',
             TextType::class,
-            array(
+            [
                 'required' => true,
                 'label' => 'Layout Name',
-            )
+            ]
         );
 
         $builder->add(
             'layoutDescription',
             TextareaType::class,
-            array(
+            [
                 'required' => true,
                 'label' => 'Layout Description',
-            )
+            ]
         );
 
         $builder->add(
@@ -109,6 +107,7 @@ class UpdateSidebarLayoutForm extends AbstractType
      *
      * @return string The prefix of the template block name
      */
+    #[\Override]
     public function getBlockPrefix()
     {
         return 'UpdateSidebarLayoutForm';
@@ -121,9 +120,9 @@ class UpdateSidebarLayoutForm extends AbstractType
     public function configureOptions(OptionsResolver $resolver)
     {
         $resolver->setDefaults(
-            array(
-                'data_class' => 'ODR\AdminBundle\Entity\SidebarLayoutMeta'
-            )
+            [
+                'data_class' => \ODR\AdminBundle\Entity\SidebarLayoutMeta::class
+            ]
         );
 
         // Required options should not have defaults set

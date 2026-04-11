@@ -57,7 +57,7 @@ class ReportsController extends ODRCustomController
      */
     public function analyzedatafielduniqueAction($datafield_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -117,30 +117,30 @@ class ReportsController extends ODRCustomController
                 $values = self::buildDatafieldUniquenessReport($em, $sort_service, $datafield);
 
                 // Render the report
-                $return['d'] = array(
+                $return['d'] = [
                     'html' => $templating->render(
                         'ODRAdminBundle:Reports:datafield_uniqueness_report.html.twig',
-                        array(
+                        [
                             'datafield' => $datafield,
                             'duplicate_values' => $values,
-                        )
+                        ]
                     )
-                );
+                ];
             }
             else {
                 // Determine which records have duplicated values in the given datafield
                 $values = self::buildChildDatafieldUniquenessReport($em, $sort_service, $datafield);
 
                 // Render the report
-                $return['d'] = array(
+                $return['d'] = [
                     'html' => $templating->render(
                         'ODRAdminBundle:Reports:child_datafield_uniqueness_report.html.twig',
-                        array(
+                        [
                             'datafield' => $datafield,
                             'duplicate_values' => $values,
-                        )
+                        ]
                     )
-                );
+                ];
             }
 
         }
@@ -184,11 +184,11 @@ class ReportsController extends ODRCustomController
             JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
             WHERE e.dataField = :datafield
             AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
-        )->setParameters( array('datafield' => $datafield->getId()) );
+        )->setParameters( ['datafield' => $datafield->getId()] );
         $results = $query->getArrayResult();
 
         // Convert the query results into an array grouped by value
-        $values = array();
+        $values = [];
         foreach ($results as $num => $result) {
             $dr_id = $result['dr_id'];
             $value = strval($result['datafield_value']);
@@ -199,12 +199,12 @@ class ReportsController extends ODRCustomController
                 $dr_name = $datarecord_names[$dr_id];
 
             if ( !isset($values[$value]) ) {
-                $values[$value] = array(
+                $values[$value] = [
                     'count' => 1,
-                    'dr_list' => array(
+                    'dr_list' => [
                         $dr_id => $dr_name
-                    )
-                );
+                    ]
+                ];
             }
             else {
                 $values[$value]['count'] += 1;
@@ -252,11 +252,11 @@ class ReportsController extends ODRCustomController
             WHERE e.dataField = :datafield
             AND e.deletedAt IS NULL AND drf.deletedAt IS NULL
             AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
-        )->setParameters( array('datafield' => $datafield->getId()) );
+        )->setParameters( ['datafield' => $datafield->getId()] );
         $results = $query->getArrayResult();
 
         // Convert the query results into a more useful array...
-        $values = array();
+        $values = [];
         foreach ($results as $num => $result) {
             $dr_id = $result['dr_id'];
             $parent_id = $result['parent_id'];
@@ -270,15 +270,15 @@ class ReportsController extends ODRCustomController
 
             // The results are first grouped by grandparent datarecord id...
             if ( !isset($values[$grandparent_id]) ) {
-                $values[$grandparent_id] = array(
+                $values[$grandparent_id] = [
                     'dr_name' => $dr_name,
-                    'parent_ids' => array(),
-                );
+                    'parent_ids' => [],
+                ];
             }
 
             // ...then grouped by parent datarecord id...
             if ( !isset($values[$grandparent_id]['parent_ids'][$parent_id]) )
-                $values[$grandparent_id]['parent_ids'][$parent_id] = array();
+                $values[$grandparent_id]['parent_ids'][$parent_id] = [];
 
             // ...then finally by the value in the datarecord
             if ( !isset($values[$grandparent_id]['parent_ids'][$parent_id][$value]) ) {
@@ -324,7 +324,7 @@ class ReportsController extends ODRCustomController
      */
     public function analyzefileuploadsAction($datafield_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -382,7 +382,7 @@ class ReportsController extends ODRCustomController
                     JOIN ODRAdminBundle:DataRecord AS grandparent WITH dr.grandparent = grandparent
                     WHERE e.dataField = :datafield
                     AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
-                )->setParameters( array('datafield' => $datafield_id) );
+                )->setParameters( ['datafield' => $datafield_id] );
             }
             else if ($typename == 'Image') {
                 $query = $em->createQuery(
@@ -393,13 +393,13 @@ class ReportsController extends ODRCustomController
                     JOIN ODRAdminBundle:DataRecord AS grandparent WITH dr.grandparent = grandparent
                     WHERE e.dataField = :datafield AND e.original = 1
                     AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
-                )->setParameters( array('datafield' => $datafield_id) );
+                )->setParameters( ['datafield' => $datafield_id] );
             }
             $results = $query->getArrayResult();
 
             // Count how many files/images are uploaded for this (datarecord,datafield) pair 
-            $grandparent_list = array();
-            $duplicate_list = array();
+            $grandparent_list = [];
+            $duplicate_list = [];
             foreach ($results as $num => $result) {
                 $dr_id = $result['dr_id'];
                 $grandparent_id = $result['grandparent_id'];
@@ -414,7 +414,7 @@ class ReportsController extends ODRCustomController
             }
 
             // Only want the twig file to display grandparents
-            $datarecord_list = array();
+            $datarecord_list = [];
             foreach ($duplicate_list as $dr_id => $count) {
                 if ($count > 1) {
                     // Want to use the grandparent datarecord's name value, if possible
@@ -431,15 +431,15 @@ class ReportsController extends ODRCustomController
             }
 
             // Render and return a page detailing which datarecords have multiple uploads...
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Reports:multiple_file_uploads_report.html.twig',
-                    array(
+                    [
                         'datafield' => $datafield,
                         'multiple_uploads' => $datarecord_list,
-                    )
+                    ]
                 )
-            );
+            ];
 
         }
         catch (\Exception $e) {
@@ -468,7 +468,7 @@ class ReportsController extends ODRCustomController
      */
     public function analyzedatarecordnumberAction($datatree_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -512,7 +512,7 @@ class ReportsController extends ODRCustomController
             // Get the namefield_value for each of the ancestor side's datarecords
             $datarecord_names = $sort_service->getNamedDatarecordList($datatree->getAncestor()->getId());
 
-            $results = array();
+            $results = [];
             if ($datatree->getIsLink() == 0) {
                 // Determine whether a datarecord of this datatype has multiple child datarecords
                 $query = $em->createQuery(
@@ -521,7 +521,7 @@ class ReportsController extends ODRCustomController
                     JOIN ODRAdminBundle:DataRecord AS child WITH child.parent = parent
                     WHERE parent.dataType = :parent_datatype AND child.dataType = :child_datatype AND parent.id != child.id
                     AND parent.deletedAt IS NULL AND child.deletedAt IS NULL'
-                )->setParameters( array('parent_datatype' => $parent_datatype->getId(), 'child_datatype' => $child_datatype->getId()) );
+                )->setParameters( ['parent_datatype' => $parent_datatype->getId(), 'child_datatype' => $child_datatype->getId()] );
                 $results = $query->getArrayResult();
             }
             else {
@@ -533,11 +533,11 @@ class ReportsController extends ODRCustomController
                     JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
                     WHERE ancestor.dataType = :ancestor_datatype AND descendant.dataType = :descendant_datatype
                     AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
-                )->setParameters( array('ancestor_datatype' => $parent_datatype->getId(), 'descendant_datatype' => $child_datatype->getId()) );
+                )->setParameters( ['ancestor_datatype' => $parent_datatype->getId(), 'descendant_datatype' => $child_datatype->getId()] );
                 $results = $query->getArrayResult();
             }
 
-            $tmp = array();
+            $tmp = [];
             foreach ($results as $num => $result) {
                 $ancestor_id = $result['ancestor_id'];
 
@@ -547,7 +547,7 @@ class ReportsController extends ODRCustomController
                 $tmp[$ancestor_id]++;
             }
 
-            $datarecord_list = array();
+            $datarecord_list = [];
             foreach ($tmp as $dr_id => $count) {
                 if ($count > 1) {
                     // Want to use the ancestor datarecord's name value, if possible
@@ -559,15 +559,15 @@ class ReportsController extends ODRCustomController
             }
 
             // Render and return a page detailing which datarecords have multiple child/linked datarecords...
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Reports:datarecord_number_report.html.twig',
-                    array(
+                    [
                         'datatree' => $datatree,
                         'datarecords' => $datarecord_list,
-                    )
+                    ]
                 )
-            );
+            ];
 
         }
         catch (\Exception $e) {
@@ -596,7 +596,7 @@ class ReportsController extends ODRCustomController
      */
     public function analyzedatarecordlinksAction($local_datatype_id, $remote_datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -626,10 +626,10 @@ class ReportsController extends ODRCustomController
 
             /** @var DataTree $datatree */
             $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
-                array(
+                [
                     'ancestor' => $local_datatype->getId(),
                     'descendant' => $remote_datatype->getId(),
-                )
+                ]
             );
             if ($datatree == null)
                 throw new ODRNotFoundException('Datatree');
@@ -663,29 +663,29 @@ class ReportsController extends ODRCustomController
                 WHERE ancestor.dataType = :local_datatype_id AND descendant.dataType = :remote_datatype_id
                 AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'local_datatype_id' => $local_datatype->getId(),
                     'remote_datatype_id' => $remote_datatype->getId()
-                )
+                ]
             );
             $results = $query->getArrayResult();
 
-            $linked_datarecords = array();
+            $linked_datarecords = [];
             foreach ($results as $result) {
                 $ancestor_id = $result['ancestor_id'];
                 $descendant_id = $result['descendant_id'];
 
                 if ( !isset($linked_datarecords[$ancestor_id]) )
-                    $linked_datarecords[$ancestor_id] = array();
+                    $linked_datarecords[$ancestor_id] = [];
 
                 $linked_datarecords[$ancestor_id][] = $descendant_id;
             }
 
             // Render and return a page detailing which datarecords have multiple child/linked datarecords...
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Reports:datarecord_links_report.html.twig',
-                    array(
+                    [
                         'local_datatype' => $local_datatype,
                         'remote_datatype' => $remote_datatype,
                         'linked_datarecords' => $linked_datarecords,
@@ -695,9 +695,9 @@ class ReportsController extends ODRCustomController
 
                         'local_datatype_names' => $local_datatype_names,
                         'remote_datatype_names' => $remote_datatype_names,
-                    )
+                    ]
                 )
-            );
+            ];
 
         }
         catch (\Exception $e) {
@@ -724,7 +724,7 @@ class ReportsController extends ODRCustomController
      */
     public function analyzedatafieldcontentAction($datafield_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -779,14 +779,14 @@ class ReportsController extends ODRCustomController
                     break;
             }
 
-            $typeclass_map = array(
+            $typeclass_map = [
                 'ShortVarchar' => 'odr_short_varchar',
                 'MediumVarchar' => 'odr_medium_varchar',
                 'LongVarchar' => 'odr_long_varchar',
                 'LongText' => 'odr_long_text',
                 'IntegerValue' => 'odr_integer_value',
                 'DecimalValue' => 'odr_decimal_value',
-            );
+            ];
 
             // Fields in child datatypes need a different table layout
             $is_child_datatype = false;
@@ -823,7 +823,7 @@ class ReportsController extends ODRCustomController
             $conn = $em->getConnection();
             $results = $conn->executeQuery($query);
 
-            $content = array();
+            $content = [];
             foreach ($results as $num => $result) {
                 $gdr_id = $result['gdr_id'];
                 $dr_id = $result['dr_id'];
@@ -834,31 +834,31 @@ class ReportsController extends ODRCustomController
                     $gdr_name = $grandparent_datarecord_names[$gdr_id];
 
                 if ( !$is_child_datatype ) {
-                    $content[$gdr_id] = array('gdr_name' => $gdr_name, 'value' => $value);
+                    $content[$gdr_id] = ['gdr_name' => $gdr_name, 'value' => $value];
                 }
                 else {
                     $dr_name = $dr_id;
                     if ( isset($datarecord_names[$dr_id]) )
                         $dr_name = $datarecord_names[$dr_id];
 
-                    $content[$dr_id] = array('gdr_id' => $gdr_id, 'gdr_name' => $gdr_name, 'dr_name' => $dr_name, 'value' => $value);
+                    $content[$dr_id] = ['gdr_id' => $gdr_id, 'gdr_name' => $gdr_name, 'dr_name' => $dr_name, 'value' => $value];
                 }
             }
 
 
             // Render and return a page detailing which datarecords have multiple child/linked datarecords...
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Reports:datafield_content_report.html.twig',
-                    array(
+                    [
                         'datafield' => $datafield,
                         'datatype' => $datatype,
 
                         'is_child_datatype' => $is_child_datatype,
                         'content' => $content,
-                    )
+                    ]
                 )
-            );
+            ];
 
         }
         catch (\Exception $e) {
@@ -885,7 +885,7 @@ class ReportsController extends ODRCustomController
      */
     public function analyzeradioselectionsAction($datafield_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -944,11 +944,11 @@ class ReportsController extends ODRCustomController
                 JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOption = ro
                 WHERE ro.dataField = :datafield AND rs.selected = 1
                 AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL'
-            )->setParameters( array('datafield' => $datafield_id) );
+            )->setParameters( ['datafield' => $datafield_id] );
             $results = $query->getArrayResult();
 
             // Determine which datarecords have multiple selected radio options
-            $datarecords = array();
+            $datarecords = [];
             foreach ($results as $num => $result) {
                 $dr_id = $result['dr_id'];
 
@@ -974,17 +974,17 @@ class ReportsController extends ODRCustomController
 
             // ----------------------------------------
             // Render and return a page detailing which datarecords have multiple selected Radio Options...
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Reports:radio_selections_report.html.twig',
-                    array(
+                    [
                         'datafield' => $datafield,
                         'datatype' => $datatype,
 
                         'datarecords' => $datarecords,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x16cb020a;
@@ -1011,7 +1011,7 @@ class ReportsController extends ODRCustomController
      */
     public function analyzedatafieldmigrationstartAction($datafield_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1054,7 +1054,7 @@ class ReportsController extends ODRCustomController
             $fieldtypes = $em->getRepository('ODRAdminBundle:FieldType')->findAll();
 
             /** @var string[] $fieldtype_list */
-            $fieldtype_list = array();
+            $fieldtype_list = [];
             foreach ($fieldtypes as $fieldtype)
                 $fieldtype_list[$fieldtype->getId()] = $fieldtype->getTypeName();
 //            asort( $fieldtype_list );
@@ -1062,7 +1062,7 @@ class ReportsController extends ODRCustomController
 
             // There's a couple different versions of output, depending on what the datafield is
             $master_datatype_id = '';
-            $strings = array();
+            $strings = [];
 
             // If this is a derived field...
             if ( !is_null($datafield->getMasterDataField()) ) {
@@ -1075,19 +1075,19 @@ class ReportsController extends ODRCustomController
 
 
             // ----------------------------------------
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Reports:analyze_datafield_migration_start.html.twig',
-                    array(
+                    [
                         'datafield' => $datafield,
                         'datatype' => $datatype,
                         'master_datatype_id' => $master_datatype_id,
 
                         'fieldtype_list' => $fieldtype_list,
                         'strings' => $strings,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0xbc0b273b;
@@ -1112,7 +1112,7 @@ class ReportsController extends ODRCustomController
      */
     public function analyzedatafieldmigrationAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1173,10 +1173,10 @@ class ReportsController extends ODRCustomController
 
             // ----------------------------------------
             // Since render plugins have fieldtype restrictions, they're relevant for this report
-            $render_plugin_restrictions = array();
+            $render_plugin_restrictions = [];
 
             /** @var DataFields[] $df_mapping */
-            $df_mapping = array($datafield->getId() => $datafield);
+            $df_mapping = [$datafield->getId() => $datafield];
             if ( $is_master_datafield ) {
                 // If this is a master datafield, then the derived datafields need to be checked too
                 $query = $em->createQuery(
@@ -1184,7 +1184,7 @@ class ReportsController extends ODRCustomController
                     FROM ODRAdminBundle:DataFields df
                     WHERE df.masterDataField = :df
                     AND df.deletedAt IS NULL'
-                )->setParameters( array('df' => $datafield->getId()) );
+                )->setParameters( ['df' => $datafield->getId()] );
                 $results = $query->getResult();
 
                 foreach ($results as $df) {
@@ -1200,11 +1200,11 @@ class ReportsController extends ODRCustomController
                 $gdt_id = $dt->getGrandparent()->getId();
 
                 $dt_array = $database_info_service->getDatatypeArray($gdt_id, false);
-                $fieldtype_info = $datafield_info_service->canChangeFieldtype($dt_array, $dt_id, array($df_id), true);    // abort after checking render plugin info
-                $render_plugin_restrictions[$df_id] = array(
+                $fieldtype_info = $datafield_info_service->canChangeFieldtype($dt_array, $dt_id, [$df_id], true);    // abort after checking render plugin info
+                $render_plugin_restrictions[$df_id] = [
                     'affected_by_render_plugin' => $fieldtype_info[$df_id]['affected_by_render_plugin'],
                     'allowed_fieldtypes' => $fieldtype_info[$df_id]['allowed_fieldtypes'],
-                );
+                ];
             }
 
 
@@ -1249,7 +1249,7 @@ class ReportsController extends ODRCustomController
             }
 
             // A couple migrations make no sense
-            $strings = array();
+            $strings = [];
             $html = '';
             if ( $current_typename === $new_typename )
                 $html = 'This field is already a '.$new_typename.'.';
@@ -1299,26 +1299,16 @@ class ReportsController extends ODRCustomController
 
                     foreach ($counts as $df_id => $count) {
                         $df = $df_mapping[$df_id];
-                        $strings[$df_id] = array('df' => $df);
+                        $strings[$df_id] = ['df' => $df];
 
                         if ( $count > 0 ) {
-                            switch ($current_typeclass) {
-                                case 'File':
-                                    $strings[$df_id]['str'] = 'All '.$count.' files currently uploaded in this field will be lost upon migration.';
-                                    break;
-                                case 'Image':
-                                    $strings[$df_id]['str'] = 'All '.$count.' images currently uploaded in this field will be lost upon migration.';
-                                    break;
-                                case 'Radio':
-                                    $strings[$df_id]['str'] = $count.' records will lose their selected radio options in this field upon migration.';
-                                    break;
-                                case 'Tag':
-                                    $strings[$df_id]['str'] = $count.' records will lose their selected tags in this field upon migration.';
-                                    break;
-                                default:
-                                    $strings[$df_id]['str'] = 'All '.$count.' values currently in this field will be lost upon migration.';
-                                    break;
-                            }
+                            $strings[$df_id]['str'] = match ($current_typeclass) {
+                                'File' => 'All '.$count.' files currently uploaded in this field will be lost upon migration.',
+                                'Image' => 'All '.$count.' images currently uploaded in this field will be lost upon migration.',
+                                'Radio' => $count.' records will lose their selected radio options in this field upon migration.',
+                                'Tag' => $count.' records will lose their selected tags in this field upon migration.',
+                                default => 'All '.$count.' values currently in this field will be lost upon migration.',
+                            };
                         }
                         else {
                             $strings[$df_id]['str'] = 'This migration would usually cause the loss of all data in this field...but there are no values in the field.';
@@ -1330,7 +1320,7 @@ class ReportsController extends ODRCustomController
                         //  single string
                         foreach ($strings as $df_id => $data)
                             $html = $data['str'];
-                        $strings = array();
+                        $strings = [];
                     }
                 }
             }
@@ -1369,7 +1359,7 @@ class ReportsController extends ODRCustomController
                 // In most cases, there will be a single string...wrap it inside a div here
                 $html = $templating->render(
                     'ODRAdminBundle:Reports:analyze_datafield_migration_normal_field.html.twig',
-                    array(
+                    [
                         'df' => $datafield,
                         'html' => $html,
                         'new_fieldtype' => $new_fieldtype,
@@ -1377,7 +1367,7 @@ class ReportsController extends ODRCustomController
 
                         // NOTE: these conversions don't lose data, so they won't create duplicates in unique fields
                         // ...but converting a shorter text to a paragraph text will still break uniqueness
-                    )
+                    ]
                 );
             }
             else if ( !empty($strings) ) {
@@ -1385,13 +1375,13 @@ class ReportsController extends ODRCustomController
                 //  datafields already
                 $html = $templating->render(
                     'ODRAdminBundle:Reports:analyze_datafield_migration_template_fields.html.twig',
-                    array(
+                    [
                         'strings' => $strings,
                         'new_fieldtype' => $new_fieldtype,
                         'render_plugin_restrictions' => $render_plugin_restrictions,
 
                         // NOTE: these conversions are always to fields that can't be unique
-                    )
+                    ]
                 );
             }
             else {
@@ -1425,9 +1415,9 @@ class ReportsController extends ODRCustomController
 
 
             // ----------------------------------------
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $html
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x569c1387;
@@ -1458,7 +1448,7 @@ class ReportsController extends ODRCustomController
         $is_master_field = $datafield->getIsMasterField();
 
         // Need to count how many values are in each given field
-        $counts = array();
+        $counts = [];
         foreach ($df_mapping as $df_id => $df)
             $counts[$df_id] = 0;
 
@@ -1554,7 +1544,7 @@ class ReportsController extends ODRCustomController
                 AND df.deletedAt IS NULL GROUP BY df.id';
         }
         else {
-            $mapping = array(
+            $mapping = [
                 'Boolean' => 'odr_boolean',
                 'IntegerValue' => 'odr_integer_value',
                 'DecimalValue' => 'odr_decimal_value',
@@ -1563,7 +1553,7 @@ class ReportsController extends ODRCustomController
                 'MediumVarchar' => 'odr_medium_varchar',
                 'LongVarchar' => 'odr_long_varchar',
                 'LongText' => 'odr_long_text',
-            );
+            ];
 
             $query =
                'SELECT df.id AS df_id, COUNT(e.value) AS num_values
@@ -1594,7 +1584,7 @@ class ReportsController extends ODRCustomController
                 $dr_id = $result['dr_id'];
 
                 if ( !is_array($counts[$df_id]) )
-                    $counts[$df_id] = array();
+                    $counts[$df_id] = [];
                 $counts[$df_id][$dr_id] = 1;
             }
 
@@ -1635,15 +1625,15 @@ class ReportsController extends ODRCustomController
         $fieldtype_migration_service = $this->container->get('odr.fieldtype_migration_service');
 
         // Get a report for each datafield that is getting migrated
-        $new_values_prevent_unique = array();
-        $original_lengths = array();
-        $data = array();
+        $new_values_prevent_unique = [];
+        $original_lengths = [];
+        $data = [];
         foreach ($df_mapping as $df_id => $df) {
             // If the field is currently unique, then that could get broken when converting to a
             //  shorter fieldtype (due to truncations), or converting to paragraph text
             $check_new_values_unique = $df->getIsUnique();
             $new_values_prevent_unique[$df_id] = false;
-            $new_values = array();
+            $new_values = [];
 
             // This returns every value...
             $data[$df_id] = $fieldtype_migration_service->ReportOnTextConvert($df, $new_fieldtype->getTypeClass(), true);
@@ -1672,7 +1662,7 @@ class ReportsController extends ODRCustomController
 
         $html = $templating->render(
             'ODRAdminBundle:Reports:analyze_datafield_migration_to_text.html.twig',
-            array(
+            [
                 'baseurl' => $baseurl,
                 'new_fieldtype' => $new_fieldtype,
                 'render_plugin_restrictions' => $render_plugin_restrictions,
@@ -1681,7 +1671,7 @@ class ReportsController extends ODRCustomController
                 'df_mapping' => $df_mapping,
                 'data' => $data,
                 'original_lengths' => $original_lengths,
-            )
+            ]
         );
 
         return $html;
@@ -1704,14 +1694,14 @@ class ReportsController extends ODRCustomController
         $fieldtype_migration_service = $this->container->get('odr.fieldtype_migration_service');
 
         // Get a report for each datafield that is getting migrated
-        $new_values_prevent_unique = array();
-        $original_lengths = array();
-        $data = array();
+        $new_values_prevent_unique = [];
+        $original_lengths = [];
+        $data = [];
         foreach ($df_mapping as $df_id => $df) {
             // If the field is currently unique, then conversions to shorter text could break that
             $check_new_values_unique = $df->getIsUnique();
             $new_values_prevent_unique[$df_id] = false;
-            $new_values = array();
+            $new_values = [];
 
             // This returns every value...
             $data[$df_id] = $fieldtype_migration_service->ReportOnOtherTextConvert($df, true);
@@ -1744,7 +1734,7 @@ class ReportsController extends ODRCustomController
 
         $html = $templating->render(
             'ODRAdminBundle:Reports:analyze_datafield_migration_to_text.html.twig',
-            array(
+            [
                 'baseurl' => $baseurl,
                 'new_fieldtype' => $new_fieldtype,
                 'render_plugin_restrictions' => $render_plugin_restrictions,
@@ -1753,7 +1743,7 @@ class ReportsController extends ODRCustomController
                 'df_mapping' => $df_mapping,
                 'data' => $data,
                 'original_lengths' => $original_lengths,
-            )
+            ]
         );
 
         return $html;
@@ -1776,14 +1766,14 @@ class ReportsController extends ODRCustomController
         $fieldtype_migration_service = $this->container->get('odr.fieldtype_migration_service');
 
         // Get a report for each datafield that is getting migrated
-        $new_values_prevent_unique = array();
-        $original_lengths = array();
-        $data = array();
+        $new_values_prevent_unique = [];
+        $original_lengths = [];
+        $data = [];
         foreach ($df_mapping as $df_id => $df) {
             // If the field is currently unique, then conversions to shorter text could break that
             $check_new_values_unique = $df->getIsUnique();
             $new_values_prevent_unique[$df_id] = false;
-            $new_values = array();
+            $new_values = [];
 
             // This returns every value...
             $data[$df_id] = $fieldtype_migration_service->ReportOnIntegerConvert($df, true);
@@ -1812,7 +1802,7 @@ class ReportsController extends ODRCustomController
 
         $html = $templating->render(
             'ODRAdminBundle:Reports:analyze_datafield_migration_to_integer.html.twig',
-            array(
+            [
                 'baseurl' => $baseurl,
                 'new_fieldtype' => $new_fieldtype,
                 'render_plugin_restrictions' => $render_plugin_restrictions,
@@ -1821,7 +1811,7 @@ class ReportsController extends ODRCustomController
                 'df_mapping' => $df_mapping,
                 'data' => $data,
                 'original_lengths' => $original_lengths,
-            )
+            ]
         );
 
         return $html;
@@ -1844,14 +1834,14 @@ class ReportsController extends ODRCustomController
         $fieldtype_migration_service = $this->container->get('odr.fieldtype_migration_service');
 
         // Get a report for each datafield that is getting migrated
-        $new_values_prevent_unique = array();
-        $original_lengths = array();
-        $data = array();
+        $new_values_prevent_unique = [];
+        $original_lengths = [];
+        $data = [];
         foreach ($df_mapping as $df_id => $df) {
             // If the field is currently unique, then conversions to shorter text could break that
             $check_new_values_unique = $df->getIsUnique();
             $new_values_prevent_unique[$df_id] = false;
-            $new_values = array();
+            $new_values = [];
 
             // This returns every value...
             $data[$df_id] = $fieldtype_migration_service->ReportOnDecimalConvert($df, true);
@@ -1880,7 +1870,7 @@ class ReportsController extends ODRCustomController
 
         $html = $templating->render(
             'ODRAdminBundle:Reports:analyze_datafield_migration_to_decimal.html.twig',
-            array(
+            [
                 'baseurl' => $baseurl,
                 'new_fieldtype' => $new_fieldtype,
                 'render_plugin_restrictions' => $render_plugin_restrictions,
@@ -1889,7 +1879,7 @@ class ReportsController extends ODRCustomController
                 'df_mapping' => $df_mapping,
                 'data' => $data,
                 'original_lengths' => $original_lengths,
-            )
+            ]
         );
 
         return $html;
@@ -1911,8 +1901,8 @@ class ReportsController extends ODRCustomController
         $fieldtype_migration_service = $this->container->get('odr.fieldtype_migration_service');
 
         // Get a report for each datafield that is getting migrated
-        $original_lengths = array();
-        $data = array();
+        $original_lengths = [];
+        $data = [];
         foreach ($df_mapping as $df_id => $df) {
             // This returns every value...
             $data[$df_id] = $fieldtype_migration_service->ReportOnSingleRadioConvert($df);
@@ -1932,14 +1922,14 @@ class ReportsController extends ODRCustomController
 
         $html = $templating->render(
             'ODRAdminBundle:Reports:analyze_datafield_migration_to_single_radio.html.twig',
-            array(
+            [
                 'baseurl' => $baseurl,
                 'render_plugin_restrictions' => $render_plugin_restrictions,
 
                 'df_mapping' => $df_mapping,
                 'data' => $data,
                 'original_lengths' => $original_lengths,
-            )
+            ]
         );
 
         return $html;
@@ -1957,7 +1947,7 @@ class ReportsController extends ODRCustomController
      */
     public function getfiledecryptprogressAction($file_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -2028,7 +2018,7 @@ class ReportsController extends ODRCustomController
 
 
             // ----------------------------------------
-            $progress = array('current_value' => 0, 'max_value' => 100, 'filename' => $file->getOriginalFileName());
+            $progress = ['current_value' => 0, 'max_value' => 100, 'filename' => $file->getOriginalFileName()];
 
             // Shouldn't really be necessary if the file is public, but including anyways for completeness/later use
             if ( $file->isPublic() ) {
@@ -2090,7 +2080,7 @@ class ReportsController extends ODRCustomController
      */
     public function getfileencryptprogressAction($file_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -2148,7 +2138,7 @@ class ReportsController extends ODRCustomController
                 throw new ODRForbiddenException();
             // --------------------
 
-            $progress = array('current_value' => 100, 'max_value' => 100, 'filename' => $file->getOriginalFileName());
+            $progress = ['current_value' => 100, 'max_value' => 100, 'filename' => $file->getOriginalFileName()];
 
             if ($file->getEncryptKey() !== '') {
                 // Figure out whether the cached version of this datarecord lists this file as fully
@@ -2228,7 +2218,7 @@ class ReportsController extends ODRCustomController
      */
     public function fileencryptretryAction($file_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -2287,7 +2277,7 @@ class ReportsController extends ODRCustomController
             // If the filepath is already pointing to the fully-uploaded path for some reason, then
             //  throw an error
             $odr_files_directory = $this->getParameter('odr_files_directory');
-            if ( strpos($filepath, $odr_files_directory) !== false )
+            if ( str_contains($filepath, (string) $odr_files_directory) )
                 throw new ODRException('File '.$file->getId().' in invalid state to retry encryption');
             // NOTE: I don't think this can actually happen, but be safe
 
@@ -2327,7 +2317,7 @@ class ReportsController extends ODRCustomController
      */
     public function getziparchiveprogressAction($archive_filename, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -2357,12 +2347,12 @@ class ReportsController extends ODRCustomController
                 $zip_archive->open($archive_filepath, \ZipArchive::CREATE);
 
                 $archive_filecount = $zip_archive->numFiles;
-                $return['d'] = array('archive_filecount' => $archive_filecount);
+                $return['d'] = ['archive_filecount' => $archive_filecount];
             }
             else {
                 // If the file doesn't exist yet, maybe the background is just slow...don't throw
                 //  an error immediately
-                $return['d'] = array('archive_filecount' => 0);
+                $return['d'] = ['archive_filecount' => 0];
             }
         }
         catch (\Exception $e) {

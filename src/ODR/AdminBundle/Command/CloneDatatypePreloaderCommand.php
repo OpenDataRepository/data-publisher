@@ -150,7 +150,7 @@ class CloneDatatypePreloaderCommand extends ContainerAwareCommand
 
                     /** @var DataRecord $metadata_record */
                     $actual_data_record = $em->getRepository('ODRAdminBundle:DataRecord')
-                        ->findOneBy(array('dataType' => $datatype->getId()));
+                        ->findOneBy(['dataType' => $datatype->getId()]);
 
                     if (!$actual_data_record) {
                         // A metadata datarecord doesn't exist...create one
@@ -158,7 +158,7 @@ class CloneDatatypePreloaderCommand extends ContainerAwareCommand
                         $entity_create_service = $container->get('odr.entity_creation_service');
 
                         $user_manager = $container->get('fos_user.user_manager');
-                        $odr_user = $user_manager->findUserBy(array('id' => $user->getId()));
+                        $odr_user = $user_manager->findUserBy(['id' => $user->getId()]);
 
                         $delay_flush = true;
                         $actual_data_record = $entity_create_service
@@ -185,7 +185,7 @@ class CloneDatatypePreloaderCommand extends ContainerAwareCommand
                             $dre_service = $container->get('odr.datarecord_export_service');
                             $data = $dre_service->getData(
                                 'v3',
-                                array($actual_data_record->getId()),
+                                [$actual_data_record->getId()],
                                 'json',
                                 true,
                                 $odr_user,

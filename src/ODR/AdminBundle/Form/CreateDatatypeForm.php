@@ -36,13 +36,13 @@ class CreateDatatypeForm extends AbstractType
         $builder->add(
             'shortName', 
             TextType::class,
-            array(
+            [
                 'required' => true,
                 'label'  => 'Short Name',
-                'attr' => array(
+                'attr' => [
                     'maxlength' => 32,  // underlying database column has a max length of 32 characters
-                ),
-            )
+                ],
+            ]
         );
 
 /*
@@ -62,29 +62,29 @@ class CreateDatatypeForm extends AbstractType
         $builder->add(
             'description',
             TextareaType::class,
-            array(
+            [
                 'required' => true,
                 'label' => 'Enter a description for this database.'
-            )
+            ]
         );
 
         // Adding a non-tracked field to allow master template creation.
         $builder->add(
             'is_master_type',
             HiddenType::class,
-            array(
+            [
                 'mapped' => false,
                 'data' => $is_master_type,
-            )
+            ]
         );
 
         $builder->add(
             'master_type_id',
             HiddenType::class,
-            array(
+            [
                 'mapped' => false,
                 'data' => $master_type_id,
-            )
+            ]
         );
 
         $builder->add('save', SubmitType::class);
@@ -109,6 +109,7 @@ class CreateDatatypeForm extends AbstractType
      *
      * @return string The prefix of the template block name
      */
+    #[\Override]
     public function getBlockPrefix()
     {
         return 'CreateDatatypeForm';
@@ -121,10 +122,10 @@ class CreateDatatypeForm extends AbstractType
     public function configureOptions(OptionsResolver $resolver)
     {
         $resolver->setDefaults(
-            array(
-                'data_class' => 'ODR\AdminBundle\Entity\DataTypeMeta',
+            [
+                'data_class' => \ODR\AdminBundle\Entity\DataTypeMeta::class,
                 'form_settings' => null,
-            )
+            ]
         );
     }
 }

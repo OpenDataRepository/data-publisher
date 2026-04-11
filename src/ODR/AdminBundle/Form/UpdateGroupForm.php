@@ -35,29 +35,29 @@ class UpdateGroupForm extends AbstractType
         $builder->add(
             'groupName',
             TextType::class,
-            array(
+            [
                 'required' => true,
                 'label' => 'Group Name',
-            )
+            ]
         );
 
         $builder->add(
             'groupDescription',
             TextareaType::class,
-            array(
+            [
                 'required' => true,
                 'label' => 'Group Description',
-            )
+            ]
         );
 
         if ( $is_super_admin ) {
             $builder->add(
                 'datarecord_restriction',
                 TextType::class,
-                array(
+                [
                     'required' => true,
                     'label' => 'Restriction',
-                )
+                ]
             );
         }
     }
@@ -81,6 +81,7 @@ class UpdateGroupForm extends AbstractType
      *
      * @return string The prefix of the template block name
      */
+    #[\Override]
     public function getBlockPrefix()
     {
         return 'UpdateGroupForm';
@@ -92,7 +93,7 @@ class UpdateGroupForm extends AbstractType
      */
     public function configureOptions(OptionsResolver $resolver)
     {
-        $resolver->setDefaults(array('data_class' => 'ODR\AdminBundle\Entity\GroupMeta'));
+        $resolver->setDefaults(['data_class' => \ODR\AdminBundle\Entity\GroupMeta::class]);
 
         $resolver->setRequired('is_super_admin');
     }

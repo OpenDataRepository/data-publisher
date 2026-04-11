@@ -23,18 +23,12 @@ class AHEDPropertiesPersonPlugin implements DatatypePluginInterface
 {
 
     /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-
-    /**
      * AHEDPropertiesPersonPlugin constructor.
      *
      * @param EngineInterface $templating
      */
-    public function __construct(EngineInterface $templating) {
-        $this->templating = $templating;
+    public function __construct(private readonly EngineInterface $templating)
+    {
     }
 
 
@@ -79,7 +73,7 @@ class AHEDPropertiesPersonPlugin implements DatatypePluginInterface
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
+    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = [], $datatype_permissions = [], $datafield_permissions = [], $token_list = [])
     {
         try {
             // ----------------------------------------
@@ -98,8 +92,8 @@ class AHEDPropertiesPersonPlugin implements DatatypePluginInterface
 
             $output = $this->templating->render(
                 'ODROpenRepositoryGraphBundle:Metadata:Person/person_childtype.html.twig',
-                array(
-                    'datatype_array' => array($initial_datatype_id => $datatype),
+                [
+                    'datatype_array' => [$initial_datatype_id => $datatype],
                     'datarecord_array' => $datarecords,
                     'theme_array' => $theme_array,
 
@@ -116,7 +110,7 @@ class AHEDPropertiesPersonPlugin implements DatatypePluginInterface
                     'display_type' => $rendering_options['display_type'],
 
                     'token_list' => $token_list,
-                )
+                ]
             );
 
             return $output;

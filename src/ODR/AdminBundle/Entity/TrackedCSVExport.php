@@ -216,7 +216,7 @@ class TrackedCSVExport
      * @return array
      */
     public function toArray() {
-        $tracked_csv_export = array();
+        $tracked_csv_export = [];
 
         $tracked_csv_export['id'] = $this->getId();
         $tracked_csv_export['job_order'] = $this->getJobOrder();

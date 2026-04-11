@@ -28,47 +28,6 @@ class FileUpdaterHelperPlugin implements ThemeElementPluginInterface
 {
 
     /**
-     * @var string
-     */
-    private $baseurl;
-
-    /**
-     * @var string
-     */
-    private $wordpress_site_baseurl;
-
-    /**
-     * @var bool
-     */
-    private $odr_wordpress_integrated;
-
-    /**
-     * @var string
-     */
-    private $environment;
-
-    /**
-     * @var DatabaseInfoService
-     */
-    private $database_info_service;
-
-    /**
-     * @var Router
-     */
-    private $router;
-
-    /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * File Updater Helper Plugin constructor
      *
      * @param string $baseurl
@@ -80,24 +39,8 @@ class FileUpdaterHelperPlugin implements ThemeElementPluginInterface
      * @param EngineInterface $templating
      * @param Logger $logger
      */
-    public function __construct(
-        string $baseurl,
-        string $wordpress_site_baseurl,
-        bool $odr_wordpress_integrated,
-        string $environment,
-        DatabaseInfoService $database_info_service,
-        Router $router,
-        EngineInterface $templating,
-        Logger $logger
-    ) {
-        $this->baseurl = $baseurl;
-        $this->wordpress_site_baseurl = $wordpress_site_baseurl;
-        $this->odr_wordpress_integrated = $odr_wordpress_integrated;
-        $this->environment = $environment;
-        $this->database_info_service = $database_info_service;
-        $this->router = $router;
-        $this->templating = $templating;
-        $this->logger = $logger;
+    public function __construct(private readonly string $baseurl, private readonly string $wordpress_site_baseurl, private readonly bool $odr_wordpress_integrated, private readonly string $environment, private readonly DatabaseInfoService $database_info_service, private readonly Router $router, private readonly EngineInterface $templating, private readonly Logger $logger)
+    {
     }
 
 
@@ -140,7 +83,7 @@ class FileUpdaterHelperPlugin implements ThemeElementPluginInterface
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecord, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $datatype_permissions = array(), $datafield_permissions = array())
+    public function execute($datarecord, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $datatype_permissions = [], $datafield_permissions = [])
     {
         try {
             // ----------------------------------------
@@ -158,11 +101,11 @@ class FileUpdaterHelperPlugin implements ThemeElementPluginInterface
             // This plugin has no required fields or options, but does require that this datatype
             //  and its descendants are using the FileHeader/FileHeaderInserter/RRUFFFileHeaderInserter
             //  plugins at least once
-            $related_plugins = array(
+            $related_plugins = [
                 'odr_plugins.base.file_renamer' => false,
                 'odr_plugins.base.file_header_inserter' => false,
                 'odr_plugins.rruff.file_header_inserter' => false,
-            );  // TODO - aaaaaaaaaaa hate this aaaaaaaaaaaa
+            ];  // TODO - aaaaaaaaaaa hate this aaaaaaaaaaaa
 
             // Would be somewhat easier if the array wasn't stacked, but there's an argument to be
             //  made for not revealing this if the user can't see the relevant fields/files
@@ -180,34 +123,34 @@ class FileUpdaterHelperPlugin implements ThemeElementPluginInterface
             // Generate the three routes
             $file_renamer_url = $this->router->generate(
                 'odr_plugin_file_renamer_rebuild_all',
-                array(
+                [
                     'dr_id' => $datarecord['id'],
-                )
+                ]
             );
             $file_header_inserter_url = $this->router->generate(
                 'odr_plugin_file_header_inserter_rebuild_all',
-                array(
+                [
                     'dr_id' => $datarecord['id'],
-                )
+                ]
             );
             $rruff_file_header_inserter_url = $this->router->generate(
                 'odr_plugin_rruff_file_header_inserter_rebuild_all',
-                array(
+                [
                     'dr_id' => $datarecord['id'],
-                )
+                ]
             );
 
             // ----------------------------------------
             // Otherwise, render and return a bit of HTML for the themeElement to display
             return $this->templating->render(
                 'ODROpenRepositoryGraphBundle:Base:FileUpdaterHelper/file_updater_helper_themeElement.html.twig',
-                array(
+                [
                     'active_plugins' => $related_plugins,
 
                     'file_renamer_url' => $file_renamer_url,
                     'file_header_inserter_url' => $file_header_inserter_url,
                     'rruff_file_header_inserter_url' => $rruff_file_header_inserter_url,
-                )
+                ]
             );
         }
         catch (\Exception $e) {

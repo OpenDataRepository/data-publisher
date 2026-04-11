@@ -39,7 +39,7 @@ class ClientController extends \Symfony\Bundle\FrameworkBundle\Controller\Contro
      */
     public function createOAuthClientAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -58,7 +58,7 @@ class ClientController extends \Symfony\Bundle\FrameworkBundle\Controller\Contro
                 throw new ODRForbiddenException();
 
             /** @var Client[] $owned_clients */
-            $owned_clients = $em->getRepository('ODROpenRepositoryOAuthServerBundle:Client')->findBy( array('owner' => $user->getId()) );
+            $owned_clients = $em->getRepository('ODROpenRepositoryOAuthServerBundle:Client')->findBy( ['owner' => $user->getId()] );
 
             // Don't allow if the user already has a client
             if (count($owned_clients) != 0)
@@ -69,15 +69,15 @@ class ClientController extends \Symfony\Bundle\FrameworkBundle\Controller\Contro
             $clientManager = $this->container->get('fos_oauth_server.client_manager.default');
 
             // Define the grant types this oauth client is allowed to use
-            $grant_types = array(
+            $grant_types = [
                 'http://odr.io/grants/owned_client',    // required to use the grant extension
                 'token',                                // allow the user to get an access token
                 'refresh_token',                        // allow the user to use refresh tokens
-            );
+            ];
 
             /** @var Client $client */
             $client = $clientManager->createClient();
-            $client->setRedirectUris( array($site_baseurl) );     // this is required, but it won't be used
+            $client->setRedirectUris( [$site_baseurl] );     // this is required, but it won't be used
             $client->setAllowedGrantTypes($grant_types);
             $client->setOwner($user);
             $clientManager->updateClient($client);
@@ -105,7 +105,7 @@ class ClientController extends \Symfony\Bundle\FrameworkBundle\Controller\Contro
      */
     public function deleteOAuthClientAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -124,7 +124,7 @@ class ClientController extends \Symfony\Bundle\FrameworkBundle\Controller\Contro
                 throw new ODRForbiddenException();
 
             /** @var Client[] $owned_clients */
-            $owned_clients = $em->getRepository('ODROpenRepositoryOAuthServerBundle:Client')->findBy( array('owner' => $user->getId()) );
+            $owned_clients = $em->getRepository('ODROpenRepositoryOAuthServerBundle:Client')->findBy( ['owner' => $user->getId()] );
 
             // Don't allow if the user already has a client
             if (count($owned_clients) == 0)
@@ -139,13 +139,13 @@ class ClientController extends \Symfony\Bundle\FrameworkBundle\Controller\Contro
             $query = $em->createQuery(
                 'DELETE FROM ODROpenRepositoryOAuthServerBundle:RefreshToken AS e
                 WHERE e.client = :client_id'
-            )->setParameters( array('client_id' => $client_id) );
+            )->setParameters( ['client_id' => $client_id] );
             $rows = $query->execute();
 
             $query = $em->createQuery(
                 'DELETE FROM ODROpenRepositoryOAuthServerBundle:AccessToken AS e
                 WHERE e.client = :client_id'
-            )->setParameters( array('client_id' => $client_id) );
+            )->setParameters( ['client_id' => $client_id] );
             $rows = $query->execute();
 
             // There should never be any entries in the AuthCode or AuthorizedClient entities that reference this client

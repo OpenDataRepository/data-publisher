@@ -48,56 +48,6 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 class EntityDeletionService
 {
 
-    /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var CacheService
-     */
-    private $cache_service;
-
-    /**
-     * @var DatabaseInfoService
-     */
-    private $database_info_service;
-
-    /**
-     * @var DatafieldInfoService
-     */
-    private $datafield_info_service;
-
-    /**
-     * @var DatatreeInfoService
-     */
-    private $datatree_info_service;
-
-    /**
-     * @var EntityMetaModifyService
-     */
-    private $entity_modify_service;
-
-    /**
-     * @var PermissionsManagementService
-     */
-    private $permissions_service;
-
-    /**
-     * @var TrackedJobService
-     */
-    private $tracked_job_service;
-
-    /**
-     * @var ThemeInfoService
-     */
-    private $theme_info_service;
-
-    /**
-     * @var EventDispatcherInterface
-     */
-    private $event_dispatcher;
-
     // NOTE - $event_dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
     //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
 
@@ -106,22 +56,17 @@ class EntityDeletionService
      */
     private $odr_web_dir;
 
-    /**
-     * @var Logger
-     */
-    private $logger;
-
 
     /**
      * EntityDeletionService constructor.
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param CacheService $cache_service
      * @param DatabaseInfoService $database_info_service
      * @param DatafieldInfoService $datafield_info_service
      * @param DatatreeInfoService $datatree_info_service
-     * @param EntityMetaModifyService $entity_meta_modify_service
-     * @param PermissionsManagementService $permissions_management_service
+     * @param EntityMetaModifyService $entity_modify_service
+     * @param PermissionsManagementService $permissions_service
      * @param TrackedJobService $tracked_job_service
      * @param ThemeInfoService $theme_info_service
      * @param EventDispatcherInterface $event_dispatcher
@@ -129,31 +74,20 @@ class EntityDeletionService
      * @param Logger $logger
      */
     public function __construct(
-        EntityManager $entity_manager,
-        CacheService $cache_service,
-        DatabaseInfoService $database_info_service,
-        DatafieldInfoService $datafield_info_service,
-        DatatreeInfoService $datatree_info_service,
-        EntityMetaModifyService $entity_meta_modify_service,
-        PermissionsManagementService $permissions_management_service,
-        TrackedJobService $tracked_job_service,
-        ThemeInfoService $theme_info_service,
-        EventDispatcherInterface $event_dispatcher,
+        private readonly EntityManager $em,
+        private readonly CacheService $cache_service,
+        private readonly DatabaseInfoService $database_info_service,
+        private readonly DatafieldInfoService $datafield_info_service,
+        private readonly DatatreeInfoService $datatree_info_service,
+        private readonly EntityMetaModifyService $entity_modify_service,
+        private readonly PermissionsManagementService $permissions_service,
+        private readonly TrackedJobService $tracked_job_service,
+        private readonly ThemeInfoService $theme_info_service,
+        private readonly EventDispatcherInterface $event_dispatcher,
         string $odr_web_dir,
-        Logger $logger
+        private readonly Logger $logger
     ) {
-        $this->em = $entity_manager;
-        $this->cache_service = $cache_service;
-        $this->database_info_service = $database_info_service;
-        $this->datafield_info_service = $datafield_info_service;
-        $this->datatree_info_service = $datatree_info_service;
-        $this->entity_modify_service = $entity_meta_modify_service;
-        $this->permissions_service = $permissions_management_service;
-        $this->tracked_job_service = $tracked_job_service;
-        $this->theme_info_service = $theme_info_service;
-        $this->event_dispatcher = $event_dispatcher;
         $this->odr_web_dir = realpath($odr_web_dir);
-        $this->logger = $logger;
     }
 
 
@@ -195,10 +129,10 @@ class EntityDeletionService
             // ----------------------------------------
             // Check whether any jobs that are currently running would interfere with the deletion
             //  of this datafield
-            $new_job_data = array(
+            $new_job_data = [
                 'job_type' => 'delete_datafield',
                 'target_entity' => $datafield,
-            );
+            ];
 
             $conflicting_job = $this->tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
@@ -214,7 +148,7 @@ class EntityDeletionService
                 JOIN ODRAdminBundle:Theme AS t WITH te.theme = t
                 WHERE tdf.dataField = :datafield
                 AND tdf.deletedAt IS NULL AND te.deletedAt IS NULL AND t.deletedAt IS NULL'
-            )->setParameters( array('datafield' => $datafield->getId()) );
+            )->setParameters( ['datafield' => $datafield->getId()] );
             $all_datafield_themes = $query->getResult();
             /** @var Theme[] $all_datafield_themes */
 
@@ -225,7 +159,7 @@ class EntityDeletionService
                 JOIN ODRAdminBundle:Group AS g WITH gdfp.group = g
                 WHERE gdfp.dataField = :datafield
                 AND gdfp.deletedAt IS NULL AND g.deletedAt IS NULL'
-            )->setParameters( array('datafield' => $datafield->getId()) );
+            )->setParameters( ['datafield' => $datafield->getId()] );
             $all_affected_groups = $query->getArrayResult();
 //print '<pre>'.print_r($all_affected_groups, true).'</pre>';  //exit();
 
@@ -238,7 +172,7 @@ class EntityDeletionService
                 JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
                 WHERE g.id IN (:groups)
                 AND g.deletedAt IS NULL AND ug.deletedAt IS NULL'
-            )->setParameters( array('groups' => $all_affected_groups) );
+            )->setParameters( ['groups' => $all_affected_groups] );
             $all_affected_users = $query->getArrayResult();
 //print '<pre>'.print_r($all_affected_users, true).'</pre>'; exit();
 
@@ -248,7 +182,7 @@ class EntityDeletionService
                'SELECT u.id AS user_id
                 FROM ODROpenRepositoryUserBundle:User AS u
                 WHERE u.roles LIKE :role'
-            )->setParameters( array('role' => '%ROLE_SUPER_ADMIN%') );
+            )->setParameters( ['role' => '%ROLE_SUPER_ADMIN%'] );
             $all_super_admins = $query->getArrayResult();
 
             // Merge the two lists together
@@ -263,10 +197,10 @@ class EntityDeletionService
                 JOIN ODRAdminBundle:DataType AS ddt WITH ddf.dataType = ddt
                 WHERE df.id = :datafield_to_delete
                 AND df.deletedAt IS NULL AND ddf.deletedAt IS NULL AND ddt.deletedAt IS NULL'
-            )->setParameters( array('datafield_to_delete' => $datafield->getId()) );
+            )->setParameters( ['datafield_to_delete' => $datafield->getId()] );
             $results = $query->getArrayResult();
 
-            $datatypes_to_clear_cached_data = array();
+            $datatypes_to_clear_cached_data = [];
             foreach ($results as $result) {
                 $dt_id = $result['dt_id'];
                 $datatypes_to_clear_cached_data[] = $dt_id;
@@ -303,11 +237,11 @@ class EntityDeletionService
                 SET tdf.deletedAt = :now, tdf.deletedBy = :deleted_by
                 WHERE tdf.dataField = :datafield AND tdf.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'now' => new \DateTime(),
                     'deleted_by' => $user->getId(),
                     'datafield' => $datafield->getId()
-                )
+                ]
             );
             $rows = $query->execute();
 
@@ -317,10 +251,10 @@ class EntityDeletionService
                 SET gdfp.deletedAt = :now
                 WHERE gdfp.dataField = :datafield AND gdfp.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'now' => new \DateTime(),
                     'datafield' => $datafield->getId()
-                )
+                ]
             );
             $rows = $query->execute();
 
@@ -330,10 +264,10 @@ class EntityDeletionService
                 SET rpi.deletedAt = :now
                 WHERE rpi.dataField = :datafield AND rpi.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'now' => new \DateTime(),
                     'datafield' => $datafield->getId()
-                )
+                ]
             );
             $rows = $query->execute();
 
@@ -343,10 +277,10 @@ class EntityDeletionService
                 SET rpm.deletedAt = :now
                 WHERE rpm.dataField = :datafield AND rpm.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'now' => new \DateTime(),
                     'datafield' => $datafield->getId()
-                )
+                ]
             );
             $rows = $query->execute();
 
@@ -356,9 +290,9 @@ class EntityDeletionService
                 SET df.templateFieldUuid = NULL, df.masterDataField = NULL
                 WHERE df.templateFieldUuid = :field_uuid'
             )->setParameters(
-                array(
+                [
                     'field_uuid' => $datafield->getFieldUuid()
-                )
+                ]
             );
             $rows = $query->execute();
 
@@ -368,10 +302,10 @@ class EntityDeletionService
                 SET slm.deletedAt = :now
                 WHERE slm.dataField = :datafield AND slm.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'now' => new \DateTime(),
                     'datafield' => $datafield->getId()
-                )
+                ]
             );
             $rows = $query->execute();
 
@@ -385,7 +319,7 @@ class EntityDeletionService
                 LEFT JOIN ODRAdminBundle:DataType dt WITH dtsf.dataType = dt
                 WHERE dtsf.dataField = :datafield_id AND dtsf.dataType != :datatype_id
                 AND dtsf.deletedAt IS NULL'
-            )->setParameters( array('datafield_id' => $datafield->getId(), 'datatype_id' => $datatype->getId()) );
+            )->setParameters( ['datafield_id' => $datafield->getId(), 'datatype_id' => $datatype->getId()] );
             $results = $query->getResult();
 
             // ...and delete any mention that this field was used for a special purpose
@@ -395,11 +329,11 @@ class EntityDeletionService
                 WHERE dtsf.dataField = :datafield
                 AND dtsf.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'now' => new \DateTime(),
                     'deleted_by' => $user->getId(),
                     'datafield' => $datafield->getId()
-                )
+                ]
             );
             $rows = $query->execute();
 
@@ -414,7 +348,7 @@ class EntityDeletionService
                     $event = new DatatypeModifiedEvent($dt, $user, true);    // Also need to rebuild datarecord cache entries because they store sort/name field values
                     $this->event_dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
 //                if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -427,7 +361,7 @@ class EntityDeletionService
             // Ensure that the datatype no longer thinks this datafield has a special purpose...
             // NOTE: external_id fields aren't allowed to be deleted, but keep for safety
             // NOTE: the rest of these aren't supposed to be used, but keep for the same reason
-            $properties = array();
+            $properties = [];
 
             // ...external id field
             if ( !is_null($datatype->getExternalIdField() )
@@ -472,10 +406,10 @@ class EntityDeletionService
                 SET dfm.deletedAt = :now
                 WHERE dfm.dataField = :datafield AND dfm.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'now' => new \DateTime(),
                     'datafield' => $datafield->getId()
-                )
+                ]
             );
             $rows = $query->execute();
 
@@ -485,11 +419,11 @@ class EntityDeletionService
                 SET df.deletedAt = :now, df.deletedBy = :deleted_by
                 WHERE df = :datafield AND df.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'now' => new \DateTime(),
                     'deleted_by' => $user->getId(),
                     'datafield' => $datafield->getId()
-                )
+                ]
             );
             $rows = $query->execute();
 
@@ -608,10 +542,10 @@ class EntityDeletionService
             // ----------------------------------------
             // Check whether any jobs that are currently running would interfere with the deletion
             //  of this datarecord
-            $new_job_data = array(
+            $new_job_data = [
                 'job_type' => 'delete_datarecord',
                 'target_entity' => $datarecord,
-            );
+            ];
 
             $conflicting_job = $this->tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
@@ -620,10 +554,10 @@ class EntityDeletionService
 
             // ----------------------------------------
             // Recursively locate all children of this datarecord
-            $parent_ids = array();
+            $parent_ids = [];
             $parent_ids[] = $datarecord->getId();
 
-            $datarecords_to_delete = array();
+            $datarecords_to_delete = [];
             $datarecords_to_delete[] = $datarecord->getId();
 
             while ( count($parent_ids) > 0 ) {
@@ -635,10 +569,10 @@ class EntityDeletionService
                     JOIN ODRAdminBundle:DataRecord AS dr WITH dr.parent = parent
                     WHERE dr.id != parent.id AND parent.id IN (:parent_ids)
                     AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL'
-                )->setParameters( array('parent_ids' => $parent_ids) );
+                )->setParameters( ['parent_ids' => $parent_ids] );
                 $results = $query->getArrayResult();
 
-                $parent_ids = array();
+                $parent_ids = [];
                 foreach ($results as $result) {
                     $dr_id = $result['dr_id'];
 
@@ -656,12 +590,12 @@ class EntityDeletionService
                 JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
                 WHERE ldt.descendant IN (:datarecord_ids)
                 AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL'
-            )->setParameters( array('datarecord_ids' => $datarecords_to_delete) );
+            )->setParameters( ['datarecord_ids' => $datarecords_to_delete] );
             $results = $query->getArrayResult();
             // NOTE - the grandparent record intentionally isn't loaded here...the DatarecordModifiedEvent
             //  and the DatarecordLinkStatusChangedEvent don't assume they're getting grandparent records
 
-            $ancestor_datarecord_ids = array();
+            $ancestor_datarecord_ids = [];
             foreach ($results as $result)
                 $ancestor_datarecord_ids[] = $result['ancestor_id'];
 //print '<pre>'.print_r($ancestor_datarecord_ids, true).'</pre>';  exit();
@@ -680,11 +614,11 @@ class EntityDeletionService
                 AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL
                 AND dtsf.deletedAt IS NULL AND l_dt.deletedAt IS NULL'
             )->setParameters(
-                array( 'datarecords_to_delete' => $datarecords_to_delete )
+                [ 'datarecords_to_delete' => $datarecords_to_delete ]
             );
             $results = $query->getArrayResult();
 
-            $datatypes_to_clear = array();
+            $datatypes_to_clear = [];
             foreach ($results as $result) {
                 $dt_id = $result['dt_id'];
                 $datatypes_to_clear[] = $dt_id;
@@ -706,11 +640,11 @@ class EntityDeletionService
                 WHERE (ldt.ancestor IN (:datarecord_ids) OR ldt.descendant IN (:datarecord_ids))
                 AND ldt.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'now' => new \DateTime(),
                     'deleted_by' => $user->getId(),
                     'datarecord_ids' => $datarecords_to_delete
-                )
+                ]
             );
             $rows = $query->execute();
 
@@ -721,10 +655,10 @@ class EntityDeletionService
                 WHERE drm.dataRecord IN (:datarecord_ids)
                 AND drm.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'now' => new \DateTime(),
                     'datarecord_ids' => $datarecords_to_delete
-                )
+                ]
             );
             $rows = $query->execute();
 
@@ -735,11 +669,11 @@ class EntityDeletionService
                 WHERE dr.id IN (:datarecord_ids)
                 AND dr.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'now' => new \DateTime(),
                     'deleted_by' => $user->getId(),
                     'datarecord_ids' => $datarecords_to_delete
-                )
+                ]
             );
             $rows = $query->execute();
 
@@ -768,7 +702,7 @@ class EntityDeletionService
                     $event = new DatarecordLinkStatusChangedEvent($ancestor_datarecord_ids, $datatype, $user, true);
                     $this->event_dispatcher->dispatch(DatarecordLinkStatusChangedEvent::NAME, $event);
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
 //                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -783,7 +717,7 @@ class EntityDeletionService
                         $event = new DatarecordModifiedEvent($parent_datarecord, $user);
                         $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
                     }
-                    catch (\Exception $e) {
+                    catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
                         //  event
 //                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -868,10 +802,10 @@ class EntityDeletionService
             // ----------------------------------------
             // Check whether any jobs that are currently running would interfere with the deletion
             //  of this datatype
-            $new_job_data = array(
+            $new_job_data = [
                 'job_type' => 'delete_datatype',
                 'target_entity' => $datatype,
-            );
+            ];
 
             $conflicting_job = $this->tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
@@ -890,15 +824,15 @@ class EntityDeletionService
             //  since this could be a child datatype
             $datatree_array = $this->datatree_info_service->getDatatreeArray();
 
-            $tmp = array($datatype->getId() => 0);
-            $datatypes_to_delete = array($datatype->getId() => 0);
+            $tmp = [$datatype->getId() => 0];
+            $datatypes_to_delete = [$datatype->getId() => 0];
 
             // If datatype has metadata, delete metadata
             if ( !is_null($datatype->getMetadataDatatype()) )
                 $datatypes_to_delete[ $datatype->getMetadataDatatype()->getId() ] = 0;
 
             while ( count($tmp) > 0 ) {
-                $new_tmp = array();
+                $new_tmp = [];
                 foreach ($tmp as $dt_id => $num) {
                     $child_datatype_ids = array_keys($datatree_array['descendant_of'], $dt_id);
                     foreach ($child_datatype_ids as $num => $child_datatype_id) {
@@ -919,10 +853,10 @@ class EntityDeletionService
                 FROM ODRAdminBundle:DataFields AS df
                 WHERE df.dataType IN (:datatype_ids)
                 AND df.deletedAt IS NULL'
-            )->setParameters( array('datatype_ids' => $datatypes_to_delete) );
+            )->setParameters( ['datatype_ids' => $datatypes_to_delete] );
             $results = $query->getArrayResult();
 
-            $datafields_to_delete = array();
+            $datafields_to_delete = [];
             foreach ($results as $result)
                 $datafields_to_delete[] = $result['df_id'];
 
@@ -936,11 +870,11 @@ class EntityDeletionService
                 WHERE df.id IN (:datafields_to_delete)
                 AND df.deletedAt IS NULL AND dtsf.deletedAt IS NULL AND dt.deletedAt IS NULL'
             )->setParameters(
-                array( 'datafields_to_delete' => $datafields_to_delete )
+                [ 'datafields_to_delete' => $datafields_to_delete ]
             );
             $results = $query->getResult();
 
-            $datatypes_to_clear = array();
+            $datatypes_to_clear = [];
             foreach ($results as $dt) {
                 /** @var DataType $dt */
                 $datatypes_to_clear[ $dt->getId() ] = $dt;
@@ -964,10 +898,10 @@ class EntityDeletionService
                 WHERE descendant.id IN (:datatypes_to_delete) AND dtm.is_link = 1
                 AND descendant.deletedAt IS NULL AND dt.deletedAt IS NULL
                 AND ancestor.deletedAt IS NULL'
-            )->setParameters( array('datatypes_to_delete' => $datatypes_to_delete) );
+            )->setParameters( ['datatypes_to_delete' => $datatypes_to_delete] );
             $results = $query->getResult();
 
-            $linked_ancestor_datatypes = array();
+            $linked_ancestor_datatypes = [];
             foreach ($results as $dt) {
                 /** @var DataType $dt */
                 $linked_ancestor_datatypes[ $dt->getId() ] = $dt;
@@ -993,10 +927,10 @@ class EntityDeletionService
                 WHERE ancestor.id IN (:datatypes_to_delete) AND dtm.is_link = 1
                 AND descendant.deletedAt IS NULL AND dt.deletedAt IS NULL
                 AND ancestor.deletedAt IS NULL'
-            )->setParameters( array('datatypes_to_delete' => $datatypes_to_delete) );
+            )->setParameters( ['datatypes_to_delete' => $datatypes_to_delete] );
             $results = $query->getResult();
 
-            $linked_descendant_datatypes = array();
+            $linked_descendant_datatypes = [];
             foreach ($results as $dt) {
                 /** @var DataType $dt */
                 $linked_descendant_datatypes[ $dt->getId() ] = $dt;
@@ -1019,10 +953,10 @@ class EntityDeletionService
                 JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
                 WHERE (ancestor.dataType IN (:datatype_ids) OR descendant.dataType IN (:datatype_ids))
                 AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
-            )->setParameters( array('datatype_ids' => $datatypes_to_delete) );
+            )->setParameters( ['datatype_ids' => $datatypes_to_delete] );
             $results = $query->getArrayResult();
 
-            $linked_datatrees_to_delete = array();
+            $linked_datatrees_to_delete = [];
             foreach ($results as $ldt)
                 $linked_datatrees_to_delete[ $ldt['ldt_id'] ] = 0;
             $linked_datatrees_to_delete = array_keys($linked_datatrees_to_delete);
@@ -1040,10 +974,10 @@ class EntityDeletionService
                 JOIN ODRAdminBundle:DataType AS dt WITH dt.masterDataType = mdt
                 WHERE mdt.id IN (:datatypes_to_delete)
                 AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL'
-            )->setParameters( array('datatypes_to_delete' => $datatypes_to_delete) );
+            )->setParameters( ['datatypes_to_delete' => $datatypes_to_delete] );
             $results = $query->getResult();
 
-            $derived_datatypes_to_update = array();
+            $derived_datatypes_to_update = [];
             foreach ($results as $dt)
                 $derived_datatypes_to_update[ $dt->getId() ] = $dt;
 
@@ -1055,10 +989,10 @@ class EntityDeletionService
                 FROM ODRAdminBundle:Group AS g
                 WHERE g.dataType IN (:datatype_ids)
                 AND g.deletedAt IS NULL'
-            )->setParameters( array('datatype_ids' => $datatypes_to_delete) );
+            )->setParameters( ['datatype_ids' => $datatypes_to_delete] );
             $results = $query->getArrayResult();
 
-            $groups_to_delete = array();
+            $groups_to_delete = [];
             foreach ($results as $result)
                 $groups_to_delete[ $result['group_id'] ] = 0;
             $groups_to_delete = array_keys($groups_to_delete);
@@ -1070,7 +1004,7 @@ class EntityDeletionService
                 FROM ODRAdminBundle:UserGroup AS ug
                 JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
                 WHERE ug.group IN (:groups) AND ug.deletedAt IS NULL'
-            )->setParameters( array('groups' => $groups_to_delete) );
+            )->setParameters( ['groups' => $groups_to_delete] );
             $group_members = $query->getArrayResult();
 
             // Need to separately locate all super_admins, since they're going to need permissions
@@ -1079,11 +1013,11 @@ class EntityDeletionService
                'SELECT u.id AS user_id
                 FROM ODROpenRepositoryUserBundle:User AS u
                 WHERE u.roles LIKE :role'
-            )->setParameters( array('role' => '%ROLE_SUPER_ADMIN%') );
+            )->setParameters( ['role' => '%ROLE_SUPER_ADMIN%'] );
             $all_super_admins = $query->getArrayResult();
 
             // Merge the two lists together
-            $all_affected_users = array();
+            $all_affected_users = [];
             foreach ($group_members as $num => $u)
                 $all_affected_users[ $u['user_id'] ] = 1;
             foreach ($all_super_admins as $num => $u)
@@ -1098,10 +1032,10 @@ class EntityDeletionService
                 JOIN ODRAdminBundle:ThemeDataType AS tdt WITH tdt.themeElement = te
                 WHERE tdt.dataType IN (:datatype_ids)
                 AND t.deletedAt IS NULL AND te.deletedAt IS NULL AND tdt.deletedAt IS NULL'
-            )->setParameters( array('datatype_ids' => $datatypes_to_delete) );
+            )->setParameters( ['datatype_ids' => $datatypes_to_delete] );
             $results = $query->getArrayResult();
 
-            $cached_themes_to_delete = array();
+            $cached_themes_to_delete = [];
             foreach ($results as $result)
                 $cached_themes_to_delete[ $result['theme_id'] ] = 0;
             $cached_themes_to_delete = array_keys($cached_themes_to_delete);
@@ -1135,8 +1069,8 @@ class EntityDeletionService
                'UPDATE odr_linked_data_tree AS ldt
                 SET ldt.deletedAt = NOW(), ldt.deletedBy = '.$user->getId().'
                 WHERE ldt.id IN (?)';
-            $parameters = array(1 => $linked_datatrees_to_delete);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $parameters = [1 => $linked_datatrees_to_delete];
+            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
 
@@ -1173,8 +1107,8 @@ class EntityDeletionService
                 SET dtsf.deletedAt = NOW(), dtsf.deletedBy = '.$user->getId().'
                 WHERE dtsf.data_type_id IN (?) OR dtsf.data_field_id IN (?)
                 AND dtsf.deletedAt IS NULL';
-            $parameters = array(1 => $datatypes_to_delete, 2 => $datafields_to_delete);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY);
+            $parameters = [1 => $datatypes_to_delete, 2 => $datafields_to_delete];
+            $types = [1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY];
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
 
@@ -1185,8 +1119,8 @@ class EntityDeletionService
                 SET ssk.deletedAt = NOW(), ssk.deletedBy = '.$user->getId().'
                 WHERE ssk.data_type_id IN (?)
                 AND ssk.deletedAt IS NULL';
-            $parameters = array(1 => $datatypes_to_delete);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $parameters = [1 => $datatypes_to_delete];
+            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
 
@@ -1211,8 +1145,8 @@ class EntityDeletionService
                 SET tdt.deletedAt = NOW(), tdt.deletedBy = '.$user->getId().'
                 WHERE tdt.data_type_id IN (?)
                 AND tdt.deletedAt IS NULL';
-            $parameters = array(1 => $datatypes_to_delete);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $parameters = [1 => $datatypes_to_delete];
+            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 /*
             // Delete all ThemeDatafield entries
@@ -1245,8 +1179,8 @@ class EntityDeletionService
                 SET t.deletedAt = NOW(), tm.deletedAt = NOW(), t.deletedBy = '.$user->getId().'
                 WHERE tm.theme_id = t.id AND t.data_type_id IN (?)
                 AND t.deletedAt IS NULL AND tm.deletedAt IS NULL';
-            $parameters = array(1 => $datatypes_to_delete);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $parameters = [1 => $datatypes_to_delete];
+            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
 
@@ -1259,10 +1193,10 @@ class EntityDeletionService
                 JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
                 WHERE (ancestor.id IN (:datatype_ids) OR descendant.id IN (:datatype_ids))
                 AND dt.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
-            )->setParameters( array('datatype_ids' => $datatypes_to_delete) );
+            )->setParameters( ['datatype_ids' => $datatypes_to_delete] );
             $results = $query->getArrayResult();
 
-            $datatree_ids = array();
+            $datatree_ids = [];
             foreach ($results as $dt)
                 $datatree_ids[] = $dt['dt_id'];
             // Shouldn't need to worry about duplicates...
@@ -1282,8 +1216,8 @@ class EntityDeletionService
                 SET dt.deletedAt = NOW(), dtm.deletedAt = NOW(), dt.deletedBy = '.$user->getId().'
                 WHERE dtm.data_tree_id = dt.id AND dt.id IN (?)
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL';
-            $parameters = array(1 => $datatree_ids);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $parameters = [1 => $datatree_ids];
+            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
 
@@ -1307,8 +1241,8 @@ class EntityDeletionService
                 SET ug.deletedAt = NOW(), ug.deletedBy = '.$user->getId().'
                 WHERE ug.group_id IN (?)
                 AND ug.deletedAt IS NULL';
-            $parameters = array(1 => $groups_to_delete);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $parameters = [1 => $groups_to_delete];
+            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
 
@@ -1319,8 +1253,8 @@ class EntityDeletionService
                 SET rpi.deletedAt = NOW()
                 WHERE rpi.data_type_id IN (?) OR rpi.data_field_id IN (?)
                 AND rpi.deletedAt IS NULL';
-            $parameters = array(1 => $datatypes_to_delete, 2 => $datafields_to_delete);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY);
+            $parameters = [1 => $datatypes_to_delete, 2 => $datafields_to_delete];
+            $types = [1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY];
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
             // Delete all RenderPluginMap entries
@@ -1329,8 +1263,8 @@ class EntityDeletionService
                 SET rpm.deletedAt = NOW()
                 WHERE rpm.data_type_id IN (?) OR rpm.data_field_id IN (?)
                 AND rpm.deletedAt IS NULL';
-            $parameters = array(1 => $datatypes_to_delete, 2 => $datafields_to_delete);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY);
+            $parameters = [1 => $datatypes_to_delete, 2 => $datafields_to_delete];
+            $types = [1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY];
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
 
@@ -1341,8 +1275,8 @@ class EntityDeletionService
                 SET slm.deletedAt = NOW()
                 WHERE slm.data_type_id IN (?) OR slm.data_field_id IN (?)
                 AND slm.deletedAt IS NULL';
-            $parameters = array(1 => $datatypes_to_delete, 2 => $datafields_to_delete);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY);
+            $parameters = [1 => $datatypes_to_delete, 2 => $datafields_to_delete];
+            $types = [1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY];
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
             // Delete all SidebarLayoutPreferences entries
@@ -1352,8 +1286,8 @@ class EntityDeletionService
                 WHERE sl.data_type_id IN (?)
                 AND slp.sidebar_layout_id = sl.id
                 AND slp.deletedAt IS NULL AND sl.deletedAt IS NULL';
-            $parameters = array(1 => $datatypes_to_delete);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $parameters = [1 => $datatypes_to_delete];
+            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
             // Delete all SidebarLayout and SidebarLayoutMeta entries
@@ -1362,8 +1296,8 @@ class EntityDeletionService
                 SET sl.deletedAt = NOW(), slm.deletedAt = NOW(), sl.deletedBy = '.$user->getId().'
                 WHERE slm.sidebar_layout_id = sl.id AND sl.data_type_id IN (?)
                 AND sl.deletedAt IS NULL AND slm.deletedAt IS NULL';
-            $parameters = array(1 => $datatypes_to_delete);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $parameters = [1 => $datatypes_to_delete];
+            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
             // Update all SidebarLayoutMeta entries that have this datatype as an inverse...
@@ -1372,8 +1306,8 @@ class EntityDeletionService
                 SET sl.deletedAt = NOW(), slm.deletedAt = NOW(), sl.deletedBy = '.$user->getId().'
                 WHERE slm.sidebar_layout_id = sl.id AND slm.inverse_datatype_id IN (?)
                 AND sl.deletedAt IS NULL AND slm.deletedAt IS NULL';
-            $parameters = array(1 => $datatypes_to_delete);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $parameters = [1 => $datatypes_to_delete];
+            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
 
@@ -1384,8 +1318,8 @@ class EntityDeletionService
                 SET dt.deletedAt = NOW(), dtm.deletedAt = NOW(), dt.deletedBy = '.$user->getId().'
                 WHERE dtm.data_type_id = dt.id AND dt.id IN (?)
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL';
-            $parameters = array(1 => $datatypes_to_delete);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $parameters = [1 => $datatypes_to_delete];
+            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
             // Update all Datatypes which were derived from these Datatypes
@@ -1396,8 +1330,8 @@ class EntityDeletionService
                 SET dt.master_datatype_id = NULL
                 WHERE dt.id IN (?)
                 AND dt.deletedAt IS NULL AND dt.deletedAt IS NULL';
-            $parameters = array(1 => $derived_datatype_list);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $parameters = [1 => $derived_datatype_list];
+            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
 
@@ -1422,7 +1356,7 @@ class EntityDeletionService
             // ----------------------------------------
             // There could be a lot of datatypes that need updated, so try to reduce the number of
             //  events fired off
-            $datatypes_needing_events = array();
+            $datatypes_needing_events = [];
 
             // If the datatype that just got deleted was not a top-level...
             if ( !$deleting_top_level_datatype ) {
@@ -1611,7 +1545,7 @@ class EntityDeletionService
             //  them
             /** @var Image[] $images */
             $images = $this->em->getRepository('ODRAdminBundle:Image')->findBy(
-                array('parent' => $image->getId())
+                ['parent' => $image->getId()]
             );
             foreach ($images as $img) {
                 // Ensure no decrypted version of any of the thumbnails exist on the server

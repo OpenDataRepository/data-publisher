@@ -65,7 +65,7 @@ class ClearMetaqueueCommand extends ContainerAwareCommand
             else
                 $job = $pheanstalk->watch('build_metadata')->ignore('default')->reserve();
 
-            $data = json_decode($job->getData());
+            $data = json_decode((string) $job->getData());
             $job_source = $data->redis_prefix;
 
             // Dealt with the job

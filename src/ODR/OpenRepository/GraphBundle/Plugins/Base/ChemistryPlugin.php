@@ -36,25 +36,13 @@ class ChemistryPlugin implements DatafieldPluginInterface, TableResultsOverrideI
 {
 
     /**
-     * @var DatarecordInfoService
-     */
-    private $dri_service;
-
-    /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-
-    /**
      * ChemistryPlugin constructor.
      *
      * @param DatarecordInfoService $dri_service
      * @param EngineInterface $templating
      */
-    public function __construct(DatarecordInfoService $dri_service, EngineInterface $templating) {
-        $this->dri_service = $dri_service;
-        $this->templating = $templating;
+    public function __construct(private readonly DatarecordInfoService $dri_service, private readonly EngineInterface $templating)
+    {
     }
 
 
@@ -110,25 +98,14 @@ class ChemistryPlugin implements DatafieldPluginInterface, TableResultsOverrideI
             if ( isset($datarecord['dataRecordFields'][ $datafield['id'] ]) ) {
                 $drf = $datarecord['dataRecordFields'][ $datafield['id'] ];
                 $entity = '';
-                switch ( $datafield['dataFieldMeta']['fieldType']['typeClass'] ) {
-                    case 'ShortVarchar':
-                        $entity = $drf['shortVarchar'];
-                        break;
-                    case 'MediumVarchar':
-                        $entity = $drf['mediumVarchar'];
-                        break;
-                    case 'LongVarchar':
-                        $entity = $drf['longVarchar'];
-                        break;
-                    case 'LongText':
-                        $entity = $drf['longText'];
-                        break;
-
-                    default:
-                        throw new \Exception('Invalid Fieldtype');
-                        break;
-                }
-                $str = trim( $entity[0]['value'] );
+                $entity = match ($datafield['dataFieldMeta']['fieldType']['typeClass']) {
+                    'ShortVarchar' => $drf['shortVarchar'],
+                    'MediumVarchar' => $drf['mediumVarchar'],
+                    'LongVarchar' => $drf['longVarchar'],
+                    'LongText' => $drf['longText'],
+                    default => throw new \Exception('Invalid Fieldtype'),
+                };
+                $str = trim( (string) $entity[0]['value'] );
             }
             else {
                 // No datarecordfield entry for this datarecord/datafield pair...because of the
@@ -161,17 +138,17 @@ class ChemistryPlugin implements DatafieldPluginInterface, TableResultsOverrideI
                 if ( $datafield['dataFieldMeta']['fieldType']['typeName'] === "Paragraph Text" ) {
                     // Replace all newlines with the HTML '<br>' tag, since the output will be
                     //  displayed in a div instead of an <input> or <textarea>
-                    $str = str_replace(array("\r\n", "\n\r", "\n", "\r"), '<br>', $str);
+                    $str = str_replace(["\r\n", "\n\r", "\n", "\r"], '<br>', $str);
                 }
 
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:Base:Chemistry/chemistry_display_datafield.html.twig',
-                    array(
+                    [
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,
 
                         'value' => $str,
-                    )
+                    ]
                 );
             }
             else if ( $context === 'edit' ) {
@@ -182,7 +159,7 @@ class ChemistryPlugin implements DatafieldPluginInterface, TableResultsOverrideI
 
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:Base:Chemistry/chemistry_edit_datafield.html.twig',
-                    array(
+                    [
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,
 
@@ -190,7 +167,7 @@ class ChemistryPlugin implements DatafieldPluginInterface, TableResultsOverrideI
                         'superscript_delimiter' => $super,
 
                         'is_datatype_admin' => $is_datatype_admin,
-                    )
+                    ]
                 );
             }
 
@@ -219,11 +196,11 @@ class ChemistryPlugin implements DatafieldPluginInterface, TableResultsOverrideI
         // Specifically...<i>, <b>, <u>, <sup>, <sub>, and <span class="overbar">, as well as their
         //  closing tags.  <em> is also in there, because why not.
         // This requirement is 100% non-negotiable, and some variant of markdown is unacceptable.
-        if ( strpos($str, '<') !== false || strpos($str, '>') !== false ) {
+        if ( str_contains($str, '<') || str_contains($str, '>') ) {
             // Due to the complicated overbar span (and maybe some other ones in the future), it's more
             //  effective to first split the string on '<' and '>'.  Due to requiring two separators,
             //  it's "better" to do this "manually"
-            $pieces = array();
+            $pieces = [];
             $prev = 0;
 
             $len = mb_strlen($str);
@@ -255,7 +232,7 @@ class ChemistryPlugin implements DatafieldPluginInterface, TableResultsOverrideI
                     if ( ($i+2 < $num_pieces) && $pieces[$i+2] === '>' ) {
                         // ...then it could be an HTML tag
                         $potential_tag = $pieces[$i+1];
-                        if ( strpos($potential_tag, '/') === 0 )
+                        if ( str_starts_with($potential_tag, '/') )
                             $potential_tag = substr($potential_tag, 1);
 
                         switch ($potential_tag) {
@@ -307,10 +284,10 @@ class ChemistryPlugin implements DatafieldPluginInterface, TableResultsOverrideI
 
         // Apply the superscripts...
         $super = preg_quote($superscript_delimiter);
-        $str = preg_replace('/'.$super.'([^'.$super.']+)'.$super.'/', '<sup>$1</sup>', $str);
+        $str = preg_replace('/'.$super.'([^'.$super.']+)'.$super.'/', '<sup>$1</sup>', (string) $str);
 
         // Replace the "[box]" sequence with U+25FB "◻" (WHITE MEDIUM SQUARE)
-        $str = preg_replace('/\[box\]/', '◻', $str);
+        $str = preg_replace('/\[box\]/', '◻', (string) $str);
 
         return $str;
     }
@@ -384,7 +361,7 @@ class ChemistryPlugin implements DatafieldPluginInterface, TableResultsOverrideI
         $df_id = $datafield['id'];
 
         // Still need to find the value for this datafield in the given datarecord...
-        $value = array();
+        $value = [];
         if ( isset($datarecord['dataRecordFields'][$df_id]) ) {
             $drf = $datarecord['dataRecordFields'][$df_id];
 

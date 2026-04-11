@@ -65,78 +65,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 {
 
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var CryptoService
-     */
-    private $crypto_service;
-
-    /**
-     * @var DatabaseInfoService
-     */
-    private $database_info_service;
-
-    /**
-     * @var DatarecordInfoService
-     */
-    private $datarecord_info_service;
-
-    /**
-     * @var EntityCreationService
-     */
-    private $entity_create_service;
-
-    /**
-     * @var EntityMetaModifyService
-     */
-    private $entity_modify_service;
-
-    /**
-     * @var LockService
-     */
-    private $lock_service;
-
-    /**
-     * @var ODRUploadService
-     */
-    private $upload_service;
-
-    /**
-     * @var XYZDataHelperService
-     */
-    private $xyzdata_helper_service;
-
-    /**
-     * @var EventDispatcherInterface
-     */
-    private $event_dispatcher;
-
-    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-
-    /**
-     * @var CsrfTokenManager
-     */
-    private $token_manager;
-
-    /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * AMCSDPlugin constructor.
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param CryptoService $crypto_service
      * @param DatabaseInfoService $database_info_service
      * @param DatarecordInfoService $datarecord_info_service
@@ -150,34 +81,8 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      * @param EngineInterface $templating
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        CryptoService $crypto_service,
-        DatabaseInfoService $database_info_service,
-        DatarecordInfoService $datarecord_info_service,
-        EntityCreationService $entity_create_service,
-        EntityMetaModifyService $entity_modify_service,
-        LockService $lock_service,
-        ODRUploadService $upload_service,
-        XYZDataHelperService $xyzdata_helper_service,
-        EventDispatcherInterface $event_dispatcher,
-        CsrfTokenManager $token_manager,
-        EngineInterface $templating,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->crypto_service = $crypto_service;
-        $this->database_info_service = $database_info_service;
-        $this->datarecord_info_service = $datarecord_info_service;
-        $this->entity_create_service = $entity_create_service;
-        $this->entity_modify_service = $entity_modify_service;
-        $this->lock_service = $lock_service;
-        $this->upload_service = $upload_service;
-        $this->xyzdata_helper_service = $xyzdata_helper_service;
-        $this->event_dispatcher = $event_dispatcher;
-        $this->token_manager = $token_manager;
-        $this->templating = $templating;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly CryptoService $crypto_service, private readonly DatabaseInfoService $database_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly EntityCreationService $entity_create_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly LockService $lock_service, private readonly ODRUploadService $upload_service, private readonly XYZDataHelperService $xyzdata_helper_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly CsrfTokenManager $token_manager, private readonly EngineInterface $templating, private readonly Logger $logger)
+    {
     }
 
 
@@ -211,7 +116,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
     /**
      * @inheritDoc
      */
-    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
+    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = [], $datatype_permissions = [], $datafield_permissions = [], $token_list = [])
     {
         try {
             // ----------------------------------------
@@ -223,13 +128,13 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             $options = $render_plugin_instance['renderPluginOptionsMap'];
 
             // Retrieve mapping between datafields and render plugin fields
-            $plugin_fields = array();
-            $editable_datafields = array();
+            $plugin_fields = [];
+            $editable_datafields = [];
 
             // Want to locate the values for most of the mapped datafields
-            $optional_fields = array(
+            $optional_fields = [
                 // ...I don't think any of AMCSD's fields qualify as "optional", actually
-            );
+            ];
 
             foreach ($fields as $rpf_name => $rpf_df) {
                 // Need to find the real datafield entry in the primary datatype array
@@ -340,7 +245,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 $initial_theme_id = $t_id;
 
             // There *should* only be a single datarecord in $datarecords...
-            $datarecord = array();
+            $datarecord = [];
             foreach ($datarecords as $dr_id => $dr)
                 $datarecord = $dr;
 
@@ -367,9 +272,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_edit_fieldarea.html.twig',
-                    array(
-                        'datatype_array' => array($initial_datatype_id => $datatype),
-                        'datarecord_array' => array($datarecord['id'] => $datarecord),
+                    [
+                        'datatype_array' => [$initial_datatype_id => $datatype],
+                        'datarecord_array' => [$datarecord['id'] => $datarecord],
                         'theme_array' => $theme_array,
 
                         'target_datatype_id' => $initial_datatype_id,
@@ -389,15 +294,15 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         'token_list' => $token_list,
 
                         'plugin_fields' => $plugin_fields,
-                    )
+                    ]
                 );
             }
             else if ( $rendering_options['context'] === 'fake_edit' ) {
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_fakeedit_fieldarea.html.twig',
-                    array(
-                        'datatype_array' => array($initial_datatype_id => $datatype),
-                        'datarecord_array' => array($datarecord['id'] => $datarecord),
+                    [
+                        'datatype_array' => [$initial_datatype_id => $datatype],
+                        'datarecord_array' => [$datarecord['id'] => $datarecord],
                         'theme_array' => $theme_array,
 
                         'target_datatype_id' => $initial_datatype_id,
@@ -416,12 +321,12 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         'special_tokens' => $special_tokens,
 
                         'plugin_fields' => $plugin_fields,
-                    )
+                    ]
                 );
             }
             else if ( $rendering_options['context'] === 'display' ) {
                 // Point Groups and Space Groups should be modified with CSS for display mode
-                $field_values = array('Point Group' => '', 'Space Group' => '');
+                $field_values = ['Point Group' => '', 'Space Group' => ''];
 
                 $point_group_df_id = $fields['Point Group']['id'];
                 if ( isset($datarecord['dataRecordFields'][$point_group_df_id]['shortVarchar'][0]['value']) ) {
@@ -440,8 +345,8 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_display_fieldarea.html.twig',
-                    array(
-                        'datatype_array' => array($initial_datatype_id => $datatype),
+                    [
+                        'datatype_array' => [$initial_datatype_id => $datatype],
                         'datarecord' => $datarecord,
                         'theme_array' => $theme_array,
 
@@ -460,7 +365,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
                         'plugin_fields' => $plugin_fields,
                         'field_values' => $field_values,
-                    )
+                    ]
                 );
             }
 
@@ -491,11 +396,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
                     $error_div = $this->templating->render(
                         'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_error.html.twig',
-                        array(
+                        [
                             'rpf_name' => 'AMC File',
                             'problem_fields' => self::formatProblemFields($amc_problems),
                             'can_edit_relevant_datafield' => $can_edit_relevant_datafield,
-                        )
+                        ]
                     );
 
                     $output = $error_div . $output;
@@ -513,11 +418,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
                     $error_div = $this->templating->render(
                         'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_error.html.twig',
-                        array(
+                        [
                             'rpf_name' => 'CIF File',
                             'problem_fields' => self::formatProblemFields($cif_problems),
                             'can_edit_relevant_datafield' => $can_edit_relevant_datafield,
-                        )
+                        ]
                     );
 
                     $output = $error_div . $output;
@@ -535,11 +440,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
                     $error_div = $this->templating->render(
                         'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_error.html.twig',
-                        array(
+                        [
                             'rpf_name' => 'Original CIF File',
                             'problem_fields' => self::formatProblemFields($original_cif_problems),
                             'can_edit_relevant_datafield' => $can_edit_relevant_datafield,
-                        )
+                        ]
                     );
 
                     $output = $error_div . $output;
@@ -557,11 +462,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
                     $error_div = $this->templating->render(
                         'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_error.html.twig',
-                        array(
+                        [
                             'rpf_name' => 'DIF File',
                             'problem_fields' => self::formatProblemFields($dif_problems),
                             'can_edit_relevant_datafield' => $can_edit_relevant_datafield,
-                        )
+                        ]
                     );
 
                     $output = $error_div . $output;
@@ -581,11 +486,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
                     $error_div = $this->templating->render(
                         'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_error.html.twig',
-                        array(
+                        [
                             'rpf_name' => 'Space Group',
                             'problem_fields' => self::formatProblemFields($symmetry_problems),
                             'can_edit_relevant_datafield' => $can_edit_relevant_datafield,
-                        )
+                        ]
                     );
 
                     $output = $error_div . $output;
@@ -610,7 +515,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      */
     private function getValueMapping($datarecord)
     {
-        $value_mapping = array();
+        $value_mapping = [];
         foreach ($datarecord['dataRecordFields'] as $df_id => $drf) {
             // Don't want to have to locate typeclass...
             unset( $drf['dataField'] );
@@ -625,7 +530,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     $value_mapping[$df_id] = $drf['file'][0];
                 else
                     // ...doesn't have anything uploaded
-                    $value_mapping[$df_id] = array();
+                    $value_mapping[$df_id] = [];
             }
             else if ( isset($drf['xyzData']) ) {
                 // XYZData fields will have two entries remaining at this time
@@ -678,11 +583,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         }
         // The "AMC File" field can't have a problem if there is no file uploaded...
         if ( empty($value_mapping[$df_id]) )
-            return array();
+            return [];
 
         // Otherwise, there's something uploaded to the "AMC File" datafield...therefore, the other
         //  fields defined by this render plugin should all have a value
-        $problem_fields = array();
+        $problem_fields = [];
 
         foreach ($plugin_fields as $df_id => $rpf_df) {
             switch ( $rpf_df['rpf_name'] ) {
@@ -733,11 +638,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         }
         // The "CIF File" field can't have a problem if there is no file uploaded...
         if ( empty($value_mapping[$df_id]) )
-            return array();
+            return [];
 
         // Otherwise, there's something uploaded to the "CIF File" datafield...therefore, the other
         //  fields defined by this render plugin should all have a value
-        $problem_fields = array();
+        $problem_fields = [];
 
         foreach ($plugin_fields as $df_id => $rpf_df) {
             switch ( $rpf_df['rpf_name'] ) {
@@ -808,11 +713,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         }
         // The "Original CIF File" field can't have a problem if there is no file uploaded...
         if ( empty($value_mapping[$df_id]) )
-            return array();
+            return [];
 
         // Otherwise, there's something uploaded to the "Original CIF File" datafield...therefore,
         //  the other fields defined by this render plugin should all have a value
-        $problem_fields = array();
+        $problem_fields = [];
 
         foreach ($plugin_fields as $df_id => $rpf_df) {
             switch ( $rpf_df['rpf_name'] ) {
@@ -858,11 +763,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         }
         // The "DIF File" field can't have a problem if there is no file uploaded...
         if ( empty($value_mapping[$df_id]) )
-            return array();
+            return [];
 
         // Otherwise, there's something uploaded to the "DIF File" datafield...therefore, the other
         //  fields defined by this render plugin should all have a value
-        $problem_fields = array();
+        $problem_fields = [];
 
         foreach ($plugin_fields as $df_id => $rpf_df) {
             switch ( $rpf_df['rpf_name'] ) {
@@ -913,11 +818,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         }
         // The various symmetry fields can't have a problem if the space group is empty...
         if ( !isset($value_mapping[$df_id]) || $value_mapping[$df_id] === '' )
-            return array();
+            return [];
 
         // Otherwise, there's something uploaded to the "CIF File" datafield...therefore, the other
         //  fields defined by this render plugin should all have a value
-        $problem_fields = array();
+        $problem_fields = [];
 
         foreach ($plugin_fields as $df_id => $rpf_df) {
             switch ( $rpf_df['rpf_name'] ) {
@@ -992,7 +897,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         $datarecord = null;
         $datafield = null;
         $user = null;
-        $storage_entities = array();
+        $storage_entities = [];
 
         try {
             // Get entities related to the file
@@ -1008,7 +913,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             if ( $relevant_rpf_name ) {
                 // ----------------------------------------
                 // This file was uploaded to the correct field, so it now needs to be processed
-                $this->logger->debug('Attempting to read file '.$file->getId().' "'.$file->getOriginalFileName().'", uploaded to the "'.$relevant_rpf_name.'" field...', array(self::class, 'onFilePreEncrypt()', 'File '.$file->getId()));
+                $this->logger->debug('Attempting to read file '.$file->getId().' "'.$file->getOriginalFileName().'", uploaded to the "'.$relevant_rpf_name.'" field...', [self::class, 'onFilePreEncrypt()', 'File '.$file->getId()]);
 
                 // Since the file hasn't been encrypted yet, it's currently in something of an odd
                 //  spot as far as ODR files usually go...getLocalFileName() returns a directory
@@ -1038,7 +943,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 // The provided file hasn't been encrypted yet, so it should be able to be read
                 //  directly
 
-                $file_values = array();
+                $file_values = [];
                 if ( $relevant_rpf_name === 'AMC File' ) {
                     // Ensure the AMC File has the correct AMCSD database code
                     self::insertAMCSDCodeIntoAMCFile($local_filepath, $amcsd_database_code);
@@ -1117,7 +1022,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                             $value,
                             true    // Ensure the field's contents are completely replaced
                         );
-                        $this->logger->debug(' -- updating XYZData datafield '.$entity->getId().' ('.$rpf_name.') to have the value "'.$value.'"', array(self::class, 'onFilePreEncrypt()', 'File '.$file->getId()));
+                        $this->logger->debug(' -- updating XYZData datafield '.$entity->getId().' ('.$rpf_name.') to have the value "'.$value.'"', [self::class, 'onFilePreEncrypt()', 'File '.$file->getId()]);
                     }
                     else {
                         /** @var IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|LongVarchar|LongText $entity */
@@ -1132,11 +1037,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         $this->entity_modify_service->updateStorageEntity(
                             $user,
                             $entity,
-                            array('value' => $value),
+                            ['value' => $value],
                             true,    // don't flush immediately
                             false    // don't fire PostUpdate event...nothing depends on these fields
                         );
-                        $this->logger->debug(' -- updating datafield '.$df_id.' ('.$rpf_name.') to have the value "'.$value.'"', array(self::class, 'onFilePreEncrypt()', 'File '.$file->getId()));
+                        $this->logger->debug(' -- updating datafield '.$df_id.' ('.$rpf_name.') to have the value "'.$value.'"', [self::class, 'onFilePreEncrypt()', 'File '.$file->getId()]);
 
                         // This method doesn't work on files, images, radio, tag, or xyzdata fields
                     }
@@ -1148,7 +1053,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         }
         catch (\Exception $e) {
             // Can't really display the error to the user yet, but can log it...
-            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'onFilePreEncrypt()', 'File '.$file->getId()));
+            $this->logger->debug('-- (ERROR) '.$e->getMessage(), [self::class, 'onFilePreEncrypt()', 'File '.$file->getId()]);
 
             if ( $relevant_rpf_name ) {
                 // If an error was thrown, attempt to ensure the related AMCSD fields are blank
@@ -1161,7 +1066,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         finally {
             // Would prefer if these happened regardless of success/failure...
             if ( $relevant_rpf_name ) {
-                $this->logger->debug('All changes saved from "'.$relevant_rpf_name.'"', array(self::class, 'onFilePreEncrypt()', 'File '.$file->getId()));
+                $this->logger->debug('All changes saved from "'.$relevant_rpf_name.'"', [self::class, 'onFilePreEncrypt()', 'File '.$file->getId()]);
                 self::clearCacheEntries($datarecord, $user, $storage_entities);
             }
         }
@@ -1186,7 +1091,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         $user = null;
         $datafield = null;
         $datarecord = null;
-        $storage_entities = array();
+        $storage_entities = [];
 
         try {
             // Get entities related to the file that just got deleted
@@ -1200,7 +1105,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             $relevant_rpf_name = self::isEventRelevant($datafield);
             if ( $relevant_rpf_name ) {
                 // This file was deleted from a relevant field, so it now needs to be processed
-                $this->logger->debug('Attempting to clear values derived from deleted "'.$relevant_rpf_name.'"...', array(self::class, 'onFileDeleted()', 'df '.$datafield->getId(), 'dr '.$datarecord->getId()));
+                $this->logger->debug('Attempting to clear values derived from deleted "'.$relevant_rpf_name.'"...', [self::class, 'onFileDeleted()', 'df '.$datafield->getId(), 'dr '.$datarecord->getId()]);
 
                 // ----------------------------------------
                 // Map the field definitions in the render plugin to datafields
@@ -1212,7 +1117,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 // ----------------------------------------
                 // Which entities should get cleared depends on which file is getting deleted, and
                 //  which other files are still uploaded
-                $file_values = array();
+                $file_values = [];
 
                 $amc_uploaded = $minimal_cif_uploaded = $original_cif_uploaded = $dif_uploaded = false;
                 if ( isset($rpf_mapping['AMC File']) ) {
@@ -1304,7 +1209,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 }
                 else if ( $relevant_rpf_name === 'Original CIF File' ) {
                     // These fields should always get cleared when an AMC File is deleted
-                    $file_values = array(
+                    $file_values = [
                         // These values will always get cleared
                         'Original CIF File Contents' => '',
 
@@ -1331,7 +1236,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
                         'Pressure' => '',
                         'Temperature' => '',
-                    );
+                    ];
 
                     // Unlike the other three files which all are created via the same process, the
                     //  Original CIF can be vastly different
@@ -1395,7 +1300,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                             '',
                             true    // ensure everything in the field is deleted
                         );
-                        $this->logger->debug(' -- updating XYZData datafield '.$entity->getId().' ('.$rpf_name.') to have the value ""', array(self::class, 'onFileDeleted()', 'df '.$event->getDatafield()->getId(), 'dr '.$datarecord->getId()));
+                        $this->logger->debug(' -- updating XYZData datafield '.$entity->getId().' ('.$rpf_name.') to have the value ""', [self::class, 'onFileDeleted()', 'df '.$event->getDatafield()->getId(), 'dr '.$datarecord->getId()]);
                     }
                     else {
                         /** @var IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|LongVarchar|LongText $entity */
@@ -1409,11 +1314,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         $this->entity_modify_service->updateStorageEntity(
                             $user,
                             $entity,
-                            array('value' => ''),
+                            ['value' => ''],
                             true,    // don't flush immediately
                             false    // don't fire PostUpdate event...nothing depends on these fields
                         );
-                        $this->logger->debug('-- updating datafield '.$df_id.' ('.$rpf_name.') to have the value ""', array(self::class, 'onFileDeleted()', 'df '.$datafield->getId(), 'dr '.$datarecord->getId()));
+                        $this->logger->debug('-- updating datafield '.$df_id.' ('.$rpf_name.') to have the value ""', [self::class, 'onFileDeleted()', 'df '.$datafield->getId(), 'dr '.$datarecord->getId()]);
 
                         // This method doesn't work on files, images, radio, tag, or xyzdata fields
                     }
@@ -1428,7 +1333,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         }
         catch (\Exception $e) {
             // Can't really display the error to the user yet, but can log it...
-            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'onFileDeleted()', 'df '.$datafield->getId(), 'dr '.$datarecord->getId()));
+            $this->logger->debug('-- (ERROR) '.$e->getMessage(), [self::class, 'onFileDeleted()', 'df '.$datafield->getId(), 'dr '.$datarecord->getId()]);
 
             // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
             //  any additional subscribers won't run either
@@ -1436,7 +1341,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         finally {
             // Would prefer if these happened regardless of success/failure...
             if ( $relevant_rpf_name ) {
-                $this->logger->debug('All changes saved from "'.$relevant_rpf_name.'"', array(self::class, 'onFileDeleted()', 'df '.$datafield->getId(), 'dr '.$datarecord->getId()));
+                $this->logger->debug('All changes saved from "'.$relevant_rpf_name.'"', [self::class, 'onFileDeleted()', 'df '.$datafield->getId(), 'dr '.$datarecord->getId()]);
                 self::clearCacheEntries($datarecord, $user, $storage_entities);
             }
         }
@@ -1486,7 +1391,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
         // If no other file is uploaded, then don't bother trying to read them
         if ( is_null($file_id) )
-            return array();
+            return [];
 
         // Need to hydrate the file...
         /** @var File $file */
@@ -1502,7 +1407,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         // Ensure the file exists...
         $local_filepath = $this->crypto_service->decryptFile($file_id, $filename);
         // ...so it can be read
-        $other_file_contents = array();
+        $other_file_contents = [];
         if ( $using_cif_file )
             $other_file_contents = self::readEitherCIFFile($local_filepath);
         else if ( $using_amc_file )
@@ -1540,7 +1445,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         $user = null;
         $datafield = null;
         $datarecord = null;
-        $storage_entities = array();
+        $storage_entities = [];
 
         try {
             // Get entities related to the file
@@ -1585,11 +1490,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         $this->entity_modify_service->updateStorageEntity(
                             $user,
                             $entity,
-                            array('value' => $new_radiation_element_value),
+                            ['value' => $new_radiation_element_value],
                             true,    // don't flush immediately
                             false    // don't fire PostUpdate event...nothing depends on this field
                         );
-                        $this->logger->debug(' -- updating datafield '.$radiation_element_df_id.' (Radiation Element) to have the value "'.$new_radiation_element_value.'"', array(self::class, 'onMassEditTrigger()'));
+                        $this->logger->debug(' -- updating datafield '.$radiation_element_df_id.' (Radiation Element) to have the value "'.$new_radiation_element_value.'"', [self::class, 'onMassEditTrigger()']);
                     }
                 }
             }
@@ -1604,14 +1509,14 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     FROM ODRAdminBundle:File f
                     WHERE f.dataRecordFields = :drf
                     AND f.deletedAt IS NULL'
-                )->setParameters( array('drf' => $drf->getId()) );
+                )->setParameters( ['drf' => $drf->getId()] );
                 $tmp = $query->getResult();
 
                 // ...only continue if there is a file uploaded to this field
                 if ( !empty($tmp) ) {
                     $file = $tmp[0];
                     /** @var File $file */
-                    $this->logger->debug('Attempting to read file '.$file->getId().' "'.$file->getOriginalFileName().'" from the "'.$relevant_rpf_name.'"...', array(self::class, 'onMassEditTrigger()', 'File '.$file->getId()));
+                    $this->logger->debug('Attempting to read file '.$file->getId().' "'.$file->getOriginalFileName().'" from the "'.$relevant_rpf_name.'"...', [self::class, 'onMassEditTrigger()', 'File '.$file->getId()]);
 
 
                     // ----------------------------------------
@@ -1637,7 +1542,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     $change_made = false;
                     $local_filepath = $this->crypto_service->decryptFile($file->getId());
 
-                    $file_values = array();
+                    $file_values = [];
                     if ( $relevant_rpf_name === 'AMC File' ) {
                         // Ensure the AMC File has the correct AMCSD database code
                         $change_made = self::insertAMCSDCodeIntoAMCFile($local_filepath, $amcsd_database_code);
@@ -1724,7 +1629,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                                 $value,
                                 true    // Ensure the field's contents are completely replaced
                             );
-                            $this->logger->debug(' -- updating XYZData datafield '.$entity->getId().' ('.$rpf_name.') to have the value "'.$value.'"', array(self::class, 'onMassEditTrigger()', 'File '.$file->getId()));
+                            $this->logger->debug(' -- updating XYZData datafield '.$entity->getId().' ('.$rpf_name.') to have the value "'.$value.'"', [self::class, 'onMassEditTrigger()', 'File '.$file->getId()]);
                         }
                         else {
                             /** @var IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|LongVarchar|LongText $entity */
@@ -1739,11 +1644,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                             $this->entity_modify_service->updateStorageEntity(
                                 $user,
                                 $entity,
-                                array('value' => $value),
+                                ['value' => $value],
                                 true,    // don't flush immediately
                                 false    // don't fire PostUpdate event...nothing depends on these fields
                             );
-                            $this->logger->debug(' -- updating datafield '.$df_id.' ('.$rpf_name.') to have the value "'.$value.'"', array(self::class, 'onMassEditTrigger()', 'File '.$file->getId()));
+                            $this->logger->debug(' -- updating datafield '.$df_id.' ('.$rpf_name.') to have the value "'.$value.'"', [self::class, 'onMassEditTrigger()', 'File '.$file->getId()]);
 
                             // This method doesn't work on files, images, radio, tag, or xyzdata fields
                         }
@@ -1756,7 +1661,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         }
         catch (\Exception $e) {
             // Can't really display the error to the user yet, but can log it...
-            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'onMassEditTrigger()', 'df '.$datafield->getId(), 'dr '.$datarecord->getId()));
+            $this->logger->debug('-- (ERROR) '.$e->getMessage(), [self::class, 'onMassEditTrigger()', 'df '.$datafield->getId(), 'dr '.$datarecord->getId()]);
 
             // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
             //  any additional subscribers won't run either
@@ -1764,7 +1669,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         finally {
             // Would prefer if these happened regardless of success/failure...
             if ( $relevant_rpf_name ) {
-                $this->logger->debug('All changes saved from "'.$relevant_rpf_name.'"', array(self::class, 'onMassEditTrigger()', 'df '.$datafield->getId(), 'dr '.$datarecord->getId()));
+                $this->logger->debug('All changes saved from "'.$relevant_rpf_name.'"', [self::class, 'onMassEditTrigger()', 'df '.$datafield->getId(), 'dr '.$datarecord->getId()]);
                 self::clearCacheEntries($datarecord, $user, $storage_entities);
             }
         }
@@ -1853,7 +1758,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             }
         }
 
-        $rpf_mapping = array();
+        $rpf_mapping = [];
         foreach ($renderPluginMap as $rpf_name => $rpf_df) {
             $rpf_df_id = $rpf_df['id'];
 
@@ -1919,7 +1824,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         $datarecord_array = $this->datarecord_info_service->getDatarecordArray($datarecord->getGrandparent()->getId(), false);    // don't want linked datatypes
         $dr = $datarecord_array[$datarecord->getId()];
 
-        $current_values = array();
+        $current_values = [];
         foreach ($dr['dataRecordFields'] as $df_id => $drf) {
             $typeclass = $drf['dataField']['dataFieldMeta']['fieldType']['typeClass'];
             switch ($typeclass) {
@@ -2097,10 +2002,10 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
     {
         // No point attempting to hydrate if no fields can get changed
         if ( empty($file_values) )
-            return array();
+            return [];
 
         // Only hydrate the listed datafields
-        $df_ids = array();
+        $df_ids = [];
         foreach ($file_values as $rpf_name => $value) {
             if ( !isset($rpf_mapping[$rpf_name]) )
                 throw new ODRException('hydrateStorageEntities(): $rpf_mapping missing expected field "'.$rpf_name.'"');
@@ -2117,7 +2022,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         $results = $query->getResult();
 
         // Organize the hydrated datafields by id
-        $hydrated_datafields = array();
+        $hydrated_datafields = [];
         foreach ($results as $df) {
             /** @var DataFields $df */
             $hydrated_datafields[ $df->getId() ] = $df;
@@ -2125,7 +2030,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
         // Need to sure that a storage entity exists for each of these datafields...it's highly
         //  likely they don't, and $entity_modify_service->updateStorageEntity() requires one
-        $storage_entities = array();
+        $storage_entities = [];
         foreach ($file_values as $rpf_name => $value) {
             $df_id = $rpf_mapping[$rpf_name];
 
@@ -2166,11 +2071,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         // Ensure we're at the beginning of the file
         fseek($handle, 0, SEEK_SET);
 
-        $lines = array();
+        $lines = [];
         while ( !feof($handle) ) {
             $line = fgets($handle);
 
-            if ( strpos($line, '_database_code_amcsd') === 0 ) {
+            if ( str_starts_with($line, '_database_code_amcsd') ) {
                 $pieces = explode(' ', $line);
 
                 // Need to have 2 values in this line
@@ -2207,7 +2112,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         for ($i = count($lines) - 1; $i >= 0; $i--) {
             // It's easier to locate the insertion point fo the database code by going in reverse
             $line = $lines[$i];
-            if ( strpos($line, 'atom') === 0 ) {
+            if ( str_starts_with($line, 'atom') ) {
                 // There are two possibilities for the line before the line starting with 'atom'...
                 $database_code_line_num = $i-1;
                 $prev_line = $lines[$database_code_line_num];
@@ -2225,7 +2130,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             }
         }
 
-        $new_lines = array();
+        $new_lines = [];
         foreach ($lines as $num => $line) {
             if ($num !== $database_code_line_num) {
                 // Copy over this line of data
@@ -2275,11 +2180,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         // Ensure we're at the beginning of the file
         fseek($handle, 0, SEEK_SET);
 
-        $lines = array();
+        $lines = [];
         while ( !feof($handle) ) {
             $line = fgets($handle);
 
-            if ( strpos($line, '_database_code_amcsd') === 0 ) {
+            if ( str_starts_with($line, '_database_code_amcsd') ) {
                 $pieces = explode(' ', $line);
 
                 // Need to have 2 values in this line
@@ -2315,24 +2220,24 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         $database_code_line_num = null;
         for ($i = 0; $i < count($lines); $i++) {
             $line = $lines[$i];
-            if ( strpos($line, '_chemical_compound_source') !== false ) {
+            if ( str_contains($line, '_chemical_compound_source') ) {
                 // The database code is preferably supposed to come before this line
                 $database_code_line_num = $i;
                 break;
             }
-            else if ( strpos($line, '_chemical_formula_sum') !== false ) {
+            else if ( str_contains($line, '_chemical_formula_sum') ) {
                 // ...but before this line if the locality doesn't exist...
                 $database_code_line_num = $i;
                 break;
             }
-            else if ( strpos($line, '_cell_length_a') !== false ) {
+            else if ( str_contains($line, '_cell_length_a') ) {
                 // ...and before the cell parameter data as a last-ditch fallback
                 $database_code_line_num = $i;
                 break;
             }
         }
 
-        $new_lines = array();
+        $new_lines = [];
         foreach ($lines as $num => $line) {
             if ($num !== $database_code_line_num) {
                 // Copy over this line of data
@@ -2383,11 +2288,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         // Ensure we're at the beginning of the file
         fseek($handle, 0, SEEK_SET);
 
-        $lines = array();
+        $lines = [];
         while ( !feof($handle) ) {
             $line = fgets($handle);
 
-            if ( strpos($line, '_database_code_amcsd') !== false ) {
+            if ( str_contains($line, '_database_code_amcsd') ) {
                 $pieces = explode(' ', trim($line));
 
                 // Need to have 2 values in this line
@@ -2424,7 +2329,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         $has_blank_line = false;
         for ($i = 0; $i < count($lines); $i++) {
             $line = $lines[$i];
-            if ( strpos($line, 'CELL PARAMETERS') !== false ) {
+            if ( str_contains($line, 'CELL PARAMETERS') ) {
                 // The cell parameters line is supposed to be preceeded by a blank line
                 $database_code_line_num = $i-1;
                 $prev_line = $lines[$database_code_line_num];
@@ -2438,7 +2343,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             }
         }
 
-        $new_lines = array();
+        $new_lines = [];
         foreach ($lines as $num => $line) {
             if ($num !== $database_code_line_num) {
                 // Copy over this line of data
@@ -2487,8 +2392,8 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      */
     private function readAMCFile($local_filepath)
     {
-        $file_values = array();
-        $all_lines = array();
+        $file_values = [];
+        $all_lines = [];
 
         // ----------------------------------------
         // Open the file
@@ -2520,7 +2425,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 // ...but the third line could be either Authors or Reference...since the reference
                 //  (always?) has a parenthesis in it due to (always?) having a Year, a line without
                 //  a parenthesis is a continuation of the Authors data
-                if ( strpos($line, '(') === false ) {
+                if ( !str_contains($line, '(') ) {
                     // Get rid of the newlines in the earlier line before appending this line to it
                     $second_line = trim($file_values['Authors']);
                     $file_values['Authors'] = $second_line.' '.$line;
@@ -2533,7 +2438,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             // Next there's usually two (sometimes three) lines of stuff the plugin doesn't care about
 
             // The line starting with "_database_code_amcsd" is the next important one...
-            elseif ( strpos($line, '_database_code_amcsd') === 0 ) {
+            elseif ( str_starts_with($line, '_database_code_amcsd') ) {
                 $pieces = explode(' ', $line);
 
                 // Need to have 2 values in this line
@@ -2547,9 +2452,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             }
             // The line after that contains the a/b/c/alpha/beta/gamma/space group values
             elseif ( ($database_code_line+1) === $line_num ) {
-                $line = trim( preg_replace('/\s\s+/', ' ', $line) );
+                $line = trim( (string) preg_replace('/\s\s+/', ' ', $line) );
                 // The replacement could end up stripping the newline from the end, which is bad
-                if ( strpos($line, "\n") === false )
+                if ( !str_contains($line, "\n") )
                     $line .= "\n";
                 $pieces = explode(' ', $line);
 
@@ -2577,12 +2482,12 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         //  ...this apparently meant that the calculated x/y/z coords of the atoms
                         //  in the file were shifted, compared to would be "expected" based on the
                         //  space group.  This '*' character shouldn't be saved if it exists
-                        if (strpos($sg, '*') === 0)
+                        if (str_starts_with($sg, '*'))
                             $sg = substr($sg, 1);
 
                         // Certain AMC files also apparently have a ':1' or whatever after the Space
                         //  Group, which also provides extra information to other programs...
-                        if (strpos($sg, ':') !== false)
+                        if (str_contains($sg, ':'))
                             $sg = substr($sg, 0, strpos($sg, ':'));
 
                         // The Lattice, Point Group, and Crystal System are then derived from the Space Group
@@ -2603,16 +2508,16 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
                 // Pressure tends to look like "P = 3 GPa" or "P = 11.1 kbar" or "Pressure = 7.3 GPA"
                 //  ...but can also have a tolerance
-                $matches = array();
+                $matches = [];
                 if ( preg_match('/P(?:ressure)?\s\=\s([0-9\.\(\)]+)\s(\w+)/', $line, $matches) === 1 )
                     $file_values['Pressure'] = $matches[1].' '.$matches[2];
 
                 // Temperature tends to look like "T = 200 K" or "T = 359.4K" or "T = 500K"...
-                $matches = array();
+                $matches = [];
                 if ( preg_match('/T\s\=\s(-?[0-9\.]+)\s?(C|K)/', $line, $matches) === 1)
                     $file_values['Temperature'] = $matches[1].' '.$matches[2];
                 // ...but can also look like "500 deg C" or "500 degrees C" or "T = 185 degrees C"
-                $matches = array();
+                $matches = [];
                 if ( preg_match('/(-?[0-9\.]+)\sdeg(?:ree)?(?:s)?\s(C|K)/', $line, $matches) === 1 )
                     $file_values['Temperature'] = $matches[1].' '.$matches[2];
 
@@ -2628,11 +2533,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         $file_values['AMC File Contents'] = implode("", $all_lines);
 
         // Also want a shorter version of this file's contents without the atom positions...
-        $short_lines = array();
+        $short_lines = [];
         // ...but it's slightly tricky because the line that starts with "atom" isn't guaranteed to
         //  always be two lines after the _database_code_amcsd line
         $short_ending_line = $database_code_line - 1 + 2;  // minus 1 to convert back to 0-based line numbers first
-        if ( strpos($all_lines[$short_ending_line], "atom") !== 0 ) {
+        if ( !str_starts_with($all_lines[$short_ending_line], "atom") ) {
             // ...if the expected line doesn't start with "atom", then it's the line after that
             $short_ending_line += 1;
         }
@@ -2663,7 +2568,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      */
     private function readEitherCIFFile($local_filepath)
     {
-        $file_values = array();
+        $file_values = [];
 
         // Due to the complexity of CIF files, and because other parts of ODR might feel
         //  like reading them...use a static function from elsewhere
@@ -2672,7 +2577,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
         // The returned array is organized by line, but most of what ODR cares about is easier to
         //  get at when it's organized by key...
-        $cif_data = array();
+        $cif_data = [];
         foreach ($cif_lines as $line_num => $data) {
             // Not interested in the "table" sections of the CIF...
             if ( isset($data['key']) && $data['key'] !== '' ) {
@@ -2711,7 +2616,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             if ( ValidUtility::isValidMediumVarchar($cif_data['data']) )
                 $file_values['Mineral'] = $cif_data['data'];
             else
-                $file_values['Mineral'] = substr($cif_data['data'], 0, 64);
+                $file_values['Mineral'] = substr((string) $cif_data['data'], 0, 64);
         }
         if ( isset($file_values['Mineral']) )
             $file_values['Mineral'] = ucfirst($file_values['Mineral']);
@@ -2725,7 +2630,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             $formula = $cif_data['_chemical_formula_sum'];
 
             // The value might have been split into multiple lines
-            $formula = str_replace(array("\r", "\n"), ' ', $formula);
+            $formula = str_replace(["\r", "\n"], ' ', $formula);
             $formula = str_replace('  ', ' ', $formula);
             if ( ValidUtility::isValidLongVarchar($formula) ) {
                 $file_values['Chemistry'] = str_replace('  ', ' ', $formula);
@@ -2733,11 +2638,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 // The value for the "Chemistry Elements" field is derived from this field, using
                 //  pretty much the same process as the IMA List
                 $ima_pattern = '/(REE|[A-Z][a-z]?)/';    // Attempt to locate 'REE' first, then fallback to a capital letter followed by an optional lowercase letter
-                $ima_matches = array();
+                $ima_matches = [];
                 preg_match_all($ima_pattern, $formula, $ima_matches);
 
                 // Create a unique list of tokens from the array of elements
-                $chemistry_elements = array();
+                $chemistry_elements = [];
                 foreach ($ima_matches[1] as $num => $elem)
                     $chemistry_elements[$elem] = 1;
                 $chemistry_elements = array_keys($chemistry_elements);
@@ -2753,11 +2658,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             $locality = $cif_data['_chemical_compound_source'];
 
             // Replace either "smart quote" with the ascii equivalent
-            $locality = str_replace(array("‘","’"), "'", $locality);    // U+2018 and U+2019
-            $locality = str_replace(array("“","”"), "\"", $locality);    // U+201C and U+201D
+            $locality = str_replace(["‘","’"], "'", $locality);    // U+2018 and U+2019
+            $locality = str_replace(["“","”"], "\"", $locality);    // U+201C and U+201D
 
             // The value might have been split into multiple lines
-            $locality = str_replace(array("\r", "\n"), ' ', $locality);
+            $locality = str_replace(["\r", "\n"], ' ', $locality);
             $locality = str_replace('  ', ' ', $locality);
 
             if ( ValidUtility::isValidLongVarchar($cif_data['_chemical_compound_source']) )
@@ -2766,7 +2671,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
         // ----------------------------------------
         // Cell parameters and volume
-        $tmp = array();
+        $tmp = [];
         if ( isset($cif_data['_cell_length_a']) )
             $tmp['a'] = $cif_data['_cell_length_a'];
         if ( isset($cif_data['_cell_length_b']) )
@@ -2808,7 +2713,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         }
         if ( isset($file_values['Temperature']) ) {
             $temp = $file_values['Temperature'];
-            if ( strpos($temp, 'K') === false || strpos($temp, 'C') === false )
+            if ( !str_contains($temp, 'K') || !str_contains($temp, 'C') )
                 $file_values['Temperature'] .= ' K';    // temps from these keys are supposed to be in kelvin
         }
 
@@ -2824,7 +2729,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         }
         if ( isset($file_values['Pressure']) ) {
             $temp = $file_values['Pressure'];
-            if ( strpos($temp, 'KPa') === false || strpos($temp, 'GPa') === false )
+            if ( !str_contains($temp, 'KPa') || !str_contains($temp, 'GPa') )
                 $file_values['Pressure'] .= ' KPa';    // pressures from these keys are supposed to be in kilopascals
         }
 
@@ -2833,11 +2738,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             $title_line = $cif_data['_publ_section_title'];
 
             // Temperature tends to look like "T = 200 K" or "T = 359.4K" or "T = 500K"...
-            $matches = array();
+            $matches = [];
             if ( preg_match('/T\s\=\s(-?[0-9\.]+)\s?(C|K)/', $title_line, $matches) === 1 )
                 $file_values['Temperature'] = $matches[1].' '.$matches[2];
             // ...but can also look like "500 deg C" or "500 degrees C" or "T = 185 degrees C"
-            $matches = array();
+            $matches = [];
             if ( preg_match('/(-?[0-9\.]+)\sdeg(?:ree)?(?:s)?\s(C|K)/', $title_line, $matches) === 1 )
                 $file_values['Temperature'] = $matches[1].' '.$matches[2];
         }
@@ -2846,7 +2751,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
             // Pressure tends to look like "P = 3 GPa" or "P = 11.1 kbar" or "Pressure = 7.3 GPA"
             //  ...but can also have a tolerance
-            $matches = array();
+            $matches = [];
             if ( preg_match('/P(?:ressure)?\s\=\s([0-9\.\(\)]+)\s(\w+)/', $title_line, $matches) === 1 )
                 $file_values['Pressure'] = $matches[1].' '.$matches[2];
         }
@@ -2888,7 +2793,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         // ----------------------------------------
         // CIF Contents are a pain...SHELXL CIFs tend to also have the DIF data in them, resulting
         //  in thousands of lines of data
-        $cif_contents_raw = array();
+        $cif_contents_raw = [];
 
         foreach ($cif_lines as $line_num => $data) {
             if ( isset($data['key']) ) {
@@ -2925,7 +2830,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
         // Ensure the values are trimmed before they're saved
         foreach ($file_values as $rpf_name => $value)
-            $file_values[$rpf_name] = trim($value);
+            $file_values[$rpf_name] = trim((string) $value);
 
         // Don't want to trim the CIF contents
         $file_values['contents'] = $cif_contents;
@@ -2950,11 +2855,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         //  H, K, L, and Multiplicity...this regex extracts the first three columns, and discards
         //  the remainder
         $pattern = '/(?:\s+)([\d\.]+)(?:\s+)([\d\.]+)(?:\s+)([\d\.]+)(?:[^\n]+)/';
-        $diffraction_values = array();
+        $diffraction_values = [];
 
         // Also want to get the rest of the values from this file when possible, even if they're
         //  not likely to be used
-        $file_values = array();
+        $file_values = [];
 
         // ----------------------------------------
         // Open the file
@@ -2989,16 +2894,16 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 // ...but the third line could be either Authors or Reference...since the reference
                 //  (always?) has a parenthesis in it due to (always?) having a Year, a line without
                 //  a parenthesis is a continuation of the Authors data
-                if ( strpos($line, '(') === false ) {
+                if ( !str_contains($line, '(') ) {
                     // Get rid of the newlines in the earlier line before appending this line to it
-                    $second_line = trim($file_values['Authors']);
+                    $second_line = trim((string) $file_values['Authors']);
                     $file_values['Authors'] = $second_line.' '.$line;
 
                     // Ensure no duplicate spaces
                     $file_values['Authors'] = preg_replace('/\s+/', ' ', $file_values['Authors']);
                 }
             }
-            elseif ( strpos($line, '_database_code_amcsd') !== false ) {
+            elseif ( str_contains($line, '_database_code_amcsd') ) {
                 $pieces = explode(' ', $line);
 
                 // Need to have 2 values in this line
@@ -3010,8 +2915,8 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     $database_code_line = $line_num;
                 }
             }
-            elseif ( strpos($line, 'X-RAY WAVELENGTH') !== false ) {
-                $matches = array();
+            elseif ( str_contains($line, 'X-RAY WAVELENGTH') ) {
+                $matches = [];
                 if ( preg_match('/\s+X-RAY WAVELENGTH:\s+([^\s]+)/', $line, $matches) === 1 ) {
                     $file_values['Wavelength'] = $matches[1];
 
@@ -3026,8 +2931,8 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     }
                 }
             }
-            elseif ( strpos($line, 'CELL PARAMETERS:') !== false ) {
-                $matches = array();
+            elseif ( str_contains($line, 'CELL PARAMETERS:') ) {
+                $matches = [];
                 if ( preg_match('/\s+CELL PARAMETERS:\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)/', $line, $matches) === 1 ) {
                     if (ValidUtility::isValidShortVarchar($matches[1]))
                         $file_values['a'] = $matches[1];
@@ -3043,9 +2948,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         $file_values['gamma'] = $matches[6];
                 }
             }
-            elseif ( strpos($line, 'SPACE GROUP:') !== false ) {
+            elseif ( str_contains($line, 'SPACE GROUP:') ) {
                 // Space Group are usually 5-12ish characters long, so they fit inside a ShortVarchar
-                $matches = array();
+                $matches = [];
                 if ( preg_match('/\s+SPACE GROUP:\s+([^\s]+)/', $line, $matches) === 1 ) {
                     $sg = trim($matches[1]);
 
@@ -3053,12 +2958,12 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     //  ...this apparently meant that the calculated x/y/z coords of the atoms
                     //  in the file were shifted, compared to would be "expected" based on the
                     //  space group.  This '*' character shouldn't be saved if it exists
-                    if (strpos($sg, '*') === 0)
+                    if (str_starts_with($sg, '*'))
                         $sg = substr($sg, 1);
 
                     // Certain AMC files also apparently have a ':1' or whatever after the Space
                     //  Group, which also provides extra information to other programs...
-                    if (strpos($sg, ':') !== false)
+                    if (str_contains($sg, ':'))
                         $sg = substr($sg, 0, strpos($sg, ':'));
 
                     // The Lattice, Point Group, and Crystal System are then derived from the Space Group
@@ -3078,16 +2983,16 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
                 // Pressure tends to look like "P = 3 GPa" or "P = 11.1 kbar" or "Pressure = 7.3 GPA"
                 //  ...but can also have a tolerance
-                $matches = array();
+                $matches = [];
                 if ( preg_match('/P(?:ressure)?\s\=\s([0-9\.\(\)]+)\s(\w+)/', $line, $matches) === 1 )
                     $file_values['Pressure'] = $matches[1].' '.$matches[2];
 
                 // Temperature tends to look like "T = 200 K" or "T = 359.4K" or "T = 500K"...
-                $matches = array();
+                $matches = [];
                 if ( preg_match('/T\s\=\s(-?[0-9\.]+)\s?(C|K)/', $line, $matches) === 1)
                     $file_values['Temperature'] = $matches[1].' '.$matches[2];
                 // ...but can also look like "500 deg C" or "500 degrees C" or "T = 185 degrees C"
-                $matches = array();
+                $matches = [];
                 if ( preg_match('/(-?[0-9\.]+)\sdeg(?:ree)?(?:s)?\s(C|K)/', $line, $matches) === 1 )
                     $file_values['Temperature'] = $matches[1].' '.$matches[2];
 
@@ -3095,16 +3000,16 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 // TODO - I forget whether these values have to be normalized to GPa and K...
             }
 
-            if ( strpos($line, 'INTENSITY') !== false && strpos($line, 'D-SPACING') !== false ) {
+            if ( str_contains($line, 'INTENSITY') && str_contains($line, 'D-SPACING') ) {
                 // This line needs to have at least two pieces in it
                 $header_line = $line_num;
             }
             else if ( $header_line > 0 ) {
                 // Want to stop reading the file when it hits the divider below the table
-                if ( strpos($line, '===') !== false )
+                if ( str_contains($line, '===') )
                     break;
 
-                $matches = array();
+                $matches = [];
                 $ret = preg_match($pattern, $line, $matches);
                 if ( $ret === 1 ) {
                     $two_theta = $matches[1];
@@ -3175,7 +3080,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     '',
                     true    // ensure the field contents are blank
                 );
-                $this->logger->debug('-- (ERROR) updating XYZData datafield '.$datafield->getId().' to have the value ""', array(self::class, 'saveOnError()', 'File '.$file->getId()));
+                $this->logger->debug('-- (ERROR) updating XYZData datafield '.$datafield->getId().' to have the value ""', [self::class, 'saveOnError()', 'File '.$file->getId()]);
             }
             else if ( !empty($storage_entities) ) {
                 foreach ($storage_entities as $df_id => $entity) {
@@ -3187,11 +3092,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         $this->entity_modify_service->updateStorageEntity(
                             $user,
                             $entity,
-                            array('value' => ''),
+                            ['value' => ''],
                             true,    // don't flush immediately
                             false    // don't fire PostUpdate event...nothing depends on these fields
                         );
-                        $this->logger->debug('-- (ERROR) updating datafield '.$df_id.' to have the value ""', array(self::class, 'saveOnError()', 'File '.$file->getId()));
+                        $this->logger->debug('-- (ERROR) updating datafield '.$df_id.' to have the value ""', [self::class, 'saveOnError()', 'File '.$file->getId()]);
                     }
                 }
 
@@ -3203,7 +3108,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         }
         catch (\Exception $e) {
             // Some other error...no way to recover from it
-            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'saveOnError()', 'User '.$user->getId(), 'File '.$file->getId()));
+            $this->logger->debug('-- (ERROR) '.$e->getMessage(), [self::class, 'saveOnError()', 'User '.$user->getId(), 'File '.$file->getId()]);
         }
     }
 
@@ -3230,7 +3135,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 $event = new DatafieldModifiedEvent($df, $user);
                 $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
             }
-            catch (\Exception $e) {
+            catch (\Exception) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
 //            if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -3243,7 +3148,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             $event = new DatarecordModifiedEvent($datarecord, $user);
             $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             // ...don't want to rethrow the error since it'll interrupt everything after this
             //  event
 //            if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -3277,11 +3182,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             AND rp.deletedAt IS NULL AND rpi.deletedAt IS NULL AND rpm.deletedAt IS NULL
             AND df.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'plugin_classname' => 'odr_plugins.rruff.amcsd',
                 'datatype' => $datatype->getId(),
                 'field_name' => 'database_code_amcsd'
-            )
+            ]
         );
         $results = $query->getResult();
         if ( count($results) !== 1 )
@@ -3307,9 +3212,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         $value += 1;
 
         // Convert it back into the expected format so the storage entity can get created
-        $new_value = str_pad($value, 7, '0', STR_PAD_LEFT);
+        $new_value = str_pad((string) $value, 7, '0', STR_PAD_LEFT);
         $this->entity_create_service->createStorageEntity($user, $datarecord, $datafield, $new_value, false);    // guaranteed to not need a PostUpdate event
-        $this->logger->debug('Setting df '.$datafield->getId().' "database_code" of new dr '.$datarecord->getId().' to "'.$new_value.'"...', array(self::class, 'onDatarecordCreate()'));
+        $this->logger->debug('Setting df '.$datafield->getId().' "database_code" of new dr '.$datarecord->getId().' to "'.$new_value.'"...', [self::class, 'onDatarecordCreate()']);
 
         // No longer need the lock
         $lockHandler->release();
@@ -3321,7 +3226,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             $event = new DatafieldModifiedEvent($datafield, $user);
             $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
         }
-        catch (\Exception $e) {
+        catch (\Exception) {
             // ...don't want to rethrow the error since it'll interrupt everything after this
             //  event
 //            if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -3354,9 +3259,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             AND e.deletedAt IS NULL
             ORDER BY e.value DESC
             LIMIT 0,1';
-        $params = array(
+        $params = [
             'datafield' => $datafield_id,
-        );
+        ];
         $conn = $this->em->getConnection();
         $results = $conn->executeQuery($query, $params);
 
@@ -3380,7 +3285,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
     {
         // Don't execute on instances of other render plugins
         if ( $render_plugin_instance['renderPlugin']['pluginClassName'] !== 'odr_plugins.rruff.amcsd' )
-            return array();
+            return [];
         $render_plugin_map = $render_plugin_instance['renderPluginMap'];
 
         // The AMCSD plugin derives almost all of its fields from the contents of the three different
@@ -3422,39 +3327,39 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
         // Since a datafield could be derived from multiple datafields, the source datafields need
         //  to be in an array
-        return array(
-            $authors_df_id => array($amc_file_df_id, $dif_file_df_id),
+        return [
+            $authors_df_id => [$amc_file_df_id, $dif_file_df_id],
 
-            $amc_file_contents_df_id => array($amc_file_df_id),
-            $amc_file_contents_short_df_id => array($amc_file_df_id),
-            $cif_file_contents_df_id => array($cif_file_df_id),
-            $original_cif_file_contents_df_id => array($original_cif_file_df_id),
-            $diffraction_search_values_df_id => array($dif_file_df_id),
-            $wavelength_df_id => array($dif_file_df_id),
-            $radiation_element_df_id => array($dif_file_df_id),
+            $amc_file_contents_df_id => [$amc_file_df_id],
+            $amc_file_contents_short_df_id => [$amc_file_df_id],
+            $cif_file_contents_df_id => [$cif_file_df_id],
+            $original_cif_file_contents_df_id => [$original_cif_file_df_id],
+            $diffraction_search_values_df_id => [$dif_file_df_id],
+            $wavelength_df_id => [$dif_file_df_id],
+            $radiation_element_df_id => [$dif_file_df_id],
 
-            $mineral_name_df_id => array($amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id),
-            $a_df_id => array($amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id),
-            $b_df_id => array($amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id),
-            $c_df_id => array($amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id),
-            $alpha_df_id => array($amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id),
-            $beta_df_id => array($amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id),
-            $gamma_df_id => array($amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id),
-            $volume_df_id => array(/*$amc_file_df_id,*/ $cif_file_df_id, /*$dif_file_df_id,*/ $original_cif_file_df_id),
+            $mineral_name_df_id => [$amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id],
+            $a_df_id => [$amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id],
+            $b_df_id => [$amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id],
+            $c_df_id => [$amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id],
+            $alpha_df_id => [$amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id],
+            $beta_df_id => [$amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id],
+            $gamma_df_id => [$amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id],
+            $volume_df_id => [/*$amc_file_df_id,*/ $cif_file_df_id, /*$dif_file_df_id,*/ $original_cif_file_df_id],
 
-            $crystal_system_df_id => array($amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id), // crystal system, point group, and lattice are technically derived from the space group...
-            $point_group_df_id => array($amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id),    // ...but doesn't matter since you can't edit space group directly anyways
-            $space_group_df_id => array($amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id),
-            $lattice_df_id => array($amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id),
+            $crystal_system_df_id => [$amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id], // crystal system, point group, and lattice are technically derived from the space group...
+            $point_group_df_id => [$amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id],    // ...but doesn't matter since you can't edit space group directly anyways
+            $space_group_df_id => [$amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id],
+            $lattice_df_id => [$amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id],
 
-            $pressure_df_id => array($amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id),
-            $temperature_df_id => array($amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id),
+            $pressure_df_id => [$amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id],
+            $temperature_df_id => [$amc_file_df_id, $cif_file_df_id, $dif_file_df_id, $original_cif_file_df_id],
 
-            $chemistry_df_id => array($cif_file_df_id, $original_cif_file_df_id),
-            $chemistry_elements_df_id => array($cif_file_df_id, $original_cif_file_df_id),
-            $locality_df_id => array($cif_file_df_id, $original_cif_file_df_id),
-            $density_df_id => array($cif_file_df_id, $original_cif_file_df_id),
-        );
+            $chemistry_df_id => [$cif_file_df_id, $original_cif_file_df_id],
+            $chemistry_elements_df_id => [$cif_file_df_id, $original_cif_file_df_id],
+            $locality_df_id => [$cif_file_df_id, $original_cif_file_df_id],
+            $density_df_id => [$cif_file_df_id, $original_cif_file_df_id],
+        ];
     }
 
 
@@ -3471,7 +3376,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             throw new ODRException('Invalid plugin config');
 
         // Only interested in overriding datafields mapped to these rpf entries
-        $relevant_datafields = array(
+        $relevant_datafields = [
             // Triggering the file rebuilds is sometimes useful...
             'AMC File' => 1,
             'CIF File' => 1,
@@ -3480,9 +3385,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
             // ...as is triggering a rebuild of this field due to potential future wavelength changes
             'Radiation Element' => 1,
-        );
+        ];
 
-        $ret = array();
+        $ret = [];
         foreach ($render_plugin_instance['renderPluginMap'] as $rpf_name => $rpf) {
             if ( isset($relevant_datafields[$rpf_name]) )
                 $ret[] = $rpf['id'];
@@ -3502,7 +3407,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 //        return array();
 
         // Only interested in overriding datafields mapped to these rpf entries
-        $relevant_datafields = array(
+        $relevant_datafields = [
             // Triggering the file rebuilds is sometimes useful...
             'AMC File' => 1,
             'CIF File' => 1,
@@ -3511,9 +3416,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
             // ...as is triggering a rebuild of this field due to potential future wavelength changes
             'Radiation Element' => 1,
-        );
+        ];
 
-        $trigger_fields = array();
+        $trigger_fields = [];
         foreach ($render_plugin_instance['renderPluginMap'] as $rpf_name => $rpf) {
             if ( isset($relevant_datafields[$rpf_name]) ) {
                 // The relevant fields should only have the MassEditTrigger event activated when the
@@ -3532,8 +3437,8 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
     public function getTableResultsOverrideValues($render_plugin_instance, $datarecord, $datafield = null)
     {
         // This render plugin might need to modify two different fields...
-        $values = array();
-        $current_values = array();
+        $values = [];
+        $current_values = [];
 
         foreach ($render_plugin_instance['renderPluginMap'] as $rpf_name => $rpf) {
             switch ($rpf_name) {
@@ -3541,10 +3446,10 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 case 'Space Group':
                     // This is a field of interest...
                     $df_id = $rpf['id'];
-                    $current_values[$rpf_name] = array(
+                    $current_values[$rpf_name] = [
                         'id' => $df_id,
                         'value' => ''
-                    );
+                    ];
 
                     // Need to look through the datarecord to find the current value...both of these
                     //  are ShortVarchar fields
@@ -3578,10 +3483,10 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      */
     private function applySymmetryCSS($value)
     {
-        if ( strpos($value, '-') !== false )
+        if ( str_contains($value, '-') )
             $value = preg_replace('/-(\d)/', '<span class="overbar">$1</span>', $value);
-        if ( strpos($value, '_') !== false )
-            $value = preg_replace('/_(\d)/', '<sub>$1</sub>', $value);
+        if ( str_contains((string) $value, '_') )
+            $value = preg_replace('/_(\d)/', '<sub>$1</sub>', (string) $value);
 
         return $value;
     }

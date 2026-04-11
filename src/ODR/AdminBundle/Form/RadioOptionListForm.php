@@ -32,10 +32,10 @@ class RadioOptionListForm extends AbstractType
         $builder->add(
             'radio_option_list',
             TextareaType::class,
-            array(
+            [
                 'required' => true,
                 'label' => 'Options (one per line)',
-            )
+            ]
         );
 
     }
@@ -59,6 +59,7 @@ class RadioOptionListForm extends AbstractType
      *
      * @return string The prefix of the template block name
      */
+    #[\Override]
     public function getBlockPrefix()
     {
         return 'RadioOptionListForm';
@@ -71,9 +72,9 @@ class RadioOptionListForm extends AbstractType
     public function configureOptions(OptionsResolver $resolver)
     {
         $resolver->setDefaults(
-            array(
+            [
 //                'data_class' => 'ODR\AdminBundle\Entity\DataFields'
-            )
+            ]
         );
     }
 }

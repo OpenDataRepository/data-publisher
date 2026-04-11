@@ -82,58 +82,13 @@ class SearchAPIService
      */
     const DISABLE_MATCHES_MASK = 0b1100;
 
-    /**
-     * @var string
-     */
-    private $search_key_char_limit;
-
-    /**
-     * @var ContainerInterface
-     */
-    private $container;
-
-    /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var DatatreeInfoService
-     */
-    private $datatree_info_service;
-
-    /**
-     * @var SearchService
-     */
-    private $search_service;
-
-    /**
-     * @var SearchKeyService
-     */
-    private $search_key_service;
-
-    /**
-     * @var SortService
-     */
-    private $sort_service;
-
-    /**
-     * @var CacheService
-     */
-    private $cache_service;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
 
     /**
      * SearchAPIService constructor.
      *
      * @param string $search_key_char_limit
      * @param ContainerInterface $container
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param DatatreeInfoService $datatree_info_service
      * @param SearchService $search_service
      * @param SearchKeyService $search_key_service
@@ -141,26 +96,8 @@ class SearchAPIService
      * @param CacheService $cache_service
      * @param Logger $logger
      */
-    public function __construct(
-        string $search_key_char_limit,
-        ContainerInterface $container,
-        EntityManager $entity_manager,
-        DatatreeInfoService $datatree_info_service,
-        SearchService $search_service,
-        SearchKeyService $search_key_service,
-        SortService $sort_service,
-        CacheService $cache_service,
-        Logger $logger
-    ) {
-        $this->search_key_char_limit = $search_key_char_limit;
-        $this->container = $container;
-        $this->em = $entity_manager;
-        $this->datatree_info_service = $datatree_info_service;
-        $this->search_service = $search_service;
-        $this->search_key_service = $search_key_service;
-        $this->sort_service = $sort_service;
-        $this->cache_service = $cache_service;
-        $this->logger = $logger;
+    public function __construct(private readonly string $search_key_char_limit, private readonly ContainerInterface $container, private readonly EntityManager $em, private readonly DatatreeInfoService $datatree_info_service, private readonly SearchService $search_service, private readonly SearchKeyService $search_key_service, private readonly SortService $sort_service, private readonly CacheService $cache_service, private readonly Logger $logger)
+    {
     }
 
 
@@ -178,15 +115,15 @@ class SearchAPIService
     public function getSearchableDatafieldsForUser($top_level_datatype_ids, $user_permissions, $search_as_super_admin = false)
     {
         // Going to need to filter the resulting list based on the user's permissions
-        $datatype_permissions = array();
-        $datafield_permissions = array();
+        $datatype_permissions = [];
+        $datafield_permissions = [];
         if ( isset($user_permissions['datatypes']) )
             $datatype_permissions = $user_permissions['datatypes'];
         if ( isset($user_permissions['datafields']) )
             $datafield_permissions = $user_permissions['datafields'];
 
 
-        $all_searchable_datafields = array();
+        $all_searchable_datafields = [];
         foreach ($top_level_datatype_ids as $num => $top_level_datatype_id) {
             // Get all possible datafields that can be searched on for this datatype
             $searchable_datafields = $this->search_service->getSearchableDatafields($top_level_datatype_id);
@@ -261,8 +198,8 @@ class SearchAPIService
     public function getSearchableTemplateDatafieldsForUser($datafield_uuids, $user_permissions, $search_as_super_admin = false)
     {
         // Going to need to filter the resulting list based on the user's permissions
-        $datatype_permissions = array();
-        $datafield_permissions = array();
+        $datatype_permissions = [];
+        $datafield_permissions = [];
         if ( isset($user_permissions['datatypes']) )
             $datatype_permissions = $user_permissions['datatypes'];
         if ( isset($user_permissions['datafields']) )
@@ -282,11 +219,11 @@ class SearchAPIService
             WHERE mdf.fieldUuid IN (:field_uuids)
             AND mdf.deletedAt IS NULL AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL
             AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
-        )->setParameters( array('field_uuids' => $datafield_uuids) );
+        )->setParameters( ['field_uuids' => $datafield_uuids] );
         $results = $query->getArrayResult();
 
-        $dt_lookup = array();
-        $searchable_datafields = array();
+        $dt_lookup = [];
+        $searchable_datafields = [];
         foreach ($results as $result) {
             $dt_id = $result['dt_id'];
             $dt_public_date = $result['dt_public_date'];
@@ -312,7 +249,7 @@ class SearchAPIService
                 // If the user can view this datatype, then the user's permissions for its datafields
                 //  also need to be checked
                 if ( !isset($searchable_datafields[$dt_id]) )
-                    $searchable_datafields[$dt_id] = array();
+                    $searchable_datafields[$dt_id] = [];
 
                 $df_is_public = true;
                 if ($df_public_date === '2200-01-01')
@@ -349,7 +286,7 @@ class SearchAPIService
     {
         // Convert the search key into array format...
         $search_params = $this->search_key_service->decodeSearchKey($search_key);
-        $filtered_search_params = array();
+        $filtered_search_params = [];
 
         // Extract the inverse target datatype, if it exists
         $inverse_target_datatype_id = null;
@@ -365,11 +302,11 @@ class SearchAPIService
 
         // Get all the datatypes/datafields the user can view...which datatype to use depends on
         //  whether it's an "inverse" search or not
-        $searchable_datafields = array();
+        $searchable_datafields = [];
         if ( is_null($inverse_target_datatype_id) )
-            $searchable_datafields = self::getSearchableDatafieldsForUser(array($datatype_id), $user_permissions, $search_as_super_admin);
+            $searchable_datafields = self::getSearchableDatafieldsForUser([$datatype_id], $user_permissions, $search_as_super_admin);
         else
-            $searchable_datafields = self::getSearchableDatafieldsForUser(array($inverse_target_datatype_id), $user_permissions, $search_as_super_admin);
+            $searchable_datafields = self::getSearchableDatafieldsForUser([$inverse_target_datatype_id], $user_permissions, $search_as_super_admin);
 
         // Prior to inline searching, $searchable_datafields only had datafields that the user could
         //  view and weren't marked as DataFields::NOT_SEARCHABLE...but because of inline search's
@@ -391,10 +328,10 @@ class SearchAPIService
                     foreach ($searchable_datafields as $dt_id => $datafields) {
                         if ( isset($datafields[$sort_df_id]) && $datafields[$sort_df_id]['searchable'] !== DataFields::NOT_SEARCHABLE ) {
                             // User can both view and search this datafield
-                            $filtered_search_params[$key][$sort_num] = array(
+                            $filtered_search_params[$key][$sort_num] = [
                                 'sort_df_id' => $sort_criteria['sort_df_id'],
                                 'sort_dir' => $sort_criteria['sort_dir'],
-                            );
+                            ];
                             break;
                         }
                         else {
@@ -539,8 +476,8 @@ class SearchAPIService
         $search_key,
         $user_permissions,
         $return_complete_list = false,
-        $sort_datafields = array(),
-        $sort_directions = array(),
+        $sort_datafields = [],
+        $sort_directions = [],
         $search_as_super_admin = false,
         $return_as_list = false
     ) {
@@ -577,11 +514,11 @@ class SearchAPIService
         }
 
         // Convert the search key into a format suitable for searching
-        $searchable_datafields = array();
+        $searchable_datafields = [];
         if ( is_null($inverse_target_datatype_id) )
-            $searchable_datafields = self::getSearchableDatafieldsForUser(array($datatype->getId()), $user_permissions, $search_as_super_admin);
+            $searchable_datafields = self::getSearchableDatafieldsForUser([$datatype->getId()], $user_permissions, $search_as_super_admin);
         else
-            $searchable_datafields = self::getSearchableDatafieldsForUser(array($inverse_target_datatype_id), $user_permissions, $search_as_super_admin);
+            $searchable_datafields = self::getSearchableDatafieldsForUser([$inverse_target_datatype_id], $user_permissions, $search_as_super_admin);
         $criteria = $this->search_key_service->convertSearchKeyToCriteria($filtered_search_key, $searchable_datafields, $user_permissions, $search_as_super_admin);
 
         // Need to grab hydrated versions of the datafields/datatypes being searched on
@@ -614,7 +551,7 @@ class SearchAPIService
         //  end up matching the search...if running a "regular" search, then they need to be based
         //  off the datatype being searched.  If an "inverse" search, then they need to instead be
         //  based off that targeted datatype...doing so greatly simplies logic later on
-        $search_arrays = array();
+        $search_arrays = [];
         if ( is_null($inverse_target_datatype_id) )
             $search_arrays = self::getSearchArrays($datatype->getId(), $search_permissions, $ignored_prefixes);
         else
@@ -629,10 +566,10 @@ class SearchAPIService
 
         // Need to keep track of the result list for each facet separately...they end up merged
         //  together after all facets are searched on
-        $facet_dr_list = array();
+        $facet_dr_list = [];
         foreach ($criteria as $dt_id => $facet_list) {
             // Need to keep track of the matches for each datatype individually...
-            $facet_dr_list[$dt_id] = array();
+            $facet_dr_list[$dt_id] = [];
 
             foreach ($facet_list as $facet_num => $facet) {
                 // Skip the top-level merge flag for general search
@@ -670,7 +607,7 @@ class SearchAPIService
                     $entity = $hydrated_entities[$entity_type][$entity_id];
 
                     // Run/load the desired query based on the criteria
-                    $dr_list = array();
+                    $dr_list = [];
                     if ($key === 'created')
                         $dr_list = $this->search_service->searchCreatedDate($entity, $search_term['before'], $search_term['after']);
                     else if ($key === 'createdBy')
@@ -694,7 +631,7 @@ class SearchAPIService
                             // In the hope that the render plugins don't actually need to deal with
                             //  this themselves...attempt to pre-emptively deal with any negation
                             //  required out here...
-                            $search_term['value'] = substr($search_term['value'], 1);
+                            $search_term['value'] = substr((string) $search_term['value'], 1);
                         }
 
                         // The plugin will return the same format that the regular searches do
@@ -720,7 +657,7 @@ class SearchAPIService
                             // Pre-emptively deal with any negation required out here...the actual
                             //  negation will happen later
                             if ( isset($facet['negated']) )
-                                $search_term['value'] = substr($search_term['value'], 1);
+                                $search_term['value'] = substr((string) $search_term['value'], 1);
 
                             // General search only provides a string, and only wants selected radio options
                             $dr_list = $this->search_service->searchForSelectedRadioOptions($entity, $search_term['value']);
@@ -733,7 +670,7 @@ class SearchAPIService
                             // Pre-emptively deal with any negation required out here...the actual
                             //  negation will happen later
                             if ( isset($facet['negated']) )
-                                $search_term['value'] = substr($search_term['value'], 1);
+                                $search_term['value'] = substr((string) $search_term['value'], 1);
 
                             // General search only provides a string, and only wants selected tags
                             $dr_list = $this->search_service->searchForSelectedTags($entity, $search_term['value']);
@@ -783,7 +720,7 @@ class SearchAPIService
                                 if ( isset($search_term['z']) )
                                     $z_value = trim($search_term['z']);
 
-                                if ( strpos($x_value, '&&') !== false || strpos($y_value, '&&') !== false || strpos($z_value, '&&') !== false ) {
+                                if ( str_contains($x_value, '&&') || str_contains($y_value, '&&') || str_contains($z_value, '&&') ) {
                                     // If any of the terms include '&&', then this is kind of an
                                     //  "intermediate complexity" search.  Going to attempt to
                                     //  transform the given string into the "advanced" format...
@@ -838,7 +775,7 @@ class SearchAPIService
                         $facet_dt_id = $search_term['datatype_id'];
 
                         if ( is_null($facet_dr_list[$dt_id][$facet_num][$facet_dt_id]) )
-                            $facet_dr_list[$dt_id][$facet_num][$facet_dt_id] = array();
+                            $facet_dr_list[$dt_id][$facet_num][$facet_dt_id] = [];
 
                         // Every datarecord returned by the SearchService functions ends up matching
                         //  at this point in time...
@@ -849,7 +786,7 @@ class SearchAPIService
                         // ...a search directly on a datafield already has the datatype info
                         if ($merge_type === 'OR') {
                             if ( is_null($facet_dr_list[$dt_id][$facet_num]) )
-                                $facet_dr_list[$dt_id][$facet_num] = array();
+                                $facet_dr_list[$dt_id][$facet_num] = [];
 
                             // When merging by 'OR', every datarecord returned by the SearchService
                             //  functions ends up matching
@@ -913,7 +850,7 @@ class SearchAPIService
                             //  datatype so we can subtract the "un-negated" results from them
                             $own_dr_list = $datatype_dr_lists[$dt_id];
 
-                            $new_dr_list = array();
+                            $new_dr_list = [];
                             foreach ($own_dr_list as $dr_id => $num) {
                                 if ( !isset($dr_list[$dr_id]) )
                                     $new_dr_list[$dr_id] = $num;
@@ -929,7 +866,7 @@ class SearchAPIService
                     //  list...
                     $old_dr_list = $general_search_facet_list[$key];
 
-                    $new_dr_list = array();
+                    $new_dr_list = [];
                     foreach ($old_dr_list as $dt_id => $dr_list) {
                         foreach ($dr_list as $dr_id => $num)
                             $new_dr_list[$dr_id] = $num;
@@ -981,7 +918,7 @@ class SearchAPIService
 
         // Otherwise, the user only wanted a list of the grandparent datarecords that matched the
         //  search...
-        $grandparent_ids = array();
+        $grandparent_ids = [];
         if ( is_null($inverse_target_datatype_id) || $inverse_target_datatype_id === $datatype->getId() ) {
             // ...since this is not an "inverse" search, then traversing the top-level of the inflated
             //  list is all that's required
@@ -1006,7 +943,7 @@ class SearchAPIService
             // ...after which that list needs to get "converted" into a list of datarecords for the
             //  "correct" datatype.  Turns out the existing merge logic could not handle things when
             //  the "inverse" datatype was a descendant of the "correct" datatype...
-            $working_dr_list = array();
+            $working_dr_list = [];
             foreach ($grandparent_ids as $num => $gp_dr_id)
                 $working_dr_list[$gp_dr_id] = 1;
             $correct_grandparent_ids = self::undoInverseSearch($inverse_target_datatype_id, $datatype->getId(), $flattened_list, $inflated_list, $working_dr_list);
@@ -1016,7 +953,7 @@ class SearchAPIService
 
         // ----------------------------------------
         // Sort the resulting array if any results were found
-        $sorted_datarecord_list = array();
+        $sorted_datarecord_list = [];
         if ( !empty($grandparent_ids) ) {
             $source_dt_id = $datatype->getId();
             $grandparent_ids_for_sorting = implode(',', $grandparent_ids);
@@ -1035,7 +972,7 @@ class SearchAPIService
                     $is_default_sort_order = false;
             }
             if ( $has_sortfields && $is_default_sort_order )
-                $sort_datafields = $sort_directions = array();
+                $sort_datafields = $sort_directions = [];
 
             // ----------------------------------------
             if ( empty($sort_datafields) ) {
@@ -1059,8 +996,8 @@ class SearchAPIService
             }
             else {
                 // If more than one datafield is needed for sorting, then multisort has to be used
-                $linked_datafields = array();
-                $numeric_datafields = array();
+                $linked_datafields = [];
+                $numeric_datafields = [];
 
                 foreach ($sort_datafields as $display_order => $sort_df_id) {
                     // It's easier to determine whether this is a linked field or not here instead
@@ -1094,7 +1031,7 @@ class SearchAPIService
             $sorted_datarecord_list = array_keys($sorted_datarecord_list);
         }
 
-        $dr_list = array();
+        $dr_list = [];
         if ($return_as_list) {
             $str =
                'SELECT dr.id AS dr_id, dr.unique_id AS dr_uuid
@@ -1102,7 +1039,7 @@ class SearchAPIService
                 LEFT JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
                 WHERE dr.id IN (:datatype_ids)
                 AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL';
-            $params = array('datatype_ids' => $sorted_datarecord_list);
+            $params = ['datatype_ids' => $sorted_datarecord_list];
             $query = $this->em->createQuery($str)->setParameters($params);
             $results = $query->getArrayResult();
 
@@ -1110,12 +1047,12 @@ class SearchAPIService
                 $dr_id = $result['dr_id'];
                 $dr_uuid = $result['dr_uuid'];
 
-                $dr_list[$dr_id] = array(
+                $dr_list[$dr_id] = [
                     'internal_id' => $dr_id,
                     'unique_id' => $dr_uuid,
                     'external_id' => '',
                     'record_name' => '',
-                );
+                ];
             }
         }
         else {
@@ -1160,7 +1097,7 @@ class SearchAPIService
             $x_pieces[$num] = trim($piece);
             if ( $x_pieces[$num] === '' )
                 unset( $x_pieces[$num] );
-            else if ( strpos($x_pieces[$num], ',') !== false )
+            else if ( str_contains($x_pieces[$num], ',') )
                 $x_pieces[$num] = str_replace(',', ' OR ', $x_pieces[$num]);
         }
         if ( empty($x_pieces) )
@@ -1170,7 +1107,7 @@ class SearchAPIService
             $y_pieces[$num] = trim($piece);
             if ( $y_pieces[$num] === '' )
                 unset( $y_pieces[$num] );
-            else if ( strpos($y_pieces[$num], ',') !== false )
+            else if ( str_contains($y_pieces[$num], ',') )
                 $y_pieces[$num] = str_replace(',', ' OR ', $y_pieces[$num]);
         }
         if ( empty($y_pieces) )
@@ -1180,7 +1117,7 @@ class SearchAPIService
             $z_pieces[$num] = trim($piece);
             if ( $z_pieces[$num] === '' )
                 unset( $z_pieces[$num] );
-            else if ( strpos($z_pieces[$num], ',') !== false )
+            else if ( str_contains($z_pieces[$num], ',') )
                 $z_pieces[$num] = str_replace(',', ' OR ', $z_pieces[$num]);
         }
         if ( empty($z_pieces) )
@@ -1188,7 +1125,7 @@ class SearchAPIService
 
         // Unfortunately, we need every possible permutation of these pieces in order to create the
         //  multi-range query that SearchService::searchXYZDatafield() expects
-        $permutations = array();
+        $permutations = [];
         foreach ($x_pieces as $x_num => $x_piece) {
             foreach ($y_pieces as $y_num => $y_piece) {
                 foreach ($z_pieces as $z_num => $z_piece) {
@@ -1224,7 +1161,7 @@ class SearchAPIService
         unset( $criteria['search_type'] );
 
         // Want to find all datafield entities listed in the criteria array
-        $datafield_ids = array();
+        $datafield_ids = [];
         foreach ($criteria as $dt_id => $facet_list) {
             // Only look for datafields inside facet lists
             if ( !is_numeric($dt_id) && $dt_id !== 'general' )
@@ -1249,8 +1186,8 @@ class SearchAPIService
 
         // ----------------------------------------
         // Need to hydrate all of the datafields/datatypes so the search functions work
-        $datafields = array();
-        $render_plugins = array();
+        $datafields = [];
+        $render_plugins = [];
         if ( !empty($datafield_ids) ) {
             $datafields = self::hydrateDatafields($search_type, $datafield_ids);
             $render_plugins = self::hydrateRenderPlugins($search_type, $datafield_ids);
@@ -1258,7 +1195,7 @@ class SearchAPIService
 
 
         // Because of permissions, need to hydrate all datatypes...
-        $datatypes = array();
+        $datatypes = [];
         if ( $search_type === 'datatype' )
             $datatypes = self::hydrateDatatypes($search_type, $criteria['all_datatypes']);
         else
@@ -1267,11 +1204,11 @@ class SearchAPIService
 
         // ----------------------------------------
         // Return the hydrated arrays
-        return array(
+        return [
             'datafield' => $datafields,
             'renderPlugin' => $render_plugins,
             'datatype' => $datatypes,
-        );
+        ];
     }
 
 
@@ -1288,13 +1225,13 @@ class SearchAPIService
      */
     private function hydrateDatafields($search_type, $datafield_ids)
     {
-        $datafields = array();
+        $datafields = [];
 
         if ($search_type === 'datatype') {
             // For a regular search, need to hydrate all datafields being searched on
-            $params = array(
+            $params = [
                 'datafield_ids' => $datafield_ids
-            );
+            ];
 
             $query = $this->em->createQuery(
                'SELECT df
@@ -1315,9 +1252,9 @@ class SearchAPIService
             //  fields as their master datafields.
             // Not really a good idea, especially since the actual searching functions can just
             //  have the database queries return a datafield id for permissions purposes
-            $params = array(
+            $params = [
                 'field_uuids' => $datafield_ids
-            );
+            ];
 
             $query = $this->em->createQuery(
                'SELECT df
@@ -1347,14 +1284,14 @@ class SearchAPIService
      */
     private function hydrateRenderPlugins($search_type, $datafield_ids)
     {
-        $render_plugins = array();
+        $render_plugins = [];
 
         if ( $search_type === 'datatype' ) {
             // For a regular search, need to hydrate all datafields being searched on
-            $params = array(
+            $params = [
                 'datafield_ids' => $datafield_ids,
                 'override_search' => true
-            );
+            ];
 
             // Because both datafield and datatype plugins can use search_override, it's easier if
             //  two dql queries are used. The first determines whether the datafields being searched
@@ -1373,8 +1310,8 @@ class SearchAPIService
             $results = $query->getArrayResult();
 
             // Only want to load each render plugin once...
-            $render_plugins_cache = array();
-            $render_plugins_overrides = array();
+            $render_plugins_cache = [];
+            $render_plugins_overrides = [];
             foreach ($results as $result) {
                 $rp_id = $result['rp_id'];
                 $plugin_classname = $result['plugin_classname'];
@@ -1383,15 +1320,15 @@ class SearchAPIService
                 if ( !isset($render_plugins_cache[$plugin_classname]) ) {
                     /** @var SearchOverrideInterface $plugin */
                     $plugin = $this->container->get($plugin_classname);
-                    $render_plugins_cache[$plugin_classname] = array('id' => $rp_id, 'plugin' => $plugin);
+                    $render_plugins_cache[$plugin_classname] = ['id' => $rp_id, 'plugin' => $plugin];
                 }
 
                 // Also need to organize these datafields by the render plugin instance that they're
                 //  attached to
                 if ( !isset($render_plugins_overrides[$plugin_classname]) )
-                    $render_plugins_overrides[$plugin_classname] = array();
+                    $render_plugins_overrides[$plugin_classname] = [];
                 if ( !isset($render_plugins_overrides[$plugin_classname][$rpi_id]) )
-                    $render_plugins_overrides[$plugin_classname][$rpi_id] = array();
+                    $render_plugins_overrides[$plugin_classname][$rpi_id] = [];
 
                 $rpf_name = $result['fieldName'];
                 $df_id = $result['df_id'];
@@ -1416,9 +1353,9 @@ class SearchAPIService
                         foreach ($ret as $rpf_name => $df_id) {
                             // It's easier on SearchAPIService if each datafield gets a reference to
                             //  the plugin (and eventually to the plugin's options)
-                            $render_plugins[$df_id] = array(
+                            $render_plugins[$df_id] = [
                                 'renderPlugin' => $plugin_data,
-                            );
+                            ];
                         }
                     }
                     else {
@@ -1429,7 +1366,7 @@ class SearchAPIService
             }
 
             // If a plugin wants to override searching for a field...
-            $render_plugin_instance_ids = array();
+            $render_plugin_instance_ids = [];
             foreach ($render_plugins_overrides as $plugin_classname => $rpi_list) {
                 // ...then we need to also load the related set of options for each render plugin
                 //  instance
@@ -1437,8 +1374,8 @@ class SearchAPIService
                     $render_plugin_instance_ids[] = $rpi_id;
             }
 
-            $render_plugin_options = array();
-            $render_plugin_fields = array();    // NOTE: different than $render_plugin_fields
+            $render_plugin_options = [];
+            $render_plugin_fields = [];    // NOTE: different than $render_plugin_fields
             if ( !empty($render_plugin_instance_ids) ) {
                 $query = $this->em->createQuery(
                    'SELECT rpi.id AS rpi_id, rpom.value AS rpom_value, rpod.name AS rpod_name
@@ -1447,7 +1384,7 @@ class SearchAPIService
                     LEFT JOIN ODRAdminBundle:RenderPluginOptionsDef AS rpod WITH rpom.renderPluginOptionsDef = rpod
                     WHERE rpi.id IN (:render_plugin_instance_ids)
                     AND rpi.deletedAt IS NULL AND rpom.deletedAt IS NULL AND rpod.deletedAt IS NULL'
-                )->setParameters( array('render_plugin_instance_ids' => $render_plugin_instance_ids) );
+                )->setParameters( ['render_plugin_instance_ids' => $render_plugin_instance_ids] );
                 $results = $query->getArrayResult();
 
                 foreach ($results as $result) {
@@ -1457,7 +1394,7 @@ class SearchAPIService
 
                     if ( !is_null($option_name) ) {
                         if ( !isset($render_plugin_options[$rpi_id]) )
-                            $render_plugin_options[$rpi_id] = array();
+                            $render_plugin_options[$rpi_id] = [];
                         $render_plugin_options[$rpi_id][$option_name] = $option_value;
                     }
                 }
@@ -1472,7 +1409,7 @@ class SearchAPIService
                     WHERE rpi.id IN (:render_plugin_instance_ids)
                     AND rpi.deletedAt IS NULL AND rpm.deletedAt IS NULL
                     AND rpf.deletedAt IS NULL AND rpm_df.deletedAt IS NULL'
-                )->setParameters( array('render_plugin_instance_ids' => $render_plugin_instance_ids) );
+                )->setParameters( ['render_plugin_instance_ids' => $render_plugin_instance_ids] );
                 $results = $query->getArrayResult();
 
                 foreach ($results as $result) {
@@ -1481,7 +1418,7 @@ class SearchAPIService
                     $rpf_name = $result['rpf_name'];
 
                     if ( !isset($render_plugin_fields[$rpi_id]) )
-                        $render_plugin_fields[$rpi_id] = array();
+                        $render_plugin_fields[$rpi_id] = [];
                     $render_plugin_fields[$rpi_id][$rpf_name] = $df_id;
                 }
             }
@@ -1498,10 +1435,10 @@ class SearchAPIService
                             // ...only continue processing on entries that already exist
 
                             // Easier to replace the existing array entry for this datafield...
-                            $render_plugins[$df_id] = array(
+                            $render_plugins[$df_id] = [
                                 'renderPlugin' => $plugin,
-                                'renderPluginOptions' => array()
-                            );
+                                'renderPluginOptions' => []
+                            ];
                             // ...and attach any render plugin options if they exist
                             if ( isset($render_plugin_options[$rpi_id]) )
                                 $render_plugins[$df_id]['renderPluginOptions'] = $render_plugin_options[$rpi_id];
@@ -1534,13 +1471,13 @@ class SearchAPIService
      */
     private function hydrateDatatypes($search_type, $datatype_ids)
     {
-        $results = array();
+        $results = [];
         if ($search_type === 'datatype') {
             // For a regular search, need to hydrate all datatypes that could be searched on
             // Otherwise, we can't deal with permissions properly
-            $params = array(
+            $params = [
                 'datatype_ids' => $datatype_ids
-            );
+            ];
 
             $query = $this->em->createQuery(
                'SELECT dt
@@ -1553,9 +1490,9 @@ class SearchAPIService
         else {
             // For a template search, we still need to hydrate all the non-template datatypes that
             //  are being searched on...otherwise, we can't deal with permissions properly
-            $params = array(
+            $params = [
                 'template_uuids' => $datatype_ids
-            );
+            ];
 
             $query = $this->em->createQuery(
                'SELECT dt
@@ -1569,7 +1506,7 @@ class SearchAPIService
         }
 
         /** @var DataType[] $results */
-        $datatypes = array();
+        $datatypes = [];
         foreach ($results as $dt)
             $datatypes[ $dt->getId() ] = $dt;
 
@@ -1606,7 +1543,7 @@ class SearchAPIService
 
         // Need the list of datatypes that are being searched on via advanced search, but need to
         //  reference them by regular ids, instead of their uuids
-        $affected_datatypes = array();
+        $affected_datatypes = [];
         foreach ($criteria['affected_datatypes'] as $num => $dt_uuid) {
             $dt_id = $template_structure[$dt_uuid]['dt_id'];
             $affected_datatypes[$dt_id] = 1;
@@ -1617,7 +1554,7 @@ class SearchAPIService
 
         /** @var DataType $template_datatype */
         $template_datatype = $this->em->getRepository('ODRAdminBundle:DataType')->findOneBy(
-            array('unique_id' => $template_uuid)
+            ['unique_id' => $template_uuid]
         );
         if ( $template_datatype == null )
             throw new ODRNotFoundException('Template Datatype');
@@ -1643,7 +1580,7 @@ class SearchAPIService
 
         // Dig through the criteria array to determine which template datafields are being searched
         //  on...
-        $affected_datafields = array();
+        $affected_datafields = [];
         foreach ($criteria as $facet => $facet_data) {
             foreach ($facet_data as $num => $data) {
                 foreach ($data['search_terms'] as $field_uuid => $df_data)
@@ -1658,10 +1595,10 @@ class SearchAPIService
             FROM ODRAdminBundle:DataFields AS df
             WHERE df.fieldUuid IN (:field_uuids)
             AND df.deletedAt IS NULL'
-        )->setParameters( array('field_uuids' => $affected_datafields) );
+        )->setParameters( ['field_uuids' => $affected_datafields] );
         $results = $query->getResult();
 
-        $hydrated_datafields = array();
+        $hydrated_datafields = [];
         foreach ($results as $df) {
             /** @var DataFields $df */
             $hydrated_datafields[ $df->getFieldUuid() ] = $df;
@@ -1686,10 +1623,10 @@ class SearchAPIService
             JOIN ODRAdminBundle:DataType AS dt WITH dt.masterDataType = mdt
             WHERE mdt.unique_id = :template_uuid AND dt = dt.grandparent
             AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL'
-        )->setParameters( array('template_uuid' => $template_uuid) );
+        )->setParameters( ['template_uuid' => $template_uuid] );
         $results = $query->getArrayResult();
 
-        $top_level_datatype_ids = array();
+        $top_level_datatype_ids = [];
         foreach ($results as $result)
             $top_level_datatype_ids[ $result['dt_id'] ] = 1;
 
@@ -1712,7 +1649,7 @@ class SearchAPIService
 
         // Need to keep track of the result list for each facet separately...they end up merged
         //  together after all facets are searched on
-        $facet_dr_list = array();
+        $facet_dr_list = [];
         foreach ($criteria as $dt_uuid => $facet_list) {
             // The criteria array is using template_uuids, but it's easier for the search result
             //  merging when the facet list uses the actual ids of the template datatypes
@@ -1721,7 +1658,7 @@ class SearchAPIService
                 $template_dt_id = $template_structure[$dt_uuid]['dt_id'];
 
             // Need to keep track of the matches for each datatype individually...
-            $facet_dr_list[$template_dt_id] = array();
+            $facet_dr_list[$template_dt_id] = [];
 
             foreach ($facet_list as $facet_num => $facet) {
                 // ...and also keep track of the matches for each facet within this datatype individually
@@ -1746,7 +1683,7 @@ class SearchAPIService
                     $typeclass = $entity->getFieldType()->getTypeClass();
 
                     // Run/load the desired query based on the criteria
-                    $results = array();
+                    $results = [];
                     if ($typeclass === 'Boolean') {
                         // Only split from the text/number searches to avoid parameter confusion
                         $results = $this->search_service->searchBooleanTemplateDatafield($entity, $search_term['value']);
@@ -1807,7 +1744,7 @@ class SearchAPIService
                     // The template search functions return a list of all records that matched the
                     //  search, regardless of whether the user is allowed to view the datatypes and
                     //  datafields in question...it's easier to filter those out here
-                    $tmp_dr_list = array();
+                    $tmp_dr_list = [];
                     foreach ($results as $dt_id => $df_list) {
                         if ( isset($searchable_datafields[$dt_id]) ) {
                             foreach ($df_list as $df_id => $dr_list) {
@@ -1819,14 +1756,14 @@ class SearchAPIService
                         }
                     }
                     // ...after the filtering is done, the datatype/datafield info can be discarded
-                    $dr_list = array(
+                    $dr_list = [
                         'records' => $tmp_dr_list
-                    );
+                    ];
 
                     // Need to merge this result with the existing matches for this facet
                     if ($merge_type === 'OR') {
                         if ( is_null($facet_dr_list[$template_dt_id][$facet_num]) )
-                            $facet_dr_list[$template_dt_id][$facet_num] = array();
+                            $facet_dr_list[$template_dt_id][$facet_num] = [];
 
                         // Merging by 'OR' criteria...every datarecord returned from the search matches
                         foreach ($dr_list['records'] as $dr_id => $num)
@@ -1889,7 +1826,7 @@ class SearchAPIService
 
         // Traverse the top-level of $inflated_list to get the grandparent datarecords that match
         //  the search
-        $grandparent_ids = array();
+        $grandparent_ids = [];
         foreach ($inflated_list as $dt_id => $dr_list) {
             foreach ($dr_list as $gp_id => $something) {
                 if ( ($flattened_list[$gp_id] & SearchAPIService::MATCHES_BOTH) === SearchAPIService::MATCHES_BOTH )
@@ -1899,7 +1836,7 @@ class SearchAPIService
 
 
         // Sort the resulting array
-        $sorted_datarecord_list = array();
+        $sorted_datarecord_list = [];
         if ( !is_null($sort_df_uuid) ) {
             $sorted_datarecord_list = $this->sort_service->sortDatarecordsByTemplateDatafield($sort_df_uuid, $sort_ascending, implode(',', $grandparent_ids));
 
@@ -1914,10 +1851,10 @@ class SearchAPIService
 
         // ----------------------------------------
         // Save/return the end result
-        $search_result = array(
+        $search_result = [
 //            'complete_datarecord_list' => $datarecord_ids,
             'grandparent_datarecord_list' => $sorted_datarecord_list,
-        );
+        ];
 
         // There's no point to caching the end result...it depends heavily on the user's permissions
         return $search_result;
@@ -1962,10 +1899,10 @@ class SearchAPIService
         }
 
         // Return the filtered list back to the APIController
-        return array(
+        return [
             'labels' => $labels,
             'records' => $records
-        );
+        ];
     }
 
 
@@ -1985,11 +1922,11 @@ class SearchAPIService
     public function getSearchPermissionsArray($hydrated_datatypes, $affected_datatypes, $user_permissions, $search_as_super_admin = false)
     {
         // Going to need to filter based on the user's permissions
-        $datatype_permissions = array();
+        $datatype_permissions = [];
         if ( isset($user_permissions['datatypes']) )
             $datatype_permissions = $user_permissions['datatypes'];
 
-        $search_permissions = array();
+        $search_permissions = [];
         foreach ($hydrated_datatypes as $dt_id => $dt) {
             // User needs to be able to view the datatype in order for them to search on it...
             $can_view_datatype = false;
@@ -2004,9 +1941,9 @@ class SearchAPIService
             if ( !$can_view_datatype ) {
                 // If the user can't view this datatype, then there's no point checking other
                 //  permissions or gathering various lists of datarecords
-                $search_permissions[$dt_id] = array(
+                $search_permissions[$dt_id] = [
                     'can_view_datatype' => $can_view_datatype
-                );
+                ];
             }
             else {
                 // If user can't view non-public datarecords, then need to get a list of them so
@@ -2018,18 +1955,18 @@ class SearchAPIService
                     $can_view_datarecord = true;
 
 
-                $non_public_datarecords = array();
+                $non_public_datarecords = [];
                 if (!$can_view_datarecord) {
                     $ret = $this->search_service->searchPublicStatus($dt, false);
                     $non_public_datarecords = $ret['records'];
                 }
 
-                $search_permissions[$dt_id] = array(
+                $search_permissions[$dt_id] = [
                     'datatype' => $dt,
                     'can_view_datatype' => $can_view_datatype,
                     'can_view_datarecord' => $can_view_datarecord,
                     'non_public_datarecords' => $non_public_datarecords,
-                );
+                ];
 
                 // Also, store whether this datatype is being searched on
                 if (in_array($dt_id, $affected_datatypes))
@@ -2078,7 +2015,7 @@ class SearchAPIService
      */
     private function getIgnoredPrefixes($search_params, $datatype)
     {
-        $ignored_prefixes = array();
+        $ignored_prefixes = [];
 
         if ( isset($search_params['ignore']) ) {
             // If this key is set, then use its contents
@@ -2086,7 +2023,7 @@ class SearchAPIService
         }
         else {
             // Otherwise, fall back to whatever the default is for this datatype
-            $ignored_prefixes = array();    // TODO
+            $ignored_prefixes = [];    // TODO
         }
 
         return $ignored_prefixes;
@@ -2139,15 +2076,15 @@ class SearchAPIService
 
         // ----------------------------------------
         // Base setup for both arrays...
-        $datatype_dr_lists = array();
-        $flattened_list = array();
-        $inflated_list = array(0 => array());
-        $inflated_list[0][$target_datatype_id] = array();
+        $datatype_dr_lists = [];
+        $flattened_list = [];
+        $inflated_list = [0 => []];
+        $inflated_list[0][$target_datatype_id] = [];
 
-        $search_datatree = self::buildSearchDatatree($ignored_prefixes, '', $datatree_array, array($target_datatype_id => 0));
+        $search_datatree = self::buildSearchDatatree($ignored_prefixes, '', $datatree_array, [$target_datatype_id => 0]);
 
         // Actually build the flattened and inflated lists
-        self::getSearchArrays_Worker($datatree_array, $permissions_array, array($target_datatype_id => 0), $datatype_dr_lists, $flattened_list, $inflated_list);
+        self::getSearchArrays_Worker($datatree_array, $permissions_array, [$target_datatype_id => 0], $datatype_dr_lists, $flattened_list, $inflated_list);
 
 
         // ----------------------------------------
@@ -2158,13 +2095,13 @@ class SearchAPIService
         $inflated_list = self::buildDatarecordTree($ignored_prefixes, '', $inflated_list, 0);
 
         // ...and then return the end result
-        return array(
+        return [
             'flattened' => $flattened_list,
             'inflated' => $inflated_list,
 
             'datatype_dr_lists' => $datatype_dr_lists,
             'search_datatree' => $search_datatree,
-        );
+        ];
     }
 
 
@@ -2246,9 +2183,9 @@ class SearchAPIService
                 // These datarecords are for a child datatype
                 foreach ($list as $dr_id => $parent_dr_id) {
                     if ( !isset($inflated_list[$parent_dr_id]) )
-                        $inflated_list[$parent_dr_id] = array();
+                        $inflated_list[$parent_dr_id] = [];
                     if ( !isset($inflated_list[$parent_dr_id][$dt_id]) )
-                        $inflated_list[$parent_dr_id][$dt_id] = array();
+                        $inflated_list[$parent_dr_id][$dt_id] = [];
 
                     $inflated_list[$parent_dr_id][$dt_id][$dr_id] = '';
                 }
@@ -2258,9 +2195,9 @@ class SearchAPIService
                 foreach ($list as $dr_id => $parents) {
                     foreach ($parents as $parent_dr_id => $value) {
                         if ( !isset($inflated_list[$parent_dr_id]) )
-                            $inflated_list[$parent_dr_id] = array();
+                            $inflated_list[$parent_dr_id] = [];
                         if ( !isset($inflated_list[$parent_dr_id][$dt_id]) )
-                            $inflated_list[$parent_dr_id][$dt_id] = array();
+                            $inflated_list[$parent_dr_id][$dt_id] = [];
 
                         $inflated_list[$parent_dr_id][$dt_id][$dr_id] = '';
                     }
@@ -2295,15 +2232,15 @@ class SearchAPIService
      */
     private function buildSearchDatatree($ignored_prefixes, $prev_prefix, $datatree_array, $top_level_datatype_ids, $is_linked_type = false)
     {
-        $tmp = array();
+        $tmp = [];
 
         foreach ($top_level_datatype_ids as $dt_id => $num) {
             // Going to store basic info in this array structure
-            $tmp[$dt_id] = array(
-                'dr_list' => array(),
-                'children' => array(),
-                'links' => array(),
-            );
+            $tmp[$dt_id] = [
+                'dr_list' => [],
+                'children' => [],
+                'links' => [],
+            ];
 
             // Determine the prefix of the datatype currently being looked at
             $current_prefix = '';
@@ -2322,7 +2259,7 @@ class SearchAPIService
             $tmp[$dt_id]['dr_list'] = $this->search_service->getCachedSearchDatarecordList($dt_id, $is_linked_type);
 
             // Always want any children of the top-level datatype...
-            $children = array();
+            $children = [];
             foreach ($datatree_array['descendant_of'] as $child_dt_id => $parent_dt_id) {
                 if ( $dt_id === $parent_dt_id )
                     $children[$child_dt_id] = 1;
@@ -2332,7 +2269,7 @@ class SearchAPIService
 
 
 
-            $links = array();
+            $links = [];
             // Need to recursively dig through linked descendants
             foreach ($datatree_array['linked_from'] as $descendant_id => $ancestors) {
                 if ( in_array($dt_id, $ancestors) )
@@ -2400,7 +2337,7 @@ class SearchAPIService
         }
         else {
             // $current_datarecord_id has children
-            $result = array();
+            $result = [];
 
             // For every descendant datatype this datarecord has...
             foreach ($descendants_of_datarecord[$current_datarecord_id] as $dt_id => $datarecords) {
@@ -2471,14 +2408,14 @@ class SearchAPIService
             FROM ODRAdminBundle:DataType dt
             WHERE dt.unique_id = :template_uuid
             AND dt.deletedAt IS NULL'
-        )->setParameters( array('template_uuid' => $template_uuid) );
+        )->setParameters( ['template_uuid' => $template_uuid] );
         $results = $query->getArrayResult();
         $template_dt_id = $results[0]['id'];
 
         // @see self::buildSearchDatatree()
         $datatree_array = $this->datatree_info_service->getDatatreeArray();
-        $ignored_prefixes = array();    // TODO
-        $search_datatree = self::buildSearchDatatree($ignored_prefixes, '', $datatree_array, array($template_dt_id => 1));
+        $ignored_prefixes = [];    // TODO
+        $search_datatree = self::buildSearchDatatree($ignored_prefixes, '', $datatree_array, [$template_dt_id => 1]);
 
 
         // ----------------------------------------
@@ -2492,12 +2429,12 @@ class SearchAPIService
             FROM odr_data_type_meta dtm
             WHERE dtm.data_type_id IN (?)
             AND dtm.deletedAt IS NULL';
-        $params = array(1 => array_keys($top_level_datatype_ids));    // Need the datatype ids to be values, not keys
-        $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+        $params = [1 => array_keys($top_level_datatype_ids)];    // Need the datatype ids to be values, not keys
+        $types = [1 => DBALConnection::PARAM_INT_ARRAY];
         $results = $conn->fetchAll($query, $params, $types);
 
-        $ancestor_ids = array();
-        $all_datatypes = array();
+        $ancestor_ids = [];
+        $all_datatypes = [];
         foreach ($results as $result) {
             $dt_id = $result['dt_id'];
             $public_date = $result['public_date'];
@@ -2536,15 +2473,15 @@ class SearchAPIService
                 WHERE dt.ancestor_id IN (?)
                 AND dt.deletedAt IS NULL AND mdt.deletedAt IS NULL
                 AND descendant.deletedAt IS NULL AND descendant_meta.deletedAt IS NULL';
-            $params = array(1 => $ancestor_ids);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $params = [1 => $ancestor_ids];
+            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
             $results = $conn->fetchAll($query, $params, $types);
 
             // If the set of ancestor datatypes has no descendants, then there's nothing left to do
             if ( empty($results) )
                 break;
 
-            $ancestor_ids = array();
+            $ancestor_ids = [];
             foreach ($results as $result) {
                 $dt_id = $result['dt_id'];
                 $template_id = intval($result['template_id']);
@@ -2584,12 +2521,12 @@ class SearchAPIService
             LEFT JOIN odr_data_record_meta drm ON drm.data_record_id = dr.id
             WHERE dr.data_type_id IN (?)
             AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL';
-        $params = array(1 => array_keys($all_datatypes));
-        $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+        $params = [1 => array_keys($all_datatypes)];
+        $types = [1 => DBALConnection::PARAM_INT_ARRAY];
         $results = $conn->fetchAll($query, $params, $types);
 
-        $all_datarecords = array();
-        $possible_linked_descendants = array();
+        $all_datarecords = [];
+        $possible_linked_descendants = [];
         foreach ($results as $result) {
             $dr_id = $result['dr_id'];
             $dt_id = $result['dt_id'];
@@ -2603,11 +2540,11 @@ class SearchAPIService
                 $is_public = false;
 
             if ( !isset($all_datarecords[$dt_id]) )
-                $all_datarecords[$dt_id] = array();
-            $all_datarecords[$dt_id][$dr_id] = array(
+                $all_datarecords[$dt_id] = [];
+            $all_datarecords[$dt_id][$dr_id] = [
                 'parent' => $parent_id,
                 'public' => $is_public
-            );
+            ];
 
             // Going to need to check whether these datarecords are linked to later on
             $possible_linked_descendants[$dr_id] = 1;
@@ -2623,11 +2560,11 @@ class SearchAPIService
             LEFT JOIN odr_data_record ancestor ON ldt.ancestor_id = ancestor.id
             WHERE descendant.id IN (?)
             AND descendant.deletedAt IS NULL AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL';
-        $params = array(1 => array_keys($possible_linked_descendants));
-        $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+        $params = [1 => array_keys($possible_linked_descendants)];
+        $types = [1 => DBALConnection::PARAM_INT_ARRAY];
         $results = $conn->fetchAll($query, $params, $types);
 
-        $linked_ancestors = array();
+        $linked_ancestors = [];
         foreach ($results as $result) {
             $ancestor_id = $result['ancestor_id'];
             $descendant_id = $result['descendant_id'];
@@ -2636,7 +2573,7 @@ class SearchAPIService
                 continue;
 
             if ( !isset($linked_ancestors[$descendant_id]) )
-                $linked_ancestors[$descendant_id] = array();
+                $linked_ancestors[$descendant_id] = [];
             $linked_ancestors[$descendant_id][$ancestor_id] = 1;
         }
 
@@ -2657,8 +2594,8 @@ class SearchAPIService
         // ----------------------------------------
         // Now that all the datarecords have been loaded and are pointing to their relevant ancestor,
         //  the flattened_list and inflated_list can get created...
-        $flattened_list = array();
-        $inflated_list = array();
+        $flattened_list = [];
+        $inflated_list = [];
         foreach ($all_datarecords as $dt_id => $list) {
             // Store whether the user is allowed to view non-public records in this datatype
             $can_view_datarecords = false;
@@ -2692,7 +2629,7 @@ class SearchAPIService
             //  ids of the top-level datarecords though...
             if ( isset($top_level_datatype_ids[$dt_id]) ) {
                 // ...so if this is a top-level datatype, build that list now
-                $inflated_list[$dt_id] = array();
+                $inflated_list[$dt_id] = [];
                 foreach ($list as $dr_id => $data)
                     $inflated_list[$dt_id][$dr_id] = 1;
             }
@@ -2703,10 +2640,10 @@ class SearchAPIService
 
         // In order to building the search_datatree, it'll be more useful for $all_datatypes to be
         //  organized by template id first
-        $tmp = array();
+        $tmp = [];
         foreach ($all_datatypes as $dt_id => $template_id) {
             if ( !isset($tmp[$template_id]) )
-                $tmp[$template_id] = array();
+                $tmp[$template_id] = [];
             $tmp[$template_id][$dt_id] = 1;
         }
         $all_datatypes = $tmp;
@@ -2719,12 +2656,12 @@ class SearchAPIService
 //        $inflated_list = self::buildDatarecordTree($inflated_list, 0);
 
         // ...and then return the end result
-        return array(
+        return [
             'flattened' => $flattened_list,
             'inflated' => $inflated_list,
 
             'search_datatree' => $search_datatree,
-        );
+        ];
     }
 
 
@@ -2753,14 +2690,14 @@ class SearchAPIService
      */
     private function buildTemplateSearchDatatree($search_datatree, $all_datatypes, $all_datarecords, $is_link)
     {
-        $tmp = array();
+        $tmp = [];
 
         foreach ($search_datatree as $template_dt_id => $data) {
-            $tmp[$template_dt_id] = array(
-                'dr_list' => array(),
-                'children' => array(),
-                'links' => array(),
-            );
+            $tmp[$template_dt_id] = [
+                'dr_list' => [],
+                'children' => [],
+                'links' => [],
+            ];
 
             // In order to make the search_datatree useful for a template search, we need to first
             //  find all datatypes that are derived from this template...
@@ -2842,13 +2779,13 @@ class SearchAPIService
                         // ...then ensure its ancestor also thinks it was involved...
                         $ret = true;
                         // ...by creating a fake criteria facet
-                        $criteria[$current_datatype_id][99999] = array(
-                            'search_terms' => array(
-                                0 => array(
+                        $criteria[$current_datatype_id][99999] = [
+                            'search_terms' => [
+                                0 => [
                                     'guard' => true
-                                )
-                            )
-                        );
+                                ]
+                            ]
+                        ];
                     }
                 }
             }
@@ -2861,13 +2798,13 @@ class SearchAPIService
             // ...if they had a descendant which was involved with the empty string...
             if ($ret) {
                 // ...then create a fake criteria facet for this datatype
-                $criteria[$current_datatype_id][99999] = array(
-                    'search_terms' => array(
-                        0 => array(
+                $criteria[$current_datatype_id][99999] = [
+                    'search_terms' => [
+                        0 => [
                             'guard' => true
-                        )
-                    )
-                );
+                        ]
+                    ]
+                ];
             }
         }
 
@@ -2878,13 +2815,13 @@ class SearchAPIService
             // ...if they had a descendant which was involved with the empty string...
             if ($ret) {
                 // ...then create a fake criteria facet for this datatype
-                $criteria[$current_datatype_id][99999] = array(
-                    'search_terms' => array(
-                        0 => array(
+                $criteria[$current_datatype_id][99999] = [
+                    'search_terms' => [
+                        0 => [
                             'guard' => true
-                        )
-                    )
-                );
+                        ]
+                    ]
+                ];
             }
         }
 
@@ -2937,14 +2874,14 @@ class SearchAPIService
     private function mergeSearchResults($criteria, $is_top_level, $datatype_id, $search_datatree, $facet_dr_list, &$flattened_list, $differentiate_search_types)
     {
         // The advanced and general searches in ODR need to have their results combined separately
-        $facets = array('adv' => array(), 'gen' => array());
+        $facets = ['adv' => [], 'gen' => []];
 
         // Need to keep track of which of this datatype's records matched the search, so the parent
         //  datatype (if one exists) can determine whether any of its records match the search
-        $matches = array(
-            'records' => array('adv' => array(), 'gen' => array()),
-            'dependencies' => array($datatype_id => 1),
-        );
+        $matches = [
+            'records' => ['adv' => [], 'gen' => []],
+            'dependencies' => [$datatype_id => 1],
+        ];
 
 
         // ----------------------------------------
@@ -2987,7 +2924,7 @@ class SearchAPIService
         // ----------------------------------------
         // Need to determine which records from any descendant datatypes matched this search, since
         //  they will influence whether records from this datatype match or not.
-        $descendants = array();
+        $descendants = [];
 
         foreach ($search_datatree['children'] as $child_dt_id => $child_data) {
             // Determine which records from this child datatype end up matching the search
@@ -2995,7 +2932,7 @@ class SearchAPIService
 
             // Store that this datatype's results depend on all of its descendants through this route
             if ( !isset($descendants[$child_dt_id]) )
-                $descendants[$child_dt_id] = array();
+                $descendants[$child_dt_id] = [];
             foreach ($tmp['dependencies'] as $descendant_dt_id => $num) {
                 // Need to keep track of which datatypes could've influenced this child's result set
                 $descendants[$child_dt_id][$descendant_dt_id] = 1;
@@ -3022,9 +2959,9 @@ class SearchAPIService
             //  in $facets, otherwise the rest of the function will think the descendant wasn't searched on
             //  i.e. DOESN'T_MATTER
             if ( empty($tmp['records']['adv']) && !empty($criteria[$child_dt_id]) )
-                $facets['adv'][$child_dt_id] = array();
+                $facets['adv'][$child_dt_id] = [];
             if ( empty($tmp['records']['gen']) && isset($criteria['general']) )
-                $facets['gen'][$child_dt_id] = array();
+                $facets['gen'][$child_dt_id] = [];
         }
 
         foreach ($search_datatree['links'] as $linked_dt_id => $link_data) {
@@ -3033,7 +2970,7 @@ class SearchAPIService
 
             // Store that this datatype's results depend on all of its descendants through this route
             if ( !isset($descendants[$linked_dt_id]) )
-                $descendants[$linked_dt_id] = array();
+                $descendants[$linked_dt_id] = [];
             foreach ($tmp['dependencies'] as $descendant_dt_id => $num) {
                 // Need to keep track of which datatypes could've influenced this child's result set
                 $descendants[$linked_dt_id][$descendant_dt_id] = 1;
@@ -3066,9 +3003,9 @@ class SearchAPIService
             //  in $facets, otherwise the rest of the function will think the descendant wasn't searched on
             //  i.e. DOESN'T_MATTER
             if ( empty($tmp['records']['adv']) && !empty($criteria[$linked_dt_id]) )
-                $facets['adv'][$linked_dt_id] = array();
+                $facets['adv'][$linked_dt_id] = [];
             if ( empty($tmp['records']['gen']) && isset($criteria['general']) )
-                $facets['gen'][$linked_dt_id] = array();
+                $facets['gen'][$linked_dt_id] = [];
         }
 
 
@@ -3155,7 +3092,7 @@ class SearchAPIService
             // In both cases, D can be reached in more than one way, so D's ancestors may need to
             //  have their search results merged by OR (A/B in the first case, and B/C in the second)
             // TODO - Does this logic work for more complicated setups?  I'm struggling to think of something that makes sense
-            $descendants_counts = array();
+            $descendants_counts = [];
             foreach ($descendants as $descendant_dt_id => $data) {
                 // The fastest way to determine if this situation arises is to sum how many times
                 //  each datatype appears inside the (local) $descendants array
@@ -3202,7 +3139,7 @@ class SearchAPIService
                             // Don't need to copy facet data over, but should ensure a facet actually
                             //  exists to make the rest of the loop easier
                             if ( !isset($facets['adv'][$first_dt_id]) )
-                                $facets['adv'][$first_dt_id] = array();
+                                $facets['adv'][$first_dt_id] = [];
 
                             // Don't need to copy descendant data over, since this is the final
                             //  destination for that data anyways
@@ -3313,7 +3250,7 @@ class SearchAPIService
             if ( $is_top_level ) {
                 // ...but once we hit the top-level datatype, everything does need to be merged
                 //  together into a single list of records
-                $final_dr_list = array();
+                $final_dr_list = [];
                 if ( $criteria['general']['merge_type'] === 'AND' ) {
                     $final_dr_list = $own_dr_list;
                     foreach ($facet_dr_list['general'] as $facet_num => $dr_list)
@@ -3388,7 +3325,7 @@ class SearchAPIService
      */
     private function getMatchingDatarecords($flattened_list, $inflated_list, $target_datatype_id)
     {
-        $matching_datarecords = array();
+        $matching_datarecords = [];
         foreach ($inflated_list as $top_level_dt_id => $top_level_datarecords) {
             // If this is a regular search, then this will immediately go to true...but if not, then
             //  need to go digging into the inflated array before finding the correct datatype
@@ -3439,7 +3376,7 @@ class SearchAPIService
      */
     private function getMatchingDatarecords_worker($flattened_list, $dt_list, $target_datatype_id, $save_descendants)
     {
-        $matching_datarecords = array();
+        $matching_datarecords = [];
         foreach ($dt_list as $dt_id => $dr_list) {
             // Check whether this childtype should get saved as part of the complete datarecord list
             $save_child_descendants = $save_descendants;
@@ -3512,11 +3449,11 @@ class SearchAPIService
     {
         // Couple safety checks first...
         if ( empty($working_dr_list) )
-            return array();
+            return [];
         if ( empty($inflated_list[$current_datatype_id]) )
-            return array();
+            return [];
 
-        $matching_dr_list = array();
+        $matching_dr_list = [];
 
         // Going to work off the provided (subset of the) inflated list...
         $tmp_dr_list = $inflated_list[$current_datatype_id];
@@ -3567,8 +3504,8 @@ class SearchAPIService
                         else {
                             // This is not the desired datatype...but since it has descendants of its
                             //  own, the recursion needs to dig into it
-                            $new_inflated_list = array($descendant_dt_id => array());
-                            $new_working_list = array();
+                            $new_inflated_list = [$descendant_dt_id => []];
+                            $new_working_list = [];
                             foreach ($descendant_dr_list as $dr_id => $tmp) {
                                 // If the descendant record didn't fail the search...
                                 if ( $flattened_list[$dr_id] & SearchAPIService::MATCHES_ADV   // third bit set

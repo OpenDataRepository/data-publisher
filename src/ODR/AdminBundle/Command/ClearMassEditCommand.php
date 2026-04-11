@@ -55,7 +55,7 @@ class ClearMassEditCommand extends ContainerAwareCommand
             else
                 $job = $pheanstalk->watch('mass_edit')->ignore('default')->reserve(); 
 
-            $data = json_decode($job->getData());
+            $data = json_decode((string) $job->getData());
             $job_source = $data->redis_prefix;
 
             $str = '';

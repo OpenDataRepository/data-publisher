@@ -34,6 +34,7 @@ class ODRConflictException extends ODRException
     /**
      * @inheritdoc
      */
+    #[\Override]
     public function getStatusCode()
     {
         return 409;

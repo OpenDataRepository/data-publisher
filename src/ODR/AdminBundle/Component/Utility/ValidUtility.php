@@ -250,7 +250,7 @@ class ValidUtility
         }
 
         // Convert the available options into a different format to make them easier to search
-        $available_options = array();
+        $available_options = [];
         foreach ($df_array['radioOptions'] as $num => $ro)
             $available_options[ $ro['id'] ] = 0;
 
@@ -282,7 +282,7 @@ class ValidUtility
         // Tags allow any number of selections by default
 
         // Unfortunately the tags are stored in stacked format, so need to flatten them
-        $available_tags = array();
+        $available_tags = [];
         self::getAvailableTags($df_array['tags'], $available_tags);
 
         foreach ($tags as $tag_id => $num) {

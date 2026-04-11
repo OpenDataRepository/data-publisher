@@ -60,7 +60,7 @@ class CSVExportExpressWorkerCommand extends ContainerAwareCommand
                     ->ignore('default')->reserve();
 
                 // Get Job Data
-                $data = json_decode($job->getData());
+                $data = json_decode((string) $job->getData());
 
                 // Display info about job
                 $str = 'CSVExportWorker request for DataRecords';
@@ -71,7 +71,7 @@ class CSVExportExpressWorkerCommand extends ContainerAwareCommand
 
 
                 // Create the required url and the parameters to send
-                $parameters = array(
+                $parameters = [
                     'tracked_job_id' => $data->tracked_job_id,
                     'user_id' => $data->user_id,
 
@@ -88,7 +88,7 @@ class CSVExportExpressWorkerCommand extends ContainerAwareCommand
 
                     'job_order' => $data->job_order,
                     'api_key' => $data->api_key,
-                );
+                ];
 
                 if ( !isset($parameters['tracked_job_id'])
                     || !isset($parameters['user_id'])

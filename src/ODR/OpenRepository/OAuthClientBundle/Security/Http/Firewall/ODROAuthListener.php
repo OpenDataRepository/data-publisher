@@ -22,6 +22,7 @@ class ODROAuthListener extends OAuthListener
     /**
      * {@inheritdoc}
      */
+    #[\Override]
     protected function attemptAuthentication(Request $request)
     {
         // Determine whether this login attempt is due to an account-connecting attempt

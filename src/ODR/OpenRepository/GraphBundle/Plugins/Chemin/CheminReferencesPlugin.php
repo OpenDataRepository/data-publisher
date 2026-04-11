@@ -31,36 +31,14 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
 {
 
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var CacheService
-     */
-    private $cache_service;
-
-    /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-
-    /**
      * CheminReferencesPlugin constructor.
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param CacheService $cache_service
      * @param EngineInterface $templating
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        CacheService $cache_service,
-        EngineInterface $templating
-    ) {
-        $this->em = $entity_manager;
-        $this->cache_service = $cache_service;
-        $this->templating = $templating;
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly EngineInterface $templating)
+    {
     }
 
 
@@ -107,7 +85,7 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
+    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = [], $datatype_permissions = [], $datafield_permissions = [], $token_list = [])
     {
 
         try {
@@ -123,7 +101,7 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
             $initial_datatype_id = $datatype['id'];
 
             // There *should* only be a single datarecord in $datarecords...
-            $datarecord = array();
+            $datarecord = [];
             foreach ($datarecords as $dr_id => $dr)
                 $datarecord = $dr;
 
@@ -138,7 +116,7 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
             $context = $rendering_options['context'];
             $output = '';
             if ( $context === 'display' || $context === 'text' || $context === 'html' ) {
-                $datafield_mapping = array();
+                $datafield_mapping = [];
                 foreach ($fields as $rpf_name => $rpf_df) {
                     // Need to find the real datafield entry in the primary datatype array
                     $rpf_df_id = $rpf_df['id'];
@@ -187,10 +165,10 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
                         foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
                             if ( $rpi['renderPlugin']['render'] !== false ) {
                                 // ...if it does, then create an array entry for it
-                                $datafield_mapping[$key] = array(
+                                $datafield_mapping[$key] = [
                                     'datafield' => $df,
                                     'render_plugin_instance' => $rpi
-                                );
+                                ];
                             }
                         }
                     }
@@ -208,9 +186,9 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
                         $datafield_mapping[$key] = '';
                     }
                     elseif ($typeclass === 'File') {
-                        $datafield_mapping[$key] = array(
+                        $datafield_mapping[$key] = [
                             'datarecordfield' => $datarecord['dataRecordFields'][$rpf_df_id]
-                        );
+                        ];
                     }
                     else {
                         // Don't need to execute a render plugin on this datafield's value...extract it
@@ -250,18 +228,18 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
                                 break;
                         }
 
-                        $datafield_mapping[$key] = trim($value);
+                        $datafield_mapping[$key] = trim((string) $value);
                     }
                 }
 
                 // Need to try to ensure urls are valid...
                 if ( $datafield_mapping['url'] !== '' ) {
                     // Ensure that DOIs that aren't entirely links still are valid
-                    if ( stripos($datafield_mapping['url'], 'doi:') === 0 )
-                        $datafield_mapping['url'] = 'https://doi.org/'.trim( substr($datafield_mapping['url'], 4) );
+                    if ( stripos((string) $datafield_mapping['url'], 'doi:') === 0 )
+                        $datafield_mapping['url'] = 'https://doi.org/'.trim( substr((string) $datafield_mapping['url'], 4) );
 
                     // Ensure that the values have an 'https://' prefix
-                    if ( strpos($datafield_mapping['url'], 'http') !== 0 )
+                    if ( !str_starts_with((string) $datafield_mapping['url'], 'http') )
                         $datafield_mapping['url'] = 'https://'.$datafield_mapping['url'];
                 }
 
@@ -270,13 +248,13 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
 
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:Chemin:CheminReferences/cheminreferences_display.html.twig',
-                    array(
+                    [
                         'datarecord' => $datarecord,
                         'mapping' => $datafield_mapping,
 
                         'is_top_level' => $is_top_level,
                         'original_context' => $context,
-                    )
+                    ]
                 );
 
                 // If meant for text output, then replace all whitespace sequences with a single space
@@ -285,7 +263,7 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
             }
             else if ( $context === 'edit' ) {
                 // Most of the fields need slightly modified saving javascript...
-                $reference_field_list = array();
+                $reference_field_list = [];
                 foreach ($fields as $rpf_name => $rpf) {
                     switch ($rpf_name) {
                         case 'Authors':
@@ -309,17 +287,17 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
 
                 // Also need a list of which datafields are using the chemistry plugin
                 // TODO - figure out some way to make plugins play nicer with each other?
-                $chemistry_plugin_fields = array();
+                $chemistry_plugin_fields = [];
                 foreach ($datatype['dataFields'] as $df_id => $df) {
                     foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
                         if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.chemistry' ) {
                             $subscript_delimiter = $rpi['renderPluginOptionsMap']['subscript_delimiter'];
                             $superscript_delimiter = $rpi['renderPluginOptionsMap']['superscript_delimiter'];
 
-                            $chemistry_plugin_fields[$df_id] = array(
+                            $chemistry_plugin_fields[$df_id] = [
                                 'subscript_delimiter' => $subscript_delimiter,
                                 'superscript_delimiter' => $superscript_delimiter,
-                            );
+                            ];
                         }
                     }
                 }
@@ -330,9 +308,9 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
 
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:Chemin:CheminReferences/cheminreferences_edit_fieldarea.html.twig',
-                    array(
-                        'datatype_array' => array($initial_datatype_id => $datatype),
-                        'datarecord_array' => array($datarecord['id'] => $datarecord),
+                    [
+                        'datatype_array' => [$initial_datatype_id => $datatype],
+                        'datarecord_array' => [$datarecord['id'] => $datarecord],
                         'theme_array' => $theme_array,
 
                         'target_datatype_id' => $initial_datatype_id,
@@ -352,7 +330,7 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
                         'token_list' => $token_list,
                         'reference_field_list' => $reference_field_list,
                         'chemistry_plugin_fields' => $chemistry_plugin_fields,
-                    )
+                    ]
                 );
             }
 
@@ -371,9 +349,9 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
     public function getTableResultsOverrideValues($render_plugin_instance, $datarecord, $datafield = null)
     {
         // Don't do anything if fields aren't mapped
-        $values = array();
+        $values = [];
         if ( !isset($render_plugin_instance['renderPluginMap']) )
-            return array();
+            return [];
 
         $substitute_article_title = false;
         if ( isset($render_plugin_instance['renderPluginOptionsMap']['substitute_article_title'])
@@ -389,10 +367,10 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
         }
 
         // Since this is a datatype plugin, need to dig through the renderPluginInstance array
-        $relevant_rpf_names = array('Article Title', 'Book Title', 'Journal', 'Publisher');
+        $relevant_rpf_names = ['Article Title', 'Book Title', 'Journal', 'Publisher'];
 
-        $df_mapping = array();
-        $value_mapping = array();
+        $df_mapping = [];
+        $value_mapping = [];
         foreach ($relevant_rpf_names as $rpf_name) {
             $df_id = $render_plugin_instance['renderPluginMap'][$rpf_name]['id'];
             $df_mapping[$rpf_name] = $df_id;

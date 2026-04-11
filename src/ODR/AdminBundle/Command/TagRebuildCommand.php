@@ -47,7 +47,7 @@ class TagRebuildCommand extends ContainerAwareCommand
                 $job = $pheanstalk->watch('tag_rebuild')->ignore('default')->reserve();
 
                 // Get Job Data
-                $data = json_decode($job->getData());
+                $data = json_decode((string) $job->getData());
 
                 $logger->info('TagRebuildCommand.php: tag_rebuild request for DataField '.$data->datafield_id.' from '.$data->redis_prefix.'...');
                 $current_time = new \DateTime();
@@ -55,7 +55,7 @@ class TagRebuildCommand extends ContainerAwareCommand
                 $output->writeln('tag_rebuild request for DataField '.$data->datafield_id.' from '.$data->redis_prefix.'...');
 
                 // Create the required parameters to send
-                $parameters = array(
+                $parameters = [
                     'tracked_job_id' => $data->tracked_job_id,
                     'user_id' => $data->user_id,
 
@@ -63,7 +63,7 @@ class TagRebuildCommand extends ContainerAwareCommand
                     'datafield_id' => $data->datafield_id,
 
                     'api_key' => $data->api_key
-                );
+                ];
 
 
                 // Need to use cURL to send a POST request...thanks symfony
@@ -71,7 +71,7 @@ class TagRebuildCommand extends ContainerAwareCommand
 
                 // Set the options for the POST request
                 curl_setopt_array($ch,
-                    array(
+                    [
                         CURLOPT_POST => 1,
                         CURLOPT_HEADER => 0,
                         CURLOPT_URL => $data->url,
@@ -80,7 +80,7 @@ class TagRebuildCommand extends ContainerAwareCommand
                         CURLOPT_FORBID_REUSE => 1,
                         CURLOPT_TIMEOUT => 120, 
                         CURLOPT_POSTFIELDS => http_build_query($parameters)
-                    )
+                    ]
                 );
 
                 // Send the request

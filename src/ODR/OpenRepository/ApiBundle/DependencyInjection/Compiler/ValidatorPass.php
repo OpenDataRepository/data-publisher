@@ -17,14 +17,14 @@ class ValidatorPass implements CompilerPassInterface
     public function process(ContainerBuilder $container)
     {
         $validatorBuilder = $container->getDefinition('validator.builder');
-        $validatorFiles = array();
+        $validatorFiles = [];
         $finder = new Finder();
 
         foreach ($finder->files()->in(__DIR__ . '/../../Resources/config/validation') as $file) {
             $validatorFiles[] = $file->getRealPath();
         }
 
-        $validatorBuilder->addMethodCall('addYamlMappings', array($validatorFiles));
+        $validatorBuilder->addMethodCall('addYamlMappings', [$validatorFiles]);
 
         // add resources to the container to refresh cache after updating a file
         $container->addResource(new DirectoryResource(__DIR__ . '/../../Resources/config/validation'));

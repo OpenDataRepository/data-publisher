@@ -25,21 +25,6 @@ class FilePublicStatusChangedEvent extends Event implements ODREventInterface
     // Best practice is apparently to have the Event class define the event name
     const NAME = 'odr.event.file_public_status_changed_event';
 
-    /**
-     * @var File|Image
-     */
-    private $file;
-
-    /**
-     * @var DataFields
-     */
-    private $datafield;
-
-    /**
-     * @var string
-     */
-    private $context;
-
 
     /**
      * FilePublicStatusChangedEvent constructor.
@@ -48,14 +33,8 @@ class FilePublicStatusChangedEvent extends Event implements ODREventInterface
      * @param DataFields $datafield
      * @param string $context
      */
-    public function __construct(
-        $file,
-        DataFields $datafield,
-        string $context
-    ) {
-        $this->file = $file;
-        $this->datafield = $datafield;
-        $this->context = $context;
+    public function __construct(private $file, private readonly DataFields $datafield, private readonly string $context)
+    {
     }
 
 
@@ -108,11 +87,11 @@ class FilePublicStatusChangedEvent extends Event implements ODREventInterface
     {
         $typeclass = $this->datafield->getFieldType()->getTypeClass();
 
-        return array(
+        return [
             self::NAME,
             $typeclass.' '.$this->file->getId(),
             'df '.$this->datafield->getId(),
             'called from '.$this->context,
-        );
+        ];
     }
 }

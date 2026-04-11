@@ -10,12 +10,12 @@ class JsonExceptionListener
     public function onKernelException(GetResponseForExceptionEvent $event)
     {
         $exception = $event->getException();
-        $data = array(
-            'error' => array(
+        $data = [
+            'error' => [
                 'code' => $exception->getCode(),
                 'message' => $exception->getMessage()
-            )
-        );
+            ]
+        ];
         $response = new JsonResponse($data);
         $event->setResponse($response);
     }

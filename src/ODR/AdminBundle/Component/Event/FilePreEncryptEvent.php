@@ -64,16 +64,6 @@ class FilePreEncryptEvent extends Event implements ODREventInterface
     // Best practice is apparently to have the Event class define the event name
     const NAME = 'odr.event.file_pre_encrypt_event';
 
-    /**
-     * @var File|Image
-     */
-    private $file;
-
-    /**
-     * @var DataFields
-     */
-    private $datafield;
-
 
     /**
      * FilePreEncryptEvent constructor.
@@ -86,12 +76,8 @@ class FilePreEncryptEvent extends Event implements ODREventInterface
      * @param File|Image $file
      * @param DataFields $datafield
      */
-    public function __construct(
-        $file,
-        DataFields $datafield
-    ) {
-        $this->file = $file;
-        $this->datafield = $datafield;
+    public function __construct(private $file, private readonly DataFields $datafield)
+    {
     }
 
 
@@ -137,10 +123,10 @@ class FilePreEncryptEvent extends Event implements ODREventInterface
     {
         $typeclass = $this->datafield->getFieldType()->getTypeClass();
 
-        return array(
+        return [
             self::NAME,
             $typeclass.' '.$this->file->getId(),
             'df '.$this->datafield->getId(),
-        );
+        ];
     }
 }

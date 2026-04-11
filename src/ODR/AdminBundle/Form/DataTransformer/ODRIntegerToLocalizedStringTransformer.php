@@ -36,6 +36,7 @@ class ODRIntegerToLocalizedStringTransformer extends IntegerToLocalizedStringTra
      *
      * {@inheritDoc}
      */
+    #[\Override]
     public function transform($value)
     {
         // The parent function throws an error when it receives the empty string, but apparently
@@ -56,6 +57,7 @@ class ODRIntegerToLocalizedStringTransformer extends IntegerToLocalizedStringTra
      *
      * {@inheritdoc}
      */
+    #[\Override]
     public function reverseTransform($value)
     {
         if ( !ValidUtility::isValidInteger($value) )

@@ -47,7 +47,7 @@ class JobController extends ODRCustomController
      */
     public function listAction($section, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -58,24 +58,24 @@ class JobController extends ODRCustomController
 
             // Enabled keys in the $jobs array should be added to the route 'odr_job_list' in the
             //  routing file, so that only relevant jobs are shown
-            $jobs = array(
+            $jobs = [
                 'migrate' => 'DataField Migration',
                 'tag_rebuild' => 'Tag Rebuilds',
                 'mass_edit' => 'Mass Updates',
                 'csv_import_validate' => 'CSV Validation',
                 'csv_import' => 'CSV Imports',
                 'csv_export' => 'CSV Exports',
-            );
+            ];
 
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Job:list.html.twig',
-                    array(
+                    [
                         'jobs' => $jobs,
                         'show_section' => $section,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x070b08bb;
@@ -102,7 +102,7 @@ class JobController extends ODRCustomController
      */
     public function viewedAction($job_ids, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -118,10 +118,10 @@ class JobController extends ODRCustomController
             foreach($jobs as $job_id) {
                 /** @var TrackedJob $tracked_job */
                 $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')
-                    ->findOneBy( array(
+                    ->findOneBy( [
                             'id' => $job_id,
                             'createdBy' => $user
-                        )
+                        ]
                     );
 
                 if($tracked_job) {
@@ -154,7 +154,7 @@ class JobController extends ODRCustomController
      */
     public function deleteAction($job_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -167,10 +167,10 @@ class JobController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')
-                ->findOneBy( array(
+                ->findOneBy( [
                     'id' => $job_id,
                     'createdBy' => $user
-                )
+                ]
             );
 
             if($tracked_job) {
@@ -198,7 +198,7 @@ class JobController extends ODRCustomController
      */
     public function myjobsAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -209,7 +209,7 @@ class JobController extends ODRCustomController
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            $tracked_jobs = array();
+            $tracked_jobs = [];
             if ($user !== 'anon.') {
                 // Get Jobs as array and pass to interface
                 $tracked_jobs = $tracked_job_service->getJobDataByUserId($user->getId());
@@ -241,7 +241,7 @@ class JobController extends ODRCustomController
      */
     public function refreshAction($job_type, $job_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -296,7 +296,7 @@ class JobController extends ODRCustomController
      */
     public function deletejobAction($job_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';

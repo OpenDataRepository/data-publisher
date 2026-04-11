@@ -28,51 +28,6 @@ class TableThemeHelperService
 {
 
     /**
-     * @var ContainerInterface
-     */
-    private $container;
-
-    /**
-     * @var CacheService
-     */
-    private $cache_service;
-
-    /**
-     * @var DatabaseInfoService
-     */
-    private $database_info_service;
-
-    /**
-     * @var DatarecordInfoService
-     */
-    private $datarecord_info_service;
-
-    /**
-     * @var DatatreeInfoService
-     */
-    private $datatree_info_service;
-
-    /**
-     * @var PermissionsManagementService
-     */
-    private $permissions_service;
-
-    /**
-     * @var ThemeInfoService
-     */
-    private $theme_info_service;
-
-    /**
-     * @var Router
-     */
-    private $router;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-    /**
      * @var array
      */
     private $valid_fieldtypes;
@@ -92,27 +47,17 @@ class TableThemeHelperService
      * @param Logger $logger
      */
     public function __construct(
-        ContainerInterface $container,
-        CacheService $cache_service,
-        DatabaseInfoService $database_info_service,
-        DatarecordInfoService $datarecord_info_service,
-        DatatreeInfoService $datatree_info_service,
-        PermissionsManagementService $permissions_service,
-        ThemeInfoService $theme_info_service,
-        Router $router,
-        Logger $logger
+        private readonly ContainerInterface $container,
+        private readonly CacheService $cache_service,
+        private readonly DatabaseInfoService $database_info_service,
+        private readonly DatarecordInfoService $datarecord_info_service,
+        private readonly DatatreeInfoService $datatree_info_service,
+        private readonly PermissionsManagementService $permissions_service,
+        private readonly ThemeInfoService $theme_info_service,
+        private readonly Router $router,
+        private readonly Logger $logger
     ) {
-        $this->container = $container;
-        $this->cache_service = $cache_service;
-        $this->database_info_service = $database_info_service;
-        $this->datarecord_info_service = $datarecord_info_service;
-        $this->datatree_info_service = $datatree_info_service;
-        $this->permissions_service = $permissions_service;
-        $this->theme_info_service = $theme_info_service;
-        $this->router = $router;
-        $this->logger = $logger;
-
-        $this->valid_fieldtypes = array(
+        $this->valid_fieldtypes = [
             'Boolean',
             'File',
             'Integer',
@@ -124,7 +69,7 @@ class TableThemeHelperService
             'DateTime',
             'Single Radio',
             'Single Select',
-        );
+        ];
     }
 
 
@@ -146,7 +91,7 @@ class TableThemeHelperService
             //  so twig doesn't have to parse json
 
             // First and second columns are always datarecord id and sort value, respectively
-            $column_names = array(0 => array('title' => 'datarecord_id'), 1 => array('title' => 'datarecord_sortvalue') );
+            $column_names = [0 => ['title' => 'datarecord_id'], 1 => ['title' => 'datarecord_sortvalue'] ];
             $num_columns = 2;
 
             // NOTE - despite datatables.js not needing the 'datarecord_sortvalue' column when
@@ -164,7 +109,7 @@ class TableThemeHelperService
                 //  property availble for selecting columns via its own column() selector
                 //  @see https://datatables.net/reference/type/column-selector#{string}:name
                 // Of note is that the "name" property does not show up in the table's HTML
-                $column_names[] = array('name' => $df['id'], 'title' => $fieldname);
+                $column_names[] = ['name' => $df['id'], 'title' => $fieldname];
 
                 // Can't set the priority for the edit link column here
 
@@ -172,7 +117,7 @@ class TableThemeHelperService
             }
 
             // Return the data back to the user
-            $column_data = array('column_names' => $column_names, 'num_columns' => $num_columns);
+            $column_data = ['column_names' => $column_names, 'num_columns' => $num_columns];
             return $column_data;
         }
         else if ($format === 'json') {
@@ -203,7 +148,7 @@ class TableThemeHelperService
             }
 
             // Return the data back to the user
-            $column_data = array('column_names' => $column_names, 'num_columns' => $num_columns);
+            $column_data = ['column_names' => $column_names, 'num_columns' => $num_columns];
             return $column_data;
         }
 
@@ -298,7 +243,7 @@ class TableThemeHelperService
         // Going to need to know whether the user has the can_view_datarecord permission for each
         //  datatype that's going to be rendered...
         $user_permissions = $this->permissions_service->getUserPermissionsArray($user);
-        $can_view_datarecord = array();
+        $can_view_datarecord = [];
         // ...and also need to know whether any of the datatypes that are going to be rendered are
         //  a linked datatype, since that means linked datarecords need to be loaded as well...
         $needs_linked_data = false;
@@ -327,7 +272,7 @@ class TableThemeHelperService
 
         // ----------------------------------------
         // Load the cached version of each of the requested datarecords
-        $datarecord_array = array();
+        $datarecord_array = [];
         foreach ($datarecord_ids as $num => $search_dr_id) {
             $table_dr_array = null;
 
@@ -380,10 +325,10 @@ class TableThemeHelperService
 
         // ----------------------------------------
         // Build the final array of data
-        $rows = array();
+        $rows = [];
         foreach ($datarecord_array as $top_level_dr_id => $dr_list) {
             // Only include fields from a datarecord if the user can view said datarecord
-            $available_data = array();
+            $available_data = [];
             foreach ($dr_list as $dr_id => $dr) {
                 $dt_id = $dr['dt_id'];
                 if ( $can_view_datarecord[$dt_id] || $dr['is_public'] ) {
@@ -395,7 +340,7 @@ class TableThemeHelperService
                 }
             }
 
-            $dr_data = array();
+            $dr_data = [];
             foreach ($table_df_array as $num => $df) {
                 // Attempt to pull the data from the cached entry...
                 $df_id = $df['id'];
@@ -441,7 +386,7 @@ class TableThemeHelperService
             // If something was stored...
             if ( count($dr_data) > 0 ) {
                 // ...then need to prepend several values
-                $row = array();
+                $row = [];
 
                 // If rendering the table of currently linked datarecords for the search link page,
                 //  then prepend an empty space to hold the checkbox/radio option required by that page
@@ -499,10 +444,10 @@ class TableThemeHelperService
         // ----------------------------------------
         // Need to locate any single-allowed child records, because those need to also exist in the
         //  cache entry...
-        $dt_list = array($top_level_dt_id => 1);
-        $dts_to_check = array($top_level_dt_id => 1);
+        $dt_list = [$top_level_dt_id => 1];
+        $dts_to_check = [$top_level_dt_id => 1];
         while ( !empty($dts_to_check) ) {
-            $tmp = array();
+            $tmp = [];
             foreach ($dts_to_check as $dt_id => $num) {
                 if ( !empty($dt_data[$dt_id]['descendants']) ) {
                     foreach ($dt_data[$dt_id]['descendants'] as $child_dt_id => $dt_info) {
@@ -516,10 +461,10 @@ class TableThemeHelperService
             $dts_to_check = $tmp;
         }
 
-        $dr_list = array($top_level_dr_id => 1);
-        $drs_to_check = array($top_level_dr_id => 1);
+        $dr_list = [$top_level_dr_id => 1];
+        $drs_to_check = [$top_level_dr_id => 1];
         while ( !empty($drs_to_check) ) {
-            $tmp = array();
+            $tmp = [];
             foreach ($drs_to_check as $dr_id => $num) {
                 if ( !empty($dr_data[$dr_id]['children']) ) {
                     foreach ($dr_data[$dr_id]['children'] as $child_dt_id => $child_dr_list) {
@@ -540,9 +485,9 @@ class TableThemeHelperService
 
         // ----------------------------------------
         // Going to store data for each record individually...
-        $data = array();
+        $data = [];
         foreach ($dr_list as $dr_id => $num)
-            $data[$dr_id] = array();
+            $data[$dr_id] = [];
 
         // Prior to multi-datafield sorting, the top-level record (kinda) needed to provide a
         //  sortvalue to datatables.js...but ODR is forced to handle all sorting, so it makes no
@@ -563,7 +508,7 @@ class TableThemeHelperService
 
 
             // If the datatype is using a render plugin...
-            $overriden_field_values = array();
+            $overriden_field_values = [];
             if ( !empty($dt['renderPluginInstances']) ) {
                 foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
                     // ...and it wants to override the values displayed in table layouts...
@@ -681,16 +626,16 @@ class TableThemeHelperService
                             if ( isset($drf['file'][0]) ) {
                                 $file = $drf['file'][0];    // should only ever be one file in here anyways
 
-                                $url = $this->router->generate( 'odr_file_download', array('file_id' => $file['id']) );
+                                $url = $this->router->generate( 'odr_file_download', ['file_id' => $file['id']] );
                                 $is_public = false;
                                 if ( $file['fileMeta']['publicDate']->format('Y-m-d') !== '2200-01-01' )
                                     $is_public = true;
 
-                                $df_value = array(
+                                $df_value = [
                                     'ispublic' => $is_public,
                                     'url' => $url,
                                     'filename' => $file['fileMeta']['originalFileName'],
-                                );
+                                ];
                             }
                             break;
 
@@ -749,7 +694,7 @@ class TableThemeHelperService
 
         // Filter out everything the user isn't allowed to see
         $user_permissions = $this->permissions_service->getUserPermissionsArray($user);
-        $datarecord_array = array();
+        $datarecord_array = [];
         $this->permissions_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
         // Load a version of the cached theme array that matches the filtered datatype array
@@ -823,7 +768,7 @@ class TableThemeHelperService
     private function getTableThemeDatafields_worker($datatype_array, $theme_array)
     {
         // Could be multiple datatypes represented here
-        $df_array = array();
+        $df_array = [];
         $dt_id = $theme_array['dataType']['id'];
 
         foreach ($theme_array['themeElements'] as $te_num => $te) {
@@ -836,9 +781,9 @@ class TableThemeHelperService
                     $df = $datatype_array[$dt_id]['dataFields'][$df_id];
 
                     // Splice the datatype id back into the array since it'll be needed
-                    $df['dataType'] = array(
+                    $df['dataType'] = [
                         'id' => $dt_id
-                    );
+                    ];
                     // Splice the themeDatafield into the array as well
                     $df['themeDataField'] = $tdf;
 

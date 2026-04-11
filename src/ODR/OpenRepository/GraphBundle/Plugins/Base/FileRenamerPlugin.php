@@ -83,68 +83,18 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
 {
 
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var DatabaseInfoService
-     */
-    private $database_info_service;
-
-    /**
-     * @var DatarecordInfoService
-     */
-    private $datarecord_info_service;
-
-    /**
-     * @var DatatreeInfoService
-     */
-    private $datatree_info_service;
-
-    /**
-     * @var EntityMetaModifyService
-     */
-    private $entity_modify_service;
-
-    /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * FileRenamer Plugin constructor.
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param DatabaseInfoService $database_info_service
      * @param DatarecordInfoService $datarecord_info_service
      * @param DatatreeInfoService $datatree_info_service
-     * @param EntityMetaModifyService $entity_meta_modify_service
+     * @param EntityMetaModifyService $entity_modify_service
      * @param EngineInterface $templating
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        DatabaseInfoService $database_info_service,
-        DatarecordInfoService $datarecord_info_service,
-        DatatreeInfoService $datatree_info_service,
-        EntityMetaModifyService $entity_meta_modify_service,
-        EngineInterface $templating,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->database_info_service = $database_info_service;
-        $this->datarecord_info_service = $datarecord_info_service;
-        $this->datatree_info_service = $datatree_info_service;
-        $this->entity_modify_service = $entity_meta_modify_service;
-        $this->templating = $templating;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly DatabaseInfoService $database_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly DatatreeInfoService $datatree_info_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly EngineInterface $templating, private readonly Logger $logger)
+    {
     }
 
 
@@ -213,10 +163,10 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
             else if ( $rendering_options['context'] === 'edit' ) {
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:Base:FileRenamer/file_renamer_edit_addon.html.twig',
-                    array(
+                    [
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,
-                    )
+                    ]
                 );
             }
 
@@ -333,7 +283,7 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
     private function getCurrentPluginConfig($datafield)
     {
         // Going to try to create an array of datafield uuids and string constants...
-        $config = array();
+        $config = [];
 
         // Neither Event has direct access to the renderPluginInstance, so might as well just always
         //  get the data from the cached datatype array
@@ -370,7 +320,7 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
                         $delete_invalid_characters = trim($rpi['renderPluginOptionsMap']['delete_invalid_characters']);
 
                     // ...and the semi-encoded value for the list of fields.
-                    $field_list_value = trim($rpi['renderPluginOptionsMap']['field_list']);
+                    $field_list_value = trim((string) $rpi['renderPluginOptionsMap']['field_list']);
 
                     // The first line in this config value is the prefix, while each subsequent line
                     //  is either a field uuid or a string constant
@@ -380,9 +330,9 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
                     $field_list_value = str_replace("\r", "", $field_list_value);
                     $lines = explode("\n", $field_list_value);
 
-                    $field_list = $alt_field_list = array();
+                    $field_list = $alt_field_list = [];
                     for ($i = 1; $i < count($lines); $i++) {
-                        if ( strpos($lines[$i], '|') !== false ) {
+                        if ( str_contains($lines[$i], '|') ) {
                             // Has alternate fields/constants available
                             $keys = explode("|", $lines[$i]);
                             // The first one will be the primary
@@ -396,7 +346,7 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
                         }
                     }
 
-                    $config = array(
+                    $config = [
                         'prefix' => $lines[0],
                         'field_list' => $field_list,
                         'alt_field_list' => $alt_field_list,
@@ -406,29 +356,29 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
                         'remove_spaces' => $remove_spaces,
                         'append_file_uuid' => $append_file_uuid,
                         'delete_invalid_characters' => $delete_invalid_characters,
-                    );
+                    ];
                 }
             }
         }
 
         // If the prefix is blank somehow, then the plugin isn't configured
         if ( isset($config['prefix']) && $config['prefix'] === '' )
-            return array();
+            return [];
         // If no fields or string constants were set, then the plugin isn't configured
         if ( isset($config['field_list']) && empty($config['field_list']) )
-            return array();
+            return [];
         // The alt_field_list array can be empty
         // If there's no separator, then the plugin isn't configured
         if ( isset($config['separator']) && $config['separator'] === '' )
-            return array();
+            return [];
 
         if ( isset($config['file_extension']) ) {
             // If the file extension is blank, then it's not configured correctly
             if ( $config['file_extension'] === '' )
-                return array();
+                return [];
             // If the file extension ends with a period, then it's not valid
-            if ( substr($config['file_extension'], -1) === '.' )
-                return array();
+            if ( str_ends_with($config['file_extension'], '.') )
+                return [];
         }
 
         // Otherwise, attempt to return the plugin's config
@@ -478,8 +428,8 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
         );
         $results = $query->getArrayResult();
 
-        $by_ancestors = array();
-        $by_descendants = array();
+        $by_ancestors = [];
+        $by_descendants = [];
         foreach ($results as $result) {
             $ancestor_id = $result['ancestor_id'];
             $descendant_id = $result['descendant_id'];
@@ -487,11 +437,11 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
             // Don't care about whether it's a link or not
 
             if ( !isset($by_ancestors[$ancestor_id]) )
-                $by_ancestors[$ancestor_id] = array();
+                $by_ancestors[$ancestor_id] = [];
             $by_ancestors[$ancestor_id][$descendant_id] = $multiple_allowed;
 
             if ( !isset($by_descendants[$descendant_id]) )
-                $by_descendants[$descendant_id] = array();
+                $by_descendants[$descendant_id] = [];
             $by_descendants[$descendant_id][$ancestor_id] = $multiple_allowed;
         }
 
@@ -499,17 +449,17 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
         // ----------------------------------------
         // The reason for making two arrays out of the datatree table is because this problem needs
         //  to solved in two steps...
-        $all_valid_datatypes = array();
-        $prefix_data = array();
+        $all_valid_datatypes = [];
+        $prefix_data = [];
 
         // The first step is to take this datatype and find every single ancestor it has
         $dt_id = $datafield->getDataType()->getId();
         $all_valid_datatypes[$dt_id] = 1;
         $prefix_data[$dt_id] = '';
 
-        $datatypes_to_check = array($dt_id);
+        $datatypes_to_check = [$dt_id];
         while ( !empty($datatypes_to_check) ) {
-            $tmp = array();
+            $tmp = [];
             foreach ($datatypes_to_check as $num => $descendant_dt_id) {
                 if ( isset($by_descendants[$descendant_dt_id]) ) {
                     foreach ($by_descendants[$descendant_dt_id] as $ancestor_id => $multiple_allowed) {
@@ -520,7 +470,7 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
 
                         if ( !isset($prefix_data[$ancestor_id]) ) {
                             // This is the first time this ancestor has been seen
-                            $prefix_data[$ancestor_id] = array($descendant_dt_id => $prefix_data[$descendant_dt_id]);
+                            $prefix_data[$ancestor_id] = [$descendant_dt_id => $prefix_data[$descendant_dt_id]];
                         }
                         else {
                             // This descendant has multiple paths to reach the same ancestor...
@@ -553,7 +503,7 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
 
         $datatypes_to_check = array_keys($all_valid_datatypes);
         while ( !empty($datatypes_to_check) ) {
-            $tmp = array();
+            $tmp = [];
             foreach ($datatypes_to_check as $num => $ancestor_dt_id) {
                 if ( isset($by_ancestors[$ancestor_dt_id]) ) {
                     foreach ($by_ancestors[$ancestor_dt_id] as $descendant_id => $multiple_allowed) {
@@ -582,7 +532,7 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
         $all_fieldtypes = $this->em->getRepository('ODRAdminBundle:FieldType')->findAll();
 
         // Only datafields with certain fieldtypes are valid for this application
-        $valid_fieldtypes = array();
+        $valid_fieldtypes = [];
         foreach ($all_fieldtypes as $ft) {
             switch ($ft->getTypeName()) {
                 // These fieldtypes can be converted into a string
@@ -621,17 +571,17 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
             JOIN ODRAdminBundle:DataTypeMeta dtm WITH dtm.dataType = dt
             WHERE dt.id IN (:datatype_ids)
             AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
-        )->setParameters( array('datatype_ids' => $all_valid_datatypes) );
+        )->setParameters( ['datatype_ids' => $all_valid_datatypes] );
         $results = $query->getArrayResult();
 
-        $name_data = array();
+        $name_data = [];
         foreach ($results as $result) {
             $dt_id = $result['dt_id'];
             $dt_name = $result['dt_name'];
 
             // Want the names of all the valid datatypes, hence the separate query
             if ( !isset($name_data[$dt_id]) )
-                $name_data[$dt_id] = array('name' => $dt_name, 'fields' => array());
+                $name_data[$dt_id] = ['name' => $dt_name, 'fields' => []];
         }
 
         // ...then use a second query to determine the ids/names of the relevant datafields
@@ -645,11 +595,11 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
             AND dfm.publicDate != :public_date
             AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'datatype_ids' => $all_valid_datatypes,
                 'fieldtype_ids' => $valid_fieldtypes,
                 'public_date' => "2200-01-01 00:00:00",
-            )
+            ]
         );
         $results = $query->getArrayResult();
 
@@ -659,7 +609,7 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
             $df_uuid = $result['fieldUuid'];
             $df_name = $result['fieldName'];
 
-            $name_data[$dt_id]['fields'][$df_id] = array('uuid' => $df_uuid, 'name' => $df_name);
+            $name_data[$dt_id]['fields'][$df_id] = ['uuid' => $df_uuid, 'name' => $df_name];
         }
 
 
@@ -671,21 +621,21 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
         // In an attempt to assist users, the list of "valid datatypes" on the left side of the
         //  renderplugin settings dialog should attempt to display only the datatypes that the
         //  currently selected prefix would provide access to
-        $descendants_by_prefix = array();
+        $descendants_by_prefix = [];
 
         foreach ($prefixes as $prefix_string => $name_string) {
             // ...the easiest way to do this is to explode each prefix again, and find all "valid"
             //  datatypes descended from them
-            $descendants_by_prefix[$prefix_string] = array();
+            $descendants_by_prefix[$prefix_string] = [];
 
-            $valid_datatypes = explode('_', $prefix_string);
+            $valid_datatypes = explode('_', (string) $prefix_string);
 
             // Keep track of all valid datatypes for this prefix
             foreach ($valid_datatypes as $num => $dt_id)
                 $descendants_by_prefix[$prefix_string][$dt_id] = 1;
 
             while ( !empty($valid_datatypes) ) {
-                $tmp = array();
+                $tmp = [];
                 foreach ($valid_datatypes as $num => $ancestor_dt_id) {
                     if ( isset($by_ancestors[$ancestor_dt_id]) ) {
                         foreach ($by_ancestors[$ancestor_dt_id] as $descendant_id => $multiple_allowed) {
@@ -711,11 +661,11 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
 
 
         // ----------------------------------------
-        return array(
+        return [
             'prefixes' => $prefixes,
             'name_data' => $name_data,
             'allowed_datatypes' => $descendants_by_prefix,
-        );
+        ];
     }
 
 
@@ -729,7 +679,7 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
      */
     private function buildPrefixes($prefix_data, $fields)
     {
-        $prefixes = array();
+        $prefixes = [];
 
         foreach ($prefix_data as $ancestor_id => $descendants) {
             if ( !is_array($descendants) ) {
@@ -782,12 +732,12 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
         $config_info = self::getCurrentPluginConfig($df);
         // If nothing is configured, then don't attempt to rename any files/images
         if ( empty($config_info) )
-            return array();
+            return [];
 
 
         // ----------------------------------------
         // Makes no sense to run all this stuff if the field has no files/images in it
-        $entities = array();
+        $entities = [];
         if ( $typeclass === 'File' )
             $entities = $original_drf->getFile();
         else
@@ -804,7 +754,7 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
         }
 
         if ( empty($entities) )
-            return array();
+            return [];
 
 
         // ----------------------------------------
@@ -813,10 +763,10 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
         //  of datatype ids...indicates how far to go looking for this "ultimate ancestor".
         $ancestor_dr_id = null;
         // Also will be useful to get all the intermediate ids
-        $intermediate_dr_ids = array();
+        $intermediate_dr_ids = [];
 
         $prefix = $config_info['prefix'];
-        $split_prefix = explode('_', $prefix);
+        $split_prefix = explode('_', (string) $prefix);
 
 
         // ----------------------------------------
@@ -841,12 +791,12 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
             $cached_datatree_array = $this->datatree_info_service->getDatatreeArray();
 
             // Due to doctrine being a pain, just going to manually emulate the querybuilder
-            $select_array = array('dr_0.id AS dr_0_id');
+            $select_array = ['dr_0.id AS dr_0_id'];
             $from_str = 'FROM odr_data_record dr_0';
-            $join_array = array();
-            $where_array = array('dr_0.data_type_id = :dr_0_dt');
-            $deleted_array = array('dr_0.deletedAt IS NULL');
-            $params = array('dr_0_dt' => intval($split_prefix[0]));
+            $join_array = [];
+            $where_array = ['dr_0.data_type_id = :dr_0_dt'];
+            $deleted_array = ['dr_0.deletedAt IS NULL'];
+            $params = ['dr_0_dt' => intval($split_prefix[0])];
 
             $dr_num = 1;
             $ldt_num = 1;
@@ -917,7 +867,7 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
             $conn = $this->em->getConnection();
             $tmp = $conn->executeQuery($query, $params);
 
-            $results = array();
+            $results = [];
             foreach ($tmp as $key => $value)
                 $results[$key] = $value;
 
@@ -958,7 +908,7 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
             JOIN ODRAdminBundle:DataRecord gp WITH dr.grandparent = gp
             WHERE dr.id = :datarecord_id
             AND dr.deletedAt IS NULL AND gp.deletedAt IS NULL'
-        )->setParameters( array('datarecord_id' => $ancestor_dr_id) );
+        )->setParameters( ['datarecord_id' => $ancestor_dr_id] );
         $results = $query->getArrayResult();
         $grandparent_dr_id = $results[0]['id'];
 
@@ -970,7 +920,7 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
         //  to fields by ids instead.  It's probably faster to run a quick query to create a mapping
         //  linking field id, uuid, and name (for error purposes, if needed), instead of digging
         //  through the cached array using strcmp() a bunch of times
-        $query_field_uuids = array();
+        $query_field_uuids = [];
         if ( is_array($config_info['field_list']) ) {
             foreach ($config_info['field_list'] as $display_order => $value)
                 $query_field_uuids[] = $value;
@@ -988,11 +938,11 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
             LEFT JOIN ODRAdminBundle:DataFieldsMeta dfm WITH dfm.dataField = df
             WHERE df.fieldUuid IN (:uuids)
             AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL'
-        )->setParameters( array('uuids' => $query_field_uuids) );
+        )->setParameters( ['uuids' => $query_field_uuids] );
         $results = $query->getArrayResult();
 
-        $uuid_mapping = array();
-        $datafield_names = array();
+        $uuid_mapping = [];
+        $datafield_names = [];
         foreach ($results as $result) {
             $id = $result['id'];
             $uuid = $result['fieldUuid'];
@@ -1008,12 +958,12 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
         //  iterate over every single datafield listed in the plugin's config...if the database was
         //  queried here, it would either have to be done with a massive really slow query like the
         //  one in DatarecordInfoService, or a potentially large number of simple queries...
-        $mapping = array();
+        $mapping = [];
         foreach ($uuid_mapping as $df_id => $df_uuid) {
             // While the config_prefix attempts to mitigate this, there is a very real possibility
             //  that there are multiple datarecords for each datafield...which results in the
             //  possibility of "multiple values" per datafield...
-            $mapping[$df_id] = array();
+            $mapping[$df_id] = [];
 
             // ...so we need to iterate over all records in the cached array and hope we find the
             //  correct/desired value
@@ -1093,13 +1043,13 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
                 //  characters in filenames at this point in time
                 if ( $config_info['delete_invalid_characters'] === 'yes' ) {
                     // Delete these invalid characters by default
-                    $mapping[$df_id] = preg_replace(ValidUtility::FILENAME_ILLEGAL_CHARACTERS_REGEX_A, '', $mapping[$df_id]);
+                    $mapping[$df_id] = preg_replace(ValidUtility::FILENAME_ILLEGAL_CHARACTERS_REGEX_A, '', (string) $mapping[$df_id]);
                 }
             }
         }
 
         // Need to determine which values actually go into the filename now
-        $values = array();
+        $values = [];
         foreach ($config_info['field_list'] as $display_order => $key) {
             // Attempt to locate the value tied to this uuid
             $value = null;
@@ -1167,23 +1117,23 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
             // If the user doesn't want any invalid characters deleted...
             if ( preg_match(ValidUtility::FILENAME_ILLEGAL_CHARACTERS_REGEX_A, $base_filename) === 1 )
                 // ...then refuse to continue executing the plugin when the filename has them
-                return array();
+                return [];
         }
 
         // ...also try to prevent leading/trailing spaces in the filename...
-        $base_filename = trim($base_filename);
+        $base_filename = trim((string) $base_filename);
         // ...and other various illegal names in both linux and windows...
         if ( preg_match(ValidUtility::FILENAME_ILLEGAL_CHARACTERS_REGEX_B, $base_filename) === 1 )
-            return array();
+            return [];
         // ...and filenames starting with a dash are also bad
-        if ( strpos($base_filename, '-') === 0 )
-            return array();
+        if ( str_starts_with($base_filename, '-') )
+            return [];
 
 
         // ----------------------------------------
         // Now that we've got part of the filename, we need to update every one of the files/images
         //  uploaded to this drf...
-        $new_filenames = array();
+        $new_filenames = [];
 
         foreach ($entities as $entity) {
             /** @var File|Image $entity */
@@ -1191,10 +1141,10 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
             $uuid = $entity->getUniqueId();
 
             // ...so that the filename for this file/image entity can be determined
-            $new_filenames[$id] = array(
+            $new_filenames[$id] = [
                 'new_filename' => $base_filename,
                 'entity' => $entity,
-            );
+            ];
 
             // Append the file/image's uuid if requested
             if ( $config_info['append_file_uuid'] === 'yes' )
@@ -1244,7 +1194,7 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
             $is_event_relevant = self::isEventRelevant($datafield, true);
             if ( $is_event_relevant ) {
                 // This file was uploaded to the correct field, so it now needs to be processed
-                $this->logger->debug('Want to rename '.$typeclass.' '.$entity->getId().' "'.$entity->getOriginalFileName().'"...', array(self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()));
+                $this->logger->debug('Want to rename '.$typeclass.' '.$entity->getId().' "'.$entity->getOriginalFileName().'"...', [self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()]);
 
                 // ----------------------------------------
                 // Since the file/image hasn't been encrypted yet, it's currently in something of an
@@ -1262,8 +1212,8 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
                     $data = $ret[$entity->getId()];
                     $new_filename = $data['new_filename'];
 
-                    if ( strlen($new_filename) <= 255 ) {
-                        $this->logger->debug('...renaming '.$typeclass.' '.$entity->getId().' to "'.$new_filename.'"...', array(self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()));
+                    if ( strlen((string) $new_filename) <= 255 ) {
+                        $this->logger->debug('...renaming '.$typeclass.' '.$entity->getId().' to "'.$new_filename.'"...', [self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()]);
 
                         // ...save the new filename in the database...
                         $meta_entry = null;
@@ -1294,13 +1244,13 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
                         $this->em->flush();
                     }
                     else {
-                        $this->logger->debug('-- (ERROR) unable to save new filename "'.$new_filename.'" for '.$typeclass.' '.$entity->getId().' because it exceeds 255 characters', array(self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()));
+                        $this->logger->debug('-- (ERROR) unable to save new filename "'.$new_filename.'" for '.$typeclass.' '.$entity->getId().' because it exceeds 255 characters', [self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()]);
                     }
                 }
                 else {
                     // ...if getNewFilenames() returns null, then there's some unrecoverable problem
                     //  that prevents the file/image from being renamed
-                    $this->logger->debug('-- (ERROR) unable to rename '.$typeclass.' '.$entity->getId().'...', array(self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()));
+                    $this->logger->debug('-- (ERROR) unable to rename '.$typeclass.' '.$entity->getId().'...', [self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()]);
 
                     // Regardless of the reason why there's a problem, this plugin can't fix it
                     // As such, nothing should be done
@@ -1310,7 +1260,7 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
         }
         catch (\Exception $e) {
             // Can't really display the error to the user yet, but can log it...
-            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()));
+            $this->logger->debug('-- (ERROR) '.$e->getMessage(), [self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()]);
 
             // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
             //  any additional subscribers won't run either
@@ -1318,7 +1268,7 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
         finally {
             // Would prefer if these happened regardless of success/failure...
             if ( $is_event_relevant )
-                $this->logger->debug('finished rename attempt for '.$typeclass.' '.$entity->getId(), array(self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()));
+                $this->logger->debug('finished rename attempt for '.$typeclass.' '.$entity->getId(), [self::class, 'onFilePreEncrypt()', $typeclass.' '.$entity->getId()]);
 
             // Don't need to clear any caches here, since the file encryption should handle it
         }
@@ -1359,7 +1309,7 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
                         FROM ODRAdminBundle:File f
                         WHERE f.dataRecordFields = :drf
                         AND f.deletedAt IS NULL'
-                    )->setParameters( array('drf' => $drf->getId()) );
+                    )->setParameters( ['drf' => $drf->getId()] );
                     $tmp = $query->getResult();
                 }
                 else {
@@ -1368,19 +1318,19 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
                         FROM ODRAdminBundle:Image i
                         WHERE i.dataRecordFields = :drf AND i.original = 1
                         AND i.deletedAt IS NULL'
-                    )->setParameters( array('drf' => $drf->getId()) );
+                    )->setParameters( ['drf' => $drf->getId()] );
                     $tmp = $query->getResult();
                 }
 
                 // There could be nothing uploaded to the field, or there could be multiple files/images
                 /** @var File[]|Image[] $tmp */
-                $entities = array();
+                $entities = [];
                 foreach ($tmp as $num => $entity)
                     $entities[ $entity->getId() ] = $entity;
                 /** @var File[]|Image[] $entities */
 
                 // This file was uploaded to the correct field, so it now needs to be processed
-                $this->logger->debug('Want to rename the '.$typeclass.'s in datafield '.$datafield->getId().' datarecord '.$datarecord->getId().'...', array(self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()));
+                $this->logger->debug('Want to rename the '.$typeclass.'s in datafield '.$datafield->getId().' datarecord '.$datarecord->getId().'...', [self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()]);
 
 
                 // ----------------------------------------
@@ -1397,13 +1347,13 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
                         // ...if the filename changed...
                         if ( $new_filename !== $entity->getOriginalFileName() ) {
                             // ...and it's not too long...
-                            if ( strlen($new_filename) <= 255 ) {
+                            if ( strlen((string) $new_filename) <= 255 ) {
                                 // ...then the file/image needs to get renamed
                                 $changes_made = true;
-                                $this->logger->debug('-- renaming '.$typeclass.' '.$entity_id.' from "'.$entity->getOriginalFileName().'" to "'.$new_filename.'"', array(self::class, 'onMassEditTrigger()'));
+                                $this->logger->debug('-- renaming '.$typeclass.' '.$entity_id.' from "'.$entity->getOriginalFileName().'" to "'.$new_filename.'"', [self::class, 'onMassEditTrigger()']);
 
                                 // ...save the new filename in the database...
-                                $props = array('original_filename' => $new_filename);
+                                $props = ['original_filename' => $new_filename];
                                 if ($typeclass === 'File')
                                     $this->entity_modify_service->updateFileMeta($user, $entity, $props, true);
                                 else
@@ -1419,11 +1369,11 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
                                 }
                             }
                             else {
-                                $this->logger->debug('-- (ERROR) unable to save new filename "'.$new_filename.'" for '.$typeclass.' '.$entity_id.' because it exceeds 255 characters', array(self::class, 'onMassEditTrigger()'));
+                                $this->logger->debug('-- (ERROR) unable to save new filename "'.$new_filename.'" for '.$typeclass.' '.$entity_id.' because it exceeds 255 characters', [self::class, 'onMassEditTrigger()']);
                             }
                         }
                         else {
-                            $this->logger->debug('...no need to rename '.$typeclass.' '.$entity_id.' in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), array(self::class, 'onMassEditTrigger()'));
+                            $this->logger->debug('...no need to rename '.$typeclass.' '.$entity_id.' in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), [self::class, 'onMassEditTrigger()']);
                         }
                     }
 
@@ -1433,7 +1383,7 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
                 else {
                     // ...if getNewFilenames() returns null, then there's some unrecoverable problem
                     //  that prevents the file from being renamed
-                    $this->logger->debug('-- (ERROR) unable to rename the '.$typeclass.'s...', array(self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()));
+                    $this->logger->debug('-- (ERROR) unable to rename the '.$typeclass.'s...', [self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()]);
 
                     // Regardless of the reason why there's a problem, this plugin can't fix it
                     // As such, nothing should be done
@@ -1443,7 +1393,7 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
         }
         catch (\Exception $e) {
             // Can't really display the error to the user yet, but can log it...
-            $this->logger->debug('-- (ERROR) '.$e->getMessage(), array(self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()));
+            $this->logger->debug('-- (ERROR) '.$e->getMessage(), [self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()]);
 
             // DO NOT want to rethrow the error here...if this subscriber "exits with error", then
             //  any additional subscribers won't run either
@@ -1451,7 +1401,7 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
         finally {
             // Would prefer if these happened regardless of success/failure...
             if ( $is_event_relevant )
-                $this->logger->debug('finished rename attempt for the '.$typeclass.'s in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), array(self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()));
+                $this->logger->debug('finished rename attempt for the '.$typeclass.'s in datafield '.$datafield->getId().' datarecord '.$datarecord->getId(), [self::class, 'onMassEditTrigger()', 'drf '.$drf->getId()]);
 
             // Don't need to clear caches here, since the mass update process will always do it
         }
@@ -1472,7 +1422,7 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
      */
     public function getRenderPluginOptionsOverride($user, $is_datatype_admin, $render_plugin, $datatype, $datafield = null, $render_plugin_instance = null)
     {
-        $custom_rpo_html = array();
+        $custom_rpo_html = [];
         foreach ($render_plugin->getRenderPluginOptionsDef() as $rpo) {
             // This plugin currently has several options, but only "field_list" needs to use a
             //  custom render for the dialog...
@@ -1504,7 +1454,7 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
                 // ...which allows a template to be rendered
                 $custom_rpo_html[$rpo->getId()] = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:Base:FileRenamer/plugin_settings_dialog_field_list_override.html.twig',
-                    array(
+                    [
                         'rpo_id' => $rpo->getId(),
 
                         'available_prefixes' => $available_prefixes,
@@ -1517,7 +1467,7 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
                         'allowed_datatypes' => $allowed_datatypes,
 
                         'uuid_mapping' => $uuid_mapping,
-                    )
+                    ]
                 );
             }
         }
@@ -1539,7 +1489,7 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
      */
     private function getUUIDMapping($available_fields, $field_list, $alt_field_list)
     {
-        $fields_in_use = array();
+        $fields_in_use = [];
         if ( is_array($field_list) ) {
             foreach ($field_list as $display_order => $value)
                 $fields_in_use[$value] = 1;
@@ -1551,7 +1501,7 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
             }
         }
 
-        $uuid_mapping = array();
+        $uuid_mapping = [];
         foreach ($available_fields as $dt_id => $dt_data) {
             foreach ($dt_data['fields'] as $df_id => $df_data) {
                 $df_uuid = $df_data['uuid'];
@@ -1579,12 +1529,12 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
         // Since this is a datafield plugin, there will only be the one datafield...want it to
         //  always display this option
         foreach ($render_plugin_instance['renderPluginMap'] as $rpf_name => $rpf) {
-            return array(
+            return [
                 $rpf['id']
-            );
+            ];
         }
 
-        return array();
+        return [];
     }
 
 
@@ -1604,7 +1554,7 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
     {
         // This datafield plugin does not care whether the user entered a value or not...the plugin's
         //  activation is independent of the user changing public status of the file/image field
-        $trigger_fields = array();
+        $trigger_fields = [];
         foreach ($render_plugin_instance['renderPluginMap'] as $rpf_name => $rpf) {
             // Since this is a datafield plugin, it only has one entry in renderPluginMap
             $trigger_fields[ $rpf['id'] ] = true;

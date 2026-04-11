@@ -48,13 +48,14 @@ class ODRExceptionController extends ExceptionController
         $this->token_storage = $token_storage;
         parent::__construct($twig, $debug);
 
-        $this->accepted_formats = array('html', 'json', 'txt', 'xml');
+        $this->accepted_formats = ['html', 'json', 'txt', 'xml'];
     }
 
 
     /**
      * @inheritdoc
      */
+    #[\Override]
     public function showAction(Request $request, FlattenException $exception, DebugLoggerInterface $logger = null)
     {
         $currentContent = $this->getAndCleanOutputBuffering($request->headers->get('X-Php-Ob-Level', -1));
@@ -108,9 +109,9 @@ class ODRExceptionController extends ExceptionController
         $response = new Response(
             $this->twig->render(
                 $template,
-                array(
+                [
                     'status_code' => $status_code,
-                    'status_text' => isset(Response::$statusTexts[$status_code]) ? Response::$statusTexts[$status_code] : '',
+                    'status_text' => Response::$statusTexts[$status_code] ?? '',
                     'exception_source' => $exception_source,
 
                     'exception' => $exception,
@@ -119,7 +120,7 @@ class ODRExceptionController extends ExceptionController
 
                     'user' => $user,
                     'logged_in' => $logged_in,
-                )
+                ]
             )
         );
 

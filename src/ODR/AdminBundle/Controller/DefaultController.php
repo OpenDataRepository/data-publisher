@@ -58,26 +58,26 @@ class DefaultController extends ODRCustomController
                 // Render the base html for the page...$this->render() apparently creates and automatically returns a full Reponse object
                 $html = $this->renderView(
                     'ODRAdminBundle:Default:index.html.twig',
-                    array(
+                    [
                         'user' => $user,
                         'datatype_permissions' => $datatype_permissions,
                         'site_baseurl' => $site_baseurl,
                         'odr_wordpress_integrated' => $is_wordpress_integrated,
                         'wordpress_site_baseurl' => $wordpress_site_baseurl,
-                    )
+                    ]
                 );
             }
             else {
                 // Render the base html for the page...$this->render() apparently creates and automatically returns a full Reponse object
                 $html = $this->renderView(
                     'ODRAdminBundle:Default:default_full.html.twig',
-                    array(
+                    [
                         'user' => $user,
                         'datatype_permissions' => $datatype_permissions,
                         'site_baseurl' => $site_baseurl,
                         'odr_wordpress_integrated' => $is_wordpress_integrated,
                         'wordpress_site_baseurl' => $wordpress_site_baseurl,
-                    )
+                    ]
                 );
             }
 

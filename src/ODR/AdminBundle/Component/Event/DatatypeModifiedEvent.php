@@ -26,21 +26,6 @@ class DatatypeModifiedEvent extends Event implements ODREventInterface
     // Best practice is apparently to have the Event class define the event name
     const NAME = 'odr.event.datatype_modified_event';
 
-    /**
-     * @var DataType
-     */
-    private $datatype;
-
-    /**
-     * @var ODRUser
-     */
-    private $user;
-
-    /**
-     * @var bool
-     */
-    private $clear_datarecord_caches;
-
 
     /**
      * DatatypeModifiedEvent constructor.
@@ -49,14 +34,8 @@ class DatatypeModifiedEvent extends Event implements ODREventInterface
      * @param ODRUser $user
      * @param bool $clear_datarecord_caches
      */
-    public function __construct(
-        DataType $datatype,
-        ODRUser $user,
-        bool $clear_datarecord_caches = false
-    ) {
-        $this->datatype = $datatype;
-        $this->user = $user;
-        $this->clear_datarecord_caches = $clear_datarecord_caches;
+    public function __construct(private readonly DataType $datatype, private readonly ODRUser $user, private readonly bool $clear_datarecord_caches = false)
+    {
     }
 
 
@@ -106,17 +85,17 @@ class DatatypeModifiedEvent extends Event implements ODREventInterface
     public function getErrorInfo()
     {
         if ( $this->clear_datarecord_caches ) {
-            return array(
+            return [
                 self::NAME,
                 'dt '.$this->datatype->getId(),
                 'clear_datarecord_entries',
-            );
+            ];
         }
         else {
-            return array(
+            return [
                 self::NAME,
                 'dt '.$this->datatype->getId(),
-            );
+            ];
         }
     }
 }

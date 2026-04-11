@@ -196,7 +196,7 @@ class GraphController extends ODRCustomController
                 // If this isn't a rollup graph, then the first argument for the plugin service should
                 //  only be a single cached datarecord entry.  The array needs to be wrapped with
                 //  its own id
-                $plugin_dr_array = array($request_datarecord_id => $datarecord_info_service->stackDatarecordArray($datarecord_array, $request_datarecord_id));
+                $plugin_dr_array = [$request_datarecord_id => $datarecord_info_service->stackDatarecordArray($datarecord_array, $request_datarecord_id)];
 
                 // The argument for the parent datarecord array does not need to be wrapped with its
                 //  own id
@@ -216,13 +216,13 @@ class GraphController extends ODRCustomController
                     if ( $plugin_classname !== 'odr_plugins.base.filter_graph' ) {
                         // ...if this is a regular graph plugin, and the requested datarecord is
                         // top-level...then there's only one record anyways
-                        $plugin_dr_array = array($request_datarecord_id => $plugin_parent_dr_array);
+                        $plugin_dr_array = [$request_datarecord_id => $plugin_parent_dr_array];
                     }
                     else {
                         // ...if this is the FilterGraph plugin, then the plugin needs datarecords
                         //  belonging to $request_datatype_id
                         if ( $plugin_parent_dr_array['dataType']['id'] === $request_datatype_id )
-                            $plugin_dr_array = array($plugin_parent_dr_array['id'] => $plugin_parent_dr_array);
+                            $plugin_dr_array = [$plugin_parent_dr_array['id'] => $plugin_parent_dr_array];
                         else if ( isset($plugin_parent_dr_array['children'][$request_datatype_id]) )
                             $plugin_dr_array = $plugin_parent_dr_array['children'][$request_datatype_id];
                         else
@@ -245,7 +245,7 @@ class GraphController extends ODRCustomController
 
             // ----------------------------------------
             // Need some additional data so twig doesn't complain when rendering graph_builder.html.twig
-            $rendering_options = array(
+            $rendering_options = [
                 'build_graph' => true,
 
                 // The value of the rest of these options shouldn't really matter since this call is
@@ -256,7 +256,7 @@ class GraphController extends ODRCustomController
                 'multiple_allowed' => 0,
 
                 'is_datatype_admin' => $is_datatype_admin,
-            );
+            ];
 
             if ($is_rollup)
                 $rendering_options['datarecord_id'] = 'rollup';
@@ -294,7 +294,7 @@ class GraphController extends ODRCustomController
 
             // TODO - can't really return a redirect because one request could create multiple graphs...
             // TODO - ...but just returning this doesn't seem right
-            $response = new Response(json_encode( array() ), 202);
+            $response = new Response(json_encode( [] ), 202);
             return $response;
         }
         catch (\Exception $e) {
@@ -311,10 +311,10 @@ class GraphController extends ODRCustomController
                 $response = self::svgWarning($message);
             }
 
-            $headers = array(
+            $headers = [
                 'Content-Type' => 'image/svg+xml',
 //                'Content-Disposition' => 'inline;filename=error_message.svg'    // uncommenting this breaks IE and chrome
-            );
+            ];
             return new Response($response, '200', $headers);
         }
     }
@@ -332,10 +332,10 @@ class GraphController extends ODRCustomController
 
         return $templating->render(
             'ODROpenRepositoryGraphBundle:Base:Graph/graph_error.html.twig',
-            array(
+            [
                 'message' => $message,
                 'detail' => $detail
-            )
+            ]
         );
     }
 
@@ -351,7 +351,7 @@ class GraphController extends ODRCustomController
      */
     public function deleteindividualgraphAction($datatype_id, $graph_filename, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -429,7 +429,7 @@ class GraphController extends ODRCustomController
      */
     public function savexaxisdirAction($direction, $render_plugin_instance_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';

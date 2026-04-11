@@ -26,6 +26,7 @@ class ODRIntegerType extends IntegerType
     /**
      * {@inheritdoc}
      */
+    #[\Override]
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
         $builder->addViewTransformer(
@@ -41,6 +42,7 @@ class ODRIntegerType extends IntegerType
     /**
      * {@inheritdoc}
      */
+    #[\Override]
     public function configureOptions(OptionsResolver $resolver)
     {
         parent::configureOptions($resolver);
@@ -59,6 +61,7 @@ class ODRIntegerType extends IntegerType
     /**
      * {@inheritdoc}
      */
+    #[\Override]
     public function getBlockPrefix()
     {
         return 'odr_integer';

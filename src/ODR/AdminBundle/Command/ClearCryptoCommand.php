@@ -51,7 +51,7 @@ class ClearCryptoCommand extends ContainerAwareCommand
             else
                 $job = $pheanstalk->watch('crypto_requests')->ignore('default')->reserve();
 
-            $data = json_decode($job->getData());
+            $data = json_decode((string) $job->getData());
 
             if ( $data->crypto_type !== 'encrypt' ) {
                 if ($input->getOption('old'))

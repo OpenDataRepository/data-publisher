@@ -60,7 +60,7 @@ class TextResultsController extends ODRCustomController
      */
     public function datatablesrowrequestAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['data'] = '';
 
         $cookie_key = '';
@@ -93,12 +93,12 @@ class TextResultsController extends ODRCustomController
 
             // ----------------------------------------
             // Need to also deal with requests for a sorted table...
-            $sort_cols = array();
-            $sort_dirs = array();
+            $sort_cols = [];
+            $sort_dirs = [];
             if ( isset($post['order']) ) {
                 foreach ($post['order'] as $num => $data) {
                     $sort_cols[$num] = intval($data['column']);
-                    $sort_dirs[$num] = strtolower($data['dir']);
+                    $sort_dirs[$num] = strtolower((string) $data['dir']);
                 }
             }
 
@@ -161,15 +161,15 @@ class TextResultsController extends ODRCustomController
             // ----------------------------------------
             // Search result pages display all datarecords that the user can see which match matched
             //  a search they did...
-            $original_datarecord_list = array();
+            $original_datarecord_list = [];
 
             // While it's only rarely used, ODR does provide the ability for users to filter search
             //  results down from "all records the user can view"...
-            $viewable_datarecord_list = array();
+            $viewable_datarecord_list = [];
 
             // ...to "only records the user can edit".  This only happens when the user has a
             //  "datarecord restriction" in place...
-            $editable_datarecord_list = array();
+            $editable_datarecord_list = [];
 
             // ...so determine whether the user has such a restriction
             $restricted_datarecord_list = $permissions_service->getDatarecordRestrictionList($user, $datatype);
@@ -191,7 +191,7 @@ class TextResultsController extends ODRCustomController
 
 
             // The list of datarecords to actually display on the page is based off these preferences
-            $datarecord_list = array();
+            $datarecord_list = [];
 
 
             // ----------------------------------------
@@ -225,8 +225,8 @@ class TextResultsController extends ODRCustomController
             // ----------------------------------------
             // If the datarecord lists don't exist in the user's session, then they need to get created
             // If the sorting criteria changed, then the datarecord lists need to get rebuilt
-            $sort_datafields = array();
-            $sort_directions = array();
+            $sort_datafields = [];
+            $sort_directions = [];
 
             if ( empty($sort_cols) || ( count($sort_cols) === 1 && $sort_cols[0] < 2 ) ) {
                 // datatables.js isn't using a sort column, or is using the default sort column
@@ -345,8 +345,8 @@ class TextResultsController extends ODRCustomController
 
             // ----------------------------------------
             // Get the rows that will fulfill the datatables request
-            $data = array();
-            $public_datarecord_list = array();
+            $data = [];
+            $public_datarecord_list = [];
             if ( $datarecord_count > 0 ) {
                 $data = $table_theme_helper_service->getRowData($user, $datarecord_list, $datatype->getId(), $theme->getId());
 
@@ -369,7 +369,7 @@ class TextResultsController extends ODRCustomController
             }
 
             // Build the json array to return to the datatables request
-            $json = array(
+            $json = [
                 'draw' => $draw,
                 'recordsTotal' => $datarecord_count,
                 'recordsFiltered' => $datarecord_count,
@@ -377,7 +377,7 @@ class TextResultsController extends ODRCustomController
                 'editable_datarecord_list' => $editable_datarecord_list,
                 'public_datarecord_list' => $public_datarecord_list,
                 'scroll_target' => $scroll_target,
-            );
+            ];
             $return = $json;
         }
         catch (\Exception $e) {
@@ -426,7 +426,7 @@ class TextResultsController extends ODRCustomController
             // Get any existing data for this tab
             $tab_data = $odr_tab_service->getTabData($odr_tab_id);
             if ( is_null($tab_data) )
-                $tab_data = array();
+                $tab_data = [];
 
             // Update the state variable in this tab's data
             $tab_data['state'] = $post;
@@ -442,19 +442,19 @@ class TextResultsController extends ODRCustomController
                 $theme_id = intval( $post['theme_id'] );
 
                 // Need to also deal with requests for a sorted table...
-                $sort_cols = array();
-                $sort_dirs = array();
+                $sort_cols = [];
+                $sort_dirs = [];
                 if ( isset($post['order']) ) {
                     foreach ($post['order'] as $num => $data) {
                         $sort_cols[$num] = intval($data[0]);
-                        $sort_dirs[$num] = strtolower($data[1]);
+                        $sort_dirs[$num] = strtolower((string) $data[1]);
                     }
                 }
 
                 // If the datarecord lists don't exist in the user's session, then they need to get created
                 // If the sorting criteria changed, then the datarecord lists need to get rebuilt
-                $sort_datafields = array();
-                $sort_directions = array();
+                $sort_datafields = [];
+                $sort_directions = [];
 
                 if ( empty($sort_cols) || ( count($sort_cols) === 1 && $sort_cols[0] < 2 ) ) {
                     // datatables.js isn't using a sort column, or is using the default sort column
@@ -540,7 +540,7 @@ class TextResultsController extends ODRCustomController
             if ( !is_null($tab_data) ) {
                 // Since the tab data exists, extract and return the 'state' and 'sort_criteria' arrays
                 //  to datatables.js if possible...
-                $state = $sort_criteria = array();
+                $state = $sort_criteria = [];
                 if ( isset($tab_data['state']) )
                     $state = $tab_data['state'];
                 if ( isset($tab_data['sort_criteria']) )
@@ -554,15 +554,15 @@ class TextResultsController extends ODRCustomController
                     // The main issue is that the table layout may not have the columns that
                     //  $sort_criteria wants...any sort info referring to datafields not in the table
                     //  layout should be dropped
-                    $new_order = $new_df_ids = $new_df_dirs = array();
+                    $new_order = $new_df_ids = $new_df_dirs = [];
                     foreach ($sort_criteria['datafield_ids'] as $num => $df_id) {
                         $column_num = $table_theme_helper_service->getColumnForDatafield($user, $tab_data['dt_id'], $tab_data['theme_id'], $df_id);
                         if ( !is_null($column_num) ) {
                             // Only save the field info if it exists in the table theme
-                            $new_order[] = array(
+                            $new_order[] = [
                                 0 => $column_num+2,  // Need to adjust for the two hidden columns
                                 1 => $sort_criteria['sort_directions'][$num],
-                            );
+                            ];
                             // ...and ensure the sort criteria matches what the table theme is using
                             $new_df_ids[] = $df_id;
                             $new_df_dirs[] = $sort_criteria['sort_directions'][$num];
@@ -570,10 +570,10 @@ class TextResultsController extends ODRCustomController
                     }
                     // Update both arrays with the correct sorting data
                     $state['order'] = $new_order;
-                    $sort_criteria = array(
+                    $sort_criteria = [
                         'datafield_ids' => $new_df_ids,
                         'sort_directions' => $new_df_dirs,
-                    );
+                    ];
 
                     // If the sorting criteria has changed for the lists of datarecord ids...
                     if ( $odr_tab_service->hasSortCriteriaChanged($odr_tab_id, $sort_criteria['datafield_ids'], $sort_criteria['sort_directions']) ) {
@@ -584,7 +584,7 @@ class TextResultsController extends ODRCustomController
                 }
 
                 // Return the fixed array
-                $return = array('state' => $state, 'sort_criteria' => $sort_criteria);
+                $return = ['state' => $state, 'sort_criteria' => $sort_criteria];
             }
         }
         catch (\Exception $e) {
@@ -658,7 +658,7 @@ class TextResultsController extends ODRCustomController
      */
     public function loadlinkeddatarecordstableAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -716,10 +716,10 @@ class TextResultsController extends ODRCustomController
 
             // Ensure a link exists from ancestor to descendant datatype
             $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
-                array(
+                [
                     'ancestor' => $ancestor_datatype->getId(),
                     'descendant' => $descendant_datatype->getId()
-                )
+                ]
             );
             if ($datatree == null)
                 throw new ODRNotFoundException('DataTree');
@@ -776,7 +776,7 @@ class TextResultsController extends ODRCustomController
             $allow_multiple_links = $datatree_info_service->allowsMultipleLinkedDatarecords($ancestor_datatype->getid(), $descendant_datatype->getId());
 
             // Grab all datarecords currently linked to the local_datarecord
-            $linked_datarecords = array();
+            $linked_datarecords = [];
             if ($local_datarecord_is_ancestor) {
                 // local_datarecord is on the ancestor side of the link
                 $query = $em->createQuery(
@@ -788,16 +788,16 @@ class TextResultsController extends ODRCustomController
                     AND descendant.provisioned = false
                     AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL'
                 )->setParameters(
-                    array(
+                    [
                         'local_datarecord' => $local_datarecord->getId(),
                         'remote_datatype' => $remote_datatype->getId()
-                    )
+                    ]
                 );
                 $results = $query->getArrayResult();
 
                 foreach ($results as $num => $data) {
                     $descendant_id = $data['descendant_id'];
-                    if ( $descendant_id == null || trim($descendant_id) == '' )
+                    if ( $descendant_id == null || trim((string) $descendant_id) == '' )
                         continue;
 
                     $linked_datarecords[ $descendant_id ] = 1;
@@ -814,16 +814,16 @@ class TextResultsController extends ODRCustomController
                     AND ancestor.provisioned = false
                     AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
                 )->setParameters(
-                    array(
+                    [
                         'local_datarecord' => $local_datarecord->getId(),
                         'remote_datatype' => $remote_datatype->getId()
-                    )
+                    ]
                 );
                 $results = $query->getArrayResult();
 
                 foreach ($results as $num => $data) {
                     $ancestor_id = $data['ancestor_id'];
-                    if ( $ancestor_id == null || trim($ancestor_id) == '' )
+                    if ( $ancestor_id == null || trim((string) $ancestor_id) == '' )
                         continue;
 
                     $linked_datarecords[ $ancestor_id ] = 1;
@@ -833,7 +833,7 @@ class TextResultsController extends ODRCustomController
 
             // ----------------------------------------
             // Convert the list of linked datarecords into a slightly different format so the datatables plugin can use it
-            $datarecord_list = array();
+            $datarecord_list = [];
             foreach ($linked_datarecords as $dr_id => $value)
                 $datarecord_list[] = $dr_id;
 
@@ -852,7 +852,7 @@ class TextResultsController extends ODRCustomController
             $column_str = '{"title":"Link to this record","visible":true,"searchable":false},'.$column_data['column_names'];
 
             $tmp = json_decode('['.substr($column_str, 0, -1).']', true);
-            $column_names = array();
+            $column_names = [];
             foreach ($tmp as $num => $col)
                 $column_names[] = $col['title'];
 
@@ -866,10 +866,10 @@ class TextResultsController extends ODRCustomController
                 $page_length = intval( $cookies->get($cookie_key) );
 
             // Return the data for this request
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Link:link_datarecord_form_table.html.twig',
-                    array(
+                    [
                         'data' => $data,
                         'column_str' => $column_str,
                         'column_names' => $column_names,
@@ -882,9 +882,9 @@ class TextResultsController extends ODRCustomController
 
                         'local_datatype' => $local_datatype,
                         'remote_datatype' => $remote_datatype,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x549b133f;

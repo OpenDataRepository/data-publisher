@@ -91,63 +91,17 @@ class EntityCreationService
 {
 
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var CacheService
-     */
-    private $cache_service;
-
-    /**
-     * @var LockService
-     */
-    private $lock_service;
-
-    /**
-     * @var UUIDService
-     */
-    private $uuid_service;
-
-    /**
-     * @var EventDispatcherInterface
-     */
-    private $event_dispatcher;
-
-    // NOTE - $event_dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * EntityCreationService constructor.
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param CacheService $cache_service
      * @param LockService $lock_service
      * @param UUIDService $uuid_service
      * @param EventDispatcherInterface $event_dispatcher
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        CacheService $cache_service,
-        LockService $lock_service,
-        UUIDService $uuid_service,
-        EventDispatcherInterface $event_dispatcher,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->cache_service = $cache_service;
-        $this->lock_service = $lock_service;
-        $this->uuid_service = $uuid_service;
-        $this->event_dispatcher = $event_dispatcher;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly LockService $lock_service, private readonly UUIDService $uuid_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly Logger $logger)
+    {
     }
 
 
@@ -357,19 +311,19 @@ class EntityCreationService
                 AND rom.deletedAt IS NULL AND ro.deletedAt IS NULL
                 AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL
                 AND dt.deletedAt IS NULL AND gdt.deletedAt IS NULL'
-            )->setParameters( array('typeclass' => 'Radio') );
+            )->setParameters( ['typeclass' => 'Radio'] );
             $results = $query->getArrayResult();
 
-            $default_radio_options = array();
+            $default_radio_options = [];
             foreach ($results as $result) {
                 $ro_id = $result['ro_id'];
                 $df_id = $result['df_id'];
                 $dt_id = $result['dt_id'];
 
                 if ( !isset($default_radio_options[$dt_id]) )
-                    $default_radio_options[$dt_id] = array();
+                    $default_radio_options[$dt_id] = [];
                 if ( !isset($default_radio_options[$dt_id][$df_id]) )
-                    $default_radio_options[$dt_id][$df_id] = array();
+                    $default_radio_options[$dt_id][$df_id] = [];
                 $default_radio_options[$dt_id][$df_id][] = $ro_id;
             }
 
@@ -384,8 +338,8 @@ class EntityCreationService
             return;
 
         // Otherwise, going to need to hydrate all affected datafields and all radio options
-        $datafields_to_hydrate = array();
-        $radio_options_to_hydrate = array();
+        $datafields_to_hydrate = [];
+        $radio_options_to_hydrate = [];
         foreach ($default_radio_options[$dt_id] as $df_id => $radio_options) {
             $datafields_to_hydrate[] = $df_id;
             foreach ($radio_options as $num => $ro_id)
@@ -396,10 +350,10 @@ class EntityCreationService
            'SELECT df
             FROM ODRAdminBundle:DataFields df
             WHERE df.id IN (:datafield_ids)'
-        )->setParameters( array('datafield_ids' => $datafields_to_hydrate) );
+        )->setParameters( ['datafield_ids' => $datafields_to_hydrate] );
         $results = $query->getResult();
 
-        $datafields = array();
+        $datafields = [];
         foreach ($results as $df) {
             /** @var DataFields $df */
             $datafields[ $df->getId() ] = $df;
@@ -409,15 +363,15 @@ class EntityCreationService
            'SELECT ro
             FROM ODRAdminBundle:RadioOptions ro
             WHERE ro.id IN (:radio_option_ids)'
-        )->setParameters( array('radio_option_ids' => $radio_options_to_hydrate) );
+        )->setParameters( ['radio_option_ids' => $radio_options_to_hydrate] );
         $results = $query->getResult();
 
-        $radio_options = array();
+        $radio_options = [];
         foreach ($results as $ro) {
             /** @var RadioOptions $ro */
             $df_id = $ro->getDataField()->getId();
             if ( !isset($radio_options[$df_id]) )
-                $radio_options[$df_id] = array();
+                $radio_options[$df_id] = [];
 
             $radio_options[$df_id][ $ro->getId() ] = $ro;
         }
@@ -483,10 +437,10 @@ class EntityCreationService
     {
         /** @var DataRecordFields $drf */
         $drf = $this->em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
-            array(
+            [
                 'dataRecord' => $datarecord->getId(),
                 'dataField' => $datafield->getId(),
-            )
+            ]
         );
         if ($drf == null) {
             // Need to create a new datarecordfield entry...
@@ -501,10 +455,10 @@ class EntityCreationService
                 // ...then reload and return the drf that the other process created
                 /** @var DataRecordFields $drf */
                 $drf = $this->em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
-                    array(
+                    [
                         'dataRecord' => $datarecord->getId(),
                         'dataField' => $datafield->getId(),
-                    )
+                    ]
                 );
                 return $drf;
             }
@@ -550,10 +504,10 @@ class EntityCreationService
         // Check to see if the two datarecords are already linked
         /** @var LinkedDataTree $linked_datatree */
         $linked_datatree = $this->em->getRepository('ODRAdminBundle:LinkedDataTree')->findOneBy(
-            array(
+            [
                 'ancestor' => $ancestor_datarecord,
                 'descendant' => $descendant_datarecord,
-            )
+            ]
         );
 
         if ($linked_datatree == null) {
@@ -567,10 +521,10 @@ class EntityCreationService
                 // ...then reload and return the linked_datatree entry that got created
                 /** @var LinkedDataTree $linked_datatree */
                 $linked_datatree = $this->em->getRepository('ODRAdminBundle:LinkedDataTree')->findOneBy(
-                    array(
+                    [
                         'ancestor' => $ancestor_datarecord,
                         'descendant' => $descendant_datarecord,
-                    )
+                    ]
                 );
                 return $linked_datatree;
             }
@@ -860,10 +814,10 @@ class EntityCreationService
             FROM ODRAdminBundle:DataType AS dt
             WHERE dt.grandparent = :datatype_id
             AND dt.deletedAt IS NULL'    // TODO - if datatypes are eventually going to be undeleteable, then this needs to also return deleted child datatypes
-        )->setParameters( array('datatype_id' => $datatype->getId()) );
+        )->setParameters( ['datatype_id' => $datatype->getId()] );
         $results = $query->getResult();
 
-        $dt_ids = array();
+        $dt_ids = [];
         foreach ($results as $dt) {
             /** @var DataType $dt */
             $dt_ids[] = $dt->getId();
@@ -932,7 +886,7 @@ class EntityCreationService
             FROM ODRAdminBundle:DataFields AS df
             JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
             WHERE dt.id IN (:datatype_ids)'
-        )->setParameters( array('datatype_ids' => $dt_ids) );
+        )->setParameters( ['datatype_ids' => $dt_ids] );
         $results = $query->getResult();
         $this->em->getFilters()->enable('softdeleteable');
 
@@ -1022,19 +976,19 @@ class EntityCreationService
         /** @var Group[] $groups */
         if ($is_top_level) {
             // Create any default groups the top-level datatype is currently missing...
-            $admin_group = $repo_group->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'admin') );
+            $admin_group = $repo_group->findOneBy( ['dataType' => $datatype->getId(), 'purpose' => 'admin'] );
             if ($admin_group == null)
                 self::createGroup($datatype->getCreatedBy(), $datatype, 'admin', true, $created);    // don't flush immediately...
 
-            $edit_group = $repo_group->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'edit_all') );
+            $edit_group = $repo_group->findOneBy( ['dataType' => $datatype->getId(), 'purpose' => 'edit_all'] );
             if ($edit_group == null)
                 self::createGroup($datatype->getCreatedBy(), $datatype, 'edit_all', true, $created);    // don't flush immediately...
 
-            $view_all_group = $repo_group->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'view_all') );
+            $view_all_group = $repo_group->findOneBy( ['dataType' => $datatype->getId(), 'purpose' => 'view_all'] );
             if ($view_all_group == null)
                 self::createGroup($datatype->getCreatedBy(), $datatype, 'view_all', true, $created);    // don't flush immediately...
 
-            $view_only_group = $repo_group->findOneBy( array('dataType' => $datatype->getId(), 'purpose' => 'view_only') );
+            $view_only_group = $repo_group->findOneBy( ['dataType' => $datatype->getId(), 'purpose' => 'view_only'] );
             if ($view_only_group == null)
                 self::createGroup($datatype->getCreatedBy(), $datatype, 'view_only', true, $created);    // don't flush immediately
 
@@ -1046,7 +1000,7 @@ class EntityCreationService
         }
         else {
             // Load all groups belonging to the grandparent datatype
-            $groups = $repo_group->findBy( array('dataType' => $grandparent_datatype_id) );
+            $groups = $repo_group->findBy( ['dataType' => $grandparent_datatype_id] );
             if ($groups == false)
                 throw new ODRException('createGroupsForDatatype(): grandparent datatype '.$grandparent_datatype_id.' has no groups for child datatype '.$datatype->getId().' to copy from.');
 
@@ -1135,10 +1089,10 @@ class EntityCreationService
             LEFT JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
             WHERE g.dataType = :grandparent_datatype_id
             AND g.deletedAt IS NULL'
-        )->setParameters( array('grandparent_datatype_id' => $grandparent_datatype_id) );
+        )->setParameters( ['grandparent_datatype_id' => $grandparent_datatype_id] );
         $results = $query->getArrayResult();
 
-        $user_list = array();
+        $user_list = [];
         foreach ($results as $result) {
             // Groups may not have any members, so null user ids are a possibility
             if ( !is_null($result['user_id']) )
@@ -1151,7 +1105,7 @@ class EntityCreationService
            'SELECT u.id AS user_id
             FROM ODROpenRepositoryUserBundle:User AS u
             WHERE u.roles LIKE :role'
-        )->setParameters( array('role' => '%ROLE_SUPER_ADMIN%') );
+        )->setParameters( ['role' => '%ROLE_SUPER_ADMIN%'] );
         $results = $query->getArrayResult();
 
         foreach ($results as $result)
@@ -1186,7 +1140,7 @@ class EntityCreationService
 
         // Locate all groups for this datatype's grandparent
         /** @var Group[] $groups */
-        $groups = $this->em->getRepository('ODRAdminBundle:Group')->findBy( array('dataType' => $grandparent_datatype_id) );
+        $groups = $this->em->getRepository('ODRAdminBundle:Group')->findBy( ['dataType' => $grandparent_datatype_id] );
         // Unless something has gone wrong previously, there should always be results in this
         if ($groups == false)
             throw new ODRException('createGroupsForDatatype(): grandparent datatype '.$grandparent_datatype_id.' has no groups for datafield '.$datafield->getId().' to copy from.');
@@ -1195,7 +1149,7 @@ class EntityCreationService
         // ----------------------------------------
         // Need to determine which users are already members of the groups for this datatype, since
         //  they're going to need their cached permission arrays cleared
-        $group_list = array();
+        $group_list = [];
         foreach ($groups as $group)
             $group_list[] = $group->getId();
 
@@ -1205,10 +1159,10 @@ class EntityCreationService
             JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
             WHERE ug.group IN (:groups)
             AND ug.deletedAt IS NULL'
-        )->setParameters( array('groups' => $group_list) );
+        )->setParameters( ['groups' => $group_list] );
         $results = $query->getArrayResult();
 
-        $user_list = array();
+        $user_list = [];
         foreach ($results as $result)
             $user_list[ $result['user_id'] ] = 1;
 
@@ -1218,7 +1172,7 @@ class EntityCreationService
            'SELECT u.id AS user_id
             FROM ODROpenRepositoryUserBundle:User AS u
             WHERE u.roles LIKE :role'
-        )->setParameters( array('role' => '%ROLE_SUPER_ADMIN%') );
+        )->setParameters( ['role' => '%ROLE_SUPER_ADMIN%'] );
         $results = $query->getArrayResult();
 
         foreach ($results as $result)
@@ -1533,13 +1487,13 @@ class EntityCreationService
             throw new ODRNotFoundException('Uploaded Image');
 
         // Load existing resizes of the original image if required
-        $existing_resizes = array();
+        $existing_resizes = [];
         if ($overwrite_existing) {
             /** @var Image[] $images */
             $images = $this->em->getRepository('ODRAdminBundle:Image')->findBy(
-                array(
+                [
                     'parent' => $original_image->getId()
-                )
+                ]
             );
             foreach ($images as $i)
                 $existing_resizes[ $i->getImageSize()->getId() ] = $i;
@@ -1664,7 +1618,7 @@ class EntityCreationService
         $final_width                  = 0;
         $final_height                 = 0;
 
-        list($width_old, $height_old) = $info;
+        [$width_old, $height_old] = $info;
 
         # Calculating proportionality
         if ($proportional) {
@@ -1742,7 +1696,7 @@ class EntityCreationService
             default: return false;
         }
 
-        $stats = array($final_height, $final_width);
+        $stats = [$final_height, $final_width];
         return $stats;
     }
 
@@ -1861,10 +1815,10 @@ class EntityCreationService
             // Otherwise, see if a radio option with this name for this datafield already exists
             /** @var RadioOptions $radio_option */
             $radio_option = $this->em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
-                array(
+                [
                     'optionName' => $option_name,
                     'dataField' => $datafield->getId()
-                )
+                ]
             );
 
             // If it does, then return that one...
@@ -1880,10 +1834,10 @@ class EntityCreationService
                 // ...then reload and return what the other process created
                 /** @var RadioOptions $radio_option */
                 $radio_option = $this->em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
-                    array(
+                    [
                         'optionName' => $option_name,
                         'dataField' => $datafield->getId()
-                    )
+                    ]
                 );
                 return $radio_option;
             }
@@ -1975,10 +1929,10 @@ class EntityCreationService
     {
         /** @var RadioSelection $radio_selection */
         $radio_selection = $this->em->getRepository('ODRAdminBundle:RadioSelection')->findOneBy(
-            array(
+            [
                 'dataRecordFields' => $drf->getId(),
                 'radioOption' => $radio_option->getId()
-            )
+            ]
         );
         if ($radio_selection == null) {
             // Need to create a new radio selection entry...
@@ -1993,10 +1947,10 @@ class EntityCreationService
                 // ...then reload and return the radio selection that the other process created
                 /** @var RadioSelection $radio_selection */
                 $radio_selection = $this->em->getRepository('ODRAdminBundle:RadioSelection')->findOneBy(
-                    array(
+                    [
                         'dataRecordFields' => $drf->getId(),
                         'radioOption' => $radio_option->getId()
-                    )
+                    ]
                 );
                 return $radio_selection;
             }
@@ -2357,10 +2311,10 @@ class EntityCreationService
         // Return the storage entity if it already exists
         /** @var ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $storage_entity */
         $storage_entity = $this->em->getRepository('ODRAdminBundle:'.$typeclass)->findOneBy(
-            array(
+            [
                 'dataRecord' => $datarecord->getId(),
                 'dataField' => $datafield->getId()
-            )
+            ]
         );
         if ( $storage_entity == null ) {
             // Bad Things (tm) happen if there's more than one storage entity for this
@@ -2373,10 +2327,10 @@ class EntityCreationService
                 // ...then reload and return the storage entity that got created
                 /** @var ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $storage_entity */
                 $storage_entity = $this->em->getRepository('ODRAdminBundle:'.$typeclass)->findOneBy(
-                    array(
+                    [
                         'dataRecord' => $datarecord->getId(),
                         'dataField' => $datafield->getId()
-                    )
+                    ]
                 );
                 return $storage_entity;
             }
@@ -2433,7 +2387,7 @@ class EntityCreationService
 
                         // TODO - callers of this function can't access $event, so they can't get a reference to any derived storage entity...
                     }
-                    catch (\Exception $e) {
+                    catch (\Exception) {
 //                        if ( $this->env === 'dev' )
 //                            throw $e;
                     }
@@ -2508,10 +2462,10 @@ class EntityCreationService
             // Otherwise, see if a tag with this name for this datafield already exists
             /** @var Tags $tag */
             $tag = $this->em->getRepository('ODRAdminBundle:Tags')->findOneBy(
-                array(
+                [
                     'tagName' => $tag_name,    // TODO - ...this isn't guaranteed to be the correct tag when a hierarchy is involved...
                     'dataField' => $datafield->getId()
-                )
+                ]
             );
 
             // If it does, then return that one...
@@ -2527,10 +2481,10 @@ class EntityCreationService
                 // ...then reload and return the tag the other process created
                 /** @var Tags $tag */
                 $tag = $this->em->getRepository('ODRAdminBundle:Tags')->findOneBy(
-                    array(
+                    [
                         'tagName' => $tag_name,
                         'dataField' => $datafield->getId()
-                    )
+                    ]
                 );
                 return $tag;
             }
@@ -2624,10 +2578,10 @@ class EntityCreationService
         // Check to see if the two tags are already linked
         /** @var TagTree $tag_tree */
         $tag_tree = $this->em->getRepository('ODRAdminBundle:TagTree')->findOneBy(
-            array(
+            [
                 'parent' => $parent_tag,
                 'child' => $child_tag,
-            )
+            ]
         );
 
         if ($tag_tree == null) {
@@ -2640,10 +2594,10 @@ class EntityCreationService
                 // ...then reload and return the tag tree entity that got created
                 /** @var TagTree $tag_tree */
                 $tag_tree = $this->em->getRepository('ODRAdminBundle:TagTree')->findOneBy(
-                    array(
+                    [
                         'parent' => $parent_tag,
                         'child' => $child_tag,
-                    )
+                    ]
                 );
                 return $tag_tree;
             }
@@ -2693,10 +2647,10 @@ class EntityCreationService
     {
         /** @var TagSelection $tag_selection */
         $tag_selection = $this->em->getRepository('ODRAdminBundle:TagSelection')->findOneBy(
-            array(
+            [
                 'dataRecordFields' => $drf->getId(),
                 'tag' => $tag->getId()
-            )
+            ]
         );
         if ($tag_selection == null) {
             // Need to create a new tag selection entry...
@@ -2993,7 +2947,7 @@ class EntityCreationService
             FROM ODRAdminBundle:UserGroup AS ug
             WHERE ug.user = :user_id AND ug.group = :group_id
             AND ug.deletedAt IS NULL'
-        )->setParameters( array('user_id' => $user->getId(), 'group_id' => $group->getId()) );
+        )->setParameters( ['user_id' => $user->getId(), 'group_id' => $group->getId()] );
 
         /** @var UserGroup[] $results */
         $results = $query->getResult();
@@ -3061,11 +3015,11 @@ class EntityCreationService
         // Return the storage entity if it already exists
         /** @var XYZData $storage_entity */
         $storage_entity = $this->em->getRepository('ODRAdminBundle:'.$typeclass)->findOneBy(
-            array(
+            [
                 'dataRecord' => $datarecord->getId(),
                 'dataField' => $datafield->getId(),
                 'x_value' => $x_value,
-            )
+            ]
         );
         if ( $storage_entity == null ) {
             // Bad Things (tm) happen if there's more than one storage entity for this
@@ -3078,11 +3032,11 @@ class EntityCreationService
                 // ...then reload and return the storage entity that got created
                 /** @var XYZData $storage_entity */
                 $storage_entity = $this->em->getRepository('ODRAdminBundle:'.$typeclass)->findOneBy(
-                    array(
+                    [
                         'dataRecord' => $datarecord->getId(),
                         'dataField' => $datafield->getId(),
                         'x_value' => $x_value,
-                    )
+                    ]
                 );
                 return $storage_entity;
             }
@@ -3208,10 +3162,10 @@ class EntityCreationService
             FROM ODRAdminBundle:XYZData e
             WHERE e.dataRecordFields = :drf_id
             AND e.deletedAt IS NULL'
-        )->setParameters( array('drf_id' => $drf->getId()) );
+        )->setParameters( ['drf_id' => $drf->getId()] );
         $results = $query->getArrayResult();
 
-        $current_values = array();
+        $current_values = [];
         foreach ($results as $result) {
             $x = $result['x_value'];
 

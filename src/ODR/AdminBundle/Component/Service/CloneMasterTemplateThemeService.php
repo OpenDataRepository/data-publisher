@@ -31,33 +31,19 @@ use Symfony\Bridge\Monolog\Logger;
 class CloneMasterTemplateThemeService
 {
     /**
-     * @var EntityManager $em
-     */
-    private $em;
-
-    /**
      * @var Theme[]
      */
-    private $source_themes = array();
-
-    /**
-     * @var Logger
-     */
-    private $logger;
+    private $source_themes = [];
 
 
     /**
      * CloneMasterTemplateThemeService constructor.
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly Logger $logger)
+    {
     }
 
 
@@ -118,12 +104,12 @@ class CloneMasterTemplateThemeService
             FROM ODRAdminBundle:Theme AS t
             WHERE t.dataType IN (:datatype_ids) AND t.parentTheme = t
             AND t.deletedAt IS NULL'
-        )->setParameters( array('datatype_ids' => $associated_datatypes) );
+        )->setParameters( ['datatype_ids' => $associated_datatypes] );
         $results = $query->getResult();
         /** @var Theme[] $results */
 
-        $new_parent_themes = array();
-        $this->source_themes = array();
+        $new_parent_themes = [];
+        $this->source_themes = [];
         foreach ($results as $t) {
             $new_theme = self::cloneSourceTheme(
                 $user,
@@ -143,7 +129,7 @@ class CloneMasterTemplateThemeService
         // At this point, the newly cloned themes do not have a sourceTheme set
 
         // Easier for self::correctThemeData() if $dt_mapping is inverted
-        $reverse_dt_mapping = array();
+        $reverse_dt_mapping = [];
         foreach ($dt_mapping as $old_dt_id => $new_dt)
             $reverse_dt_mapping[ $new_dt->getId() ] = $old_dt_id;
 
@@ -179,7 +165,7 @@ class CloneMasterTemplateThemeService
      *
      * @return Theme
      */
-    private function cloneSourceTheme($user, $source_theme, $new_parent_theme, $dest_theme_type, $dest_datatype = array(), $dest_datafields = array(), $dest_rpis = array(), $indent = 0, $is_new_master_theme = false)
+    private function cloneSourceTheme($user, $source_theme, $new_parent_theme, $dest_theme_type, $dest_datatype = [], $dest_datafields = [], $dest_rpis = [], $indent = 0, $is_new_master_theme = false)
     {
         // Debugging assistance on recursive functions...
         $indent_text = '';
@@ -282,7 +268,7 @@ class CloneMasterTemplateThemeService
         // For each theme element the source theme has...
         $theme_elements = $source_theme->getThemeElements();
         /** @var ThemeElement[] $theme_elements */
-        $theme_element_ids = array();
+        $theme_element_ids = [];
         foreach ($theme_elements as $te)
             $theme_element_ids[] = $te->getId();
 

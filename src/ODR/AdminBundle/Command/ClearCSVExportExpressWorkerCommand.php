@@ -56,7 +56,7 @@ class ClearCSVExportExpressWorkerCommand extends ContainerAwareCommand
             else
                 $job = $pheanstalk->watch('csv_export_worker_express')->ignore('default')->reserve();
 
-            $data = json_decode($job->getData());
+            $data = json_decode((string) $job->getData());
 
             // Dealt with the job
             $pheanstalk->delete($job);

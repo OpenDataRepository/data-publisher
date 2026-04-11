@@ -27,21 +27,6 @@ class DatarecordModifiedEvent extends Event implements ODREventInterface
     // Best practice is apparently to have the Event class define the event name
     const NAME = 'odr.event.datarecord_modified_event';
 
-    /**
-     * @var DataRecord
-     */
-    private $datarecord;
-
-    /**
-     * @var ODRUser
-     */
-    private $user;
-
-    /**
-     * @var bool
-     */
-    private $update_database;
-
 
     /**
      * DatarecordModifiedEvent constructor.
@@ -50,14 +35,8 @@ class DatarecordModifiedEvent extends Event implements ODREventInterface
      * @param ODRUser $user
      * @param bool $update_database
      */
-    public function __construct(
-        DataRecord $datarecord,
-        ODRUser $user,
-        bool $update_database = true
-    ) {
-        $this->datarecord = $datarecord;
-        $this->user = $user;
-        $this->update_database = $update_database;
+    public function __construct(private readonly DataRecord $datarecord, private readonly ODRUser $user, private readonly bool $update_database = true)
+    {
     }
 
 
@@ -106,10 +85,10 @@ class DatarecordModifiedEvent extends Event implements ODREventInterface
      */
     public function getErrorInfo()
     {
-        return array(
+        return [
             self::NAME,
             'dr '.$this->datarecord->getId(),
             self::getUpdateDatabase(),
-        );
+        ];
     }
 }

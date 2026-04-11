@@ -55,7 +55,7 @@ class ClearXMLImportFileDownloadCommand extends ContainerAwareCommand
             else
                 $job = $pheanstalk->watch('import_file')->ignore('default')->reserve(); 
 
-            $data = json_decode($job->getData());
+            $data = json_decode((string) $job->getData());
 
             // Dealt with the job
             $pheanstalk->delete($job);

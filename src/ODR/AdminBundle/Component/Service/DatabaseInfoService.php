@@ -31,52 +31,16 @@ class DatabaseInfoService
 {
 
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var CacheService
-     */
-    private $cache_service;
-
-    /**
-     * @var DatatreeInfoService
-     */
-    private $datatree_info_service;
-
-    /**
-     * @var TagHelperService
-     */
-    private $tag_helper_service;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * DatabaseInfoService constructor.
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param CacheService $cache_service
      * @param DatatreeInfoService $datatree_info_service
      * @param TagHelperService $tag_helper_service
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        CacheService $cache_service,
-        DatatreeInfoService $datatree_info_service,
-        TagHelperService $tag_helper_service,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->cache_service = $cache_service;
-        $this->datatree_info_service = $datatree_info_service;
-        $this->tag_helper_service = $tag_helper_service;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly DatatreeInfoService $datatree_info_service, private readonly TagHelperService $tag_helper_service, private readonly Logger $logger)
+    {
     }
 
 
@@ -99,7 +63,7 @@ class DatabaseInfoService
 
         /** @var DataType $dt */
         $dt = $this->em->getRepository('ODRAdminBundle:DataType')->findOneBy(
-            array('unique_id' => $unique_id)
+            ['unique_id' => $unique_id]
         );
         if ( is_null($dt) )
             throw new ODRNotFoundException('Datatype', false, 0xaf067bda);
@@ -123,7 +87,7 @@ class DatabaseInfoService
      */
     public function getDatatypeArray($grandparent_datatype_id, $include_links = true)
     {
-        $associated_datatypes = array();
+        $associated_datatypes = [];
         if ($include_links) {
             // Need to locate all linked datatypes for the provided datatype
             $associated_datatypes = $this->datatree_info_service->getAssociatedDatatypes($grandparent_datatype_id);
@@ -135,7 +99,7 @@ class DatabaseInfoService
 
         // Load the cached versions of each associated datatype, and store them all at the same
         //  level in a single array
-        $datatype_array = array();
+        $datatype_array = [];
         foreach ($associated_datatypes as $num => $dt_id) {
             $datatype_data = $this->cache_service->get('cached_datatype_'.$dt_id);
             if ($datatype_data == false)
@@ -170,7 +134,7 @@ class DatabaseInfoService
 
         // Load the cached versions of each associated datatype, and store them all at the same
         //  level in a single array
-        $datatype_array = array();
+        $datatype_array = [];
         foreach ($associated_datatypes as $num => $dt_id) {
             $datatype_data = $this->cache_service->get('cached_datatype_'.$dt_id);
             if ($datatype_data == false)
@@ -206,8 +170,8 @@ class DatabaseInfoService
         // ----------------------------------------
         // Need to perform an adjustment so that array hydration of "master" datafields/datatypes
         //  matches full hydration of the same entities...
-        $derived_dt_data = array();
-        $derived_df_data = array();
+        $derived_dt_data = [];
+        $derived_df_data = [];
         self::getDerivedData($grandparent_datatype_id, $derived_dt_data, $derived_df_data);
 
         // These two are kept separate from the primary query because mysql does not like having
@@ -267,9 +231,9 @@ class DatabaseInfoService
                 AND dt.deletedAt IS NULL
             ORDER BY dt.id, df.id'
         )->setParameters(
-            array(
+            [
                 'grandparent_datatype_id' => $grandparent_datatype_id
-            )
+            ]
         );
         // TODO - rename above RenderPluginOptionsDef to RenderPluginOptions
         $datatype_data = $query->getArrayResult();
@@ -303,7 +267,7 @@ class DatabaseInfoService
             // Attach the renderPlugin data for this datatype, if the datatype is using any
             if ( !empty($datatype_data[$dt_num]['renderPluginInstances']) ) {
                 // Going to completely replace the array entry here
-                $tmp_rpi = array();
+                $tmp_rpi = [];
 
                 foreach ($datatype_data[$dt_num]['renderPluginInstances'] as $rpi_num => $rpi) {
                     // The render plugin data has already been loaded and cleaned up...
@@ -319,8 +283,8 @@ class DatabaseInfoService
             }
 
             // Attach any name/sort fields for this datatype
-            $datatype_data[$dt_num]['nameFields'] = array();
-            $datatype_data[$dt_num]['sortFields'] = array();
+            $datatype_data[$dt_num]['nameFields'] = [];
+            $datatype_data[$dt_num]['sortFields'] = [];
             if ( isset($special_fields[$dt_id]) ) {
                 if ( !empty($special_fields[$dt_id]['name']) )
                     $datatype_data[$dt_num]['nameFields'] = $special_fields[$dt_id]['name'];
@@ -336,7 +300,7 @@ class DatabaseInfoService
 
             // ----------------------------------------
             // Organize the datafields by their datafield_id instead of a random number
-            $new_datafield_array = array();
+            $new_datafield_array = [];
             foreach ($dt['dataFields'] as $df_num => $df) {
                 $df_id = $df['id'];
                 $typeclass = $df['dataFieldMeta'][0]['fieldType']['typeClass'];
@@ -357,7 +321,7 @@ class DatabaseInfoService
                 // Attach the renderPlugin data for this datafield, if the datafield is using any
                 if ( !empty($df['renderPluginInstances']) ) {
                     // Going to completely replace the array entry here
-                    $tmp_rpi = array();
+                    $tmp_rpi = [];
 
                     foreach ($df['renderPluginInstances'] as $rpi_num => $rpi) {
                         // The render plugin data has already been loaded and cleaned up...
@@ -371,9 +335,7 @@ class DatabaseInfoService
 
                     // Would prefer DatafieldHeader plugins follow some ordering other than "order in
                     //  which they were attached"
-                    uasort($tmp_rpi, function($a, $b) {
-                        return strcmp($a['renderPlugin']['pluginName'], $b['renderPlugin']['pluginName']);
-                    });
+                    uasort($tmp_rpi, fn($a, $b) => strcmp((string) $a['renderPlugin']['pluginName'], (string) $b['renderPlugin']['pluginName']));
 
                     $df['renderPluginInstances'] = $tmp_rpi;
                 }
@@ -390,12 +352,12 @@ class DatabaseInfoService
                     // This is supposed to be a tag field...
                     if ( !isset($tags[$df_id]) ) {
                         // ...but it has no tags...ensure blank arrays exist
-                        $df['tags'] = array();
-                        $df['tagTree'] = array();
+                        $df['tags'] = [];
+                        $df['tagTree'] = [];
                     }
                     else {
                         // Tags exist, attempt to locate any tag hierarchy data
-                        $tag_tree = array();
+                        $tag_tree = [];
                         if ( isset($tag_hierarchy[$dt_id][$df_id]) )
                             $tag_tree = $tag_hierarchy[$dt_id][$df_id];
 
@@ -418,14 +380,14 @@ class DatabaseInfoService
 
             // ----------------------------------------
             // Build up a list of child/linked datatypes and their basic information
-            $descendants = array();
+            $descendants = [];
             foreach ($datatree_array['descendant_of'] as $child_dt_id => $parent_dt_id) {
                 if ($parent_dt_id == $dt_id)
-                    $descendants[$child_dt_id] = array('is_link' => 0, 'multiple_allowed' => 0, 'edit_behavior' => 0);
+                    $descendants[$child_dt_id] = ['is_link' => 0, 'multiple_allowed' => 0, 'edit_behavior' => 0];
             }
             foreach ($datatree_array['linked_from'] as $child_dt_id => $parents) {
                 if ( in_array($dt_id, $parents) )
-                    $descendants[$child_dt_id] = array('is_link' => 1, 'multiple_allowed' => 0, 'edit_behavior' => 0);
+                    $descendants[$child_dt_id] = ['is_link' => 1, 'multiple_allowed' => 0, 'edit_behavior' => 0];
             }
             foreach ($datatree_array['multiple_allowed'] as $child_dt_id => $parents) {
                 if ( isset($descendants[$child_dt_id]) && in_array($dt_id, $parents) )
@@ -442,7 +404,7 @@ class DatabaseInfoService
 
 
         // Organize by datatype id...permissions filtering doesn't work if the array isn't flat
-        $formatted_datatype_data = array();
+        $formatted_datatype_data = [];
         foreach ($datatype_data as $num => $dt_data) {
             $dt_id = $dt_data['id'];
 
@@ -487,7 +449,7 @@ class DatabaseInfoService
             LEFT JOIN dt.dataFields AS df
             LEFT JOIN df.masterDataField AS mdf
             WHERE dt.grandparent = :grandparent_datatype_id'
-        )->setParameters( array('grandparent_datatype_id' => $grandparent_datatype_id) );
+        )->setParameters( ['grandparent_datatype_id' => $grandparent_datatype_id] );
 
         // Need to disable the softdeleteable filter so doctrine pulls the id for deleted master
         //  datafield entries
@@ -505,11 +467,11 @@ class DatabaseInfoService
                 foreach ($dt['masterDataType']['dataTypeMeta'] as $mdt_dtm_num => $mdt_dtm)
                     $short_name = $mdt_dtm['shortName'];
 
-                $mdt_data = array(
+                $mdt_data = [
                     'id' => $dt['masterDataType']['id'],
                     'unique_id' => $dt['masterDataType']['unique_id'],
                     'shortName' => $short_name,
-                );
+                ];
             }
             $derived_dt_data[$dt_id] = $mdt_data;
 
@@ -518,9 +480,9 @@ class DatabaseInfoService
                 $df_id = $df['id'];
                 $mdf_data = null;
                 if ( isset($df['masterDataField']) && !is_null($df['masterDataField']) ) {
-                    $mdf_data = array(
+                    $mdf_data = [
                         'id' => $df['masterDataField']['id']
-                    );
+                    ];
                 }
 
                 $derived_df_data[$df_id] = $mdf_data;
@@ -549,17 +511,17 @@ class DatabaseInfoService
             WHERE dt.grandparent = :grandparent_datatype_id
             AND dt.deletedAt IS NULL
             ORDER BY df.id, rom.displayOrder, ro.id'
-        )->setParameters( array('grandparent_datatype_id' => $grandparent_datatype_id) );
+        )->setParameters( ['grandparent_datatype_id' => $grandparent_datatype_id] );
         $datatype_data = $query->getArrayResult();
 
-        $radio_options = array();
+        $radio_options = [];
         foreach ($datatype_data as $dt_num => $dt) {
             $dt_id = $dt['id'];
 
             foreach ($dt['dataFields'] as $df_num => $df) {
                 if ( !empty($df['radioOptions']) ) {
                     $df_id = $df['id'];
-                    $radio_options[$df_id] = array();
+                    $radio_options[$df_id] = [];
 
                     foreach ($df['radioOptions'] as $ro_num => $ro) {
                         if ( count($ro['radioOptionMeta']) == 0 ) {
@@ -598,17 +560,17 @@ class DatabaseInfoService
             LEFT JOIN t.tagMeta AS tm
             WHERE dt.grandparent = :grandparent_datatype_id
             AND dt.deletedAt IS NULL'    // tags have a display order, but it only makes sense when they're being stacked
-        )->setParameters( array('grandparent_datatype_id' => $grandparent_datatype_id) );
+        )->setParameters( ['grandparent_datatype_id' => $grandparent_datatype_id] );
         $datatype_data = $query->getArrayResult();
 
-        $tags = array();
+        $tags = [];
         foreach ($datatype_data as $dt_num => $dt) {
             $dt_id = $dt['id'];
 
             foreach ($dt['dataFields'] as $df_num => $df) {
                 if ( !empty($df['tags']) ) {
                     $df_id = $df['id'];
-                    $tags[$df_id] = array();
+                    $tags[$df_id] = [];
 
                     foreach ($df['tags'] as $t_num => $t) {
                         if ( count($t['tagMeta']) == 0 ) {
@@ -647,10 +609,10 @@ class DatabaseInfoService
             WHERE dt.grandparent = :grandparent_datatype_id
             AND dt.deletedAt IS NULL AND dtsf.deletedAt IS NULL AND df.deletedAt IS NULL
             ORDER BY dt.id, dtsf.field_purpose, dtsf.displayOrder, df.id'
-        )->setParameters( array('grandparent_datatype_id' => $grandparent_datatype_id) );
+        )->setParameters( ['grandparent_datatype_id' => $grandparent_datatype_id] );
         $results = $query->getArrayResult();
 
-        $special_fields = array();
+        $special_fields = [];
         foreach ($results as $result) {
             $dt_id = $result['dt_id'];
             $field_purpose = $result['field_purpose'];
@@ -658,7 +620,7 @@ class DatabaseInfoService
             $df_id = $result['df_id'];
 
             if ( !isset($special_fields[$dt_id]) )
-                $special_fields[$dt_id] = array('name' => array(), 'sort' => array());
+                $special_fields[$dt_id] = ['name' => [], 'sort' => []];
 
             if ( !is_null($df_id) ) {
                 if ( $field_purpose === DataTypeSpecialFields::NAME_FIELD )
@@ -687,10 +649,10 @@ class DatabaseInfoService
             LEFT JOIN ODRAdminBundle:StoredSearchKey AS ssk WITH ssk.dataType = dt
             WHERE dt.grandparent = :grandparent_datatype_id AND ssk.isDefault = 1
             AND dt.deletedAt IS NULL AND ssk.deletedAt IS NULL'
-        )->setParameters( array('grandparent_datatype_id' => $grandparent_datatype_id) );
+        )->setParameters( ['grandparent_datatype_id' => $grandparent_datatype_id] );
         $results = $query->getArrayResult();
 
-        $keys = array();
+        $keys = [];
         foreach ($results as $result) {
             $keys[ $result['dt_id'] ] = $result['searchKey'];
         }
@@ -713,7 +675,7 @@ class DatabaseInfoService
      */
     private function getRenderPluginData($grandparent_datatype_id)
     {
-        $render_plugin_instances = array();
+        $render_plugin_instances = [];
 
         // Locate each render plugin attached to each datatype descended from the grandparent...
         $query = $this->em->createQuery(
@@ -741,9 +703,9 @@ class DatabaseInfoService
             WHERE dt.grandparent = :grandparent_datatype_id
             AND dt.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'grandparent_datatype_id' => $grandparent_datatype_id
-            )
+            ]
         );
         $results = $query->getArrayResult();
 
@@ -786,9 +748,9 @@ class DatabaseInfoService
             WHERE dt.grandparent = :grandparent_datatype_id
             AND dt.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'grandparent_datatype_id' => $grandparent_datatype_id
-            )
+            ]
         );
         $results = $query->getArrayResult();
 
@@ -829,7 +791,7 @@ class DatabaseInfoService
             }
 
             // For renderPluginEvents, only care about the event name
-            $tmp_rpe = array();
+            $tmp_rpe = [];
             foreach ($rp['renderPluginEvents'] as $rpe_num => $rpe)
                 $tmp_rpe[ $rpe['eventName'] ] = 1;
 
@@ -845,14 +807,14 @@ class DatabaseInfoService
 
                 // ...and will have a single dataField entry if it's a datatype plugin (but won't
                 //  if it's a datafield plugin)
-                $rpf_df = array();
+                $rpf_df = [];
                 if ( !isset($rpm['dataField']) ) {
                     // ...but it might not be set due to the existence of "optional" renderPluginFields
 
                     // Unfortunately, ODR was originally written following the idea that "an rpf entry
                     //  MUST have a df entry"...but putting a null value in here for the id neatly
                     //  handles most of those places
-                    $rpf_df = array('id' => null);
+                    $rpf_df = ['id' => null];
                 }
                 else {
                     // ...if it is set though, don't want to make any changes here
@@ -863,7 +825,7 @@ class DatabaseInfoService
                 $rpf_df['allowedFieldtypes'] = $rpf_allowedFieldtypes;
 
                 // It also needs any of the rpf's properties
-                $rpf_df['properties'] = array();
+                $rpf_df['properties'] = [];
                 if ( $rpf['must_be_unique'] )
                     $rpf_df['properties']['must_be_unique'] = 1;
                 if ( $rpf['single_uploads_only'] )
@@ -886,7 +848,7 @@ class DatabaseInfoService
             }
 
             // All plugins will have an entry for required options, although it might be empty
-            $tmp_rpom = array();
+            $tmp_rpom = [];
             foreach ($rpi['renderPluginOptionsMap'] as $rpom_num => $rpom) {
                 // ...then each RenderPluginOptionsMap will have a single renderPluginOptionsDef entry
                 $rpom_value = $rpom['value'];
@@ -914,7 +876,7 @@ class DatabaseInfoService
      */
     public function stackDatatypeArray($datatype_array, $initial_datatype_id)
     {
-        $current_datatype = array();
+        $current_datatype = [];
         if ( isset($datatype_array[$initial_datatype_id]) ) {
             $current_datatype = $datatype_array[$initial_datatype_id];
 
@@ -922,7 +884,7 @@ class DatabaseInfoService
             if ( isset($current_datatype['descendants']) ) {
                 foreach ($current_datatype['descendants'] as $child_datatype_id => $child_datatype) {
 
-                    $tmp = array();
+                    $tmp = [];
                     if ( isset($datatype_array[$child_datatype_id])) {
                         // Stack each child datatype individually
                         $tmp[$child_datatype_id] = self::stackDatatypeArray($datatype_array, $child_datatype_id);
@@ -949,8 +911,8 @@ class DatabaseInfoService
      */
     public function getDatarecordCounts($datatype_ids, $datatype_permissions)
     {
-        $can_view_public_datarecords = array();
-        $can_view_nonpublic_datarecords = array();
+        $can_view_public_datarecords = [];
+        $can_view_nonpublic_datarecords = [];
 
         foreach ($datatype_ids as $num => $dt_id) {
             if ( isset($datatype_permissions[$dt_id])
@@ -963,7 +925,7 @@ class DatabaseInfoService
         }
 
         // Figure out how many datarecords the user can view for each of the datatypes
-        $metadata = array();
+        $metadata = [];
         if ( count($can_view_nonpublic_datarecords) > 0 ) {
             $query = $this->em->createQuery(
                'SELECT dt.id AS dt_id, COUNT(dr.id) AS datarecord_count
@@ -973,9 +935,9 @@ class DatabaseInfoService
                 AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL
                 GROUP BY dt.id'
             )->setParameters(
-                array(
+                [
                     'datatype_ids' => $can_view_nonpublic_datarecords
-                )
+                ]
             );
             $results = $query->getArrayResult();
 
@@ -996,10 +958,10 @@ class DatabaseInfoService
                 AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL
                 GROUP BY dt.id'
             )->setParameters(
-                array(
+                [
                     'datatype_ids' => $can_view_public_datarecords,
                     'public_date' => '2200-01-01 00:00:00'
-                )
+                ]
             );
             $results = $query->getArrayResult();
 
@@ -1032,7 +994,7 @@ class DatabaseInfoService
         if ( is_null($user_permissions) )
             $apply_permissions = false;
 
-        $datatype_permissions = $datafield_permissions = array();
+        $datatype_permissions = $datafield_permissions = [];
         if ( $apply_permissions && isset($user_permissions['datatypes']) )
             $datatype_permissions = $user_permissions['datatypes'];
         if ( $apply_permissions && isset($user_permissions['datafields']) )
@@ -1049,7 +1011,7 @@ class DatabaseInfoService
         );
         $results = $query->getArrayResult();
 
-        $allowed_typenames = array();
+        $allowed_typenames = [];
         foreach ($results as $result) {
             // Using typename instead of typeclass because the 'Radio' typeclass is only
             //  partially allowed
@@ -1058,9 +1020,9 @@ class DatabaseInfoService
         }
 
         // Need to build three arrays of datafields
-        $available_datafields = array();
-        $current_namefields = array();
-        $current_sortfields = array();
+        $available_datafields = [];
+        $current_namefields = [];
+        $current_sortfields = [];
 
         // All of the data can come from the cached datatype array
         $datatype_array = self::getDatatypeArray($grandparent_datatype_id);    // do want links
@@ -1068,18 +1030,18 @@ class DatabaseInfoService
 
         // ...going to need to also find their names from the cached datatype array
         foreach ($dt['nameFields'] as $display_order => $df_id)
-            $current_namefields[$df_id] = array('display_order' => $display_order, 'field_name' => '');
+            $current_namefields[$df_id] = ['display_order' => $display_order, 'field_name' => ''];
         foreach ($dt['sortFields'] as $display_order => $df_id)
-            $current_sortfields[$df_id] = array('display_order' => $display_order, 'field_name' => '');
+            $current_sortfields[$df_id] = ['display_order' => $display_order, 'field_name' => ''];
 
-        $datatypes_to_check = array($grandparent_datatype_id);
+        $datatypes_to_check = [$grandparent_datatype_id];
         while ( !empty($datatypes_to_check) ) {
-            $tmp = array();
+            $tmp = [];
 
             foreach ($datatypes_to_check as $dt_id) {
                 $dt = $datatype_array[$dt_id];
                 $dt_name = $dt['dataTypeMeta']['shortName'];
-                $available_datafields[$dt_id] = array('datatype_name' => $dt_name, 'datafields' => array());
+                $available_datafields[$dt_id] = ['datatype_name' => $dt_name, 'datafields' => []];
 
                 $can_view_datatype = false;
                 if ( isset($datatype_permissions[$dt_id]['dt_view']) )
@@ -1143,23 +1105,17 @@ class DatabaseInfoService
             }
         }
         // Do the same for the datatypes
-        uasort($available_datafields, function($a, $b) {
-            return strcmp($a['datatype_name'], $b['datatype_name']);
-        });
+        uasort($available_datafields, fn($a, $b) => strcmp((string) $a['datatype_name'], (string) $b['datatype_name']));
 
         // The currently selected datafields should be sorted by display order
-        uasort($current_namefields, function($a, $b) {
-            return $a['display_order'] <=> $b['display_order'];
-        });
-        uasort($current_sortfields, function($a, $b) {
-            return $a['display_order'] <=> $b['display_order'];
-        });
+        uasort($current_namefields, fn($a, $b) => $a['display_order'] <=> $b['display_order']);
+        uasort($current_sortfields, fn($a, $b) => $a['display_order'] <=> $b['display_order']);
 
-        $tmp = array(
+        $tmp = [
             'available_fields' => $available_datafields,
             'current_namefields' => $current_namefields,
             'current_sortfields' => $current_sortfields,
-        );
+        ];
         return $tmp;
     }
 }

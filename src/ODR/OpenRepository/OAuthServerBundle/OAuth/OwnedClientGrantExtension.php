@@ -34,9 +34,9 @@ class OwnedClientGrantExtension implements GrantExtensionInterface
 
         if ($owner) {
             // Return the associated owner for this OAuth client
-            return array(
+            return [
                 'data' => $owner
-            );
+            ];
         }
 
         // Otherwise, don't let this client log in

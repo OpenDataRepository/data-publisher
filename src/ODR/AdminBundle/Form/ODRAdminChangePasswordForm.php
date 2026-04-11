@@ -38,24 +38,24 @@ class ODRAdminChangePasswordForm extends AbstractType
         $builder->add(
             'user_id',
             HiddenType::class,
-            array(
+            [
                 'required' => true,
                 'label'  => 'user_id',
                 'data' => $target_user_id,
                 'mapped' => false,
-            )
+            ]
         );
 
         $builder->add(
             'plainPassword',
             RepeatedType::class,
-            array(
+            [
                 'type' => PasswordType::class,
                 'error_bubbling' => true,   // required for errors to show when $form->isValid() is called
-                'first_options' => array('label' => 'Password'),
-                'second_options' => array('label' => 'Confirm Password'),
+                'first_options' => ['label' => 'Password'],
+                'second_options' => ['label' => 'Confirm Password'],
                 'invalid_message' => 'The password fields must match',
-            )
+            ]
         );
     }
 
@@ -79,6 +79,7 @@ class ODRAdminChangePasswordForm extends AbstractType
      *
      * @return string The prefix of the template block name
      */
+    #[\Override]
     public function getBlockPrefix()
     {
         return 'ODRAdminChangePasswordForm';
@@ -90,7 +91,7 @@ class ODRAdminChangePasswordForm extends AbstractType
      */
     public function configureOptions(OptionsResolver $resolver)
     {
-        $resolver->setDefaults(array('target_user_id' => 0));
+        $resolver->setDefaults(['target_user_id' => 0]);
 
         $resolver->setRequired('target_user_id');
     }

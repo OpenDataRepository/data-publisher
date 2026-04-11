@@ -61,9 +61,9 @@ class CSVExportExpressFinalizeCommand extends ContainerAwareCommand
                     ->ignore('default')->reserve();
 
                 // Get Job Data
-                $data = json_decode($job->getData());
+                $data = json_decode((string) $job->getData());
 
-                $parameters = array(
+                $parameters = [
                     'tracked_job_id' => $data->tracked_job_id,
                     'user_id' => $data->user_id,
 
@@ -72,7 +72,7 @@ class CSVExportExpressFinalizeCommand extends ContainerAwareCommand
                     'datafields' => $data->datafields,
 
                     'api_key' => $data->api_key,
-                );
+                ];
 
                 if ( !isset($parameters['tracked_job_id'])
                     || !isset($parameters['user_id'])

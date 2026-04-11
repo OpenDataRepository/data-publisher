@@ -47,6 +47,7 @@ class User extends BaseUser
      *
      * @return integer 
      */
+    #[\Override]
     public function getId()
     {
         return $this->id;
@@ -59,6 +60,7 @@ class User extends BaseUser
      * @param string $email
      * @return User
      */
+    #[\Override]
     public function setEmail($email)
     {
         $this->username = $email;
@@ -74,6 +76,7 @@ class User extends BaseUser
      * @param string $emailCanonical
      * @return User
      */
+    #[\Override]
     public function setEmailCanonical($emailCanonical)
     {
         $this->usernameCanonical = $emailCanonical;

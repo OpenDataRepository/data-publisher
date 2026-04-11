@@ -26,16 +26,6 @@ class DatatypePublicStatusChangedEvent extends Event implements ODREventInterfac
     // Best practice is apparently to have the Event class define the event name
     const NAME = 'odr.event.datatype_public_status_changed_event';
 
-    /**
-     * @var DataType
-     */
-    private $datatype;
-
-    /**
-     * @var ODRUser
-     */
-    private $user;
-
 
     /**
      * DatatypePublicStatusChangedEvent constructor.
@@ -43,12 +33,8 @@ class DatatypePublicStatusChangedEvent extends Event implements ODREventInterfac
      * @param DataType $datatype
      * @param ODRUser $user
      */
-    public function __construct(
-        DataType $datatype,
-        ODRUser $user
-    ) {
-        $this->datatype = $datatype;
-        $this->user = $user;
+    public function __construct(private readonly DataType $datatype, private readonly ODRUser $user)
+    {
     }
 
 
@@ -88,9 +74,9 @@ class DatatypePublicStatusChangedEvent extends Event implements ODREventInterfac
      */
     public function getErrorInfo()
     {
-        return array(
+        return [
             self::NAME,
             'dt '.$this->datatype->getId(),
-        );
+        ];
     }
 }

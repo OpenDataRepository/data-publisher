@@ -26,26 +26,6 @@ class DatarecordLinkStatusChangedEvent extends Event implements ODREventInterfac
     // Best practice is apparently to have the Event class define the event name
     const NAME = 'odr.event.datarecord_link_status_change_event';
 
-    /**
-     * @var int[]
-     */
-    private $datarecord_ids;
-
-    /**
-     * @var DataType
-     */
-    private $descendant_datatype;
-
-    /**
-     * @var ODRUser
-     */
-    private $user;
-
-    /**
-     * @var bool
-     */
-    private $mark_as_updated;
-
 
     /**
      * DatarecordLinkStatusChangedEvent constructor.
@@ -55,16 +35,8 @@ class DatarecordLinkStatusChangedEvent extends Event implements ODREventInterfac
      * @param ODRUser $user
      * @param bool $mark_as_updated
      */
-    public function __construct(
-        $datarecord_ids,
-        DataType $descendant_datatype,
-        ODRUser $user,
-        bool $mark_as_updated = false
-    ) {
-        $this->datarecord_ids = $datarecord_ids;
-        $this->descendant_datatype = $descendant_datatype;
-        $this->user = $user;
-        $this->mark_as_updated = $mark_as_updated;
+    public function __construct(private $datarecord_ids, private readonly DataType $descendant_datatype, private readonly ODRUser $user, private readonly bool $mark_as_updated = false)
+    {
     }
 
 
@@ -133,11 +105,11 @@ class DatarecordLinkStatusChangedEvent extends Event implements ODREventInterfac
      */
     public function getErrorInfo()
     {
-        return array(
+        return [
             self::NAME,
             'dr_ids '.implode(',', $this->datarecord_ids),
             'dt '.$this->descendant_datatype->getId(),
             'mark_as_updated: '.$this->mark_as_updated,
-        );
+        ];
     }
 }

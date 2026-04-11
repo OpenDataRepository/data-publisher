@@ -24,11 +24,6 @@ class LockService
 {
 
     /**
-     * @var string
-     */
-    private $cache_prefix;
-
-    /**
      * @var Factory
      */
     private $lock_factory;
@@ -42,13 +37,12 @@ class LockService
      */
     public function __construct(
         Predis\Client $redis_client,
-        $cache_prefix
+        private $cache_prefix
     ) {
         $redis_store = new RedisStore($redis_client);
         $blocking_redis_store = new RetryTillSaveStore($redis_store);    // 100ms retry delay, unlimited times
 
         $this->lock_factory = new Factory($blocking_redis_store);
-        $this->cache_prefix = $cache_prefix;
     }
 
 

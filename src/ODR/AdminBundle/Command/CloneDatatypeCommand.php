@@ -105,26 +105,7 @@ class CloneDatatypeCommand extends ContainerAwareCommand
                 // Sleep for a bit 10ms
                 usleep(10000);
             }
-            catch (\Throwable $e) {
-                if ($e->getMessage() == 'retry') {
-                    $output->writeln('Could not resolve host, releasing job to try again');
-                    $logger->error('CloneDatatypeCommand.php: ' . $e->getMessage());
-
-                    // Release the job back into the ready queue to try again
-                    $pheanstalk->release($job);
-
-                    // Sleep for a bit
-                    usleep(1000000);     // sleep for 1 second
-                } else {
-                    $output->writeln($e->getMessage());
-
-                    $logger->error('CloneDatatypeCommand.php: ' . $e->getMessage());
-
-                    // Delete the job so the queue doesn't hang, in theory
-                    $pheanstalk->delete($job);
-                }
-            }
-            catch (\Exception $e) {
+            catch (\Throwable|\Exception $e) {
                 if ( $e->getMessage() == 'retry' ) {
                     $output->writeln( 'Could not resolve host, releasing job to try again' );
                     $logger->error('CloneDatatypeCommand.php: '.$e->getMessage());

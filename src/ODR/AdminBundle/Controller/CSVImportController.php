@@ -95,7 +95,7 @@ class CSVImportController extends ODRCustomController
      */
     public function importAction($datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -144,10 +144,10 @@ class CSVImportController extends ODRCustomController
             // ----------------------------------------
             // Check whether any jobs that are currently running would interfere with a newly
             //  created 'csv_import' job for this datatype
-            $new_job_data = array(
+            $new_job_data = [
                 'job_type' => 'csv_import',
                 'target_entity' => $datatype,
-            );
+            ];
 
             $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
@@ -157,7 +157,7 @@ class CSVImportController extends ODRCustomController
             // ----------------------------------------
             // Locate any child or linked datatypes
             $datatree_array = $datatree_info_service->getDatatreeArray();
-            $childtypes = array();
+            $childtypes = [];
             foreach ($datatree_array['descendant_of'] as $dt_id => $parent_dt_id) {
                 if ($parent_dt_id == $datatype_id) {
                     // Ensure user has permissions to modify this childtype before storing it
@@ -174,7 +174,7 @@ class CSVImportController extends ODRCustomController
             if ( count($childtypes) == 0 )
                 $childtypes = null;
 
-            $linked_types = array();
+            $linked_types = [];
             foreach ($datatree_array['linked_from'] as $descendant_dt_id => $ancestor_ids) {
                 if ( in_array($datatype_id, $ancestor_ids) ) {
                     // Ensure user has permissions to modify this linked type before storing it
@@ -195,10 +195,10 @@ class CSVImportController extends ODRCustomController
 
             // ----------------------------------------
             // Render the basic csv import page
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:CSVImport:import.html.twig',
-                    array(
+                    [
                         'datatype' => $datatype,
                         'childtypes' => $childtypes,
                         'linked_types' => $linked_types,
@@ -210,9 +210,9 @@ class CSVImportController extends ODRCustomController
                         'presets' => null,
                         'errors' => null,
                         'allow_import' => false,
-                    )
+                    ]
                 )
-            );
+            ];
 
         }
         catch (\Exception $e) {
@@ -239,7 +239,7 @@ class CSVImportController extends ODRCustomController
      */
     public function delimiterAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -256,7 +256,7 @@ class CSVImportController extends ODRCustomController
             if ($delimiter === 'tab')
                 $delimiter = "\t";
             // Can't throw an error on empty delimiter here
-            if ( strlen($delimiter) > 1 )
+            if ( strlen((string) $delimiter) > 1 )
                 throw new ODRBadRequestException('Invalid column delimiter');
 
             // Store the desired delimiter in user's session
@@ -289,7 +289,7 @@ class CSVImportController extends ODRCustomController
      */
     public function layoutAction($source_datatype_id, $target_datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -350,10 +350,10 @@ class CSVImportController extends ODRCustomController
             // ----------------------------------------
             // Check whether any jobs that are currently running would interfere with a newly
             //  created 'csv_import' job for this datatype
-            $new_job_data = array(
+            $new_job_data = [
                 'job_type' => 'csv_import',
                 'target_entity' => $source_datatype,
-            );
+            ];
 
             $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
@@ -413,13 +413,13 @@ class CSVImportController extends ODRCustomController
             // Grab all datafields belonging to that datatype
             $datatype_array = $database_info_service->getDatatypeArray($grandparent_target_datatype->getId(), false);
             $datafields = $datatype_array[$target_datatype_id]['dataFields'];
-            uasort($datafields, "self::name_sort");
+            uasort($datafields, self::name_sort(...));
 
             // Load the FieldTypes that the csv importer can read data into
             $query = $em->createQuery('SELECT ft FROM ODRAdminBundle:FieldType ft ORDER BY ft.typeName');
             /** @var FieldType[] $fieldtypes */
             $fieldtypes = $query->getResult();
-            $allowed_fieldtypes = array();
+            $allowed_fieldtypes = [];
 
             foreach ($fieldtypes as $num => $fieldtype) {
                 // Every field can be imported into except for Markdown fields
@@ -433,7 +433,7 @@ class CSVImportController extends ODRCustomController
             }
 
             // Also need to keep track of any tag datafields that allow parent/child tags...
-            $multilevel_tag_datafields = array();
+            $multilevel_tag_datafields = [];
             foreach ($datafields as $df_id => $df) {
                 if ( $df['dataFieldMeta']['tags_allow_multiple_levels'] == true )
                     $multilevel_tag_datafields[$df_id] = 1;
@@ -460,11 +460,11 @@ class CSVImportController extends ODRCustomController
             $delimiter = $session->get('csv_delimiter');
             if ($delimiter === '')
                 throw new ODRBadRequestException("CSV delimiter can't be blank");
-            if ( strlen($delimiter) > 1 )
+            if ( strlen((string) $delimiter) > 1 )
                 throw new ODRBadRequestException('Invalid column delimiter');
 
             // Remove any completely blank columns and rows from the csv file
-            $column_metadata = array();
+            $column_metadata = [];
             $file_encoding_converted = self::trimCSVFile($csv_import_path, $csv_filename, $delimiter, $column_metadata);
 
             // Apparently SplFileObject doesn't do this before opening the file...
@@ -479,16 +479,16 @@ class CSVImportController extends ODRCustomController
             // ----------------------------------------
             // Grab column names from first row
             $file_headers = $reader->getColumnHeaders();
-            $error_messages = array();
+            $error_messages = [];
             foreach ($file_headers as $column_num => $value) {
                 if ($value == '') {
-                    $error_messages[] = array(
+                    $error_messages[] = [
                         'error_level' => 'Error',
-                        'error_body' => array(
+                        'error_body' => [
                             'line_num' => 1,
                             'message' => 'Column '.($column_num + 1).' has an illegal blank header'
-                        )
-                    );
+                        ]
+                    ];
                 }
             }
 
@@ -496,13 +496,13 @@ class CSVImportController extends ODRCustomController
             if ( count($reader->getErrors()) > 0 ) {
                 // Warn about wrong number of columns
                 foreach ($reader->getErrors() as $line_num => $errors) {
-                    $error_messages[] = array(
+                    $error_messages[] = [
                         'error_level' => 'Error',
-                        'error_body' => array(
+                        'error_body' => [
                             'line_num' => $line_num+1,
                             'message' => 'Found '.count($errors).' columns on this line, expected '.count($file_headers)
-                        )
-                    );
+                        ]
+                    ];
                 }
             }
 
@@ -513,10 +513,10 @@ class CSVImportController extends ODRCustomController
             // Render the page
             if ( count($error_messages) == 0 ) {
                 // If no errors, render the column/datafield/fieldtype selection page
-                $return['d'] = array(
+                $return['d'] = [
                     'html' => $templating->render(
                         'ODRAdminBundle:CSVImport:layout.html.twig',
-                        array(
+                        [
                             'parent_datatype' => $parent_datatype,  // as expected if importing into a child datatype, or null if importing into top-level datatype, or equivalent to the local datatype if importing links
                             'datatype' => $target_datatype,         // as expected if importing into a top-level or child datatype, or equivalent to the remote datatype if importing links
                             'linked_importing' => $linked_importing,
@@ -534,20 +534,20 @@ class CSVImportController extends ODRCustomController
 
                             'presets' => null,
                             'file_encoding_converted' => $file_encoding_converted,
-                        )
+                        ]
                     )
-                );
+                ];
             }
             else {
                 // If errors found, render a table listing which errors are found on what line
-                $return['d'] = array(
+                $return['d'] = [
                     'html' => $templating->render(
                         'ODRAdminBundle:CSVImport:errors.html.twig',
-                        array(
+                        [
                             'error_messages' => $error_messages,
-                        )
+                        ]
                     )
-                );
+                ];
             }
 
         }
@@ -583,7 +583,7 @@ class CSVImportController extends ODRCustomController
         $df_a_name = $a['dataFieldMeta']['fieldName'];
         $df_b_name = $b['dataFieldMeta']['fieldName'];
 
-        return strnatcasecmp($df_a_name, $df_b_name);
+        return strnatcasecmp((string) $df_a_name, (string) $df_b_name);
     }
 
 
@@ -622,7 +622,7 @@ class CSVImportController extends ODRCustomController
         // Trim headers
         $headers_trimmed = false;
         foreach ($header_row as $num => $header) {
-            $trimmed_header = trim($header, " \t\n\r\0\x0B\xA0");    // want to also get rid of html non-breaking space, trim() doesn't by default
+            $trimmed_header = trim((string) $header, " \t\n\r\0\x0B\xA0");    // want to also get rid of html non-breaking space, trim() doesn't by default
             $converted_header = Encoding::toUTF8($trimmed_header);
 
             if ( $header !== $converted_header ) {
@@ -633,7 +633,7 @@ class CSVImportController extends ODRCustomController
 
         // Determine if any of the column headers are blank...
         $blank_header = false;
-        $column_use = array();
+        $column_use = [];
         for ($i = 0; $i < count($header_row); $i++) {
             if ( $header_row[$i] !== '' ) {
                 // This column has a non-empty header
@@ -648,9 +648,9 @@ class CSVImportController extends ODRCustomController
 
 
         // Store whether there's any invalid UTF-8 characters in a specific row...
-        $encoding_errors = array();
+        $encoding_errors = [];
         // Also need to determine if any of the rows in the file are completely blank...
-        $blank_rows = array();
+        $blank_rows = [];
 
         // ----------------------------------------
         // Continue reading the rest of the file...
@@ -682,7 +682,7 @@ class CSVImportController extends ODRCustomController
                     // Check whether this string is valid UTF-8
                     if ( !mb_check_encoding($value, 'UTF-8') ) {
                         if ( !isset($encoding_errors[$line_num]) )
-                            $encoding_errors[$line_num] = array();
+                            $encoding_errors[$line_num] = [];
 
                         $encoding_errors[$line_num][$column_id] = 1;
                     }
@@ -691,18 +691,18 @@ class CSVImportController extends ODRCustomController
 
                 // Going to keep track of various properties of each column in the CSV file...
                 if ( !isset($column_metadata[$column_id]) ) {
-                    $column_metadata[$column_id] = array(
+                    $column_metadata[$column_id] = [
                         'length' => 0,
                         'empty_column' => true,
                         'could_be_integer' => true,
                         'could_be_decimal' => true,
-                    );
+                    ];
                 }
 
                 if ( $value !== '' ) {
                     // TODO - use mb_strlen() instead?
-                    if ( strlen($value) > $column_metadata[$column_id]['length'] )
-                        $column_metadata[$column_id]['length'] = strlen($value);
+                    if ( strlen((string) $value) > $column_metadata[$column_id]['length'] )
+                        $column_metadata[$column_id]['length'] = strlen((string) $value);
 
                     if ( $column_metadata[$column_id]['could_be_integer'] ) {
                         $column_metadata[$column_id]['empty_column'] = false;
@@ -748,16 +748,16 @@ class CSVImportController extends ODRCustomController
         // ----------------------------------------
         // Need to rewrite the original csv file...create a new temporary csv file
         $tokenGenerator = $this->container->get('fos_user.util.token_generator');
-        $tmp_filename = substr($tokenGenerator->generateToken(), 0, 12);
+        $tmp_filename = substr((string) $tokenGenerator->generateToken(), 0, 12);
 
         // TODO - other illegal first characters for filename?
-        if ( substr($tmp_filename, 0, 1) == '-' )
+        if ( str_starts_with($tmp_filename, '-') )
             $tmp_filename = 'a'.substr($tmp_filename, 1);
         $tmp_filename .= '.csv';
 
         $new_csv_file = fopen( $csv_import_path.$tmp_filename, 'w' );   // apparently fputcsv() won't work with a SplFileObject
 
-        $blank_columns = array();
+        $blank_columns = [];
         foreach ($column_use as $column_id => $in_use) {
             if (!$in_use)
                 $blank_columns[] = $column_id;
@@ -823,7 +823,7 @@ class CSVImportController extends ODRCustomController
      */
     public function redownloadfileAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -851,7 +851,7 @@ class CSVImportController extends ODRCustomController
                 throw new ODRException('Unable to open existing file at "'.$absolute_filepath.'"');
 
             // Attach the original filename to the download
-            $display_filename = substr($csv_filename, 0, strrpos($csv_filename, '.'));
+            $display_filename = substr((string) $csv_filename, 0, strrpos((string) $csv_filename, '.'));
 
             // Set up a response to send the file back
             $response->setPrivate();
@@ -876,7 +876,7 @@ class CSVImportController extends ODRCustomController
             //$response->sendHeaders();
 
             // Use symfony's StreamedResponse to send the decrypted file back in chunks to the user
-            $response->setCallback(function () use ($handle) {
+            $response->setCallback(function () use ($handle): void {
                 while (!feof($handle)) {
                     $buffer = fread($handle, 65536);    // attempt to send 64Kb at a time
                     echo $buffer;
@@ -907,7 +907,7 @@ class CSVImportController extends ODRCustomController
      */
     public function refreshfilelistAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -918,14 +918,14 @@ class CSVImportController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Get all files in the given user's 'upload' directory
-            $uploaded_files = array();
+            $uploaded_files = [];
             $upload_directory = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv_storage';
             if ( file_exists($upload_directory) )
                 $uploaded_files = scandir($upload_directory);
 
             // Don't include the default linux directory pointers...
             // TODO - shouldn't this display in the local timezone?
-            $filelist = array();
+            $filelist = [];
             foreach ($uploaded_files as $num => $filename) {
                 if ($filename !== '.' && $filename !== '..')
                     $filelist[$filename] = date( 'Y-m-d H:i:s T', filemtime($upload_directory.'/'.$filename) );
@@ -959,7 +959,7 @@ class CSVImportController extends ODRCustomController
      */
     public function deletefilelistAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -970,7 +970,7 @@ class CSVImportController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             // Get all files in the given user's 'upload' directory
-            $uploaded_files = array();
+            $uploaded_files = [];
             $upload_directory = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv_storage';
             if ( file_exists($upload_directory) )
                 $uploaded_files = scandir($upload_directory);
@@ -1007,7 +1007,7 @@ class CSVImportController extends ODRCustomController
      */
     public function cancelAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1055,7 +1055,7 @@ class CSVImportController extends ODRCustomController
      */
     public function startvalidateAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1070,11 +1070,11 @@ class CSVImportController extends ODRCustomController
 
             // --------------------
             // Pull data from the post
-            $datafield_mapping = array();
+            $datafield_mapping = [];
             if ( isset($post['datafield_mapping']))
                 $datafield_mapping = $post['datafield_mapping'];
             // Get datafields where uniqueness will be checked for/enforced
-            $unique_columns = array();
+            $unique_columns = [];
             if ( isset($post['unique_columns']) )
                 $unique_columns = $post['unique_columns'];
             // Grab fieldtype mapping for datafields this import is going to create, if the user
@@ -1084,17 +1084,17 @@ class CSVImportController extends ODRCustomController
                 $fieldtype_mapping = $post['fieldtype_mapping'];
             // Get secondary delimiters to use for tag/file/image/multiple select/radio columns, if
             //  they exist
-            $column_delimiters = array();
+            $column_delimiters = [];
             if ( isset($post['column_delimiters']) )
                 $column_delimiters = $post['column_delimiters'];
             // Tag columns may also need hierarchy delimiters...
-            $hierarchy_delimiters = array();
+            $hierarchy_delimiters = [];
             if ( isset($post['hierarchy_delimiters']) )
                 $hierarchy_delimiters = $post['hierarchy_delimiters'];
 
             // Get the file/image columns where all files/images in the datafield but not in the
             //  csv file will be deleted
-            $synch_columns = array();
+            $synch_columns = [];
             if ( isset($post['synch_columns']) )
                 $synch_columns = $post['synch_columns'];
 
@@ -1136,7 +1136,7 @@ class CSVImportController extends ODRCustomController
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');
             $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
 
-            $url = $this->generateUrl('odr_csv_import_validate', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+            $url = $this->generateUrl('odr_csv_import_validate', [], UrlGeneratorInterface::ABSOLUTE_URL);
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -1156,7 +1156,7 @@ class CSVImportController extends ODRCustomController
             // Need to store fieldtype ids and fieldtype typenames
             /** @var FieldType[] $fieldtypes */
             $fieldtypes = $repo_fieldtype->findAll();
-            $allowed_fieldtypes = array();
+            $allowed_fieldtypes = [];
             foreach ($fieldtypes as $ft) {
                 $typename = $ft->getTypeName();
 
@@ -1208,10 +1208,10 @@ class CSVImportController extends ODRCustomController
             // ----------------------------------------
             // Check whether any jobs that are currently running would interfere with a newly
             //  created 'csv_import' job for this datatype
-            $new_job_data = array(
+            $new_job_data = [
                 'job_type' => 'csv_import',
                 'target_entity' => $datatype,
-            );
+            ];
 
             $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
@@ -1228,9 +1228,9 @@ class CSVImportController extends ODRCustomController
             $csv_delimiter = $session->get('csv_delimiter');
 
             // Need to keep track of which columns are files/images
-            $file_columns = array();
+            $file_columns = [];
             // Also need to keep track of any tags that will be created...
-            $new_tags = array();
+            $new_tags = [];
 
             // Ensure that the datatype/fieldtype mappings and secondary column delimiters aren't
             //  mismatched or missing
@@ -1274,7 +1274,7 @@ class CSVImportController extends ODRCustomController
                             // ...then the validation process will need to track which tags are being
                             //  selected so the start_worker process can create any new tags required
                             //  before the worker process starts selecting them
-                            $new_tags[$col_num] = array();
+                            $new_tags[$col_num] = [];
                         }
                     }
                 }
@@ -1335,7 +1335,7 @@ class CSVImportController extends ODRCustomController
                             // ...then the validation process will need to track which tags are being
                             //  selected so the start_worker process can create any new tags required
                             //  before the worker process starts selecting them
-                            $new_tags[$col_num] = array();
+                            $new_tags[$col_num] = [];
                         }
                     }
                 }
@@ -1345,7 +1345,7 @@ class CSVImportController extends ODRCustomController
             // ----------------------------------------
             // Verify any secondary delimiters
             foreach ($column_delimiters as $col_num => $delimiter) {
-                $delimiter = trim($delimiter);
+                $delimiter = trim((string) $delimiter);
                 if ($delimiter === 'space')
                     $delimiter = ' ';
 
@@ -1353,24 +1353,24 @@ class CSVImportController extends ODRCustomController
 
                 if ( $delimiter === '' || strlen($delimiter) > 3 )
                     throw new ODRBadRequestException('Invalid delimiter "'.$delimiter.'" for column '.$col_num);
-                if ( strpos($delimiter, $csv_delimiter) !== false )
+                if ( str_contains($delimiter, (string) $csv_delimiter) )
                     throw new ODRBadRequestException('Secondary delimiter "'.$delimiter.'" for column '.$col_num.' contains csv delimiter');
             }
             // Verify any tag hierarchy delimiters
             foreach ($hierarchy_delimiters as $col_num => $delimiter) {
-                $delimiter = trim($delimiter);
+                $delimiter = trim((string) $delimiter);
                 $hierarchy_delimiters[$col_num] = $delimiter;
 
                 if ( $delimiter === '' || strlen($delimiter) > 3 )
                     throw new ODRBadRequestException('Invalid hierarchy delimiter "'.$delimiter.'" for column '.$col_num);
-                if ( strpos($delimiter, $csv_delimiter) !== false )
+                if ( str_contains($delimiter, (string) $csv_delimiter) )
                     throw new ODRBadRequestException('Hierarchy delimiter "'.$delimiter.'" for column '.$col_num.' contains csv delimiter');
 
                 if ( !isset($column_delimiters[$col_num]) )
                     throw new ODRBadRequestException('column '.$col_num.' has hierarchy delimiter, but not secondary delimiter');
-                if ( strpos($hierarchy_delimiters[$col_num], $column_delimiters[$col_num]) !== false)
+                if ( str_contains($hierarchy_delimiters[$col_num], (string) $column_delimiters[$col_num]))
                     throw new ODRBadRequestException('Hierarchy delimiter contains secondary delimiter for column '.$col_num);
-                if ( strpos($column_delimiters[$col_num], $hierarchy_delimiters[$col_num]) !== false)
+                if ( str_contains((string) $column_delimiters[$col_num], $hierarchy_delimiters[$col_num]))
                     throw new ODRBadRequestException('Secondary delimiter contains hierarchy delimiter for column '.$col_num);
             }
 
@@ -1436,7 +1436,7 @@ class CSVImportController extends ODRCustomController
 
             // ----------------------------------------
             // Compile all the data required for this csv import to store in the tracked job entity
-            $additional_data = array(
+            $additional_data = [
                 'description' => 'Validating csv import data for DataType '.$datatype_id.'...',
 
                 'csv_filename' => $csv_filename,
@@ -1460,7 +1460,7 @@ class CSVImportController extends ODRCustomController
 
                 // Store any existing tags from datafields being imported into
                 'new_tags' => $new_tags,
-            );
+            ];
 
 //exit( '<pre>'.print_r($additional_data, true).'</pre>' );
 
@@ -1485,7 +1485,7 @@ class CSVImportController extends ODRCustomController
 
             // Need to verify that importing this csv file won't create duplicates in fields that
             //  ODR has marked as unique
-            $errors = array();
+            $errors = [];
 
             // Convert the post data into a form that's more useful for checking uniquness constraints
             $uniqueness_check_data = $csv_helper_service->getUniquenessCheckData($post, $file_headers);
@@ -1525,13 +1525,13 @@ class CSVImportController extends ODRCustomController
             foreach ($file_columns as $tmp => $column_num) {
 
                 $line_num = 0;
-                $unique_filenames = array();
+                $unique_filenames = [];
 
                 foreach ($reader as $row) {
                     $line_num++;
                     $value = $row[$column_num];
 
-                    $filenames = explode( $column_delimiters[$column_num], $value );
+                    $filenames = explode( $column_delimiters[$column_num], (string) $value );
                     foreach ($filenames as $filename) {
                         $filename = trim($filename);
 
@@ -1539,14 +1539,14 @@ class CSVImportController extends ODRCustomController
                         //  the filename currently must be unique across the entire csv file
                         if ( isset($unique_filenames[$filename]) ) {
                             // Encountered duplicate value in the csv file
-                            $errors[] = array(
+                            $errors[] = [
                                 'level' => 'Error',
                                 'category' => 'Duplicate filenames',
-                                'body' => array(
+                                'body' => [
                                     'line_num' => $line_num,
                                     'message' => 'The field "'.$file_headers[$column_num].'" wants to import the file "'.$filename.'", but that file was already listed on line '.$unique_filenames[$value],
-                                ),
-                            );
+                                ],
+                            ];
                         }
                         else if ($filename !== '') {
                             // ...otherwise, not found, just store the value
@@ -1589,7 +1589,7 @@ class CSVImportController extends ODRCustomController
 
                 // Queue each line for validation by a worker process...
                 $payload = json_encode(
-                    array(
+                    [
                         'tracked_job_id' => $tracked_job_id,
                         'datatype_id' => $datatype->getId(),
                         'user_id' => $user->getId(),
@@ -1616,13 +1616,13 @@ class CSVImportController extends ODRCustomController
                         // Will have a value if importing into a linked datatype, or a child datatype
                         //  that has its external column mapped
                         'remote_external_id_column' => $remote_external_id_column,
-                    )
+                    ]
                 );
 
                 $pheanstalk->useTube('csv_import_validate')->put($payload);
             }
 
-            $return['d'] = array('tracked_job_id' => $tracked_job_id);
+            $return['d'] = ['tracked_job_id' => $tracked_job_id];
         }
         catch (\Exception $e) {
             $source = 0xfa64ef3c;
@@ -1647,7 +1647,7 @@ class CSVImportController extends ODRCustomController
      */
     public function csvvalidateAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1683,19 +1683,19 @@ class CSVImportController extends ODRCustomController
             $api_key = $post['api_key'];
 
             // Have to pull these separately because they might not exist
-            $unique_columns = array();
+            $unique_columns = [];
             if ( isset($post['unique_columns']) )
                 $unique_columns = $post['unique_columns'];
-            $datafield_mapping = array();
+            $datafield_mapping = [];
             if ( isset($post['datafield_mapping']) )
                 $datafield_mapping = $post['datafield_mapping'];
-            $fieldtype_mapping = array();
+            $fieldtype_mapping = [];
             if ( isset($post['fieldtype_mapping']) )
                 $fieldtype_mapping = $post['fieldtype_mapping'];
-            $column_delimiters = array();
+            $column_delimiters = [];
             if ( isset($post['column_delimiters']) )
                 $column_delimiters = $post['column_delimiters'];
-            $hierarchy_delimiters = array();
+            $hierarchy_delimiters = [];
             if ( isset($post['hierarchy_delimiters']) )
                 $hierarchy_delimiters = $post['hierarchy_delimiters'];
 /*
@@ -1769,7 +1769,7 @@ class CSVImportController extends ODRCustomController
 
             // If importing into child datatype, this will warn if the parent datarecord does not exist
             // If "importing" linked datatype, this will warn if the local datarecord does not exist
-            $errors = array();
+            $errors = [];
             $parent_datatype = null;
             if ($parent_datatype_id !== '' && $parent_external_id_column !== '') {
                 // Load the parent datatype
@@ -1779,20 +1779,20 @@ class CSVImportController extends ODRCustomController
                     throw new ODRException('Invalid Form');
 
                 $parent_external_id_field = $parent_datatype->getExternalIdField();
-                $parent_external_id_value = trim( $line[$parent_external_id_column] );
+                $parent_external_id_value = trim( (string) $line[$parent_external_id_column] );
                 $dr = $datarecord_info_service->getDatarecordByExternalId($parent_external_id_field, $parent_external_id_value);
 
                 // If a parent with this external id does not exist, warn the user (the row will be ignored)
                 // Don't want to throw an error here (which will prevent the import from happening)
                 if ($dr == null) {
-                    $errors[] = array(
+                    $errors[] = [
                         'level' => 'Warning',
                         'category' => 'Missing datarecords',
-                        'body' => array(
+                        'body' => [
                             'line_num' => $line_num,
                             'message' => 'The value "'.$parent_external_id_value.'" in column "'.$column_names[$parent_external_id_column].'" is supposed to match the external ID of a parent Datarecord in "'.$parent_datatype->getShortName().'", but no such Datarecord exists...this row will be ignored',
-                        ),
-                    );
+                        ],
+                    ];
                 }
             }
 
@@ -1834,7 +1834,7 @@ class CSVImportController extends ODRCustomController
                     // Find the value for the external ID from $datafield_mapping
                     foreach ($datafield_mapping as $column_num => $datafield_id) {
                         if ($external_id_field->getId() == $datafield_id) {
-                            $value = trim( $line[$column_num] );
+                            $value = trim( (string) $line[$column_num] );
                             break;
                         }
                     }
@@ -1842,7 +1842,7 @@ class CSVImportController extends ODRCustomController
                 else {
                     // Target datarecord is on the child/remote side of the relationship...find the
                     //  external ID from $remote_external_id_column
-                    $value = trim( $line[$remote_external_id_column] );
+                    $value = trim( (string) $line[$remote_external_id_column] );
                 }
 
 
@@ -1862,19 +1862,19 @@ class CSVImportController extends ODRCustomController
 
                     // The remote datarecord MUST exist...can't link to a non-existant datarecord
                     if ($datarecord_id == null) {
-                        $errors[] = array(
+                        $errors[] = [
                             'level' => 'Error',
                             'category' => 'Missing datarecords',
-                            'body' => array(
+                            'body' => [
                                 'line_num' => $line_num,
                                 'message' => 'The value "'.$value.'" in column "'.$column_names[$remote_external_id_column].'" is supposed to match the external ID of a Datarecord in the Datatype "'.$datatype->getShortName().'", but no such Datarecord exists',
-                            ),
-                        );
+                            ],
+                        ];
                     }
                 }
                 else if ($import_into_child_datatype) {
                     // Importing into child datatype...attempt to locate the child datarecord
-                    $parent_external_id = trim( $line[$parent_external_id_column] );
+                    $parent_external_id = trim( (string) $line[$parent_external_id_column] );
                     $dr = $datarecord_info_service->getChildDatarecordByExternalId($external_id_field, $value, $parent_datatype->getExternalIdField(), $parent_external_id);
                     if ($dr !== null)
                         $datarecord_id = $dr->getId();
@@ -1886,14 +1886,14 @@ class CSVImportController extends ODRCustomController
                 }
                 else {
                     // Don't think this can even happen, but don't continue if it does
-                    $errors[] = array(
+                    $errors[] = [
                         'level' => 'Error',
                         'category' => 'Unrecoverable CSVImport problems',
-                        'body' => array(
+                        'body' => [
                             'line_num' => $line_num,
                             'message' => 'Parameter mismatch...somehow not importing into anything (top-level/child/linked datatype)??',
-                        ),
-                    );
+                        ],
+                    ];
                 }
             }
 
@@ -1901,16 +1901,16 @@ class CSVImportController extends ODRCustomController
             // For the purposes of checking files/images in a child datarecord...
             if ($external_id_field == null && $import_into_child_datatype) {
                 /** @var DataTree $datatree */
-                $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy( array('ancestor' => $parent_datatype->getId(), 'descendant' => $datatype->getId()) );
+                $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy( ['ancestor' => $parent_datatype->getId(), 'descendant' => $datatype->getId()] );
                 if ($datatree == null) {
-                    $errors[] = array(
+                    $errors[] = [
                         'level' => 'Error',
                         'category' => 'Unrecoverable CSVImport problems',
-                        'body' => array(
+                        'body' => [
                             'line_num' => $line_num,
                             'message' => 'Parameter mismatch...datatree entry does not exist??',
-                        ),
-                    );
+                        ],
+                    ];
                 }
 
                 // Doesn't make sense to locate something in a multiple-allowed child datatype that
@@ -1926,7 +1926,7 @@ class CSVImportController extends ODRCustomController
             // ----------------------------------------
             // Attempt to validate each line of data against the desired datafield/fieldtype mapping
             foreach ($datafield_mapping as $column_num => $datafield_id) {
-                $value = trim( $line[$column_num] );
+                $value = trim( (string) $line[$column_num] );
                 $length = mb_strlen($value, "utf-8");
 
                 // Get typeclass of what this data will be imported into
@@ -1962,7 +1962,7 @@ class CSVImportController extends ODRCustomController
                             $upload_dir = $this->getParameter('odr_tmp_directory').'/user_'.$user_id.'/csv_storage/';
 
                             // Grab a list of the files already uploaded to this datafield
-                            $already_uploaded_files = array();
+                            $already_uploaded_files = [];
                             if ($datarecord_id !== null) {
                                 $query_str =
                                    'SELECT em.originalFileName
@@ -1974,10 +1974,10 @@ class CSVImportController extends ODRCustomController
                                 $query_str .= 'AND e.deletedAt IS NULL AND em.deletedAt IS NULL';
 
                                 $query = $em->createQuery($query_str)->setParameters(
-                                    array(
+                                    [
                                         'datarecord' => $datarecord_id,
                                         'datafield' => $datafield_id
-                                    )
+                                    ]
                                 );
                                 $results = $query->getArrayResult();
 
@@ -2009,14 +2009,14 @@ class CSVImportController extends ODRCustomController
 
                                 if ( !file_exists($upload_dir.$filename) ) {
                                     // File/Image does not exist in the upload directory
-                                    $errors[] = array(
+                                    $errors[] = [
                                         'level' => 'Warning',
                                         'category' => 'Missing filenames',
-                                        'body' => array(
+                                        'body' => [
                                             'line_num' => $line_num,
                                             'message' => 'Column "'.$column_names[$column_num].'" references a '.$typeclass.' "'.$filename.'", but that '.$typeclass.' has not been uploaded to the server.',
-                                        )
-                                    );
+                                        ]
+                                    ];
                                 }
                                 else {
                                     // File/Image exists, ensure it has a valid mimetype
@@ -2025,28 +2025,28 @@ class CSVImportController extends ODRCustomController
 
                                     $uploaded_file = new SymfonyFile($upload_dir.$filename);
                                     if ( count($validation_params['mimeTypes']) > 0 && !in_array($uploaded_file->getMimeType(), $validation_params['mimeTypes']) ) {
-                                        $errors[] = array(
+                                        $errors[] = [
                                             'level' => 'Error',
                                             'category' => 'Invalid upload files',
-                                            'body' => array(
+                                            'body' => [
                                                 'line_num' => $line_num,
                                                 'message' => 'The '.$typeclass.' "'.$filename.'" listed in column "'.$column_names[$column_num].'" is not a valid file for the '.$typeclass.' fieldtype.',
-                                            )
-                                        );
+                                            ]
+                                        ];
                                     }
                                 }
                             }
 
                             // Also check to ensure that uploading a file/image won't violate the state of the "allow multiple uploads" checkbox
                             if ( !$allow_multiple_uploads && $total_file_count > 1 ) {
-                                $errors[] = array(
+                                $errors[] = [
                                     'level' => 'Error',
                                     'category' => 'Database constraint violations',
-                                    'body' => array(
+                                    'body' => [
                                         'line_num' => $line_num,
                                         'message' => 'The column "'.$column_names[$column_num].'" is marked as only allowing a single '.$typeclass.' upload, but it would have '.$total_file_count.' '.$typeclass.'s uploaded after this CSV Import.',
-                                    )
-                                );
+                                    ]
+                                ];
                             }
                         }
                         break;
@@ -2054,26 +2054,26 @@ class CSVImportController extends ODRCustomController
                     case "IntegerValue":
                         if ( !ValidUtility::isValidInteger($value) ) {
                             // Warn about invalid characters in an integer conversion
-                            $errors[] = array(
+                            $errors[] = [
                                 'level' => 'Warning',
                                 'category' => 'Invalid values',
-                                'body' => array(
+                                'body' => [
                                     'line_num' => $line_num,
                                     'message' => 'Column "'.$column_names[$column_num].'": the value "'.$value.'" is not a valid integer value, and will not be imported'
-                                )
-                            );
+                                ]
+                            ];
                         }
                         break;
                     case "DecimalValue":
                         if ( !ValidUtility::isValidDecimal($value) ) {
-                            $errors[] = array(
+                            $errors[] = [
                                 'level' => 'Warning',
                                 'category' => 'Invalid values',
-                                'body' => array(
+                                'body' => [
                                     'line_num' => $line_num,
                                     'message' => 'Column "'.$column_names[$column_num].'": the value "'.$value.'" is not a valid decimal value, and will not be imported'
-                                ),
-                            );
+                                ],
+                            ];
                         }
                         break;
 
@@ -2081,66 +2081,66 @@ class CSVImportController extends ODRCustomController
                         // TODO - make this use ValidUtility?  it also doesn't exactly match the actual import logic...
                         $pattern = '/^(\d{1,4})$/'; // string consists solely of one to four digits
                         if ( preg_match($pattern, $value) == 1 ) {
-                            $errors[] = array(
+                            $errors[] = [
                                 'level' => 'Error',
                                 'category' => 'Invalid values',
-                                'body' => array(
+                                'body' => [
                                     'line_num' => $line_num,
                                     'message' => 'Column "'.$column_names[$column_num].'" has the value "'.$value.'", which is not a valid Datetime value',
-                                ),
-                            );
+                                ],
+                            ];
                         }
                         else {
                             try {
                                 $tmp = new \DateTime($value);
                             }
-                            catch (\Exception $e) {
-                                $errors[] = array(
+                            catch (\Exception) {
+                                $errors[] = [
                                     'level' => 'Error',
                                     'category' => 'Invalid values',
-                                    'body' => array(
+                                    'body' => [
                                         'line_num' => $line_num,
                                         'message' => 'Column "'.$column_names[$column_num].'" has the value "'.$value.'", which is not a valid Datetime value',
-                                    ),
-                                );
+                                    ],
+                                ];
                             }
                         }
                         break;
 
                     case "ShortVarchar":
                         if ( !ValidUtility::isValidShortVarchar($value) ) {
-                            $errors[] = array(
+                            $errors[] = [
                                 'level' => 'Warning',
                                 'category' => 'Invalid values',
-                                'body' => array(
+                                'body' => [
                                     'line_num' => $line_num,
                                     'message' => 'Column "'.$column_names[$column_num].'" is '.$length.' characters long, but a ShortVarchar field can only store up to 32 characters',
-                                ),
-                            );
+                                ],
+                            ];
                         }
                         break;
                     case "MediumVarchar":
                         if ( !ValidUtility::isValidMediumVarchar($value) ) {
-                            $errors[] = array(
+                            $errors[] = [
                                 'level' => 'Warning',
                                 'category' => 'Invalid values',
-                                'body' => array(
+                                'body' => [
                                     'line_num' => $line_num,
                                     'message' => 'Column "'.$column_names[$column_num].'" is '.$length.' characters long, but a MediumVarchar field can only store up to 64 characters',
-                                ),
-                            );
+                                ],
+                            ];
                         }
                         break;
                     case "LongVarchar":
                         if ( !ValidUtility::isValidLongVarchar($value) ) {
-                            $errors[] = array(
+                            $errors[] = [
                                 'level' => 'Warning',
                                 'category' => 'Invalid values',
-                                'body' => array(
+                                'body' => [
                                     'line_num' => $line_num,
                                     'message' => 'Column "'.$column_names[$column_num].'" is '.$length.' characters long, but a LongVarchar field can only store up to 255 characters',
-                                ),
-                            );
+                                ],
+                            ];
                         }
                         break;
                     case "LongText":
@@ -2163,38 +2163,38 @@ class CSVImportController extends ODRCustomController
                                 $option = trim($option);
                                 $option_length = mb_strlen($option, "utf-8");
                                 if ( $option_length == 0 ) {
-                                    $errors[] = array(
+                                    $errors[] = [
                                         'level' => 'Warning',
                                         'category' => 'Invalid radio option names',
-                                        'body' => array(
+                                        'body' => [
                                             'line_num' => $line_num,
                                             'message' => 'Column "'.$column_names[$column_num].'" would create a blank radio option during import...',
-                                        ),
-                                    );
+                                        ],
+                                    ];
                                 }
                                 else if ( $option_length > 255 ) {
-                                    $errors[] = array(
+                                    $errors[] = [
                                         'level' => 'Warning',
                                         'category' => 'Invalid radio option names',
-                                        'body' => array(
+                                        'body' => [
                                             'line_num' => $line_num,
                                             'message' => 'Column "'.$column_names[$column_num].'" has a Radio Option that is '.$length.' characters long, but the maximum length allowed is 255 characters',
-                                        ),
-                                    );
+                                        ],
+                                    ];
                                 }
                             }
                         }
                         else {
                             // Check length of option
                             if ($length > 255) {
-                                $errors[] = array(
+                                $errors[] = [
                                     'level' => 'Warning',
                                     'category' => 'Invalid radio option names',
-                                    'body' => array(
+                                    'body' => [
                                         'line_num' => $line_num,
                                         'message' => 'Column "'.$column_names[$column_num].'" has a Radio Option that is '.$length.' characters long, but the maximum length allowed is 255 characters',
-                                    ),
-                                );
+                                    ],
+                                ];
                             }
                         }
                         break;
@@ -2208,7 +2208,7 @@ class CSVImportController extends ODRCustomController
                         $tags = explode($column_delimiters[$column_num], $value);
 
                         // Explode the column's value to extract every single individual tag
-                        $all_tags = array();
+                        $all_tags = [];
                         foreach ($tags as $num => $tag_name) {
                             $tag_name = trim($tag_name);
 
@@ -2228,24 +2228,24 @@ class CSVImportController extends ODRCustomController
                         //  longer than 255 characters
                         foreach ($all_tags as $tag_name => $num) {
                             if ( trim($tag_name) === '' ) {
-                                $errors[] = array(
+                                $errors[] = [
                                     'level' => 'Warning',
                                     'category' => 'Invalid tag names',
-                                    'body' => array(
+                                    'body' => [
                                         'line_num' => $line_num,
                                         'message' => 'Column "'.$column_names[$column_num].'" would create a blank tag during import...',
-                                    ),
-                                );
+                                    ],
+                                ];
                             }
                             else if ( mb_strlen($tag_name, "utf-8") > 255 ) {
-                                $errors[] = array(
+                                $errors[] = [
                                     'level' => 'Warning',
                                     'category' => 'Invalid tag names',
-                                    'body' => array(
+                                    'body' => [
                                         'line_num' => $line_num,
                                         'message' => 'Column "'.$column_names[$column_num].'" has a Tag that is '.$length.' characters long, but the maximum length allowed is 255 characters',
-                                    ),
-                                );
+                                    ],
+                                ];
                             }
                         }
 
@@ -2343,7 +2343,7 @@ class CSVImportController extends ODRCustomController
      */
     public function validateresultsAction($tracked_job_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -2416,10 +2416,10 @@ class CSVImportController extends ODRCustomController
             // ----------------------------------------
             // Check whether any jobs that are currently running would interfere with a newly
             //  created 'csv_import' job for this datatype
-            $new_job_data = array(
+            $new_job_data = [
                 'job_type' => 'csv_import',
                 'target_entity' => $datatype,
-            );
+            ];
 
             $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
@@ -2445,7 +2445,7 @@ class CSVImportController extends ODRCustomController
             /** @var DataType[]|null $childtypes */
             $childtypes = null;
             if ($parent_datatype_id !== '') {
-                $childtypes = array();
+                $childtypes = [];
                 foreach ($datatree_array['descendant_of'] as $dt_id => $parent_dt_id) {
                     if ($parent_dt_id == $datatype_id) {
                         // Ensure user has permissions to modify this childtype before storing it
@@ -2464,7 +2464,7 @@ class CSVImportController extends ODRCustomController
             /** @var DataType[]|null $linked_types */
             $linked_types = null;
             if ($parent_datatype_id !== '') {
-                $linked_types = array();
+                $linked_types = [];
                 foreach ($datatree_array['linked_from'] as $descendant_dt_id => $ancestor_ids) {
                     if ( in_array($datatype_id, $ancestor_ids) ) {
                         // Ensure user has permissions to modify this linked type before storing it
@@ -2497,12 +2497,12 @@ class CSVImportController extends ODRCustomController
             // Grab all datafields belonging to the correct datatype
             $datatype_array = $database_info_service->getDatatypeArray($grandparent_datatype->getId(), false);    // don't load linked datatypes
             $datafields = $datatype_array[$datatype->getId()]['dataFields'];
-            uasort($datafields, "self::name_sort");
+            uasort($datafields, self::name_sort(...));
 
             // Grab the FieldTypes that the csv importer can read data into
             /** @var FieldType[] $fieldtypes */
             $fieldtypes = $repo_fieldtype->findAll();
-            $allowed_fieldtypes = array();
+            $allowed_fieldtypes = [];
 
             foreach ($fieldtypes as $num => $fieldtype) {
                 // Every field can be imported into except for Markdown fields
@@ -2516,7 +2516,7 @@ class CSVImportController extends ODRCustomController
             }
 
             // Also need to keep track of any tag datafields that allow parent/child tags...
-            $multilevel_tag_datafields = array();
+            $multilevel_tag_datafields = [];
             foreach ($datafields as $df_id => $df) {
                 if ( $df['dataFieldMeta']['tags_allow_multiple_levels'] == true )
                     $multilevel_tag_datafields[$df_id] = 1;
@@ -2542,7 +2542,7 @@ class CSVImportController extends ODRCustomController
 
             // TODO - In theory, this shouldn't rewrite the file, since it was called back in layoutAction()...
             // TODO - ...figure out a clean way to get column lengths without doing this?
-            $column_metadata = array();
+            $column_metadata = [];
             $file_encoding_converted = self::trimCSVFile($csv_import_path, $csv_filename, $delimiter, $column_metadata);
 
 
@@ -2553,22 +2553,22 @@ class CSVImportController extends ODRCustomController
             $datafield_mapping = $presets['datafield_mapping'];
             $hierarchy_delimiters = $presets['hierarchy_delimiters'];
 
-            $new_tag_arrays = array();
+            $new_tag_arrays = [];
             foreach ($new_tags as $col_num => $tag_list) {
                 // If this column is for a new datafield...
                 if ( $datafield_mapping[$col_num] === 'new' ) {
                     // ...then all these tags will have to be created, since they don't exist
-                    $existing_tag_array = array();
+                    $existing_tag_array = [];
 
                     // $would_create_new_tags is going to be true...
                     $would_create_new_tags = true;
                     foreach ($tag_list as $tag_name => $num) {
                         // Convert the tag into the correct format for insertTagsForListImport()...
-                        $tag_names = array(0 => $tag_name);
+                        $tag_names = [0 => $tag_name];
                         if ( isset($hierarchy_delimiters[$col_num]) )
-                            $tag_names = explode($hierarchy_delimiters[$col_num], $tag_name);
+                            $tag_names = explode($hierarchy_delimiters[$col_num], (string) $tag_name);
                         foreach ($tag_names as $num => $tag_name)
-                            $tag_names[$num] = trim($tag_name);
+                            $tag_names[$num] = trim((string) $tag_name);
 
                         $existing_tag_array = $tag_helper_service->insertTagsForListImport($existing_tag_array, $tag_names, $would_create_new_tags);
                     }
@@ -2589,11 +2589,11 @@ class CSVImportController extends ODRCustomController
                     $would_create_new_tags = false;
                     foreach ($tag_list as $tag_name => $num) {
                         // Convert the tag into the correct format for insertTagsForListImport()...
-                        $tag_names = array(0 => $tag_name);
+                        $tag_names = [0 => $tag_name];
                         if ( isset($hierarchy_delimiters[$col_num]) )
-                            $tag_names = explode($hierarchy_delimiters[$col_num], $tag_name);
+                            $tag_names = explode($hierarchy_delimiters[$col_num], (string) $tag_name);
                         foreach ($tag_names as $num => $tag_name)
-                            $tag_names[$num] = trim($tag_name);
+                            $tag_names[$num] = trim((string) $tag_name);
 
                         $existing_tag_array = $tag_helper_service->insertTagsForListImport($existing_tag_array, $tag_names, $would_create_new_tags);
                     }
@@ -2619,16 +2619,16 @@ class CSVImportController extends ODRCustomController
             // TODO - ...attempts to do so should probably create a warning
 
             // Since twig is so bad with building arrays, organize the errors/warings here
-            $messages = array();
+            $messages = [];
             foreach ($error_messages as $message) {
                 $level = $message['error_level'];
                 $category = $message['error_category'];
                 $body = $message['error_body'];
 
                 if ( !isset($messages[$level]) )
-                    $messages[$level] = array();
+                    $messages[$level] = [];
                 if ( !isset($messages[$level][$category]) )
-                    $messages[$level][$category] = array();
+                    $messages[$level][$category] = [];
 
                 $messages[$level][$category][] = $body;
             }
@@ -2643,10 +2643,10 @@ class CSVImportController extends ODRCustomController
 //exit( '<pre>'.print_r($presets, true).'</pre>' );
 
             // Render the page...
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:CSVImport:import.html.twig',
-                    array(
+                    [
                         'datatype' => $datatype,    // as expected if importing into a top-level or child datatype, or equivalent to the remote datatype if importing links
                         'childtypes' => $childtypes,
                         'linked_types' => $linked_types,
@@ -2676,9 +2676,9 @@ class CSVImportController extends ODRCustomController
                         'allow_import' => $allow_import,
 
                         'file_encoding_converted' => false,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0xee919ae8;
@@ -2705,7 +2705,7 @@ class CSVImportController extends ODRCustomController
      */
     public function startworkerAction($job_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -2792,10 +2792,10 @@ class CSVImportController extends ODRCustomController
             // ----------------------------------------
             // Check whether any jobs that are currently running would interfere with a newly
             //  created 'csv_import' job for this datatype
-            $new_job_data = array(
+            $new_job_data = [
                 'job_type' => 'csv_import',
                 'target_entity' => $datatype,
-            );
+            ];
 
             $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
@@ -2828,7 +2828,7 @@ class CSVImportController extends ODRCustomController
             // Get/create an entity to track the progress of this csv import
             $job_type = 'csv_import';
             $target_entity = 'datatype_'.$datatype->getId();
-            $additional_data = array('description' => 'Importing data into DataType '.$datatype_id.'...');
+            $additional_data = ['description' => 'Importing data into DataType '.$datatype_id.'...'];
             $restrictions = '';
             $total = $reader->count();
             $reuse_existing = false;
@@ -2885,15 +2885,15 @@ class CSVImportController extends ODRCustomController
 
 
             // For readability, linking datarecords with csv importing uses a different controller action
-            $url = $this->generateUrl('odr_csv_import_worker', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+            $url = $this->generateUrl('odr_csv_import_worker', [], UrlGeneratorInterface::ABSOLUTE_URL);
             if ($import_as_linked_datatype)
-                $url = $this->generateUrl('odr_csv_link_worker', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+                $url = $this->generateUrl('odr_csv_link_worker', [], UrlGeneratorInterface::ABSOLUTE_URL);
 
 
             // ----------------------------------------
             // Store hydrated versions of datafields
             /** @var DataFields[] $hydrated_datafields */
-            $hydrated_datafields = array();
+            $hydrated_datafields = [];
 
             // Verify some of the mapping prior to creating any new datafields
             foreach ($datafield_mapping as $column_id => $datafield_id) {
@@ -2936,8 +2936,8 @@ class CSVImportController extends ODRCustomController
 
             // ----------------------------------------
             // Create any necessary datafields
-            $new_datafields = array();
-            $new_mapping = array();
+            $new_datafields = [];
+            $new_mapping = [];
             $created = false;
             foreach ($datafield_mapping as $column_id => $datafield_id) {
                 $datafield = null;
@@ -2960,7 +2960,7 @@ class CSVImportController extends ODRCustomController
 
                     // Set the datafield's name
                     $datafield_meta = $datafield->getDataFieldMeta();
-                    $datafield_meta->setFieldName( mb_scrub($column_names[$column_id]) );
+                    $datafield_meta->setFieldName( mb_scrub((string) $column_names[$column_id]) );
 
                     // Set whether it's supposed to be unique or not
                     if ( isset($unique_columns[$column_id]) )
@@ -3006,7 +3006,7 @@ class CSVImportController extends ODRCustomController
                         $event = new DatafieldCreatedEvent($new_datafield, $user);
                         $dispatcher->dispatch(DatafieldCreatedEvent::NAME, $event);
                     }
-                    catch (\Exception $e) {
+                    catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
                         //  event
 //                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -3040,7 +3040,7 @@ print_r($new_mapping);
             // The validation process will have stored an array of every tag that will get selected
             //  during the import
             $created_new_tags = false;
-            $datafields_to_resort = array();
+            $datafields_to_resort = [];
             foreach ($new_tags as $column_id => $tag_data) {
                 // At this point, $new_tags contains every tag that will eventually be selected
 
@@ -3058,11 +3058,11 @@ print_r($new_mapping);
                     FROM ODRAdminBundle:Tags AS t
                     WHERE t.dataField = :datafield_id
                     AND t.deletedAt IS NULL'
-                )->setParameters( array('datafield_id' => $df->getId()) );
+                )->setParameters( ['datafield_id' => $df->getId()] );
                 $results = $query->getResult();
 
                 /** @var Tags[] $results */
-                $hydrated_tag_array = array();
+                $hydrated_tag_array = [];
                 foreach ($results as $tag) {
                     // Have to store by tag uuid because tag names aren't guaranteed to be unique
                     //  across the entire tree
@@ -3072,11 +3072,11 @@ print_r($new_mapping);
 
                 foreach ($tag_data as $tag_name => $num) {
                     // Convert the tag into the correct format for insertTagsForListImport()...
-                    $tag_names = array(0 => $tag_name);
+                    $tag_names = [0 => $tag_name];
                     if ( isset($hierarchy_delimiters[$column_id]) )
-                        $tag_names = explode($hierarchy_delimiters[$column_id], $tag_name);
+                        $tag_names = explode($hierarchy_delimiters[$column_id], (string) $tag_name);
                     foreach ($tag_names as $num => $tag_name)
-                        $tag_names[$num] = trim($tag_name);
+                        $tag_names[$num] = trim((string) $tag_name);
 
                     $stacked_tag_array = self::createTagsForListImport(
                         $em,           // Needed to persist new tag uuids and tag tree entries
@@ -3119,7 +3119,7 @@ print_r($new_mapping);
                     $event = new DatatypeModifiedEvent($datatype, $user);
                     $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
 //                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -3158,7 +3158,7 @@ print_r($new_mapping);
 
                 // Queue each line for import by a worker process...
                 $payload = json_encode(
-                    array(
+                    [
                         'tracked_job_id' => $tracked_job_id,
                         'user_id' => $user->getId(),
                         'datatype_id' => $datatype->getId(),
@@ -3179,20 +3179,20 @@ print_r($new_mapping);
 
                         // Will have a value if importing into a linked datatype, or a child datatype that has its external column mapped
                         'remote_external_id_column' => $remote_external_id_column,
-                    )
+                    ]
                 );
 
                 // Randomize priority somewhat so multiple people can run imports simultaneously
                 //  without waiting for the imports started before them to finish completely
                 $priority = 1024;
-                $num = rand(0, 400) - 200;
+                $num = random_int(0, 400) - 200;
                 $priority += $num;
 
                 $delay = 5;
                 $pheanstalk->useTube('csv_import_worker')->put($payload, $priority, $delay);
             }
 
-            $return['d'] = array("tracked_job_id" => $tracked_job_id);
+            $return['d'] = ["tracked_job_id" => $tracked_job_id];
 
         }
         catch (\Exception $e) {
@@ -3252,13 +3252,13 @@ print_r($new_mapping);
             // Need to store the new stuff for later reference...
             $hydrated_tag_array[$new_tag_uuid] = $current_tag;
 
-            $stacked_tag_array[$tag_name] = array(
+            $stacked_tag_array[$tag_name] = [
                 'id' => $new_tag_uuid,    // Don't really care what the ID is...only used for rendering
-                'tagMeta' => array(
+                'tagMeta' => [
                     'tagName' => $tag_name
-                ),
+                ],
                 'tagUuid' => $new_tag_uuid,
-            );
+            ];
 
 
             // If the parent tag isn't null, then this new tag also needs a new TagTree entry to
@@ -3280,7 +3280,7 @@ print_r($new_mapping);
         // If there are more children/grandchildren to the tag to add...
         if ( count($posted_tags) > 1 ) {
             // ...get any children the existing tag already has
-            $existing_child_tags = array();
+            $existing_child_tags = [];
             if ( isset($stacked_tag_array[$tag_name]['children']) )
                 $existing_child_tags = $stacked_tag_array[$tag_name]['children'];
 
@@ -3314,7 +3314,7 @@ print_r($new_mapping);
      */
     public function csvworkerAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -3437,7 +3437,7 @@ print_r($new_mapping);
                     throw new ODRException('Invalid Datatype ID');
 
                 // Find the datarecord pointed to by the value in $parent_external_id_column
-                $parent_external_id_value = trim( $line[$parent_external_id_column] );
+                $parent_external_id_value = trim( (string) $line[$parent_external_id_column] );
 
                 /** @var DataType $parent_datatype */
                 $parent_datatype = $repo_datatype->find($parent_datatype_id);
@@ -3454,7 +3454,7 @@ print_r($new_mapping);
                 // If importing into a child datatype, figure out whether multiple child datarecords are allowed
                 if ($import_into_child_datatype) {
                     /** @var DataTree $datatree */
-                    $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy( array('ancestor' => $parent_datatype->getId(), 'descendant' => $datatype->getId()) );
+                    $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy( ['ancestor' => $parent_datatype->getId(), 'descendant' => $datatype->getId()] );
                     if ($datatree == null)
                         throw new ODRException('Datatree entry does not exist');
 
@@ -3475,7 +3475,7 @@ print_r($new_mapping);
                     $datafield_id = $external_id_field->getId();
                     foreach ($mapping as $column_num => $df_id) {
                         if ($df_id == $datafield_id)
-                            $external_id_value = trim( $line[$column_num] );
+                            $external_id_value = trim( (string) $line[$column_num] );
                     }
 
                     // Have an external ID field, so attempt to locate a top-level datarecord
@@ -3492,7 +3492,7 @@ print_r($new_mapping);
                     $datafield_id = $external_id_field->getId();
                     foreach ($mapping as $column_num => $df_id) {
                         if ($df_id == $datafield_id)
-                            $external_id_value = trim( $line[$column_num] );
+                            $external_id_value = trim( (string) $line[$column_num] );
                     }
 
                     // Have an external ID field, so attempt to locate the child datarecord with the parent
@@ -3597,7 +3597,7 @@ exit();
                     $event = new DatarecordCreatedEvent($datarecord, $user, null);
                     $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event.
 //                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -3611,7 +3611,7 @@ exit();
                 //  this point in time...the chance of having to rebuild it just to delete it at the
                 //  end of this function, combined with $datarecord possibly being not top-level,
                 //  means that using an SQL query is the better option.
-                $prefixes = array(
+                $prefixes = [
                     'Boolean' => 'bv',
                     'IntegerValue' => 'iv',
                     'DecimalValue' => 'dv',
@@ -3622,7 +3622,7 @@ exit();
                     'DatetimeValue' => 'dtv',
 
                     // There will be other tables in the results, but don't care about them
-                );
+                ];
 
                 $query =
                    'SELECT drf.id, ft.type_class,
@@ -3674,7 +3674,7 @@ exit();
             // ----------------------------------------
             // May need to delete some extra cache entries depending on what gets created during this
             $need_datatype_cache_rebuild = false;
-            $datafields_needing_name_sort = array();
+            $datafields_needing_name_sort = [];
 
             // Break apart the line into constituent columns...
             foreach ($line as $column_num => $column_data) {
@@ -3688,7 +3688,7 @@ exit();
                     $typename = $datafield->getFieldType()->getTypeName();
                     $typeclass = $datafield->getFieldType()->getTypeClass();
 
-                    $column_data = trim($column_data);
+                    $column_data = trim((string) $column_data);
 
                     if ($typeclass == 'Boolean') {
                         // Assume the field is checked initially...
@@ -3719,12 +3719,12 @@ exit();
                             $entity = $entity_create_service->createStorageEntity($user, $datarecord, $datafield);
 
                             // Ensure the value in the datafield matches the value in the import file
-                            $entity_modify_service->updateStorageEntity($user, $entity, array('value' => $checked));
+                            $entity_modify_service->updateStorageEntity($user, $entity, ['value' => $checked]);
                             $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$checked.'"...'."\n";
                         }
                     }
                     else if ($typeclass == 'File' || $typeclass == 'Image') {
-                        $csv_filenames = array();
+                        $csv_filenames = [];
                         $status .= '    -- datafield '.$datafield->getId().' ('.$typeclass.') '."\n";
 
                         // ----------------------------------------
@@ -3737,7 +3737,7 @@ exit();
                             $storage_filepath = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv_storage';
 
                             // Grab a list of the files/images already uploaded to this datafield
-                            $existing_files = array();
+                            $existing_files = [];
                             $query_str =
                                'SELECT e
                                 FROM ODRAdminBundle:'.$typeclass.' AS e
@@ -3747,10 +3747,10 @@ exit();
 
                             $query_str .= 'AND e.deletedAt IS NULL';
                             $query = $em->createQuery($query_str)->setParameters(
-                                array(
+                                [
                                     'datarecord' => $datarecord->getId(),
                                     'datafield' => $datafield->getId()
-                                )
+                                ]
                             );
 
                             /** @var File[]|Image[] $objects */
@@ -3816,7 +3816,7 @@ exit();
                                     else {
                                         // Need to find the resized versions of the original image
                                         /** @var Image[] $old_images */
-                                        $old_images = $em->getRepository('ODRAdminBundle:Image')->findBy( array('parent' => $old_obj->getId()) );
+                                        $old_images = $em->getRepository('ODRAdminBundle:Image')->findBy( ['parent' => $old_obj->getId()] );
                                         $old_images[] = $old_obj;
 
                                         foreach ($old_images as $img) {
@@ -3847,7 +3847,7 @@ exit();
                                 FROM ODRAdminBundle:'.$typeclass.' AS e
                                 WHERE e.dataRecord = :datarecord AND e.dataField = :datafield
                                 AND e.deletedAt IS NULL'
-                            )->setParameters( array('datarecord' => $datarecord->getId(), 'datafield' => $datafield->getId()) );
+                            )->setParameters( ['datarecord' => $datarecord->getId(), 'datafield' => $datafield->getId()] );
                             $results = $query->getResult();
 
                             foreach ($results as $tmp => $file) {
@@ -3938,7 +3938,7 @@ exit();
                                 $value = $column_data;
 
                             // Ensure the value stored in the entity matches the value in the import file
-                            $entity_modify_service->updateStorageEntity($user, $entity, array('value' => $value));
+                            $entity_modify_service->updateStorageEntity($user, $entity, ['value' => $value]);
                             $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$value.'"...'."\n";
                         }
                     }
@@ -3966,7 +3966,7 @@ exit();
                                 $value = $column_data;
 
                             // Ensure the value stored in the entity matches the value in the import file
-                            $entity_modify_service->updateStorageEntity($user, $entity, array('value' => $value));
+                            $entity_modify_service->updateStorageEntity($user, $entity, ['value' => $value]);
                             $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$value.'"...'."\n";
                         }
                     }
@@ -4003,7 +4003,7 @@ exit();
                             }
 
                             // Ensure the value stored in the entity matches the value in the import file
-                            $entity_modify_service->updateStorageEntity($user, $entity, array('value' => $column_data));
+                            $entity_modify_service->updateStorageEntity($user, $entity, ['value' => $column_data]);
 
                             if ( $truncated )
                                 $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to "'.$column_data.'" (TRUNCATED)...'."\n";
@@ -4034,7 +4034,7 @@ exit();
                                 $value = new \DateTime($column_data);
 
                             // Ensure the value stored in the entity matches the value in the import file
-                            $entity_modify_service->updateStorageEntity($user, $entity, array('value' => $value));
+                            $entity_modify_service->updateStorageEntity($user, $entity, ['value' => $value]);
                             if ($value == null)
                                 $status .= '    -- set datafield '.$datafield->getId().' ('.$typeclass.') to ""...'."\n";
                             else
@@ -4051,7 +4051,7 @@ exit();
                         $drf = $entity_create_service->createDatarecordField($user, $datarecord, $datafield);
 
                         // If multiple radio/select, get an array of all the options...
-                        $options = array($column_data);
+                        $options = [$column_data];
                         if ($typename == "Multiple Select" || $typename == "Multiple Radio")
                             $options = explode( $column_delimiters[$column_num], $column_data );
 
@@ -4064,10 +4064,10 @@ exit();
                             // Attempt to load an existing radio option with this name
                             /** @var RadioOptions $radio_option */
                             $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
-                                array(
+                                [
                                     'optionName' => $option_name,
                                     'dataField' => $datafield->getId()
-                                )
+                                ]
                             );
                             if ( $radio_option == null ) {
                                 // Create a radio_option entity for this datafield with this name if
@@ -4099,9 +4099,9 @@ exit();
                             if ($typename == 'Single Radio' || $typename == 'Single Select') {
                                 /** @var RadioSelection[] $radio_selections */
                                 $radio_selections = $em->getRepository('ODRAdminBundle:RadioSelection')->findBy(
-                                    array(
+                                    [
                                         'dataRecordFields' => $drf->getId()
-                                    )
+                                    ]
                                 );
 
                                 // ...then for every radio selection entity in this datafield...
@@ -4111,7 +4111,7 @@ exit();
                                         && $rs->getSelected() == 1
                                     ) {
                                         // ...ensure it's deselected
-                                        $properties = array('selected' => 0);
+                                        $properties = ['selected' => 0];
                                         $entity_modify_service->updateRadioSelection($user, $rs, $properties, true);    // don't flush immediately
 
                                         $status .= '      >> deselected radio selection for radio_option ("'.$rs->getRadioOption()->getOptionName().'").'."\n";
@@ -4126,7 +4126,7 @@ exit();
                             $radio_selection = $entity_create_service->createRadioSelection($user, $radio_option, $drf);
 
                             // Ensure it has the correct selected status
-                            $properties = array('selected' => 1);
+                            $properties = ['selected' => 1];
                             $entity_modify_service->updateRadioSelection($user, $radio_selection, $properties);
 
                             $status .= '      >> radio_selection for radio_option ("'.$radio_option->getOptionName().'") now selected'."\n";
@@ -4151,7 +4151,7 @@ exit();
 
                         // Convert the contents of this field into individual tags
                         $tags = explode($column_delimiters[$column_num], $column_data);
-                        $selections = array();
+                        $selections = [];
 
                         if ( !isset($hierarchy_delimiters[$column_num]) ) {
                             // This datafield only allows a single level of tags
@@ -4233,7 +4233,7 @@ exit();
             /** @var DataFields[] $datafields_needing_name_sort */
             foreach ($datafields_needing_name_sort as $df_id => $df) {
                 if ( !isset($additional_data['datafields_needing_resort']) )
-                    $additional_data['datafields_needing_resort'] = array();
+                    $additional_data['datafields_needing_resort'] = [];
 
                 $additional_data['datafields_needing_resort'][$df_id] = 1;
                 $status .= ' >> requiring end of import to resort datafield '.$df_id.' ("'.$df->getFieldName().'")'."\n";
@@ -4289,7 +4289,7 @@ exit();
                         $event = new DatatypeModifiedEvent($datatype, $user);
                         $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
                     }
-                    catch (\Exception $e) {
+                    catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
                         //  event
 //                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -4303,7 +4303,7 @@ exit();
                     $event = new DatatypeImportedEvent($datatype, $user);
                     $dispatcher->dispatch(DatatypeImportedEvent::NAME, $event);
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
 //                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -4426,7 +4426,7 @@ exit();
      */
     public function csvlinkworkerAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -4519,10 +4519,10 @@ exit();
 
             /** @var DataTree $datatree */
             $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
-                array(
+                [
                     'ancestor' => $parent_datatype->getId(),
                     'descendant' => $datatype->getId()
-                )
+                ]
             );
             if ($datatree == null)
                 throw new ODRNotFoundException('Invalid Form...no link between datatypes');
@@ -4549,7 +4549,7 @@ exit();
             // ----------------------------------------
             // Locate "local" and "remote" datarecords
             $local_external_id_field = $parent_datatype->getExternalIdField();
-            $local_external_id = trim( $line[$parent_external_id_column] );
+            $local_external_id = trim( (string) $line[$parent_external_id_column] );
             $local_datarecord = $datarecord_info_service->getDatarecordByExternalId($local_external_id_field, $local_external_id);
             if ( is_null($local_datarecord) )
                 $logger->debug('no local datarecord in Datatype '.$parent_datatype_id.' with "'.$local_external_id.'"...');
@@ -4557,7 +4557,7 @@ exit();
                 $logger->debug('located local datarecord in Datatype '.$parent_datatype_id.' with "'.$local_external_id.'"...');
 
             $remote_external_id_field = $datatype->getExternalIdField();
-            $remote_external_id = trim( $line[$remote_external_id_column] );
+            $remote_external_id = trim( (string) $line[$remote_external_id_column] );
             $remote_datarecord = $datarecord_info_service->getDatarecordByExternalId($remote_external_id_field, $remote_external_id);
             if ( is_null($remote_datarecord) )
                 $logger->debug('no remote datarecord in Datatype '.$datatype_id.' with "'.$local_external_id.'"...');
@@ -4617,11 +4617,11 @@ exit();
 
                 // Also rebuild the cached list of which datarecords this ancestor datarecord now links to
                 try {
-                    $event = new DatarecordLinkStatusChangedEvent( array($local_datarecord->getId()), $remote_datarecord->getDataType(), $user);
+                    $event = new DatarecordLinkStatusChangedEvent( [$local_datarecord->getId()], $remote_datarecord->getDataType(), $user);
                     $dispatcher->dispatch(DatarecordLinkStatusChangedEvent::NAME, $event);
                     $logger->debug('DatarecordLinkStatusChangedEvent dispatched');
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
 //                if ( $this->container->getParameter('kernel.environment') === 'dev' )

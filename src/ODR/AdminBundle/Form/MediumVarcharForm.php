@@ -31,9 +31,9 @@ class MediumVarcharForm extends AbstractType
         $builder->add(
             'value',
             TextType::class,
-            array(
+            [
                 'required' => false,
-            )
+            ]
         );
     }
 
@@ -56,6 +56,7 @@ class MediumVarcharForm extends AbstractType
      *
      * @return string The prefix of the template block name
      */
+    #[\Override]
     public function getBlockPrefix()
     {
         return 'MediumVarcharForm';
@@ -67,11 +68,11 @@ class MediumVarcharForm extends AbstractType
      */
     public function configureOptions(OptionsResolver $resolver)
     {
-        $resolver->setDefaults(array(
-            'data_class' => 'ODR\AdminBundle\Entity\MediumVarchar',
+        $resolver->setDefaults([
+            'data_class' => \ODR\AdminBundle\Entity\MediumVarchar::class,
             'datarecord_id' => '',
             'datafield_id' => '',
-        ));
+        ]);
 
         // @see http://symfony.com/doc/2.8/components/options_resolver.html#default-values-that-depend-on-another-option
         $resolver->setDefault('csrf_token_id', function(Options $option) {

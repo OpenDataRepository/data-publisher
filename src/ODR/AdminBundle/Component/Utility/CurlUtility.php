@@ -7,9 +7,6 @@ namespace ODR\AdminBundle\Component\Utility;
 class CurlUtility
 {
     public $request;
-    private $debug = false;
-    private $time = false;
-    private $headers = [];
 
     /**
      * CurlUtility constructor.
@@ -19,19 +16,16 @@ class CurlUtility
      * @param bool $time
      * @param $func
      */
-    public function __construct($url, $headers, $debug = false, $time = false, $func = null)
+    public function __construct($url, private $headers, private $debug = false, private $time = false, $func = null)
     {
 
-        $this->debug = $debug;
-        $this->time = $time;
-        $this->headers = $headers;
         $this->func = $func;
 
         // initialise the curl request
         $this->request = curl_init($url);
 
         // send a file
-        curl_setopt($this->request, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($this->request, CURLOPT_HTTPHEADER, $this->headers);
         curl_setopt($this->request, CURLOPT_RETURNTRANSFER, true);
 
     }
@@ -77,14 +71,14 @@ class CurlUtility
         // close the session
         curl_close($this->request);
 
-        return array(
+        return [
             'code' => $http_status,
             'response' => $response
-        );
+        ];
     }
 
     public function put($post_data) {
-        array_push($this->headers, 'Content-Type: application/json', 'Content-Length: ' . strlen($post_data));
+        array_push($this->headers, 'Content-Type: application/json', 'Content-Length: ' . strlen((string) $post_data));
         curl_setopt($this->request, CURLOPT_HTTPHEADER, $this->headers);
         curl_setopt($this->request, CURLOPT_CUSTOMREQUEST, 'PUT');
 
@@ -108,10 +102,10 @@ class CurlUtility
         // close the session
         curl_close($this->request);
 
-        return array(
+        return [
             'code' => $http_status,
             'response' => $response
-        );
+        ];
     }
 
     public function get() {
@@ -128,10 +122,10 @@ class CurlUtility
         // close the session
         curl_close($this->request);
 
-        return array(
+        return [
             'code' => $http_status,
             'response' => $response
-        );
+        ];
     }
 
 

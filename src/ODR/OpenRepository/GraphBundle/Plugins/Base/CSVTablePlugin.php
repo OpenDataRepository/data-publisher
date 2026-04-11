@@ -25,36 +25,14 @@ class CSVTablePlugin implements DatafieldPluginInterface
 {
 
     /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-    /**
-     * @var CryptoService
-     */
-    private $crypto_service;
-
-    /**
-     * @var string
-     */
-    private $odr_web_directory;
-
-
-    /**
      * CSVTablePlugin constructor.
      *
      * @param EngineInterface $templating
      * @param CryptoService $crypto_service
      * @param string $odr_web_directory
      */
-    public function __construct(
-        EngineInterface $templating,
-        CryptoService $crypto_service,
-        $odr_web_directory
-    ) {
-        $this->templating = $templating;
-        $this->crypto_service = $crypto_service;
-        $this->odr_web_directory = $odr_web_directory;
+    public function __construct(private readonly EngineInterface $templating, private readonly CryptoService $crypto_service, private $odr_web_directory)
+    {
     }
 
 
@@ -120,7 +98,7 @@ class CSVTablePlugin implements DatafieldPluginInterface
                 $is_file = true;
 
             // Extract the data from the field
-            $ret = array();
+            $ret = [];
             if ( $is_file )
                 $ret = self::readFile($datarecord, $datafield);
             else
@@ -136,7 +114,7 @@ class CSVTablePlugin implements DatafieldPluginInterface
             $data_array = $ret['data'];
             $num_columns = $ret['num_columns'];
 
-            $column_names = array();
+            $column_names = [];
             foreach ($data_array as $row_num => $row) {
                 foreach ($row as $col_num => $col) {
                     if ( $use_first_row_as_header )
@@ -153,7 +131,7 @@ class CSVTablePlugin implements DatafieldPluginInterface
             if ( $rendering_options['context'] === 'display' ) {
                 $output = $this->templating->render(
                     'ODROpenRepositoryGraphBundle:Base:CSVTable/csvtable_display_datafield.html.twig',
-                    array(
+                    [
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,
 
@@ -163,7 +141,7 @@ class CSVTablePlugin implements DatafieldPluginInterface
                         'column_names' => $column_names,
                         'data_array' => $data_array,
                         'num_columns' => $num_columns,
-                    )
+                    ]
                 );
             }
 
@@ -186,13 +164,13 @@ class CSVTablePlugin implements DatafieldPluginInterface
      */
     private function readFile($datarecord, $datafield)
     {
-        $file_data = array();
+        $file_data = [];
         $num_columns = 0;
 
         $datafield_id = $datafield['id'];
 
         if ( isset($datarecord['dataRecordFields'][$datafield_id]['file']['0']) ) {
-            $files_to_delete = array();
+            $files_to_delete = [];
 
             // Check that the file exists...
             $file = $datarecord['dataRecordFields'][$datafield_id]['file']['0'];
@@ -260,10 +238,10 @@ class CSVTablePlugin implements DatafieldPluginInterface
                 unlink($file_path);
         }
 
-        return array(
+        return [
             'data' => $file_data,
             'num_columns' => $num_columns
-        );
+        ];
     }
 
 
@@ -278,23 +256,23 @@ class CSVTablePlugin implements DatafieldPluginInterface
     {
         // Since these are (hopefully) scientific data files, the set of valid delimiters is (hopefully)
         //  pretty small
-        $valid_delimiters = array(
+        $valid_delimiters = [
             'tab' => "\t",
             'comma' => ",",
             'semicolon' => ";",
-        );
+        ];
         // NOTE: do not put the space character in there
 
-        $ret = array(
+        $ret = [
             'delimiter' => null,
             'num_columns' => null,
-        );
+        ];
 
         // Read the first couple non-comment lines in the file...
-        $lines = array();
+        $lines = [];
         for ($i = 0; $i < 5; ) {
             $line = trim(fgets($handle));
-            if ( !feof($handle) && $line !== '' && strpos($line, '#') === 0 ) {
+            if ( !feof($handle) && $line !== '' && str_starts_with($line, '#') ) {
                 // empty line or comment line, skip over if possible
             }
             else if ( $line !== '' ) {
@@ -312,9 +290,9 @@ class CSVTablePlugin implements DatafieldPluginInterface
             return $ret;
 
         // Otherwise, try to parse each line with a different delimiter
-        $delimiters_by_line = array();
+        $delimiters_by_line = [];
         foreach ($lines as $line_num => $line) {
-            $delimiters_by_line[$line_num] = array();
+            $delimiters_by_line[$line_num] = [];
             foreach ($valid_delimiters as $label => $delim) {
                 // Store how many columns str_getcsv() returned
                 $delimiters_by_line[$line_num][$label] = count( str_getcsv($line, $delim) );
@@ -322,7 +300,7 @@ class CSVTablePlugin implements DatafieldPluginInterface
         }
 
         // Filter out delimiters that don't occur the same number of times on each line
-        $delimiter_count = array();
+        $delimiter_count = [];
         foreach ($delimiters_by_line as $line_num => $data) {
             foreach ($data as $label => $occurrences) {
                 if ( !isset($delimiter_count[$label]) ) {
@@ -378,18 +356,18 @@ class CSVTablePlugin implements DatafieldPluginInterface
     private function readXYZData($datarecord, $datafield)
     {
         // Need to locate the names for the columns...
-        $xyz_data_column_names = explode(',', $datafield['dataFieldMeta']['xyz_data_column_names']);
+        $xyz_data_column_names = explode(',', (string) $datafield['dataFieldMeta']['xyz_data_column_names']);
         $num_columns = count($xyz_data_column_names);
 
         // ...and splice them into the array of data
-        $xyz_data = array();
+        $xyz_data = [];
         $xyz_data[] = $xyz_data_column_names;
 
         $datafield_id = $datafield['id'];
         if ( isset($datarecord['dataRecordFields'][$datafield_id]['xyzData']) ) {
             foreach ($datarecord['dataRecordFields'][$datafield_id]['xyzData'] as $num => $datum) {
                 // Only output the pieces of data that match the number of columns
-                $line = array(0 => $datum['x_value']);
+                $line = [0 => $datum['x_value']];
                 if ( $num_columns > 1 )
                     $line[1] = $datum['y_value'];
                 if ( $num_columns > 2 )
@@ -399,9 +377,9 @@ class CSVTablePlugin implements DatafieldPluginInterface
             }
         }
 
-        return array(
+        return [
             'data' => $xyz_data,
             'num_columns' => $num_columns
-        );
+        ];
     }
 }

@@ -24,16 +24,6 @@ class DatarecordPublicStatusChangedEvent extends Event implements ODREventInterf
     // Best practice is apparently to have the Event class define the event name
     const NAME = 'odr.event.datarecord_public_status_changed_event';
 
-    /**
-     * @var DataRecord
-     */
-    private $datarecord;
-
-    /**
-     * @var ODRUser
-     */
-    private $user;
-
 
     /**
      * DatarecordPublicStatusChangedEvent constructor.
@@ -41,12 +31,8 @@ class DatarecordPublicStatusChangedEvent extends Event implements ODREventInterf
      * @param DataRecord $datarecord
      * @param ODRUser $user
      */
-    public function __construct(
-        DataRecord $datarecord,
-        ODRUser $user
-    ) {
-        $this->datarecord = $datarecord;
-        $this->user = $user;
+    public function __construct(private readonly DataRecord $datarecord, private readonly ODRUser $user)
+    {
     }
 
 
@@ -86,9 +72,9 @@ class DatarecordPublicStatusChangedEvent extends Event implements ODREventInterf
      */
     public function getErrorInfo()
     {
-        return array(
+        return [
             self::NAME,
             'dr '.$this->datarecord->getId(),
-        );
+        ];
     }
 }

@@ -181,7 +181,7 @@ class ODRCustomController extends Controller
         $page_length = $odr_tab_service->getPageLength($odr_tab_id, $intent);
 
         // Also get the sort criteria, if possible
-        $sort_datafields = $sort_directions = array();
+        $sort_datafields = $sort_directions = [];
         $sort_data = $odr_tab_service->getSortCriteria($odr_tab_id);
         if ( !is_null($sort_data) && !empty($sort_data['datafield_ids']) ) {
             $sort_datafields = $sort_data['datafield_ids'];
@@ -227,9 +227,9 @@ class ODRCustomController extends Controller
 
 
         // Determine the correct lists of datarecords to use for rendering...
-        $original_datarecord_list = array();
+        $original_datarecord_list = [];
         // The editable list needs to be in ($dr_id => $num) format for twig
-        $editable_datarecord_list = array();
+        $editable_datarecord_list = [];
         if ($can_edit_datatype) {
             if (!$has_search_restriction) {
                 // ...user doesn't have a restriction list, so the editable list is the same as the
@@ -280,7 +280,7 @@ class ODRCustomController extends Controller
         $records_total = count($original_datarecord_list);
 
         // Reduce datarecord_list to just the list that will get rendered
-        $datarecord_list = array();
+        $datarecord_list = [];
         if ( $intent !== 'linking' && $theme->getIsTableTheme() && $theme->getDisplaysAllResults() ) {
             // Only respect "display all results" if this is a non-linking table theme...
             $page_length = 10000;
@@ -319,7 +319,7 @@ class ODRCustomController extends Controller
 
             // Locate all datarecords that could potentially be visible on a search results page
             //  as a result of using this specific theme
-            $acceptable_dr_ids = array();
+            $acceptable_dr_ids = [];
             foreach ($rendered_dt_ids as $dt_id => $empty_str) {
                 $dr_ids = $search_service->getCachedSearchDatarecordList($dt_id);
                 foreach ($dr_ids as $dr_id => $num)
@@ -327,7 +327,7 @@ class ODRCustomController extends Controller
             }
 
             // Only want to load datarecord data if it's going to be displayed
-            $related_datarecord_array = array();
+            $related_datarecord_array = [];
             // So, for each datarecord on this page of the search results...
             foreach ($datarecord_list as $num => $dr_id) {
                 // ...load the list of any datarecords it links to (this always includes $dr_id)...
@@ -356,7 +356,7 @@ class ODRCustomController extends Controller
             // Should also ensure the images exist...
             $odr_render_service->ensureImagesExist($related_datarecord_array);
 
-            $datarecord_array = array();
+            $datarecord_array = [];
             foreach ($related_datarecord_array as $dr_id => $dr) {
                 // Only stack the top-level datarecords of this datatype
                 if ( $dr['dataType']['id'] == $datatype->getId() )
@@ -392,7 +392,7 @@ class ODRCustomController extends Controller
             if ( !is_null($pagination_values) ) {
                 $pagination_html = $templating->render(
                     'ODRAdminBundle:Default:pagination_header.html.twig',
-                    array(
+                    [
                         'user_permissions' => $datatype_permissions,
                         'datatype' => $datatype,
                         'theme' => $theme,
@@ -420,7 +420,7 @@ class ODRCustomController extends Controller
                         'sort_directions' => $sort_directions,
 
                         'available_sortfields' => $available_sortfields,
-                    )
+                    ]
                 );
             }
 
@@ -430,7 +430,7 @@ class ODRCustomController extends Controller
             $template = 'ODRAdminBundle:ShortResults:shortresultslist.html.twig';
             $final_html = $templating->render(
                 $template,
-                array(
+                [
                     'odr_wordpress_integrated' => $is_wordpress_integrated,
 
                     'datatype_array' => $stacked_datatype_array,
@@ -470,21 +470,21 @@ class ODRCustomController extends Controller
                     // Provide the list of all possible datarecord ids to twig just incase...though not strictly used by the datatables ajax, the rows returned will always end up being some subset of this list
                     'all_datarecords' => $datarecords,    // this is used by datarecord linking
                     'use_jupyterhub' => $use_jupyterhub,
-                )
+                ]
             );
         }
         else {
             // -----------------------------------
             // This is a theme that the user wants to render as a table
             $theme_array = $theme_info_service->getThemeArray($theme->getId());
-            $public_datarecord_list = array();
+            $public_datarecord_list = [];
 
             $datatype_array = $database_info_service->getDatatypeArray($datatype->getId(), false);
-            $empty_dr_array = array();
+            $empty_dr_array = [];
             $permissions_service->filterByGroupPermissions($datatype_array, $empty_dr_array, $user_permissions);
 
-            $column_data = array();
-            $row_data = array();
+            $column_data = [];
+            $row_data = [];
             $scroll_target = '';
             if ( $intent !== 'linking' && $theme->getDisplaysAllResults() ) {
                 // Determine the columns to use for the table
@@ -545,7 +545,7 @@ class ODRCustomController extends Controller
 
             $final_html = $templating->render(
                 $template,
-                array(
+                [
                     'odr_wordpress_integrated' => $is_wordpress_integrated,
 
                     'datatype_array' => $datatype_array,
@@ -588,7 +588,7 @@ class ODRCustomController extends Controller
                     // Provide the list of all possible datarecord ids to twig just incase...though not strictly used by the datatables ajax, the rows returned will always end up being some subset of this list
                     'all_datarecords' => $datarecords,    // This is used by the datarecord linking
                     'use_jupyterhub' => $use_jupyterhub,
-                )
+                ]
             );
         }
 
@@ -605,7 +605,7 @@ class ODRCustomController extends Controller
      */
     private function getRenderedDatatypes($stacked_theme_array)
     {
-        $rendered_dt_ids = array();
+        $rendered_dt_ids = [];
 
         foreach ($stacked_theme_array as $t_id => $t) {
             // For each datatype in this theme that has layout data...
@@ -693,9 +693,9 @@ class ODRCustomController extends Controller
 
         // TODO - more flexible way of doing this?
         if ($reuse_existing)
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => $job_type, 'target_entity' => $target_entity) );
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( ['job_type' => $job_type, 'target_entity' => $target_entity] );
         else
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( array('job_type' => $job_type, 'target_entity' => $target_entity, 'completed' => null) );
+            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( ['job_type' => $job_type, 'target_entity' => $target_entity, 'completed' => null] );
 
         if ($tracked_job == null) {
             $tracked_job = new TrackedJob();
@@ -738,20 +738,20 @@ class ODRCustomController extends Controller
      */
     protected function ODR_getTrackedErrorArray($em, $tracked_job_id)
     {
-        $job_errors = array();
+        $job_errors = [];
 
         $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
         if ($tracked_job == null)
             throw new ODRNotFoundException('TrackedJob');
 
         /** @var TrackedError[] $tracked_errors */
-        $tracked_errors = $em->getRepository('ODRAdminBundle:TrackedError')->findBy( array('trackedJob' => $tracked_job_id) );
+        $tracked_errors = $em->getRepository('ODRAdminBundle:TrackedError')->findBy( ['trackedJob' => $tracked_job_id] );
         foreach ($tracked_errors as $error) {
-            $job_errors[ $error->getId() ] = array(
+            $job_errors[ $error->getId() ] = [
                 'error_level' => $error->getErrorLevel(),
                 'error_category' => $error->getErrorCategory(),
                 'error_body' => json_decode($error->getErrorBody(), true)
-            );
+            ];
         }
 
         return $job_errors;
@@ -772,7 +772,7 @@ class ODRCustomController extends Controller
         $query = $em->createQuery(
            'DELETE FROM ODRAdminBundle:TrackedError AS te
             WHERE te.trackedJob = :tracked_job'
-        )->setParameters( array('tracked_job' => $tracked_job_id) );
+        )->setParameters( ['tracked_job' => $tracked_job_id] );
         $rows = $query->execute();
     }
 
@@ -849,7 +849,7 @@ class ODRCustomController extends Controller
             FROM ODRAdminBundle:Theme AS t
             WHERE t.parentTheme = :theme_id
             AND t.deletedAt IS NULL'
-        )->setParameters( array('theme_id' => $theme->getId()) );
+        )->setParameters( ['theme_id' => $theme->getId()] );
         $results = $query->getResult();
 
         /** @var Theme[] $results */
@@ -859,9 +859,9 @@ class ODRCustomController extends Controller
             $source_theme_version = $t->getSourceTheme()->getSourceSyncVersion();
 
             if ( $current_theme_version !== $source_theme_version ) {
-                $properties = array(
+                $properties = [
                     'sourceSyncVersion' => $source_theme_version
-                );
+                ];
                 $emm_service->updateThemeMeta($user, $t, $properties, true);    // don't flush immediately
                 $changes_made = true;
             }
@@ -875,8 +875,8 @@ class ODRCustomController extends Controller
         // ----------------------------------------
         // Go through the previously saved theme diff and determine whether the user can view at
         //  least one of the added datafields/datatypes...
-        $added_datafields = array();
-        $added_datatypes = array();
+        $added_datafields = [];
+        $added_datatypes = [];
         $user_permissions = $permissions_service->getUserPermissionsArray($user);
 
         foreach ($theme_diff_array as $theme_id => $diff_array) {
@@ -894,7 +894,7 @@ class ODRCustomController extends Controller
                 JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
                 WHERE df.id IN (:datafield_ids)
                 AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL'
-            )->setParameters( array('datafield_ids' => $added_datafields) );
+            )->setParameters( ['datafield_ids' => $added_datafields] );
             $results = $query->getArrayResult();
 
             foreach ($results as $result) {
@@ -925,7 +925,7 @@ class ODRCustomController extends Controller
                 JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
                 WHERE dt.id IN (:datatype_ids)
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
-            )->setParameters( array('datatype_ids' => $added_datatypes) );
+            )->setParameters( ['datatype_ids' => $added_datatypes] );
             $results = $query->getArrayResult();
 
             foreach ($results as $result) {

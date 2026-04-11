@@ -45,28 +45,28 @@ class BridgeController extends ODRCustomController
     private function loadAvailableJupyterhubApps()
     {
         // TODO - load from a directory or parameter file somewhere...
-        $app_list = array(
-            0 => array(
+        $app_list = [
+            0 => [
                 'id' => 'app_a',
                 'name' => 'Raman Rollup Graph by Sample',
-            ),
-            1 => array(
+            ],
+            1 => [
                 'id' => 'app_b',
                 'name' => 'Raman Rollup Graph by Wavelength',
-            ),
-            2 => array(
+            ],
+            2 => [
                 'id' => 'app_c',
                 'name' => 'Mars Average Soil',
-            ),
-            3 => array(
+            ],
+            3 => [
                 'id' => 'app_d',
                 'name' => 'XRD Rollup Graph',
-            ),
-            4 => array(
+            ],
+            4 => [
                 'id' => 'app_e',
                 'name' => 'Peak Fit',
-            )
-        );
+            ]
+        ];
 
         return $app_list;
     }
@@ -115,9 +115,7 @@ class BridgeController extends ODRCustomController
             // TODO - do something to reduce the list
 
             // Sort the array by app name
-            usort($app_list, function($a, $b) {
-                return strcmp($a['name'], $b['name']);
-            });
+            usort($app_list, fn($a, $b) => strcmp((string) $a['name'], (string) $b['name']));
 
 
             // ----------------------------------------
@@ -125,12 +123,12 @@ class BridgeController extends ODRCustomController
             $templating = $this->get('templating');
             $html = $templating->render(
                 'ODROpenRepositoryJupyterhubBridgeBundle:Default:app_list.html.twig',
-                array(
+                [
                     'app_list' => $app_list
-                )
+                ]
             );
 
-            return new JsonResponse( array('html' => $html) );
+            return new JsonResponse( ['html' => $html] );
         }
         catch (\Exception $e) {
             $source = 0x1c91d10f;
@@ -180,7 +178,7 @@ class BridgeController extends ODRCustomController
                 throw new ODRBadRequestException('Invalid form');
 
             $datatype_id = $parameters->get('datatype_id');
-            $search_key = urldecode( $parameters->get('search_key') );
+            $search_key = urldecode( (string) $parameters->get('search_key') );
             $app_id = $parameters->get('app_id');
 
             /** @var DataType $datatype */
@@ -276,7 +274,7 @@ class BridgeController extends ODRCustomController
         $ch = curl_init();
 
         // Set the options for the POST request
-        $headers = array();
+        $headers = [];
         $headers[] = 'Authorization: token '.$jupyterhub_api_key;
 
         // Juypyterhub API url is of the form  /users/{name}/server
@@ -285,7 +283,7 @@ class BridgeController extends ODRCustomController
 
         curl_setopt_array(
             $ch,
-            array(
+            [
                 CURLOPT_POST => 1,
                 CURLOPT_URL => $jupyterhub_api_url,
                 CURLOPT_FRESH_CONNECT => 1,
@@ -299,7 +297,7 @@ class BridgeController extends ODRCustomController
                 // Debug options
 //                CURLOPT_HEADER => 1,
 //                CURLINFO_HEADER_OUT => 1,
-            )
+            ]
         );
 
         // Execute the cURL request, and check for errors
@@ -349,7 +347,7 @@ class BridgeController extends ODRCustomController
         $ch = curl_init();
 
         // Set the options for the POST request
-        $headers = array();
+        $headers = [];
         $headers[] = 'Authorization: token '.$jupyterhub_api_key;
 
         // Juypyterhub API url is of the form
@@ -359,16 +357,16 @@ class BridgeController extends ODRCustomController
         $jupyterhub_config = $this->container->getParameter('jupyterhub_config');
         $bridge_token = $jupyterhub_config['bridge_token'];
 
-        $parameters = array(
+        $parameters = [
             'bridge_token' => $bridge_token,
             'username' => $username,
             'plugin_name' => $app_id,
             'datarecord_list' => $saved_search['datarecord_list'],      // TODO - or send the search key instead?
-        );
+        ];
 
         curl_setopt_array(
             $ch,
-            array(
+            [
                 CURLOPT_POST => 1,
                 CURLOPT_URL => $jupyterhub_api_url,
                 CURLOPT_FRESH_CONNECT => 1,
@@ -383,7 +381,7 @@ class BridgeController extends ODRCustomController
                 // Debug options
 //                CURLOPT_HEADER => 1,
 //                CURLINFO_HEADER_OUT => 1,
-            )
+            ]
         );
 
 
@@ -443,12 +441,12 @@ class BridgeController extends ODRCustomController
 */
 
             // Set the options for the POST request
-            $headers = array();
+            $headers = [];
             $headers[] = 'Authorization: token '.$jupyterhub_api_key;
 
             curl_setopt_array(
                 $ch,
-                array(
+                [
                     CURLOPT_POST => 1,
                     CURLOPT_URL => $jupyterhub_api_url,
                     CURLOPT_FRESH_CONNECT => 1,
@@ -463,7 +461,7 @@ class BridgeController extends ODRCustomController
                     // Debug options
 //                CURLOPT_HEADER => 1,
 //                CURLINFO_HEADER_OUT => 1,
-                )
+                ]
             );
 
             // Execute the cURL request, and check for errors

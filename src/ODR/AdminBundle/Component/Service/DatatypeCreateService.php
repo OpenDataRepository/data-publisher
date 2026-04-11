@@ -33,60 +33,17 @@ class DatatypeCreateService
 {
 
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var CacheService
-     */
-    private $cache_service;
-
-    /**
-     * @var CloneMasterDatatypeService
-     */
-    private $cdm_service;
-
-    /**
-     * @var UUIDService
-     */
-    private $uuid_service;
-
-    /**
-     * @var string
-     */
-    private $odr_web_dir;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * DatatypeCreateService constructor.
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param CacheService $cache_service
-     * @param CloneMasterDatatypeService $clone_master_datatype_service
+     * @param CloneMasterDatatypeService $cdm_service
      * @param UUIDService $uuid_service
      * @param string $odr_web_dir
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        CacheService $cache_service,
-        CloneMasterDatatypeService $clone_master_datatype_service,
-        UUIDService $uuid_service,
-        $odr_web_dir,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->cache_service = $cache_service;
-        $this->cdm_service = $clone_master_datatype_service;
-        $this->uuid_service = $uuid_service;
-        $this->odr_web_dir = $odr_web_dir;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly CloneMasterDatatypeService $cdm_service, private readonly UUIDService $uuid_service, private $odr_web_dir, private readonly Logger $logger)
+    {
     }
 
     /**
@@ -136,7 +93,7 @@ class DatatypeCreateService
                 throw new ODRNotFoundException('Master Datatype');
 
             // Create new DataType form
-            $datatypes_to_process = array();
+            $datatypes_to_process = [];
             $datatype = null;
             $unique_id = null;
             $clone_and_link = false;
@@ -308,7 +265,7 @@ class DatatypeCreateService
 
                     // Insert the new job into the queue
                     $priority = 1024;   // should be roughly default priority
-                    $params = array(
+                    $params = [
                         "user_id" => $admin->getId(),
                         "datatype_id" => $datatype->getId(),
                         "template_group" => $unique_id,
@@ -316,7 +273,7 @@ class DatatypeCreateService
 
                         "redis_prefix" => $redis_prefix,    // debug purposes only
                         "api_key" => $api_key,
-                    );
+                    ];
 
                     $params["clone_and_link"] = false;
                     if($clone_and_link) {

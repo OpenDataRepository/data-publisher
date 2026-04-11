@@ -26,28 +26,13 @@ class DatafieldInfoService
 {
 
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * DatafieldInfoService constructor.
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly Logger $logger)
+    {
     }
 
 
@@ -62,7 +47,7 @@ class DatafieldInfoService
      */
     public function getDatafieldProperties($datatype_array, $datafield_id = null)
     {
-        $datafield_properties = array();
+        $datafield_properties = [];
 
         // ----------------------------------------
         // Load properties for all datafields by default, or a single datafield if defined
@@ -105,7 +90,7 @@ class DatafieldInfoService
 
 
                     // Store these properties in an array
-                    $datafield_properties[$df_id] = array(
+                    $datafield_properties[$df_id] = [
                         'can_copy' => $can_copy,
                         'can_delete' => $can_delete,
                         'delete_message' => $delete_message,
@@ -115,7 +100,7 @@ class DatafieldInfoService
 //                        'public_status_message' => $public_status_message,
 
                         'has_tag_hierarchy' => $has_tag_hierarchy,
-                    );
+                    ];
 
                     // There are a couple more properties that can be required as a result of a
                     //  render plugin
@@ -157,19 +142,19 @@ class DatafieldInfoService
 
         // Shouldn't delete a datafield that's derived from a master template
         if ( !is_null($df['templateFieldUuid']) ) {
-            return array(
+            return [
                 'can_delete' => false,
                 'delete_message' => "This datafield can't be deleted because it's required by a Master Template"
-            );
+            ];
         }
 
         // Also shouldn't delete a datafield that's being used as an external_id, metadata_name,
         //  or metadata_desc field for a datatype
         if ( !is_null($dtm['externalIdField']) && $dtm['externalIdField']['id'] === $datafield_id ) {
-            return array(
+            return [
                 'can_delete' => false,
                 'delete_message' => "This datafield can't be deleted because it's being used as the Datatype's external ID field"
-            );
+            ];
         }
         // NOTE: name/sort fields are intentionally allowed to be deleted
 
@@ -179,10 +164,10 @@ class DatafieldInfoService
                 foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf_df) {
                     if ( $rpf_df['id'] === $datafield_id ) {
                         $render_plugin_name = $rpi['renderPlugin']['pluginName'];
-                        return array(
+                        return [
                             'can_delete' => false,
                             'delete_message' => "This Datafield can't be deleted because it's currently required by the ".$render_plugin_name." this Datatype is using"
-                        );
+                        ];
                     }
                 }
             }
@@ -191,10 +176,10 @@ class DatafieldInfoService
 
         // ----------------------------------------
         // Otherwise, no problems deleting this field
-        return array(
+        return [
             'can_delete' => true,
             'delete_message' => '',
-        );
+        ];
     }
 
 
@@ -212,10 +197,10 @@ class DatafieldInfoService
     {
         // ----------------------------------------
         // At the moment, there's nothing restricting changing a datafield's public status...
-        return array(
+        return [
             'can_change_public_status' => true,
 //            'public_status_message' => '',
-        );
+        ];
     }
 
 
@@ -232,7 +217,7 @@ class DatafieldInfoService
     public function getRenderPluginProperties($datatype_array, $datatype_id, $datafield_id)
     {
         // Render plugins can require these properties...
-        $props = array(
+        $props = [
             'must_be_unique' => false,
             'single_uploads_only' => false,
             'no_user_edits' => false,
@@ -244,7 +229,7 @@ class DatafieldInfoService
 
             // While not technically a datafield property, it's easier for the UI if this flag exists
             'uses_layout_settings' => false,
-        );
+        ];
 
         // ...but the datafield isn't guaranteed to be used by a render plugin
         $dt = $datatype_array[$datatype_id];
@@ -316,7 +301,7 @@ class DatafieldInfoService
             $str .= ' AND e.original = 1 ';
         $str .= ' GROUP BY dr.id';
 
-        $query = $this->em->createQuery($str)->setParameters( array('datafield' => $datafield) );
+        $query = $this->em->createQuery($str)->setParameters( ['datafield' => $datafield] );
         $results = $query->getResult();
 
         // If $results has no rows, then nothing has been uploaded to the datafield...therefore it
@@ -366,11 +351,11 @@ class DatafieldInfoService
                 JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
                 WHERE e.dataField = :datafield
                 AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
-            )->setParameters( array('datafield' => $datafield->getId()) );
+            )->setParameters( ['datafield' => $datafield->getId()] );
             $results = $query->getArrayResult();
 
             // Determine if there are any duplicates in the datafield...
-            $values = array();
+            $values = [];
             foreach ($results as $result) {
                 $value = $result['value'];
                 if ( isset($values[$value]) ) {
@@ -393,17 +378,17 @@ class DatafieldInfoService
                 JOIN ODRAdminBundle:DataRecord AS parent WITH dr.parent = parent
                 WHERE e.dataField = :datafield
                 AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL'
-            )->setParameters( array('datafield' => $datafield->getId()) );
+            )->setParameters( ['datafield' => $datafield->getId()] );
             $results = $query->getArrayResult();
 
             // Determine if there are any duplicates in the datafield...
-            $values = array();
+            $values = [];
             foreach ($results as $result) {
                 $value = $result['value'];
                 $parent_id = $result['parent_id'];
 
                 if ( !isset($values[$parent_id]) )
-                    $values[$parent_id] = array();
+                    $values[$parent_id] = [];
 
                 if ( isset($values[$parent_id][$value]) ) {
                     // Found duplicate, return false
@@ -455,27 +440,27 @@ class DatafieldInfoService
     public function canChangeFieldtype($datatype_array, $datatype_id, $datafield_ids = null, $only_check_render_plugins = false)
     {
         // ----------------------------------------
-        $fieldtype_info = array();
-        $is_single_radio_field = array();
-        $is_multiple_radio_field = array();
+        $fieldtype_info = [];
+        $is_single_radio_field = [];
+        $is_multiple_radio_field = [];
 
         // If no datafields were specified, then determine the allowed fieldtypes of all datafields
         //  in the given datatype
         $dt = $datatype_array[$datatype_id];
         if ( is_null($datafield_ids) ) {
-            $datafield_ids = array();
+            $datafield_ids = [];
 
             foreach ($dt['dataFields'] as $df_id => $df)
                 $datafield_ids[] = $df_id;
         }
 
         // Need a list of all available fieldtypes so twig doesn't have to do it
-        $single_radio_fieldtype_ids = array();
-        $multiple_radio_fieldtype_ids = array();
+        $single_radio_fieldtype_ids = [];
+        $multiple_radio_fieldtype_ids = [];
 
         /** @var FieldType[] $tmp */
         $tmp = $this->em->getRepository('ODRAdminBundle:FieldType')->findAll();
-        $all_fieldtypes = array();
+        $all_fieldtypes = [];
         foreach ($tmp as $ft) {
             $all_fieldtypes[] = $ft->getId();
 
@@ -519,12 +504,12 @@ class DatafieldInfoService
 
         // By default, the fieldtype of any datafield can get changed to any other fieldtype
         foreach ($datafield_ids as $df_id) {
-            $fieldtype_info[$df_id] = array(
+            $fieldtype_info[$df_id] = [
                 'prevent_change' => false,
                 'prevent_change_message' => '',
                 'affected_by_render_plugin' => false,
                 'allowed_fieldtypes' => $all_fieldtypes,
-            );
+            ];
         }
 
 
@@ -540,7 +525,7 @@ class DatafieldInfoService
                     $df_id = $rpf_df['id'];
 
                     if ( isset($fieldtype_info[$df_id]) ) {
-                        $dt_fieldtypes = explode(',', $rpf_df['allowedFieldtypes']);
+                        $dt_fieldtypes = explode(',', (string) $rpf_df['allowedFieldtypes']);
                         $fieldtype_info[$df_id]['allowed_fieldtypes'] = array_intersect($fieldtype_info[$df_id]['allowed_fieldtypes'], $dt_fieldtypes);
                         $fieldtype_info[$df_id]['affected_by_render_plugin'] = true;
 
@@ -562,7 +547,7 @@ class DatafieldInfoService
                     // There's only going to be one rpf in here, but don't know the array key beforehand
                     foreach ($rpi['renderPluginMap'] as $rpf_name => $rpf_df) {
                         // ...then the fieldtype can't be changed from what the render plugin requires
-                        $df_fieldtypes = explode(',', $rpf_df['allowedFieldtypes']);
+                        $df_fieldtypes = explode(',', (string) $rpf_df['allowedFieldtypes']);
                         $fieldtype_info[$df_id]['allowed_fieldtypes'] = array_intersect($fieldtype_info[$df_id]['allowed_fieldtypes'], $df_fieldtypes);
                         $fieldtype_info[$df_id]['affected_by_render_plugin'] = true;
 
@@ -588,7 +573,7 @@ class DatafieldInfoService
             LEFT JOIN ODRAdminBundle:DataType AS dt WITH dtsf.dataType = dt
             WHERE df IN (:datafield_ids)
             AND df.deletedAt IS NULL AND dtsf.deletedAt IS NULL AND dt.deletedAt IS NULL'
-        )->setParameters( array('datafield_ids' => $datafield_ids) );
+        )->setParameters( ['datafield_ids' => $datafield_ids] );
         $results = $query->getArrayResult();
 
         foreach ($results as $result) {
@@ -638,8 +623,8 @@ class DatafieldInfoService
         //  situation until forced to in early 2026
 
         // If any of the fields are related to the template system...
-        $master_df_list = array();
-        $derived_df_list = array();
+        $master_df_list = [];
+        $derived_df_list = [];
         foreach ($dt['dataFields'] as $df_id => $df) {
             /*if ( $df['is_master_field'] )  // TODO - this is temporary, so I can commit the updated reports files without also having to implement the update to fieldtype migration...
                 $master_df_list[$df_id] = 1;
@@ -680,7 +665,7 @@ class DatafieldInfoService
             LEFT JOIN ODRAdminBundle:DataFields AS d_df WITH d_df.masterDataField = df
             WHERE df IN (:datafield_ids)
             AND df.deletedAt IS NULL AND d_df.deletedAt IS NULL'
-        )->setParameters( array('datafield_ids' => $datafield_ids) );
+        )->setParameters( ['datafield_ids' => $datafield_ids] );
         $results = $query->getArrayResult();
 
         foreach ($results as $result) {

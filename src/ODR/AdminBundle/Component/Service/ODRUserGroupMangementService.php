@@ -28,44 +28,15 @@ use Symfony\Bridge\Monolog\Logger;
 class ODRUserGroupMangementService
 {
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var CacheService
-     */
-    private $cache_service;
-
-    /**
-     * @var EntityCreationService
-     */
-    private $ec_service;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * ODRUserGroupMangementService constructor.
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param CacheService $cache_service
-     * @param EntityCreationService $entity_creation_service
+     * @param EntityCreationService $ec_service
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        CacheService $cache_service,
-        EntityCreationService $entity_creation_service,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->cache_service = $cache_service;
-        $this->ec_service = $entity_creation_service;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly EntityCreationService $ec_service, private readonly Logger $logger)
+    {
     }
 
 
@@ -83,7 +54,7 @@ class ODRUserGroupMangementService
      */
     public function addUserToDefaultGroup($admin_user, $user, $datatype, $default_group_purpose)
     {
-        $default_groups = array('admin', 'edit_all', 'view_all', 'view_only');
+        $default_groups = ['admin', 'edit_all', 'view_all', 'view_only'];
         if ( !in_array($default_group_purpose, $default_groups) )
             throw new ODRBadRequestException('default group must be one of "admin", "edit_all", "view_all", or "view_only"');
         
@@ -115,20 +86,20 @@ class ODRUserGroupMangementService
         // Determine whether the user is already a member of one of this datatype's default groups
         /** @var Group $group */
         $group = $this->em->getRepository('ODRAdminBundle:Group')->findOneBy(
-            array(
+            [
                 'dataType' => $datatype->getId(),
                 'purpose' => $default_group_purpose,
-            )
+            ]
         );
         if ($group == null)
             throw new ODRNotFoundException('Group');
 
         /** @var UserGroup $user_group */
         $user_group = $this->em->getRepository('ODRAdminBundle:UserGroup')->findOneBy(
-            array(
+            [
                 'group' => $group,
                 'user' => $user,
-            )
+            ]
         );
 
         // The user is already a member of the requested group, so do nothing
@@ -145,7 +116,7 @@ class ODRUserGroupMangementService
             JOIN ODRAdminBundle:UserGroup AS ug WITH ug.group = g
             WHERE ug.user = :user_id AND g.purpose != :purpose AND g.dataType = :datatype_id
             AND ug.deletedAt IS NULL AND g.deletedAt IS NULL'
-        )->setParameters( array('user_id' => $user->getId(), 'purpose' => '', 'datatype_id' => $datatype->getId()) );
+        )->setParameters( ['user_id' => $user->getId(), 'purpose' => '', 'datatype_id' => $datatype->getId()] );
         $results = $query->getResult();
 
         // Only supposed to be in a single default group, but use foreach incase the
@@ -226,7 +197,7 @@ class ODRUserGroupMangementService
             JOIN ODRAdminBundle:UserGroup AS ug WITH ug.group = g
             WHERE ug.user = :user_id AND g.purpose != :purpose AND g.dataType = :datatype_id
             AND ug.deletedAt IS NULL AND g.deletedAt IS NULL'
-        )->setParameters( array('user_id' => $user->getId(), 'purpose' => '', 'datatype_id' => $datatype->getId()) );
+        )->setParameters( ['user_id' => $user->getId(), 'purpose' => '', 'datatype_id' => $datatype->getId()] );
         $results = $query->getResult();
 
         // Only supposed to be in a single default group, but use foreach incase the
@@ -308,10 +279,10 @@ class ODRUserGroupMangementService
         // Determine whether the user is already a member of this group
         /** @var UserGroup $user_group */
         $user_group = $this->em->getRepository('ODRAdminBundle:UserGroup')->findOneBy(
-            array(
+            [
                 'group' => $group,
                 'user' => $user,
-            )
+            ]
         );
 
         // The user is already a member of this group, do nothing
@@ -376,10 +347,10 @@ class ODRUserGroupMangementService
         // Determine whether the user is already a member of this group
         /** @var UserGroup $user_group */
         $user_group = $this->em->getRepository('ODRAdminBundle:UserGroup')->findOneBy(
-            array(
+            [
                 'group' => $group,
                 'user' => $user,
-            )
+            ]
         );
 
         // The user isn't a member of this group, so don't need to do anything

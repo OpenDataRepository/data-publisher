@@ -63,7 +63,7 @@ class ODRUserController extends ODRCustomController
      */
     public function createnewuserAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -100,14 +100,14 @@ class ODRUserController extends ODRCustomController
             $form = $this->createForm(ODRUserProfileForm::class, $new_user);
 
             // Render and return the form
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:ODRUser:create_user.html.twig',
-                    array(
+                    [
                         'profile_form' => $form->createView(),
-                    )
+                    ]
                 )
-            );
+            ];
 
         }
         catch (\Exception $e) {
@@ -137,7 +137,7 @@ class ODRUserController extends ODRCustomController
      */
     public function checkemailexistenceAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -220,7 +220,7 @@ class ODRUserController extends ODRCustomController
      */
     public function savenewuserAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -271,8 +271,8 @@ class ODRUserController extends ODRCustomController
             $target_user = $user_manager->findUserByEmail($email);
             if ($target_user !== null) {
                 // If user already exists, just return the url to their permissions page
-                $url = $router->generate( 'odr_manage_user_groups', array('user_id' => $target_user->getId()) );
-                $return['d'] = array('url' => $url);
+                $url = $router->generate( 'odr_manage_user_groups', ['user_id' => $target_user->getId()] );
+                $return['d'] = ['url' => $url];
             }
             else {
                 // Create a new user and bind the form to it
@@ -301,8 +301,8 @@ class ODRUserController extends ODRCustomController
                         $em->refresh($new_user);
 
                         // Generate and return the URL to modify the new user's permissions
-                        $url = $router->generate( 'odr_manage_user_groups', array('user_id' => $new_user->getId()) );
-                        $return['d'] = array('url' => $url);
+                        $url = $router->generate( 'odr_manage_user_groups', ['user_id' => $new_user->getId()] );
+                        $return['d'] = ['url' => $url];
                     }
                     else {
                         // Form validation failed
@@ -335,7 +335,7 @@ class ODRUserController extends ODRCustomController
      */
     public function selfeditprofileAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -357,7 +357,7 @@ class ODRUserController extends ODRCustomController
 
             // ----------------------------------------
             // Store whether any OAuth providers have been configured
-            $connected_oauth_resources = array();
+            $connected_oauth_resources = [];
             $has_oauth_providers = false;
 
             // Users should only be able to see their own connected OAuth accounts, not those belonging to somebody else
@@ -382,7 +382,7 @@ class ODRUserController extends ODRCustomController
             // ----------------------------------------
             // Determine whether the user owns any OAuth clients
             $has_oauth_clients = false;
-            $owned_clients = array();
+            $owned_clients = [];
             $site_baseurl = $this->getParameter('site_baseurl');
 
             if ( $self_edit && $this->has('odr.oauth_server.client_manager') ) {
@@ -396,13 +396,13 @@ class ODRUserController extends ODRCustomController
 
             // ----------------------------------------
             // Create a new form to edit the user
-            $form = $this->createForm(ODRUserProfileForm::class, $user, array('target_user_id' => $user->getId()));
+            $form = $this->createForm(ODRUserProfileForm::class, $user, ['target_user_id' => $user->getId()]);
 
             // Render them in a list
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:ODRUser:user_profile.html.twig',
-                    array(
+                    [
                         'profile_form' => $form->createView(),
                         'current_user' => $user,
                         'target_user' => $user,
@@ -414,9 +414,9 @@ class ODRUserController extends ODRCustomController
                         'has_oauth_clients' => $has_oauth_clients,
                         'owned_clients' => $owned_clients,
                         'site_baseurl' => $site_baseurl,
-                    )
+                    ]
                 )
-            );
+            ];
 
         }
         catch (\Exception $e) {
@@ -443,7 +443,7 @@ class ODRUserController extends ODRCustomController
      */
     public function editprofileAction($user_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -486,7 +486,7 @@ class ODRUserController extends ODRCustomController
 
             // ----------------------------------------
             // Store whether any OAuth providers have been configured
-            $connected_oauth_resources = array();
+            $connected_oauth_resources = [];
             $has_oauth_providers = false;
 
             // Users should only be able to see their own connected OAuth accounts, not those belonging to somebody else
@@ -511,7 +511,7 @@ class ODRUserController extends ODRCustomController
             // ----------------------------------------
             // Determine whether the user owns any OAuth clients
             $has_oauth_clients = false;
-            $owned_clients = array();
+            $owned_clients = [];
             $site_baseurl = $this->getParameter('site_baseurl');
 
             if ( $self_edit && $this->has('odr.oauth_server.client_manager') ) {
@@ -528,16 +528,16 @@ class ODRUserController extends ODRCustomController
             $form = $this->createForm(
                 ODRUserProfileForm::class,
                 $target_user,
-                array(
+                [
                     'target_user_id' => $target_user->getId()
-                )
+                ]
             );
 
             // Render them in a list
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:ODRUser:user_profile.html.twig',
-                    array(
+                    [
                         'profile_form' => $form->createView(),
                         'current_user' => $admin_user,
                         'target_user' => $target_user,
@@ -549,9 +549,9 @@ class ODRUserController extends ODRCustomController
                         'has_oauth_clients' => $has_oauth_clients,
                         'owned_clients' => $owned_clients,
                         'site_baseurl' => $site_baseurl,
-                    )
+                    ]
                 )
-            );
+            ];
 
         }
         catch (\Exception $e) {
@@ -577,7 +577,7 @@ class ODRUserController extends ODRCustomController
      */
     public function selfsaveprofileAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -607,9 +607,9 @@ class ODRUserController extends ODRCustomController
             $username = self::saveProfile($user_id, $request);
 
             if ( !is_null($username) ) {
-                $return['d'] = array(
+                $return['d'] = [
                     'username' => $username
-                );
+                ];
             }
         }
         catch (\Exception $e) {
@@ -635,7 +635,7 @@ class ODRUserController extends ODRCustomController
      */
     public function saveprofileAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -678,9 +678,9 @@ class ODRUserController extends ODRCustomController
             $username = self::saveProfile($user_id, $request);
 
             if ( !is_null($username) ) {
-                $return['d'] = array(
+                $return['d'] = [
                     'username' => $username
-                );
+                ];
             }
         }
         catch (\Exception $e) {
@@ -728,9 +728,9 @@ class ODRUserController extends ODRCustomController
         $form = $this->createForm(
             ODRUserProfileForm::class,
             $target_user,
-            array(
+            [
                 'target_user_id' => $target_user->getId()
-            )
+            ]
         );
         $form->handleRequest($request);
 
@@ -771,7 +771,7 @@ class ODRUserController extends ODRCustomController
      */
     public function changepasswordAction($user_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -810,22 +810,22 @@ class ODRUserController extends ODRCustomController
             $form = $this->createForm(
                 ODRAdminChangePasswordForm::class,
                 $target_user,
-                array(
+                [
                     'target_user_id' => $target_user->getId()
-                )
+                ]
             );
 
             // Render them in a list
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:ODRUser:change_password.html.twig',
-                    array(
+                    [
                         'form' => $form->createView(),
                         'current_user' => $admin_user,
                         'target_user' => $target_user,
-                    )
+                    ]
                 )
-            );
+            ];
 
         }
         catch (\Exception $e) {
@@ -852,7 +852,7 @@ class ODRUserController extends ODRCustomController
      */
     public function savepasswordAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -901,9 +901,9 @@ class ODRUserController extends ODRCustomController
             $form = $this->createForm(
                 ODRAdminChangePasswordForm::class,
                 $target_user,
-                array(
+                [
                     'target_user_id' => $target_user->getId()
-                )
+                ]
             );
             $form->handleRequest($request);
 
@@ -949,7 +949,7 @@ class ODRUserController extends ODRCustomController
      */
     public function listusersAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -997,18 +997,18 @@ class ODRUserController extends ODRCustomController
             $user_list = $user_manager->findUsers();    // twig will filter out deleted users, if needed
 
             // Render the list of users
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:ODRUser:user_list.html.twig',
-                    array(
+                    [
                         'users' => $user_list,
 
                         'admin_user' => $admin_user,
                         'is_datatype_admin' => $is_datatype_admin,
                         'can_edit_datatype' => $can_edit_datatype,
-                    )
+                    ]
                 )
-            );
+            ];
 
         }
         catch (\Exception $e) {
@@ -1034,7 +1034,7 @@ class ODRUserController extends ODRCustomController
      */
     public function managerolesAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1068,16 +1068,16 @@ class ODRUserController extends ODRCustomController
             }
 
             // Render them in a list
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:ODRUser:manage_roles.html.twig',
-                    array(
+                    [
                         'users' => $users,
                         'admin_user' => $admin_user,
                         'using_jupyterhub' => $using_jupyterhub,
-                    )
+                    ]
                 )
-            );
+            ];
 
         }
         catch (\Exception $e) {
@@ -1105,7 +1105,7 @@ class ODRUserController extends ODRCustomController
      */
     public function setroleAction($user_id, $role, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1181,10 +1181,10 @@ class ODRUserController extends ODRCustomController
                     WHERE ug.group_id = g.id
                     AND ug.user_id = :user_id
                     AND ug.deletedAt IS NULL AND g.deletedAt IS NULL';
-                $parameters = array(
+                $parameters = [
                     'admin_user_id' => $admin_user->getId(),
                     'user_id' => $target_user->getId()
-                );
+                ];
 
                 $conn = $em->getConnection();
                 $rowsAffected = $conn->executeUpdate($query_str, $parameters);
@@ -1219,7 +1219,7 @@ class ODRUserController extends ODRCustomController
      */
     public function deleteuserAction($user_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1260,10 +1260,10 @@ class ODRUserController extends ODRCustomController
                 SET ug.deletedAt = NOW(), ug.deletedBy = :admin_user_id
                 WHERE ug.group_id = g.id AND ug.user_id = :user_id
                 AND ug.deletedAt IS NULL AND g.deletedAt IS NULL';
-            $parameters = array(
+            $parameters = [
                 'admin_user_id' => $admin_user->getId(),
                 'user_id' => $target_user->getId()
-            );
+            ];
 
             $conn = $em->getConnection();
             $rowsAffected = $conn->executeUpdate($query_str, $parameters);
@@ -1288,9 +1288,9 @@ class ODRUserController extends ODRCustomController
             // Generate a redirect to the user list
             /** @var Router $router */
             $router = $this->get('router');
-            $return['d'] = array(
+            $return['d'] = [
                 'url' => $router->generate('odr_user_list')
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x750059fa;
@@ -1316,7 +1316,7 @@ class ODRUserController extends ODRCustomController
      */
     public function undeleteuserAction($user_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1358,9 +1358,9 @@ class ODRUserController extends ODRCustomController
             // Generate a redirect to the user list
             /** @var Router $router */
             $router = $this->get('router');
-            $return['d'] = array(
+            $return['d'] = [
                 'url' => $router->generate('odr_user_list')
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x79443334;
@@ -1387,7 +1387,7 @@ class ODRUserController extends ODRCustomController
      */
     public function vieweffectivepermissionsAction($user_id, $datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1454,18 +1454,18 @@ class ODRUserController extends ODRCustomController
 
 
             // Render and return the required HTML
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:ODRUser:view_wrapper.html.twig',
-                    array(
+                    [
                         'target_user' => $target_user,
                         'datatype_permissions' => $datatype_permissions,
 
                         'datatype' => $datatype,
                         'master_theme' => $master_theme,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x8f12f6cb;
@@ -1492,7 +1492,7 @@ class ODRUserController extends ODRCustomController
      */
     public function viewpermissionsresultAction($user_id, $theme_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1552,9 +1552,9 @@ class ODRUserController extends ODRCustomController
             $odr_render_service = $this->get('odr.render_service');
             $page_html = $odr_render_service->getViewAsUserHTML($admin_user, $target_user, $theme);
 
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $page_html
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x1206f648;

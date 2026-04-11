@@ -33,60 +33,17 @@ class CloneThemeService
 {
 
     /**
-     * @var EntityManager $em
-     */
-    private $em;
-
-    /**
-     * @var CacheService
-     */
-    private $cache_service;
-
-    /**
-     * @var LockService
-     */
-    private $lock_service;
-
-    /**
-     * @var PermissionsManagementService
-     */
-    private $pm_service;
-
-    /**
-     * @var ThemeInfoService
-     */
-    private $theme_service;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * CloneThemeService constructor.
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param CacheService $cache_service
      * @param LockService $lock_service
-     * @param PermissionsManagementService $permissions_service
+     * @param PermissionsManagementService $pm_service
      * @param ThemeInfoService $theme_service
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        CacheService $cache_service,
-        LockService $lock_service,
-        PermissionsManagementService $permissions_service,
-        ThemeInfoService $theme_service,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->cache_service = $cache_service;
-        $this->lock_service = $lock_service;
-        $this->pm_service = $permissions_service;
-        $this->theme_service = $theme_service;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly LockService $lock_service, private readonly PermissionsManagementService $pm_service, private readonly ThemeInfoService $theme_service, private readonly Logger $logger)
+    {
     }
 
 
@@ -228,7 +185,7 @@ class CloneThemeService
 
 
         // ----------------------------------------
-        $theme_diff_array = array();
+        $theme_diff_array = [];
         self::themeSourceDiffWorker($theme->getId(), $source_theme->getId(), $theme_diff_array);
 
         // The result is a list of the themeDatafield/themeDatatype entries that need to be created
@@ -249,7 +206,7 @@ class CloneThemeService
     private function themeSourceDiffWorker($theme_id, $source_theme_id, &$theme_diff_array)
     {
         // Need the input parameters as an array for the query...
-        $theme_ids = array($theme_id, $source_theme_id);
+        $theme_ids = [$theme_id, $source_theme_id];
 
 
         // ----------------------------------------
@@ -276,19 +233,19 @@ class CloneThemeService
             LEFT JOIN trpi.renderPluginInstance as rpi
 
             WHERE t IN (:theme_ids)'
-        )->setParameters( array('theme_ids' => $theme_ids) );
+        )->setParameters( ['theme_ids' => $theme_ids] );
         $results = $query->getArrayResult();
 
         // Compress the DQL result into a more manageable format
-        $theme_array = array();
+        $theme_array = [];
         foreach ($results as $num => $t) {
             $t_id = $t['id'];
 
-            $theme_array[$t_id] = array(
-                'theme_datafields' => array(),
-                'theme_datatypes' => array(),
-                'theme_renderPluginInstances' => array(),
-            );
+            $theme_array[$t_id] = [
+                'theme_datafields' => [],
+                'theme_datatypes' => [],
+                'theme_renderPluginInstances' => [],
+            ];
 
             foreach ($t['themeElements'] as $te_num => $te) {
                 if ( isset($te['themeDataFields']) ) {
@@ -312,7 +269,7 @@ class CloneThemeService
                             $c_t_id = $tdt['childTheme']['id'];
                             $c_s_t_id = $tdt['childTheme']['sourceTheme']['id'];
 
-                            $theme_array[$t_id]['theme_datatypes'][$c_dt_id] = array('tdt_id' => $tdt_id, 'c_t_id' => $c_t_id, 'c_s_t_id' => $c_s_t_id);
+                            $theme_array[$t_id]['theme_datatypes'][$c_dt_id] = ['tdt_id' => $tdt_id, 'c_t_id' => $c_t_id, 'c_s_t_id' => $c_s_t_id];
                         }
                     }
                 }
@@ -324,7 +281,7 @@ class CloneThemeService
                             $trpi_id = $trpi['id'];
                             $rpi_id = $trpi['renderPluginInstance']['id'];
 
-                            $theme_array[$t_id]['theme_renderPluginInstances'][$rpi_id] = array('trpi_id' => $trpi_id);
+                            $theme_array[$t_id]['theme_renderPluginInstances'][$rpi_id] = ['trpi_id' => $trpi_id];
                         }
                     }
                 }
@@ -334,14 +291,14 @@ class CloneThemeService
 
         // ----------------------------------------
         // Determine which datafields and child/linked datatypes the theme needs to clone from its source
-        $diff_array = array(
+        $diff_array = [
 //            'source_theme_id' => $source_theme_id,
-            'new_datafields' => array(),
-            'new_datatypes' => array(),
-            'new_renderplugininstances' => array(),
+            'new_datafields' => [],
+            'new_datatypes' => [],
+            'new_renderplugininstances' => [],
 
             'copy_theme_structure' => true,
-        );
+        ];
 
         // For each themeDatafield in the source theme...
         foreach ($theme_array[$source_theme_id]['theme_datafields'] as $df_id => $tdf_id) {
@@ -882,7 +839,7 @@ class CloneThemeService
         // For each theme element the source theme has...
         $theme_elements = $source_theme->getThemeElements();
         /** @var ThemeElement[] $theme_elements */
-        $theme_element_ids = array();
+        $theme_element_ids = [];
         foreach($theme_elements as $te)
             $theme_element_ids[] = $te->getId();
 

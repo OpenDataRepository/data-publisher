@@ -75,7 +75,7 @@ class CSVImportHelperServiceTest extends WebTestCase
         // Convert the post data into a form that's more useful for verifying uniquness
         $uniqueness_check_data = $csv_helper_service->getUniquenessCheckData($post, $file_headers);
 
-        $errors = array();
+        $errors = [];
 
         // If there's at least one column in the CSV file that's going to a datafield marked
         //  as unique...
@@ -141,140 +141,140 @@ class CSVImportHelperServiceTest extends WebTestCase
 
             // Import into RRUFF Sample...not trying to cause a problem
             'import into good database with good csv file' => [
-                array(
+                [
                     'datatype_id' => "3",
-                    'datafield_mapping' => array(
+                    'datafield_mapping' => [
                         0 => "29",  // sample_id
                         1 => "30",  // rruff_id
                         2 => "34",  // owner
-                    ),
-                    'unique_columns' => array(
+                    ],
+                    'unique_columns' => [
                         0 => "1",
                         1 => "1",
-                    ),
-                ),
+                    ],
+                ],
                 'csv_import_test_1.csv',
                 0
             ],
 
             // Import into RRUFF Sample...csv file has duplicate value in external_id column
             'duplicate value in csv file in external id column' => [
-                array(
+                [
                     'datatype_id' => "3",
-                    'datafield_mapping' => array(
+                    'datafield_mapping' => [
                         0 => "29",  // sample_id
                         1 => "30",  // rruff_id
                         2 => "34",  // owner
-                    ),
-                    'unique_columns' => array(
+                    ],
+                    'unique_columns' => [
                         0 => "1",
                         1 => "1",
-                    ),
-                ),
+                    ],
+                ],
                 'csv_import_test_2.csv',
                 1
             ],
             // Import into RRUFF Sample...csv creates duplicate value in rruff_id column
             'import creates duplicate in unique column' => [
-                array(
+                [
                     'datatype_id' => "3",
-                    'datafield_mapping' => array(
+                    'datafield_mapping' => [
                         0 => "29",  // sample_id
                         1 => "30",  // rruff_id
-                    ),
-                    'unique_columns' => array(
+                    ],
+                    'unique_columns' => [
                         0 => "1",
                         1 => "1",
-                    ),
-                ),
+                    ],
+                ],
                 'csv_import_test_3.csv',
                 1
             ],
 
             // Import without external id into RRUFF Sample...file happens to not create duplicates in rruff_id
             'import without external id, no duplicates created in unique field by luck' => [
-                array(
+                [
                     'datatype_id' => "3",
-                    'datafield_mapping' => array(
+                    'datafield_mapping' => [
                         1 => "30",  // rruff_id
-                    ),
-                    'unique_columns' => array(
+                    ],
+                    'unique_columns' => [
                         1 => "1",
-                    ),
-                ),
+                    ],
+                ],
                 'csv_import_test_4.csv',
                 0
             ],
             // Import without external id into RRUFF Sample...file creates multiple duplicates in rruff_id column
             'import without external id, creates multiple duplicates in unique field' => [
-                array(
+                [
                     'datatype_id' => "3",
-                    'datafield_mapping' => array(
+                    'datafield_mapping' => [
                         1 => "30",  // rruff_id
-                    ),
-                    'unique_columns' => array(
+                    ],
+                    'unique_columns' => [
                         1 => "1",
-                    ),
-                ),
+                    ],
+                ],
                 'csv_import_test_3.csv',
                 3
             ],
 
             // Import into IMA without external id...file is fine, but should find existing duplicates in locality_country
             'non-unique field marked as unique for import...has duplicates already' => [
-                array(
+                [
                     'datatype_id' => "2",
-                    'datafield_mapping' => array(
+                    'datafield_mapping' => [
                         3 => "17",  // mineral_name
                         4 => "24",  // locality_country
-                    ),
-                    'unique_columns' => array(
+                    ],
+                    'unique_columns' => [
                         4 => "1",
-                    ),
-                ),
+                    ],
+                ],
                 'csv_import_test_4.csv',
                 1
             ],
             // Import into IMA without external id...existing duplicates in locality_country field, more created by csv file
             'non-unique field marked as unique for import...has duplicates already, import creates more' => [
-                array(
+                [
                     'datatype_id' => "2",
-                    'datafield_mapping' => array(
+                    'datafield_mapping' => [
                         3 => "17",  // mineral_name
                         4 => "24",  // locality_country
-                    ),
-                    'unique_columns' => array(
+                    ],
+                    'unique_columns' => [
                         4 => "1",
-                    ),
-                ),
+                    ],
+                ],
                 'csv_import_test_1.csv',
                 4    // one for existing duplicate, one for "USA", two for "Sweden"
             ],
             // Import into IMA without external id...file is fine, should end up with no duplicates in mineral_name
             'non-unique field marked as unique for import...no existing duplicates' => [
-                array(
+                [
                     'datatype_id' => "2",
-                    'datafield_mapping' => array(
+                    'datafield_mapping' => [
                         3 => "17",  // mineral_name
-                    ),
-                    'unique_columns' => array(
+                    ],
+                    'unique_columns' => [
                         3 => "1",
-                    ),
-                ),
+                    ],
+                ],
                 'csv_import_test_4.csv',
                 0
             ],
             // Import into IMA without external id...should end up with multiple duplicates in mineral_name
             'non-unique field marked as unique for import...no existing duplicates, import creates several' => [
-                array(
+                [
                     'datatype_id' => "2",
-                    'datafield_mapping' => array(
+                    'datafield_mapping' => [
                         3 => "17",  // mineral_name
-                    ),
-                    'unique_columns' => array(
+                    ],
+                    'unique_columns' => [
                         3 => "1",
-                    ),
-                ),
+                    ],
+                ],
                 'csv_import_test_1.csv',
                 3
             ],
@@ -285,57 +285,57 @@ class CSVImportHelperServiceTest extends WebTestCase
 
             // Import into "Import Test - Sample"
             'import into good child database with good csv file' => [
-                array(
+                [
                     'datatype_id' => "6",
                     'parent_datatype_id' => "5",
                     'parent_external_id_column' => "3",
-                    'unique_columns' => array(
+                    'unique_columns' => [
                         0 => "1",
                         1 => "1",
-                    ),
-                    'datafield_mapping' => array(
+                    ],
+                    'datafield_mapping' => [
                         0 => "47",    // sample_id
                         1 => "48",    // rruff_id
                         2 => "49",    // owner
-                    ),
-                ),
+                    ],
+                ],
                 'csv_import_test_1.csv',
                 0
             ],
 
             // Import into "Import Test - Sample"
             'duplicate value in csv file in child external id column' => [
-                array(
+                [
                     'datatype_id' => "6",
                     'parent_datatype_id' => "5",
                     'parent_external_id_column' => "3",
-                    'unique_columns' => array(
+                    'unique_columns' => [
                         0 => "1",
                         1 => "1"
-                    ),
-                    'datafield_mapping' => array(
+                    ],
+                    'datafield_mapping' => [
                         0 => "47",    // sample_id
                         1 => "48",    // rruff_id
-                    ),
-                ),
+                    ],
+                ],
                 'csv_import_test_2.csv',
                 1
             ],
             // Import into "Import Test - Sample", set owner field to unique
             'non-unique field in child marked as unique for import...has duplicates already' => [
-                array(
+                [
                     'datatype_id' => "6",
                     'parent_datatype_id' => "5",
                     'parent_external_id_column' => "3",
-                    'unique_columns' => array(
+                    'unique_columns' => [
                         0 => "1",
                         2 => "1",
-                    ),
-                    'datafield_mapping' => array(
+                    ],
+                    'datafield_mapping' => [
                         0 => "47",    // sample_id
                         2 => "49",    // owner
-                    ),
-                ),
+                    ],
+                ],
                 'csv_import_test_1.csv',
                 1
             ],
@@ -343,38 +343,38 @@ class CSVImportHelperServiceTest extends WebTestCase
             // Import into "Import Test - Sample"...despite reusing "R070007" under "TotallyNotAbelsonite",
             //  no uniqueness constraints are violated
             'import creates duplicates in unique field of child record, different parent' => [
-                array(
+                [
                     'datatype_id' => "6",
                     'parent_datatype_id' => "5",
                     'parent_external_id_column' => "3",
-                    'unique_columns' => array(
+                    'unique_columns' => [
                         0 => "1",
                         1 => "1"
-                    ),
-                    'datafield_mapping' => array(
+                    ],
+                    'datafield_mapping' => [
                         0 => "47",    // sample_id
                         1 => "48",    // rruff_id
-                    ),
-                ),
+                    ],
+                ],
                 'csv_import_test_5.csv',
                 0
             ],
             // Import into "Import Test - Sample", should get an error on rruff_id column due to
             //  sample_id 99999 attempting to reuse "R060687"
             'import creates duplicates in unique field of child record, same parent' => [
-                array(
+                [
                     'datatype_id' => "6",
                     'parent_datatype_id' => "5",
                     'parent_external_id_column' => "3",
-                    'unique_columns' => array(
+                    'unique_columns' => [
                         0 => "1",
                         1 => "1"
-                    ),
-                    'datafield_mapping' => array(
+                    ],
+                    'datafield_mapping' => [
                         0 => "47",    // sample_id
                         1 => "48",    // rruff_id
-                    ),
-                ),
+                    ],
+                ],
                 'csv_import_test_3.csv',
                 1
             ],
@@ -387,48 +387,48 @@ class CSVImportHelperServiceTest extends WebTestCase
             // Import into "Import Test - Mineral ID"...this also tests updating/creating a single
             //  child record
             'import creates more than one child record in single-allowed childtype' => [
-                array(
+                [
                     'datatype_id' => "7",
                     'parent_datatype_id' => "5",
                     'parent_external_id_column' => "3",
-                    'unique_columns' => array(
+                    'unique_columns' => [
                         5 => "1",
-                    ),
-                    'datafield_mapping' => array(
+                    ],
+                    'datafield_mapping' => [
                         5 => "50",    // mineral_id
-                    ),
-                ),
+                    ],
+                ],
                 'csv_import_test_1.csv',
                 2    // one for a duplicate in the external id column, another because it would
                      //  create more than one child record
             ],
             // Import into "Import Test - locality_country"
             'csv file has duplicate external id for single-allowed childtype' => [
-                array(
+                [
                     'datatype_id' => "7",
                     'parent_datatype_id' => "5",
                     'parent_external_id_column' => "3",
-                    'unique_columns' => array(
+                    'unique_columns' => [
                         5 => "1",
-                    ),
-                    'datafield_mapping' => array(
+                    ],
+                    'datafield_mapping' => [
                         5 => "50",    // mineral_id
-                    ),
-                ),
+                    ],
+                ],
                 'csv_import_test_2.csv',
                 3    // two for duplicates in the child external id, and a third because it would
                      //  create a duplicate
             ],
             // Import into "Import Test - locality_country"
             'import overwrites child records in single-allowed childtype' => [
-                array(
+                [
                     'datatype_id' => "8",
                     'parent_datatype_id' => "5",
                     'parent_external_id_column' => "3",
-                    'datafield_mapping' => array(
+                    'datafield_mapping' => [
                         4 => "51",    // locality_country
-                    ),
-                ),
+                    ],
+                ],
                 'csv_import_test_2.csv',
                 3    // one warning for overwriting an existing child record, and two more for
                      //  overwriting child records that the import will create
@@ -436,24 +436,24 @@ class CSVImportHelperServiceTest extends WebTestCase
 
             // Create links between "RRUFF Sample" and "IMA List"
             'import attempts to link to second remote record in single-allowed linked datatype' => [
-                array(
+                [
                     'datatype_id' => "2",
                     'parent_datatype_id' => "3",
                     'parent_external_id_column' => "0",
                     'remote_external_id_column' => "5",
-                ),
+                ],
                 'csv_import_test_5.csv',
                 1    // one error because sample 3082 already links to mineral 777
             ],
 
             // Create links between "RRUFF Sample" and "IMA List"...csv file doesn't have duplicates
             'csv file does not have duplicates in columns when creating links' => [
-                array(
+                [
                     'datatype_id' => "2",
                     'parent_datatype_id' => "3",
                     'parent_external_id_column' => "0",
                     'remote_external_id_column' => "5",
-                ),
+                ],
                 'csv_import_test_1.csv',
                 0
             ],
@@ -461,12 +461,12 @@ class CSVImportHelperServiceTest extends WebTestCase
             //  but the csv linker merely ensures the link exists more than once...so there are
             //  no errors to find here
             'csv file does has duplicates in columns when creating links' => [
-                array(
+                [
                     'datatype_id' => "2",
                     'parent_datatype_id' => "3",
                     'parent_external_id_column' => "0",
                     'remote_external_id_column' => "5",
-                ),
+                ],
                 'csv_import_test_2.csv',
                 0
             ],

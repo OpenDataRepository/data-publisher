@@ -49,7 +49,7 @@ class StorageEntityCleanupCommand extends ContainerAwareCommand
                 $job = $pheanstalk->watch('storage_entity_cleanup')->ignore('default')->reserve();
 
                 // Get Job Data
-                $data = json_decode($job->getData()); 
+                $data = json_decode((string) $job->getData()); 
 
 //                $logger->info('StorageEntityCleanupCommand.php: attempting to locate useless blank storage entities in table "'.$data->table.'" for datafield '.$data->datafield_id.'...');
                 $current_time = new \DateTime();
@@ -57,18 +57,18 @@ class StorageEntityCleanupCommand extends ContainerAwareCommand
                 $output->writeln('attempting to locate useless blank storage entities in table "'.$data->table.'" for datafield '.$data->datafield_id.'...');
 
                 // Create the required parameters to send
-                $parameters = array(
+                $parameters = [
                     'datafield_id' => $data->datafield_id,
                     'table' => $data->table,
 
                     'api_key' => $data->api_key
-                );
+                ];
 
                 // Need to use cURL to send a POST request...thanks symfony
                 $ch = curl_init();
 
                 // Set the options for the POST request
-                curl_setopt_array($ch, array(
+                curl_setopt_array($ch, [
                         CURLOPT_POST => 1,
                         CURLOPT_HEADER => 0,
                         CURLOPT_URL => $data->url,
@@ -77,7 +77,7 @@ class StorageEntityCleanupCommand extends ContainerAwareCommand
                         CURLOPT_FORBID_REUSE => 1,
                         CURLOPT_TIMEOUT => 120, 
                         CURLOPT_POSTFIELDS => http_build_query($parameters)
-                    )
+                    ]
                 );
 
                 // Send the request

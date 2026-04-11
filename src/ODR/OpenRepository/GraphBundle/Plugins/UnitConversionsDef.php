@@ -28,8 +28,8 @@ class UnitConversionsDef
      *
      * @var array[]
      */
-    public static $conversions = array(
-        'Length' => array(
+    public static $conversions = [
+        'Length' => [
             // meters (SI unit) => m
             'km' => 1e3,  // kilometers
             'm' => 1.0,   // meters, standard SI unit
@@ -46,8 +46,8 @@ class UnitConversionsDef
 
             // non-SI units => m
             'Å' => 1e-10,  // angstrom
-        ),
-        'Mass' => array(
+        ],
+        'Mass' => [
             // grams (SI unit) => kg
             'kg' => 1.0,  // kilograms, standard SI unit
             'g' => 1e-3,  // grams
@@ -58,8 +58,8 @@ class UnitConversionsDef
             // non-SI units => kg
             'lb' => 4.5359237e-1,      // pounds
             'oz' => 4.5359237e-1 / 16, // ounces
-        ),
-        'Pressure' => array(
+        ],
+        'Pressure' => [
             // Pascals (SI unit) => Pa
             'GPa' => 1e9, // gigapascals
             'MPa' => 1e6, // megapascals
@@ -76,26 +76,26 @@ class UnitConversionsDef
             // non-SI units => Pa
             'atm' => 101325,     // atmospheres
             'psi' => 6.894757e3, // pounds per square inch
-        ),
-        'Temperature' => array(
+        ],
+        'Temperature' => [
             // kelvin (SI unit)
             'K' => 1.0,
 
             // Celsius is kinda SI unit, apparently
-            'C' => array(
+            'C' => [
                 'to' => 'convertToC',
                 'from' => 'convertFromC',
-            ),
+            ],
 
             // Fahrenheit is non-SI
-            'F' => array(
+            'F' => [
                 'to' => 'convertToF',
                 'from' => 'convertFromF',
-            ),
+            ],
             // Rankine
             'R' => 5/9,
-        ),
-        'Time' => array(
+        ],
+        'Time' => [
             // seconds (SI unit) => s
             's' => 1.0,    // second, standard SI unit
             'ms' => 1e-3,  // millisecond
@@ -109,8 +109,8 @@ class UnitConversionsDef
             'd' => 86400,     // days
             'w' => 604800,    // week, assumed to be 7 days
             'yr' => 31556952, // (gregorian) year
-        ),
-    );
+        ],
+    ];
 
 
     /**
@@ -127,8 +127,8 @@ class UnitConversionsDef
      *
      * @var array[]
      */
-    public static $aliases = array(
-        'Length' => array(
+    public static $aliases = [
+        'Length' => [
             // "Official" names first...
             'kilometers' => 'km',
             'meters' => 'm',
@@ -175,8 +175,8 @@ class UnitConversionsDef
             'microns' => 'µm',
             'um' => 'µm',
             'a' => 'Å',    // typically, the alternate unit used is "A"
-        ),
-        'Mass' => array(
+        ],
+        'Mass' => [
             // "Official" names first...
             'kilograms' => 'kg',
             'grams' => 'g',
@@ -201,8 +201,8 @@ class UnitConversionsDef
             'ounce' => 'oz',
 
             'lbs' => 'lb',
-        ),
-        'Pressure' => array(
+        ],
+        'Pressure' => [
             // "Official" names first...
             'gigapascals' => 'GPa',
             'megapascals' => 'MPa',
@@ -221,8 +221,8 @@ class UnitConversionsDef
             // "Unofficial" names after...
             'kb' => 'kbar',
             'poundspersquareinch' => 'psi',   // need this one because spaces are stripped...
-        ),
-        'Temperature' => array(
+        ],
+        'Temperature' => [
             // "Official" names first...
             'kelvin' => 'K',
             'celsius' => 'C',
@@ -245,8 +245,8 @@ class UnitConversionsDef
             'degc' => 'C',
             'degf' => 'F',
             'degr' => 'R',
-        ),
-        'Time' => array(
+        ],
+        'Time' => [
             // "Official" names first...
             'seconds' => 's',
             'milliseconds' => 'ms',
@@ -267,8 +267,8 @@ class UnitConversionsDef
             'mins' => 'm',
             'hrs' => 'h',
             'wks' => 'w',
-        ),
-    );
+        ],
+    ];
 
 
     /**
@@ -316,7 +316,7 @@ class UnitConversionsDef
      *
      * @var string[]
      */
-    public static $precision_types = array(
+    public static $precision_types = [
         'none',
         'precise', // do the calculation "correctly"..."100" has a precision of "1", because the zeros are ambiguous
         'greedy',  // treat "100" as having a precision of "3"
@@ -326,7 +326,7 @@ class UnitConversionsDef
         'decimal_2',
         'decimal_3',
         'decimal_4',
-    );
+    ];
 
 
     /**
@@ -347,9 +347,9 @@ class UnitConversionsDef
             return null;
 
         // Want to remove all whitespace from the string, so the regex is slightly easier to understand
-        $regex_value = str_replace(array(" ", "\t", "\n", "\r", "\0", "\x0B"), '', $regex_value);
+        $regex_value = str_replace([" ", "\t", "\n", "\r", "\0", "\x0B"], '', $regex_value);
         // TODO - perform other replacements on the value to make things conform better...
-        $regex_value = str_replace( array("·"), "⋅", $regex_value);    // replace U+00B7 with U+22C5
+        $regex_value = str_replace( ["·"], "⋅", $regex_value);    // replace U+00B7 with U+22C5
 
         // Need to split the given string apart...
         $source_value_str = $source_value = null;
@@ -390,7 +390,7 @@ class UnitConversionsDef
 
 
         // ----------------------------------------
-        $matches = array();
+        $matches = [];
         preg_match($pattern, $regex_value, $matches, PREG_UNMATCHED_AS_NULL);    // need to track whether each capture group matched anything or not
         // Extract the strings first, if they exist
         if ( !is_null($matches[1]) && $matches[1] !== '' ) {    // apparently the first capture group can return the empty string when just given text
@@ -415,7 +415,7 @@ class UnitConversionsDef
                     $tolerance_value_str .= $char;
             }
             // If the final character is a decimal, the put another zero on the end for clarity
-            if ( substr($tolerance_value_str, -1) === '.' )
+            if ( str_ends_with((string) $tolerance_value_str, '.') )
                 $tolerance_value_str .= '0';
         }
 
@@ -449,7 +449,7 @@ class UnitConversionsDef
                 // Easiest way to deal with this is to convert each official unit to lowercase, then
                 //  check that against the lowercase version of the given units
                 foreach (self::$conversions[$conversion_type] as $target_unit => $conversion_factor) {
-                    if ( strtolower($target_unit) === $lowercase_source_units ) {
+                    if ( strtolower((string) $target_unit) === $lowercase_source_units ) {
                         $tmp = $target_unit;
                         break;
                     }
@@ -508,7 +508,7 @@ class UnitConversionsDef
         $source_value = floatval($source_value_str);
         if ( !is_null($tolerance_value_str) ) {
             // If the tolerance value has a decimal point...
-            if ( strpos($tolerance_value_str, '.') !== false ) {
+            if ( str_contains($tolerance_value_str, '.') ) {
                 // ...then it's understood to be an "absolute" tolerance...
                 //  e.g. 1.23(1.5) means 1.23±1.5, or a value between -0.27 and 2.73
                 $tolerance_value = floatval($tolerance_value_str);
@@ -538,13 +538,13 @@ class UnitConversionsDef
             }
         }
 
-        return array(
+        return [
             'source_value_str' => $source_value_str,
             'source_value' => $source_value,
             'tolerance_value_str' => $tolerance_value_str,
             'tolerance_value' => $tolerance_value,
             'source_units' => $source_units,
-        );
+        ];
     }
 
 
@@ -557,17 +557,17 @@ class UnitConversionsDef
     private static function fixExponent($match)
     {
         // Ensure the optional '^' character doesn't exist
-        $tmp = strtolower( str_replace(array('^', '+'), '', $match) );
+        $tmp = strtolower( str_replace(['^', '+'], '', $match) );
 
         // The regex includes more than just the actual number for the exponent...trim it down
         $str = '';
-        if ( strpos($tmp, 'e') !== false ) {
+        if ( str_contains($tmp, 'e') ) {
             // The exponent was presented with either 'e' or 'E'
             $str = substr($tmp, 1);
         }
         else {
             // The exponent was presented with some variant of '*10'...
-            $str = str_replace(array('x10', '×10', '⋅10', '*10'), '', $tmp);
+            $str = str_replace(['x10', '×10', '⋅10', '*10'], '', $tmp);
         }
 
         // Strip leading zeros
@@ -644,11 +644,11 @@ class UnitConversionsDef
         else {
             // This conversion is described by a function
             $tmp_func = self::$conversions[$conversion_type][$source_units]['from'];
-            $tmp_value = call_user_func(array(self::class, $tmp_func), $source_value);    // need to use the array() because the target function is static
+            $tmp_value = call_user_func([self::class, $tmp_func], $source_value);    // need to use the array() because the target function is static
 
             // Do the same to the tolerance value, if it exists
             if ( !is_null($tolerance_value) )
-                $tolerance_value = call_user_func(array(self::class, $tmp_func), $tolerance_value);
+                $tolerance_value = call_user_func([self::class, $tmp_func], $tolerance_value);
         }
 
         // ...then convert the "standard" unit to the target unit
@@ -663,11 +663,11 @@ class UnitConversionsDef
         else {
             // This conversion is described by a function
             $tmp_func = self::$conversions[$conversion_type][$target_units]['to'];
-            $target_value = call_user_func(array(self::class, $tmp_func), $tmp_value);    // need to use the array() because the target function is static
+            $target_value = call_user_func([self::class, $tmp_func], $tmp_value);    // need to use the array() because the target function is static
 
             // Do the same to the tolerance value, if it exists
             if ( !is_null($tolerance_value) )
-                $tolerance_value = call_user_func(array(self::class, $tmp_func), $tolerance_value);
+                $tolerance_value = call_user_func([self::class, $tmp_func], $tolerance_value);
         }
 
         // NOTE - due to effectively all of these conversions being a multiplication/division, we
@@ -686,11 +686,11 @@ class UnitConversionsDef
                 $precision = 0;
 
                 // ...but if they have precision past the decimal point...
-                $decimal = strpos($source_value, '.');
+                $decimal = strpos((string) $source_value, '.');
                 if ( $decimal !== false ) {
                     // ...then they're typically rounded to the same number of decimal places as the
                     //  original value
-                    $precision = strlen($source_value) - 1 - $decimal;
+                    $precision = strlen((string) $source_value) - 1 - $decimal;
                 }
 
                 // Perform the actual rounding
@@ -702,7 +702,7 @@ class UnitConversionsDef
                 $source_value_precision = $tolerance_value_precision = null;
                 if ( is_null($tolerance_value_str) ) {
                     // If a tolerance value does not exist...
-                    if ( strpos($precision_type, 'decimal') === false ) {
+                    if ( !str_contains($precision_type, 'decimal') ) {
                         // ...and the plugin was not configured to use 'decimal', then determine
                         //  the precision of the source value
                         $source_value_precision = self::determinePrecision($source_value_str, $precision_type);
@@ -725,7 +725,7 @@ class UnitConversionsDef
                 // TODO - ...but that's a judgement call by definition.  bleh.
 
                 // Ensure the converted values have the correct precision
-                if ( !is_null($tolerance_value) || strpos($precision_type, 'decimal') === false ) {
+                if ( !is_null($tolerance_value) || !str_contains($precision_type, 'decimal') ) {
                     // The presence of a tolerance value overrides the use of the 'decimal' conversion
                     $target_value = self::applyPrecision($target_value, $source_value_precision);
 
@@ -856,7 +856,7 @@ class UnitConversionsDef
                     // If the number is small enough that PHP returns it in exponentiated
                     //  format, then it'll always appear to have at least 2 digits of
                     //  precision...
-                    if ( strpos($fixed_value_str, 'E') !== false && $desired_precision === 1 ) {
+                    if ( str_contains($fixed_value_str, 'E') && $desired_precision === 1 ) {
                         // ...so if only one digit of precision is required, fix that
                         $fixed_value_str = $fixed_value_str[0] . substr($fixed_value_str, 3);
                     }

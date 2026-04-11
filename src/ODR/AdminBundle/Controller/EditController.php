@@ -131,7 +131,7 @@ class EditController extends ODRCustomController
      */
     public function adddatarecordAction($datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -188,7 +188,7 @@ class EditController extends ODRCustomController
                     FROM ODRAdminBundle:DataRecord AS dr
                     WHERE dr.dataType = :datatype_id
                     AND dr.deletedAt IS NULL'
-                )->setParameters( array('datatype_id' => $datatype->getId()) );
+                )->setParameters( ['datatype_id' => $datatype->getId()] );
                 $results = $query->getArrayResult();
 
                 if ( count($results) !== 0 ) {
@@ -226,10 +226,10 @@ class EditController extends ODRCustomController
             // Don't need to fire off a DatarecordModified event, since this new top-level record
             //  with no values in it
 
-            $return['d'] = array(
+            $return['d'] = [
                 'datatype_id' => $datatype->getId(),
                 'datarecord_id' => $datarecord->getId()
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x2d4d92e6;
@@ -256,7 +256,7 @@ class EditController extends ODRCustomController
      */
     public function addchildrecordAction($datatype_id, $parent_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = "";
         $return['d'] = "";
@@ -363,11 +363,11 @@ class EditController extends ODRCustomController
 
             // ----------------------------------------
             // Get edit_ajax.html.twig to re-render the datarecord
-            $return['d'] = array(
+            $return['d'] = [
                 'new_datarecord_id' => $datarecord->getId(),
                 'datatype_id' => $datatype_id,
                 'parent_id' => $parent_datarecord->getId(),
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x3d2835d5;
@@ -400,7 +400,7 @@ class EditController extends ODRCustomController
      */
     public function deletedatarecordAction($datarecord_id, $is_link, $search_key, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -482,16 +482,16 @@ class EditController extends ODRCustomController
                    'SELECT dr.id AS dr_id
                     FROM ODRAdminBundle:DataRecord AS dr
                     WHERE dr.deletedAt IS NULL AND dr.dataType = :datatype'
-                )->setParameters(array('datatype' => $datatype->getId()));
+                )->setParameters(['datatype' => $datatype->getId()]);
                 $remaining = $query->getArrayResult();
 
                 // Determine where to redirect since the current datarecord is now deleted
                 $url = '';
                 if ($search_key == '') {
                     $search_key = $search_key_service->encodeSearchKey(
-                        array(
+                        [
                             'dt_id' => $datatype->getId()
-                        )
+                        ]
                     );
                 }
 
@@ -500,15 +500,15 @@ class EditController extends ODRCustomController
                     $preferred_theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'search_results');
                     $url = $this->generateUrl(
                         'odr_search_render',
-                        array(
+                        [
                             'search_theme_id' => $preferred_theme_id,
                             'search_key' => $search_key
-                        )
+                        ]
                     );
                 }
                 else {
                     // ...otherwise, return to the list of datatypes
-                    $url = $this->generateUrl('odr_list_types', array('section' => 'databases'));
+                    $url = $this->generateUrl('odr_list_types', ['section' => 'databases']);
                 }
 
                 $return['d'] = $url;
@@ -518,10 +518,10 @@ class EditController extends ODRCustomController
                 //  parent datarecord that links to it
 
                 // Get edit_ajax.html.twig to re-render the datarecord
-                $return['d'] = array(
+                $return['d'] = [
                     'datatype_id' => $datatype->getId(),
                     'parent_id' => $parent_datarecord->getId(),
-                );
+                ];
             }
         }
         catch (\Exception $e) {
@@ -552,7 +552,7 @@ class EditController extends ODRCustomController
      */
     public function renamefileAction($file_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = "";
         $return['d'] = "";
@@ -627,9 +627,9 @@ class EditController extends ODRCustomController
 
 
             // Update the filename
-            $props = array(
+            $props = [
                 'original_filename' => $filename
-            );
+            ];
             $entity_modify_service->updateFileMeta($user, $file, $props);
 
 
@@ -684,7 +684,7 @@ class EditController extends ODRCustomController
      */
     public function renameimageAction($image_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = "";
         $return['d'] = "";
@@ -763,9 +763,9 @@ class EditController extends ODRCustomController
 
 
             // Update the filename
-            $props = array(
+            $props = [
                 'original_filename' => $filename
-            );
+            ];
             $entity_modify_service->updateImageMeta($user, $image, $props);
 
 
@@ -821,7 +821,7 @@ class EditController extends ODRCustomController
      */
     public function filequalityAction($file_id, $quality, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -926,7 +926,7 @@ class EditController extends ODRCustomController
             // If the quality/rating given is valid...
             if ( !is_null($quality_value) && $quality_value !== $file->getQuality() ) {
                 // ...then save it to the database
-                $properties = array('quality' => $quality);
+                $properties = ['quality' => $quality];
                 $entity_modify_service->updateFileMeta($user, $file, $properties);
 
 
@@ -947,7 +947,7 @@ class EditController extends ODRCustomController
                     $event = new DatarecordModifiedEvent($datarecord, $user);
                     $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
 //                if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -980,7 +980,7 @@ class EditController extends ODRCustomController
      */
     public function imagequalityAction($image_id, $quality, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1089,7 +1089,7 @@ class EditController extends ODRCustomController
             // If the quality/rating given is valid...
             if ( !is_null($quality_value) && $quality_value !== $image->getQuality() ) {
                 // ...then save it to the database
-                $properties = array('quality' => $quality);
+                $properties = ['quality' => $quality];
                 $entity_modify_service->updateImageMeta($user, $image, $properties);
 
 
@@ -1110,7 +1110,7 @@ class EditController extends ODRCustomController
                     $event = new DatarecordModifiedEvent($datarecord, $user);
                     $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
 //                if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -1142,7 +1142,7 @@ class EditController extends ODRCustomController
      */
     public function publicfileAction($file_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1213,7 +1213,7 @@ class EditController extends ODRCustomController
                 // Make the file non-public
                 $public_date = new \DateTime('2200-01-01 00:00:00');
 
-                $properties = array('publicDate' => $public_date);
+                $properties = ['publicDate' => $public_date];
                 $entity_modify_service->updateFileMeta($user, $file, $properties);
 
                 // Delete the decrypted version of the file, if it exists
@@ -1228,13 +1228,13 @@ class EditController extends ODRCustomController
                 // Make the file public
                 $public_date = new \DateTime();
 
-                $properties = array('publicDate' => $public_date);
+                $properties = ['publicDate' => $public_date];
                 $entity_modify_service->updateFileMeta($user, $file, $properties);
 
 
                 // ----------------------------------------
                 // Need to decrypt the file...generate the url for cURL to use
-                $url = $this->generateUrl('odr_crypto_request', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+                $url = $this->generateUrl('odr_crypto_request', [], UrlGeneratorInterface::ABSOLUTE_URL);
 
                 $redis_prefix = $this->container->getParameter('memcached_key_prefix');    // debug purposes only
                 $pheanstalk = $this->get('pheanstalk');
@@ -1246,7 +1246,7 @@ class EditController extends ODRCustomController
                 // Schedule a beanstalk job to start decrypting the file
                 $priority = 1024;   // should be roughly default priority
                 $payload = json_encode(
-                    array(
+                    [
                         "object_type" => 'File',
                         "object_id" => $file_id,
                         "crypto_type" => 'decrypt',
@@ -1258,7 +1258,7 @@ class EditController extends ODRCustomController
                         "redis_prefix" => $redis_prefix,    // debug purposes only
                         "url" => $url,
                         "api_key" => $api_key,
-                    )
+                    ]
                 );
 
                 $delay = 0;
@@ -1270,10 +1270,10 @@ class EditController extends ODRCustomController
 
             // Need to rebuild this particular datafield's html to reflect the changes...
             $return['t'] = 'html';
-            $return['d'] = array(
+            $return['d'] = [
                 'is_public' => $file->isPublic(),
                 'public_date' => $public_date->format('Y-m-d'),
-            );
+            ];
 
 
             // ----------------------------------------
@@ -1337,7 +1337,7 @@ class EditController extends ODRCustomController
      */
     public function publicimageAction($image_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1410,7 +1410,7 @@ class EditController extends ODRCustomController
 
             // Grab all children of the original image (resizes, i believe)
             /** @var Image[] $all_images */
-            $all_images = $repo_image->findBy( array('parent' => $image->getId()) );
+            $all_images = $repo_image->findBy( ['parent' => $image->getId()] );
             $all_images[] = $image;
 
             // Toggle public status of specified image...
@@ -1420,7 +1420,7 @@ class EditController extends ODRCustomController
                 // Make the original image non-public
                 $public_date = new \DateTime('2200-01-01 00:00:00');
 
-                $properties = array('publicDate' => $public_date );
+                $properties = ['publicDate' => $public_date ];
                 $entity_modify_service->updateImageMeta($user, $image, $properties);
 
                 // Delete the decrypted version of the image and all of its children, if any of them exist
@@ -1437,7 +1437,7 @@ class EditController extends ODRCustomController
                 // Make the original image public
                 $public_date = new \DateTime();
 
-                $properties = array('publicDate' => $public_date);
+                $properties = ['publicDate' => $public_date];
                 $entity_modify_service->updateImageMeta($user, $image, $properties);
 
                 // Immediately decrypt the image and all of its children...don't need to specify
@@ -1449,10 +1449,10 @@ class EditController extends ODRCustomController
 
             // Need to rebuild this particular datafield's html to reflect the changes...
             $return['t'] = 'html';
-            $return['d'] = array(
+            $return['d'] = [
                 'is_public' => $image->isPublic(),
                 'public_date' => $public_date->format('Y-m-d'),
-            );
+            ];
 
 
             // ----------------------------------------
@@ -1516,7 +1516,7 @@ class EditController extends ODRCustomController
      */
     public function deletefileAction($file_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = "";
         $return['d'] = "";
@@ -1583,7 +1583,7 @@ class EditController extends ODRCustomController
             // If this datafield only allows a single upload, tell edit_ajax.html.twig to show
             //  the upload button again since this datafield's only file just got deleted
             if ( !$datafield->getAllowMultipleUploads() )
-                $return['d'] = array('need_reload' => true);
+                $return['d'] = ['need_reload' => true];
 
         }
         catch (\Exception $e) {
@@ -1610,7 +1610,7 @@ class EditController extends ODRCustomController
      */
     public function deleteimageAction($image_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1683,7 +1683,7 @@ class EditController extends ODRCustomController
             // If this datafield only allows a single upload, tell edit_ajax.html.twig to show the
             //  the upload button again since this datafield's only image got deleted
             if ($datafield->getAllowMultipleUploads() == "0")
-                $return['d'] = array('need_reload' => true);
+                $return['d'] = ['need_reload' => true];
         }
         catch (\Exception $e) {
             $source = 0xee8e8649;
@@ -1710,7 +1710,7 @@ class EditController extends ODRCustomController
      */
     public function rotateimageAction($image_id, $direction, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1795,9 +1795,9 @@ class EditController extends ODRCustomController
             // Going to need an array of the original image and each of its resized children...
             /** @var Image[] $relevant_images */
             $relevant_images = $em->getRepository('ODRAdminBundle:Image')->findBy(
-                array(
+                [
                     'parent' => $image->getId()
-                )
+                ]
             );
             $relevant_images[] = $image;
 
@@ -1868,12 +1868,12 @@ class EditController extends ODRCustomController
                 $new_image = $upload_service->uploadNewImage($new_image_path, $user, $drf);
 
                 // Still need to copy several properties from the previous image to the new one
-                $props = array(
+                $props = [
                     'displayOrder' => $image->getDisplayorder(),
                     'publicDate' => $image->getPublicDate(),
                     'caption' => $image->getCaption(),
                     'externalId' => $image->getExternalId(),
-                );
+                ];
                 $entity_modify_service->updateImageMeta($user, $new_image, $props);
 
                 // Mark the original image and its resizes as deleted
@@ -1916,7 +1916,7 @@ class EditController extends ODRCustomController
      */
     public function saveimageorderAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1987,10 +1987,10 @@ class EditController extends ODRCustomController
                 FROM ODRAdminBundle:Image AS e
                 WHERE e.dataRecordFields = :drf AND e.original = 1
                 AND e.deletedAt IS NULL'
-            )->setParameters( array('drf' => $image->getDataRecordFields()->getId()) );
+            )->setParameters( ['drf' => $image->getDataRecordFields()->getId()] );
             $results = $query->getResult();
 
-            $all_images = array();
+            $all_images = [];
             foreach ($results as $image)
                 $all_images[ $image->getId() ] = $image;
             /** @var Image[] $all_images */
@@ -2013,7 +2013,7 @@ class EditController extends ODRCustomController
                 $image = $all_images[$image_id];
 
                 if ( $image->getDisplayorder() != $index ) {
-                    $properties = array('display_order' => $index);
+                    $properties = ['display_order' => $index];
                     $entity_modify_service->updateImageMeta($user, $image, $properties, true);    // don't flush immediately...
                     $changes_made = true;
                 }
@@ -2062,7 +2062,7 @@ class EditController extends ODRCustomController
      */
     public function publicdatarecordAction($datarecord_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -2114,14 +2114,14 @@ class EditController extends ODRCustomController
                 // Make the datarecord non-public
                 $public_date = new \DateTime('2200-01-01 00:00:00');
 
-                $properties = array('publicDate' => $public_date);
+                $properties = ['publicDate' => $public_date];
                 $entity_modify_service->updateDatarecordMeta($user, $datarecord, $properties);
             }
             else {
                 // Make the datarecord non-public
                 $public_date = new \DateTime();
 
-                $properties = array('publicDate' => $public_date);
+                $properties = ['publicDate' => $public_date];
                 $entity_modify_service->updateDatarecordMeta($user, $datarecord, $properties);
             }
 
@@ -2145,10 +2145,10 @@ class EditController extends ODRCustomController
 
 
             // ----------------------------------------
-            $return['d'] = array(
+            $return['d'] = [
                 'public' => $datarecord->isPublic(),
                 'datarecord_id' => $datarecord_id,
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x3df683c4;
@@ -2173,7 +2173,7 @@ class EditController extends ODRCustomController
      */
     public function toggledatarecordpreventeditsAction($datarecord_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -2219,12 +2219,12 @@ class EditController extends ODRCustomController
 
             if ( $datarecord->getPreventUserEdits() ) {
                 // Datarecord should now allow user edits
-                $properties = array('prevent_user_edits' => false);
+                $properties = ['prevent_user_edits' => false];
                 $entity_modify_service->updateDatarecordMeta($user, $datarecord, $properties);
             }
             else {
                 // Datarecord should now prevent user edits
-                $properties = array('prevent_user_edits' => true);
+                $properties = ['prevent_user_edits' => true];
                 $entity_modify_service->updateDatarecordMeta($user, $datarecord, $properties);
             }
 
@@ -2244,10 +2244,10 @@ class EditController extends ODRCustomController
 
 
             // ----------------------------------------
-            $return['d'] = array(
+            $return['d'] = [
                 'public' => $datarecord->isPublic(),
                 'datarecord_id' => $datarecord_id,
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x3ebe1f5b;
@@ -2284,7 +2284,7 @@ class EditController extends ODRCustomController
     {
         // TODO - This should be changed to a transaction....
 
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -2401,10 +2401,10 @@ class EditController extends ODRCustomController
             // Create a new form for this storage entity and bind it to the request
             $form = $this->createForm($form_class,
                 $form_object,
-                array(
+                [
                     'datarecord_id' => $datarecord->getId(),
                     'datafield_id' => $datafield->getId()
-                )
+                ]
             );
             $form->handleRequest($request);
 
@@ -2455,7 +2455,7 @@ class EditController extends ODRCustomController
 
                         // Save the value...this will also fire a PostUpdate event, which will cause
                         //  any datafields derived from this particular field to update if needed
-                        $entity_modify_service->updateStorageEntity($user, $storage_entity, array('value' => $new_value));
+                        $entity_modify_service->updateStorageEntity($user, $storage_entity, ['value' => $new_value]);
 
 
                         // TODO Create mirror function for datatypes that have metadata
@@ -2538,7 +2538,7 @@ class EditController extends ODRCustomController
                             $event = new DatarecordModifiedEvent($datarecord, $user);
                             $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
                         }
-                        catch (\Exception $e) {
+                        catch (\Exception) {
                             // ...don't want to rethrow the error since it'll interrupt everything after this
                             //  event
 //                            if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -2546,11 +2546,11 @@ class EditController extends ODRCustomController
                         }
 
                         // Notify that a change was made
-                        $return['d'] = array('change_made' => true);
+                        $return['d'] = ['change_made' => true];
                     }
                     else {
                         // Notify that no change was made
-                        $return['d'] = array('change_made' => false);
+                        $return['d'] = ['change_made' => false];
                     }
                 }
                 else {
@@ -2590,7 +2590,7 @@ class EditController extends ODRCustomController
     {
         // TODO - This should be changed to a transaction....
 
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -2699,7 +2699,7 @@ class EditController extends ODRCustomController
                     $event = new DatarecordModifiedEvent($datarecord, $user);
                     $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
 //                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -2708,7 +2708,7 @@ class EditController extends ODRCustomController
             }
 
             // Notify whether a change was made or not
-            $return['d'] = array('change_made' => $changes_made);
+            $return['d'] = ['change_made' => $changes_made];
         }
         catch (\Exception $e) {
             $source = 0x74a1294a;
@@ -2741,7 +2741,7 @@ class EditController extends ODRCustomController
      */
     public function reloadchildAction($theme_element_id, $parent_datarecord_id, $top_level_datarecord_id, $edit_behavior_override, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -2817,7 +2817,7 @@ class EditController extends ODRCustomController
                 $edit_behavior_override = 0;
 
 
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $odr_render_service->reloadEditChildtype(
                     $user,
                     $theme_element,
@@ -2826,7 +2826,7 @@ class EditController extends ODRCustomController
                     $edit_shows_all_fields,
                     $edit_behavior_override
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0xb61ecefa;
@@ -2854,7 +2854,7 @@ class EditController extends ODRCustomController
      */
     public function reloaddatafieldAction($source_datarecord_id, $datarecord_id, $datafield_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -2919,10 +2919,10 @@ class EditController extends ODRCustomController
                 WHERE t.id = :theme_id AND tdf.dataField = :datafield_id
                 AND t.deletedAt IS NULL AND te.deletedAt IS NULL AND tdf.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'theme_id' => $master_theme->getId(),
                     'datafield_id' => $datafield->getId()
-                )
+                ]
             );
             $result = $query->getResult();
             /** @var ThemeElement $theme_element */
@@ -2945,11 +2945,11 @@ class EditController extends ODRCustomController
                 AND rp.deletedAt IS NULL AND rpi.deletedAt IS NULL
                 AND rpm.deletedAt IS NULL AND rpf.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'datatype_id' => $datatype->getId(),
                     'datafield_id' => $datafield->getId(),
                     'override_field_reload' => true
-                )
+                ]
             );
             $results = $query->getResult();
 
@@ -3004,9 +3004,9 @@ class EditController extends ODRCustomController
                 );
             }
 
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $output
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0xc28be446;
@@ -3039,7 +3039,7 @@ class EditController extends ODRCustomController
      */
     public function reloadfiledatafieldAction($datafield_id, $datarecord_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -3113,10 +3113,10 @@ class EditController extends ODRCustomController
                 JOIN f.createdBy AS f_cb
                 WHERE f.dataRecord = :datarecord_id AND f.dataField = :datafield_id
                 AND f.deletedAt IS NULL AND fm.deletedAt IS NULL'
-            )->setParameters( array('datarecord_id' => $datarecord->getId(), 'datafield_id' => $datafield->getId()) );
+            )->setParameters( ['datarecord_id' => $datarecord->getId(), 'datafield_id' => $datafield->getId()] );
             $results = $query->getArrayResult();
 
-            $file_list = array();
+            $file_list = [];
             foreach ($results as $num => $result) {
                 $file = $result;
                 $file['fileMeta'] = $result['fileMeta'][0];
@@ -3136,19 +3136,19 @@ class EditController extends ODRCustomController
             //  being uploaded won't really be properly formed in there
 
             // Render and return the HTML for the list of files
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Edit:edit_file_datafield.html.twig',
-                    array(
+                    [
                         'datafield' => $df_array,
                         'datarecord' => $dr_array,
                         'files' => $file_list,
 
                         'datarecord_is_fake' => false,    // "Fake" records can't reach this, because they don't have a datarecord_id
                         'uses_file_renamer_plugin' => $uses_file_renamer_plugin,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0xe33cd134;
@@ -3177,7 +3177,7 @@ class EditController extends ODRCustomController
      */
     public function editAction($datarecord_id, $search_theme_id, $search_key, $offset, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = "";
         $return['d'] = "";
@@ -3296,7 +3296,7 @@ class EditController extends ODRCustomController
                 $original_datarecord_list = $pagination_helper_service->updateTabSearchCriteria($odr_tab_id, $datatype, $search_theme, $user_permissions, $search_key);
 
                 // Determine the correct list of datarecords to use for rendering...
-                $datarecord_list = array();
+                $datarecord_list = [];
                 if ($has_search_restriction) {
                     // ...user has a restriction list, so the search header should only cycle through
                     //  the datarecords they're allowed to edit...even if there's technically more
@@ -3356,19 +3356,19 @@ class EditController extends ODRCustomController
 
             // Need this array to exist right now so the part that's not the search header will display
             if ( is_null($search_header) ) {
-                $search_header = array(
+                $search_header = [
                     'page_length' => 0,
                     'next_datarecord_id' => 0,
                     'prev_datarecord_id' => 0,
                     'search_result_current' => 0,
                     'search_result_count' => 0
-                );
+                ];
             }
 
-            $redirect_path = $router->generate('odr_record_edit', array('datarecord_id' => 0));
+            $redirect_path = $router->generate('odr_record_edit', ['datarecord_id' => 0]);
             $record_header_html = $templating->render(
                 'ODRAdminBundle:Edit:edit_header.html.twig',
-                array(
+                [
                     'datatype_permissions' => $datatype_permissions,
                     'edit_shows_all_fields' => $edit_shows_all_fields,
 
@@ -3389,7 +3389,7 @@ class EditController extends ODRCustomController
                     'search_result_current' => $search_header['search_result_current'],
                     'search_result_count' => $search_header['search_result_count'],
                     'redirect_path' => $redirect_path,
-                )
+                ]
             );
 
 
@@ -3403,10 +3403,10 @@ class EditController extends ODRCustomController
             // Render the edit page for this datarecord
             $page_html = $odr_render_service->getEditHTML($user, $datarecord, $search_key, $search_theme_id, $theme, $edit_shows_all_fields);
 
-            $return['d'] = array(
+            $return['d'] = [
                 'datatype_id' => $datatype->getId(),
                 'html' => $record_header_html.$page_html,
-            );
+            ];
 
             // Store which datarecord to scroll to if returning to the search results list
             $session->set('scroll_target', $datarecord->getId());
@@ -3486,14 +3486,14 @@ class EditController extends ODRCustomController
 
             // ----------------------------------------
             // Don't check field history of certain fieldtypes
-            $invalid_typeclasses = array(
+            $invalid_typeclasses = [
                 'File' => 0,
                 'Image' => 0,
                 'Markdown' => 0,
                 'Radio' => 0,
                 'Tag' => 0,
                 'XYZData' => 0,
-            );
+            ];
 
             $typeclass = $datafield->getFieldType()->getTypeClass();
             if ( isset($invalid_typeclasses[$typeclass]) )
@@ -3508,10 +3508,10 @@ class EditController extends ODRCustomController
                 JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
                 JOIN ODRAdminBundle:FieldType AS ft WITH dfm.fieldType = ft
                 WHERE df = :df_id'
-            )->setParameters( array('df_id' => $datafield->getId()) );
+            )->setParameters( ['df_id' => $datafield->getId()] );
             $results = $query->getArrayResult();
 
-            $all_typeclasses = array();
+            $all_typeclasses = [];
             foreach ($results as $result) {
                 $typeclass = $result['type_class'];
 
@@ -3521,7 +3521,7 @@ class EditController extends ODRCustomController
 
 
             // Grab all values that the datafield has had across all fieldtypes
-            $historical_values = array();
+            $historical_values = [];
             foreach ($all_typeclasses as $num => $typeclass) {
                 $str =
                    'SELECT e.value AS value, ft.typeName AS typename, e.created AS created, created_by.firstName, created_by.lastName, created_by.username
@@ -3540,10 +3540,10 @@ class EditController extends ODRCustomController
                 }
 
                 $query = $em->createQuery($str)->setParameters(
-                    array(
+                    [
                         'datarecord_id' => $datarecord->getId(),
                         'datafield_id' => $datafield->getId()
-                    )
+                    ]
                 );
                 $results = $query->getArrayResult();
 
@@ -3556,13 +3556,13 @@ class EditController extends ODRCustomController
                     if ( $result['firstName'] !== '' && $result['lastName'] !== '' )
                         $user_string = $result['firstName'].' '.$result['lastName'];
 
-                    $historical_values[] = array(
+                    $historical_values[] = [
                         'value' => $value,
                         'user' => $user_string,
                         'created' => $created,
                         'typeclass' => $typeclass,
                         'typename' => $typename
-                    );
+                    ];
                 }
             }
 
@@ -3609,10 +3609,10 @@ class EditController extends ODRCustomController
 
 
             // Render the dialog box for this request
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Edit:field_history_dialog_form.html.twig',
-                    array(
+                    [
                         'historical_values' => $historical_values,
 
                         'datarecord' => $datarecord,
@@ -3620,9 +3620,9 @@ class EditController extends ODRCustomController
                         'current_typeclass' => $current_typeclass,
 
                         'csrf_token' => $csrf_token,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0xb2073584;
@@ -3702,7 +3702,7 @@ class EditController extends ODRCustomController
             $em->getFilters()->disable('softdeleteable');    // Need to load deleted rows
 
             // Grab all values that the datafield has had
-            $historical_values = array();
+            $historical_values = [];
             $query = $em->createQuery(
                'SELECT e.id AS id, e.x_value AS x_value, e.y_value AS y_value, e.z_value AS z_value,
                     ft.typeClass AS typeclass, ft.typeName AS typeName,
@@ -3713,10 +3713,10 @@ class EditController extends ODRCustomController
                 JOIN ODROpenRepositoryUserBundle:User AS created_by WITH e.createdBy = created_by
                 WHERE e.dataRecord = :datarecord_id AND e.dataField = :datafield_id'
             )->setParameters(
-                array(
+                [
                     'datarecord_id' => $datarecord->getId(),
                     'datafield_id' => $datafield->getId()
-                )
+                ]
             );
             $results = $query->getArrayResult();
 
@@ -3734,24 +3734,24 @@ class EditController extends ODRCustomController
 
                 // Insert an entry when something got created...
                 $created = ($result['created'])->format('Y-m-d H:i:s');
-                $historical_values[$created] = array(
-                    'values' => array(),
+                $historical_values[$created] = [
+                    'values' => [],
                     'user' => $user_string,
                     'created' => $result['created'],
                     'typeclass' => $typeclass,
                     'typename' => $typename,
-                );
+                ];
 
                 // Also insert an entry if something got deleted
                 if ( !is_null($result['deletedAt']) ) {
                     $deleted = ($result['deletedAt'])->format('Y-m-d H:i:s');
-                    $historical_values[$deleted] = array(
-                        'values' => array(),
+                    $historical_values[$deleted] = [
+                        'values' => [],
                         'user' => $user_string,
                         'created' => $result['deletedAt'],
                         'typeclass' => $typeclass,
                         'typename' => $typename,
-                    );
+                    ];
                 }
             }
             ksort($historical_values);
@@ -3811,11 +3811,11 @@ class EditController extends ODRCustomController
                         // ...and it hasn't been deleted yet...
                         if ( is_null($deleted) || $deleted > $timestamp ) {
                             // ...then it was "active" at this time
-                            $historical_values[$timestamp]['values'][$id] = array(
+                            $historical_values[$timestamp]['values'][$id] = [
                                 'x_value' => $x_value,
                                 'y_value' => $y_value,
                                 'z_value' => $z_value,
-                            );
+                            ];
                         }
                         else {
                             // If the entry was deleted by "now", then don't continue looking...because
@@ -3836,11 +3836,9 @@ class EditController extends ODRCustomController
 
             foreach ($historical_values as $num => $data) {
                 $tmp = $data['values'];
-                usort($tmp, function ($a, $b) {
-                    return $a['x_value'] <=> $b['x_value'];
-                });
+                usort($tmp, fn($a, $b) => $a['x_value'] <=> $b['x_value']);
 
-                $values = array();
+                $values = [];
                 foreach ($tmp as $entity_id => $entity_data) {
                     $str = '('.$entity_data['x_value'];
                     if ( count($xyz_column_names) > 1 )
@@ -3885,10 +3883,10 @@ class EditController extends ODRCustomController
 
 
             // Render the dialog box for this request
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Edit:field_history_dialog_form.html.twig',
-                    array(
+                    [
                         'historical_values' => $historical_values,
 
                         'datarecord' => $datarecord,
@@ -3896,9 +3894,9 @@ class EditController extends ODRCustomController
                         'current_typeclass' => $current_typeclass,
 
                         'csrf_token' => $csrf_token,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0xaf753f60;

@@ -33,19 +33,9 @@ class PostUpdateEvent extends Event implements ODREventInterface
     const NAME = 'odr.event.post_update_event';
 
     /**
-     * @var ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar
-     */
-    private $storage_entity;
-
-    /**
      * @var null|ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar
      */
     private $derived_entity;
-
-    /**
-     * @var ODRUser
-     */
-    private $user;
 
 
     /**
@@ -55,12 +45,10 @@ class PostUpdateEvent extends Event implements ODREventInterface
      * @param ODRUser $user
      */
     public function __construct(
-        $storage_entity,
-        ODRUser $user
+        private $storage_entity,
+        private readonly ODRUser $user
     ) {
-        $this->storage_entity = $storage_entity;
         $this->derived_entity = null;
-        $this->user = $user;
     }
 
 
@@ -122,11 +110,11 @@ class PostUpdateEvent extends Event implements ODREventInterface
      */
     public function getErrorInfo()
     {
-        return array(
+        return [
             self::NAME,
             $this->storage_entity->getDataField()->getFieldType()->getTypeClass().' '.$this->storage_entity->getId(),
             'df '.$this->storage_entity->getDataField()->getId(),
             'dr '.$this->storage_entity->getDataRecord()->getId(),
-        );
+        ];
     }
 }

@@ -37,19 +37,9 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
 {
 
     /**
-     * @var RequestStack
-     */
-    private $request_stack;
-
-    /**
      * @var EngineInterface
      */
     private $templating;
-
-    /**
-     * @var CryptoService
-     */
-    private $crypto_service;
 
     /**
      * @var string
@@ -80,9 +70,9 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
      * @param Logger $logger
      */
     public function __construct(
-        RequestStack $request_stack,
+        private readonly RequestStack $request_stack,
         EngineInterface $templating,
-        CryptoService $crypto_service,
+        private readonly CryptoService $crypto_service,
         Pheanstalk $pheanstalk,
         string $site_baseurl,
         string $odr_web_directory,
@@ -90,10 +80,7 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
         Logger $logger
     ) {
         parent::__construct($templating, $pheanstalk, $site_baseurl, $odr_web_directory, $odr_files_directory, $logger);
-
-        $this->request_stack = $request_stack;
         $this->templating = $templating;
-        $this->crypto_service = $crypto_service;
         $this->odr_web_directory = $odr_web_directory;
         $this->odr_files_directory = $odr_files_directory;
         $this->logger = $logger;
@@ -139,7 +126,7 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
+    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = [], $datatype_permissions = [], $datafield_permissions = [], $token_list = [])
     {
         try {
             // ----------------------------------------
@@ -162,13 +149,13 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
                     $options['x_axis_dir'] = $dir;
             }
             // The graph filename will have either an 'a' or a 'd' indicating the direction
-            $x_axis_dir = substr($options['x_axis_dir'], 0, 1);
+            $x_axis_dir = substr((string) $options['x_axis_dir'], 0, 1);
 
             // NOTE: GCMS currently doesn't have the dynamic graph settings, so this does nothing
 
 
             // Retrieve mapping between datafields and render plugin fields
-            $datafield_mapping = array();
+            $datafield_mapping = [];
             foreach ($fields as $rpf_name => $rpf_df) {
                 // Need to find the real datafield entry in the primary datatype array
                 $rpf_df_id = $rpf_df['id'];
@@ -193,14 +180,14 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
 
                 // Grab the field name specified in the plugin's config file to use as an array key
                 $key = strtolower( str_replace(' ', '_', $rpf_name) );
-                $datafield_mapping[$key] = array('datafield' => $df);
+                $datafield_mapping[$key] = ['datafield' => $df];
             }
 
             // Graphs are always going to be labelled with the id of the graph file datafield
             $graph_datafield_id = $datafield_mapping['graph_file']['datafield']['id'];
 
             // Need to sort by the datarecord's sort value if possible
-            $datarecord_sortvalues = array();
+            $datarecord_sortvalues = [];
             $sortField_type = '';
 
             $legend_values['rollup'] = 'Combined Chart';
@@ -275,10 +262,10 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
 
             // ----------------------------------------
             // Initialize arrays
-            $odr_chart_ids = array();
-            $odr_chart_file_ids = array();
-            $odr_chart_files = array();
-            $odr_chart_output_files = array();
+            $odr_chart_ids = [];
+            $odr_chart_file_ids = [];
+            $odr_chart_files = [];
+            $odr_chart_output_files = [];
 
             // Need to locate all files that are going to be graphed
             $datatype_folder = '';
@@ -313,7 +300,7 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
                         //  filenames, so it's better to hash them first
                         // sha1() is not an attempt to be cryptographically secure, but instead an
                         //  attempt to minimize the chance of collisions
-                        $filename = 'Chart_'.sha1( $file['id'] ).'_'.$graph_datafield_id.'.svg';
+                        $filename = 'Chart_'.sha1( (string) $file['id'] ).'_'.$graph_datafield_id.'.svg';
                         $odr_chart_output_files[$dr_id] = '/graphs/'.$datatype_folder.'/'.$filename;
                     }
                 }
@@ -354,8 +341,8 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
                 $record_display_view = $rendering_options['record_display_view'];
 
             // Pulled up here so the graph builder can access the data if needed
-            $page_data = array(
-                'datatype_array' => array($datatype['id'] => $datatype),
+            $page_data = [
+                'datatype_array' => [$datatype['id'] => $datatype],
                 'datarecord_array' => $datarecords,
                 'theme_array' => $theme_array,
 
@@ -385,14 +372,14 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
                 'odr_chart_output_files' => $odr_chart_output_files,
 
                 'datarecord_sortvalues' => $datarecord_sortvalues,
-            );
+            ];
 
 
             // ----------------------------------------
             // If the graph doesn't exist when the page is built, it makes more sense to immediately
             //  trigger a rebuild rather than having the browser do it when it figures out that the
             //  file doesn't exist...
-            $missing_output_files = array();
+            $missing_output_files = [];
             foreach ($odr_chart_output_files as $dr_id => $graph_filepath) {
                 if ( $is_rollup && $dr_id === 'rollup' ) {
                     // If the plugins options want a rollup graph, then only check that one
@@ -410,7 +397,7 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
                 foreach ($missing_output_files as $num => $dr_id) {
                     // Puppeteer will need the files decrypted, but it might also have to delete some
                     //  of them afterwards if any are non-public...
-                    $files_to_delete = array();
+                    $files_to_delete = [];
 
                     // Determine the final filename of this missing graph file
                     $pieces = explode('/', $odr_chart_output_files[$dr_id]);
@@ -429,7 +416,7 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
                     // Need to ensure each of the files that will be rendered exist on the server,
                     //  but the behavior changes slightly depending on whether it's a rollup graph
                     //  on the server
-                    $files_to_check = array();
+                    $files_to_check = [];
                     if ( !$is_rollup ) {
                         // If this isn't a rollup graph, then only need to check a single file
                         $files_to_check[$dr_id] = $odr_chart_files[$dr_id];
@@ -439,8 +426,8 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
                         $page_data['odr_chart_id'] = $odr_chart_ids[$dr_id];
 
                         $relevant_file = $odr_chart_files[$dr_id];
-                        $page_data['odr_chart_file_ids'] = array($relevant_file['id']);
-                        $page_data['odr_chart_files'] = array($dr_id => $relevant_file);
+                        $page_data['odr_chart_file_ids'] = [$relevant_file['id']];
+                        $page_data['odr_chart_files'] = [$dr_id => $relevant_file];
                     }
                     else {
                         // If this is a rollup graph, then need to check all the files that will
@@ -456,7 +443,7 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
                         // Due to historical reasons, the file's localFileName property includes
                         //  the contents of the symfony parameter 'odr_files_directory'
                         $local_filename = $file['localFileName'];
-                        if ( substr($local_filename, 0, 1) !== '/' )
+                        if ( !str_starts_with((string) $local_filename, '/') )
                             $local_filename = '/'.$local_filename;
 
                         if ( !file_exists($this->odr_web_directory.$local_filename) ) {

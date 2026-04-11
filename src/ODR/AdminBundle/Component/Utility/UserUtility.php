@@ -29,7 +29,7 @@ class UserUtility
     static public function cleanUserData($user_data)
     {
         if ( !is_array($user_data) )
-            $user_data = array();
+            $user_data = [];
 
         foreach ($user_data as $key => $value) {
             // Only want to keep the username, email, first, and last name from the array

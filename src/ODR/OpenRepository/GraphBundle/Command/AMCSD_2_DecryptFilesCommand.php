@@ -56,7 +56,7 @@ class AMCSD_2_DecryptFilesCommand extends ContainerAwareCommand
                 $job = $pheanstalk->watch('amcsd_2_decrypt')->ignore('default')->reserve();
 
                 // Get Job Data
-                $data = json_decode($job->getData(), true);
+                $data = json_decode((string) $job->getData(), true);
                 $user_id = $data['user_id'];
                 $redis_prefix = $data['redis_prefix'];
                 $api_key = $data['api_key'];

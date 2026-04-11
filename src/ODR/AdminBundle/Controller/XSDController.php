@@ -52,7 +52,7 @@ class XSDController extends ODRCustomController
      */
     public function getDatatypeXSDAction($version, $datatype_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -166,16 +166,16 @@ class XSDController extends ODRCustomController
         // ----------------------------------------
         // Determine which datatypes/childtypes to load from the cache
         $include_links = true;
-        $associated_datatypes = parent::getAssociatedDatatypes($em, array($datatype_id), $include_links);
+        $associated_datatypes = null;
 
 //print '<pre>'.print_r($associated_datatypes, true).'</pre>'; exit();
 
         // Grab the cached versions of all of the associated datatypes, and store them all at the same level in a single array
-        $datatree_array = parent::getDatatreeArray($em, $bypass_cache);
+        $datatree_array = null;
 
 //print '<pre>'.print_r($datatree_array, true).'</pre>'; exit();
 
-        $datatype_array = array();
+        $datatype_array = [];
         foreach ($associated_datatypes as $num => $dt_id) {
             $datatype_data = parent::getRedisData(($redis->get($redis_prefix.'.cached_datatype_'.$dt_id)));
             if ($bypass_cache || $datatype_data == null)
@@ -189,7 +189,7 @@ class XSDController extends ODRCustomController
 
         // ----------------------------------------
         // Delete everything that the user isn't allowed to see from the datatype/datarecord arrays
-        $datarecord_array = array();
+        $datarecord_array = [];
         $pm_service->filterByGroupPermissions($datatype_array, $datarecord_array, $user_permissions);
 
 //print '<pre>'.print_r($datarecord_array, true).'</pre>';  exit();
@@ -201,13 +201,13 @@ class XSDController extends ODRCustomController
         $templating = $this->get('templating');
         $xml = $templating->render(
             'ODRAdminBundle:XSDCreate:xsd_ajax.html.twig',
-            array(
+            [
                 'datatype_array' => $datatype_array,
                 'initial_datatype_id' => $datatype_id,
                 'theme_id' => $theme->getId(),
 
                 'version' => $version,
-            )
+            ]
         );
 
         return $xml;
@@ -225,19 +225,19 @@ class XSDController extends ODRCustomController
     public function isValidXMLName($str)
     {
         // Ensure str doesn't start with 'xml'
-        if ( strpos( strtolower($str) , 'xml') !== false )
+        if ( str_contains( strtolower((string) $str) , 'xml') )
             return false;
 
         // Ensure str doesn't start with an invalid character
         $pattern = self::xml_invalidnamestartchar();
         print $pattern."\n";
-        if ( preg_match($pattern, substr($str, 0, 1)) == 1 )
+        if ( preg_match($pattern, substr((string) $str, 0, 1)) == 1 )
             return false;
 
         // Ensure rest of str only has legal characters
         $pattern = self::xml_invalidnamechar();
         print $pattern."\n";
-        if ( preg_match($pattern, substr($str, 1)) == 1 )
+        if ( preg_match($pattern, substr((string) $str, 1)) == 1 )
             return false;
 
         // No error in name
@@ -253,7 +253,7 @@ class XSDController extends ODRCustomController
      */
     private function xml_invalidnamestartchar()
     {
-        $tmp = array(
+        $tmp = [
             "[\\x0-\\x39]",
             //"[\\x3A]",            // colon
             "[\\x3B-\\x40]",
@@ -286,7 +286,7 @@ class XSDController extends ODRCustomController
             //"[\\xFDF0-\\xFFFD]",
             "[\\x{FFFE}-\\x{FFFF}]",    // not characters
             //"[\\x10000-\\xEFFFF]"
-        );
+        ];
 
         return '/'.implode("|", $tmp).'/u';
     }
@@ -300,7 +300,7 @@ class XSDController extends ODRCustomController
      */
     private function xml_invalidnamechar()
     {
-        $tmp = array(
+        $tmp = [
             "[\\x0-\\x2C]",
             //"[\\x2D-\\x2E]",      // hyphen, period
             "[\\x2F]",
@@ -340,7 +340,7 @@ class XSDController extends ODRCustomController
             //"[\\xFDF0-\\xFFFD]",
             "[\\x{FFFE}-\\x{FFFF}]",    // not characters
             //"[\\x10000-\\xEFFFF]"
-        );
+        ];
 
         return '/'.implode("|", $tmp).'/u';
     }

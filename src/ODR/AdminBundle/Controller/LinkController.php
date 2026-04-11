@@ -76,7 +76,7 @@ class LinkController extends ODRCustomController
      */
     public function getclonelinktemplatesAction($datatype_id, $theme_element_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -151,14 +151,14 @@ class LinkController extends ODRCustomController
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND gp.deletedAt IS NULL
                 AND (dt_md.id IS NULL OR dt_md.deletedAt IS NULL)'
             )->setParameters(
-                array(
+                [
                     'setup_step' => DataType::STATE_OPERATIONAL,
                     'is_master_type' => 1
-                )
+                ]
             );
             $results = $query->getArrayResult();
 
-            $linkable_datatypes = array();
+            $linkable_datatypes = [];
             foreach ($results as $dt) {
                 // Datatypes should only have one meta entry...
                 $dt['dataTypeMeta'] = $dt['dataTypeMeta'][0];
@@ -189,24 +189,22 @@ class LinkController extends ODRCustomController
             //  result will be a brand-new datatype, so there's nothing the renderer can screw up
 
             // Sort the available templates by name
-            usort($linkable_datatypes, function($a, $b) {
-                return strnatcasecmp($a['dataTypeMeta']['shortName'], $b['dataTypeMeta']['shortName']);
-            });
+            usort($linkable_datatypes, fn($a, $b) => strnatcasecmp((string) $a['dataTypeMeta']['shortName'], (string) $b['dataTypeMeta']['shortName']));
 
 
             // ----------------------------------------
             // Get Templating Object
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Link:clone_link_template_dialog_form.html.twig',
-                    array(
+                    [
                         'local_datatype' => $local_datatype,
                         'theme_element' => $theme_element,
 
                         'cloneable_templates' => $linkable_datatypes,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x8930415b;
@@ -231,7 +229,7 @@ class LinkController extends ODRCustomController
      */
     public function cloneandlinkAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -351,7 +349,7 @@ class LinkController extends ODRCustomController
             $tracked_job = new TrackedJob();
             $tracked_job->setTargetEntity('datatype_' . $local_datatype_id);
             $tracked_job->setJobType('clone_and_link');
-            $tracked_job->setAdditionalData( array() );
+            $tracked_job->setAdditionalData( [] );
 
             $tracked_job->setStarted(new \DateTime());
             $tracked_job->setCompleted(null);
@@ -378,7 +376,7 @@ class LinkController extends ODRCustomController
             $priority = 1024;   // should be roughly default priority
 
             $payload = json_encode(
-                array(
+                [
                     "user_id" => $user->getId(),
                     "datatype_id" => $new_datatype->getId(),
                     "template_group" => $local_datatype->getTemplateGroup(),
@@ -386,20 +384,20 @@ class LinkController extends ODRCustomController
                     "tracked_job_id" => $tracked_job->getId(),
                     "redis_prefix" => $redis_prefix,    // debug purposes only
                     "api_key" => $api_key,
-                )
+                ]
             );
 
             $delay = 0;
             $pheanstalk->useTube('clone_and_link_datatype')->put($payload, $priority, $delay);
 
             // Return what the javascript needs to set up tracking of job progress
-            $return['d'] = array(
+            $return['d'] = [
                 'tracked_job_id' => $tracked_job->getId(),
 
                 'local_datatype_id' => $local_datatype->getId(),
                 'new_datatype_id' => $new_datatype->getId(),
                 'theme_element_id' => $theme_element->getId(),
-            );
+            ];
 
             // The javascript will eventually call LinkController::quicklinkdatatypeAction(), which
             //  will deal with updating "master_revision" if needed
@@ -429,7 +427,7 @@ class LinkController extends ODRCustomController
      */
     public function getlinkabledatatypesAction($datatype_id, $theme_element_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -507,10 +505,10 @@ class LinkController extends ODRCustomController
                     WHERE ancestor.dataType = :local_datatype_id AND descendant.dataType = :remote_datatype_id
                     AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
                 )->setParameters(
-                    array(
+                    [
                         'local_datatype_id' => $local_datatype->getId(),
                         'remote_datatype_id' => $current_remote_datatype->getId()
-                    )
+                    ]
                 );
                 $results = $query->getArrayResult();
 
@@ -527,10 +525,10 @@ class LinkController extends ODRCustomController
             $current_datatree = null;
             if ( !is_null($current_remote_datatype) ) {
                 $current_datatree = $em->getrepository('ODRAdminBundle:DataTree')->findOneBy(
-                    array(
+                    [
                         'ancestor' => $local_datatype,
                         'descendant' => $current_remote_datatype,
-                    )
+                    ]
                 );
             }
 
@@ -555,14 +553,14 @@ class LinkController extends ODRCustomController
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND gp.deletedAt IS NULL
                 AND (dt_md.id IS NULL OR dt_md.deletedAt IS NULL)'
             )->setParameters(
-                array(
+                [
                     'setup_step' => DataType::STATE_OPERATIONAL
-                )
+                ]
             );
             $results = $query->getArrayResult();
 
 
-            $linkable_datatypes = array();
+            $linkable_datatypes = [];
             foreach ($results as $dt) {
                 // Datatypes should only have one meta entry...
                 $dt['dataTypeMeta'] = $dt['dataTypeMeta'][0];
@@ -650,15 +648,13 @@ class LinkController extends ODRCustomController
 
 
             // Sort the linkable datatypes by name
-            usort($linkable_datatypes, function($a, $b) {
-                return strnatcasecmp($a['dataTypeMeta']['shortName'], $b['dataTypeMeta']['shortName']);
-            });
+            usort($linkable_datatypes, fn($a, $b) => strnatcasecmp((string) $a['dataTypeMeta']['shortName'], (string) $b['dataTypeMeta']['shortName']));
 
 
             // ----------------------------------------
             // Need to run a rather large query in order to display the information required for
             //  the secondary datatree entry...
-            $secondary_datatree_info = array();
+            $secondary_datatree_info = [];
 
             // ...but only if there's already a link in this theme_element
             if ( !is_null($current_remote_datatype) ) {
@@ -676,10 +672,10 @@ class LinkController extends ODRCustomController
 
             // ----------------------------------------
             // Get Templating Object
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Link:link_type_dialog_form.html.twig',
-                    array(
+                    [
                         'local_datatype' => $local_datatype,
                         'remote_datatype' => $current_remote_datatype,
                         'theme_element' => $theme_element,
@@ -689,9 +685,9 @@ class LinkController extends ODRCustomController
 
                         'current_datatree' => $current_datatree,
                         'secondary_datatree_info' => $secondary_datatree_info,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0xf8083699;
@@ -742,7 +738,7 @@ class LinkController extends ODRCustomController
         // There's no point running a query if the ancestor_datatype is top-level...only child
         //  datatypes are allowed to have a "secondary" datatree
         if ( $grandparent_datatype_id === $ancestor_datatype_id )
-            return array();
+            return [];
 
 
         // ----------------------------------------
@@ -767,15 +763,15 @@ class LinkController extends ODRCustomController
             AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
             AND ldt.deletedAt IS NULL AND ldtm.deletedAt IS NULL
             AND ddt.deletedAt IS NULL AND ddtm.deletedAt IS NULL'
-        )->setParameters( array('grandparent_datatype_id' => $grandparent_datatype_id) );
+        )->setParameters( ['grandparent_datatype_id' => $grandparent_datatype_id] );
         $results = $query->getArrayResult();
 
         // ...the contexts that call this function, however, is only interested in a couple pieces
         //  of info
-        $info = array(
+        $info = [
             'available' => null,
             'selected' => null,
-        );
+        ];
         foreach ($results as $result) {
             $gdt_id = $result['grandparent_datatype_id'];
             $gdt_name = $result['grandparent_datatype_name'];
@@ -796,27 +792,27 @@ class LinkController extends ODRCustomController
             // Not all of these entries are going to be useful...
             if ( $dt_id === $ancestor_datatype_id && $ddt_id === $descendant_datatype_id && !is_null($sldt_id) ) {
                 // In this case, this entry refers to the currently "selected" secondary datatree
-                $info['selected'] = array(
+                $info['selected'] = [
                     'datatree_id' => $ldt_id,
                     'secondary_datatree_id' => $sldt_id,
                     'label' => $label
-                );
+                ];
             }
 
             if ( $gdt_id === $dt_id ) {
                 // Any datatree that can be a "secondary" datatree has to be linked to directly from
                 //  the grandparent datatype
-                $info['available'][$ddt_id] = array(
+                $info['available'][$ddt_id] = [
                     'ancestor_id' => $dt_id,
                     'secondary_datatree_id' => $ldt_id,
                     'label' => $label
-                );
+                ];
             }
         }
 
         // If nothing is available, then don't return anything
         if ( is_null($info['available']) )
-            return array();
+            return [];
 
         return $info;
     }
@@ -833,7 +829,7 @@ class LinkController extends ODRCustomController
      */
     public function togglesecondarydatatreeAction($datatree_id, $secondary_datatree_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -886,9 +882,9 @@ class LinkController extends ODRCustomController
 
             if ( intval($secondary_datatree_id) === 0 ) {
                 // Don't need to verify anything if removing a "secondary" datatree
-                $properties = array(
+                $properties = [
                     'secondaryDataTree' => null
-                );
+                ];
                 $entity_modify_service->updateDatatreeMeta($user, $local_datatree, $properties);
             }
             else {
@@ -905,9 +901,9 @@ class LinkController extends ODRCustomController
                         if ( $data['secondary_datatree_id'] === $secondary_datatree->getId() ) {
                             // The requested datatree id is a legal "secondary" datatree for this
                             //  link...save it
-                            $properties = array(
+                            $properties = [
                                 'secondaryDataTree' => $secondary_datatree
-                            );
+                            ];
                             $entity_modify_service->updateDatatreeMeta($user, $local_datatree, $properties);
                         }
                     }
@@ -940,7 +936,7 @@ class LinkController extends ODRCustomController
      */
     public function quicklinkdatatypeAction($local_datatype_id, $remote_datatype_id, $theme_element_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -974,7 +970,7 @@ class LinkController extends ODRCustomController
      */
     public function linkdatatypeAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -1026,7 +1022,7 @@ class LinkController extends ODRCustomController
      */
     private function link_datatype($local_datatype_id, $remote_datatype_id, $previous_remote_datatype_id, $theme_element_id)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'json';
         $return['d'] = '';
@@ -1199,10 +1195,10 @@ class LinkController extends ODRCustomController
                 // Locate the Datatree entry that tied the local and the remote datatype together
                 /** @var DataTree $previous_datatree */
                 $previous_datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
-                    array(
+                    [
                         'ancestor' => $local_datatype_id,
                         'descendant' => $previous_remote_datatype_id
-                    )
+                    ]
                 );
                 $previous_datatree_id = $previous_datatree->getId();
 
@@ -1223,7 +1219,7 @@ class LinkController extends ODRCustomController
                     $event = new DatarecordLinkStatusChangedEvent($datarecords_to_update, $previous_remote_datatype, $user, true);
                     $dispatcher->dispatch(DatarecordLinkStatusChangedEvent::NAME, $event);
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
 //                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -1241,11 +1237,11 @@ class LinkController extends ODRCustomController
                     AND remote_df.dataType = :remote_datatype_id
                     AND dtsf.deletedAt IS NULL AND remote_df.deletedAt IS NULL'
                 )->setParameters(
-                    array(
+                    [
                         'local_datatype_id' => $local_datatype_id,
                         'field_purpose' => DataTypeSpecialFields::SORT_FIELD,
                         'remote_datatype_id' => $previous_remote_datatype_id,
-                    )
+                    ]
                 );
                 $dtsf_ids = $query->getArrayResult();
 
@@ -1257,11 +1253,11 @@ class LinkController extends ODRCustomController
                         WHERE dtsf.id IN (:dtsf_ids)
                         AND dtsf.deletedAt IS NULL'
                     )->setParameters(
-                        array(
+                        [
                             'now' => new \DateTime(),
                             'deleted_by' => $user->getId(),
                             'dtsf_ids' => $dtsf_ids,
-                        )
+                        ]
                     );
                     $result = $query->execute();
 
@@ -1281,10 +1277,10 @@ class LinkController extends ODRCustomController
                     AND sl_dfm.dataType = :descendant_datatype_id
                     AND sl.deletedAt IS NULL AND sl_dfm.deletedAt IS NULL'
                 )->setParameters(
-                    array(
+                    [
                         'ancestor_datatype_id' => $local_datatype_id,
                         'descendant_datatype_id' => $previous_remote_datatype_id
-                    )
+                    ]
                 );
                 $sl_dfm_ids = $query->getArrayResult();
 
@@ -1295,10 +1291,10 @@ class LinkController extends ODRCustomController
                         WHERE sl_dfm.id IN (:sl_dfm_ids)
                         AND sl_dfm.deletedAt IS NULL'
                     )->setParameters(
-                        array(
+                        [
                             'now' => new \DateTime(),
                             'sl_dfm_ids' => $sl_dfm_ids,
-                        )
+                        ]
                     );
 
                     $result = $query->execute();
@@ -1321,14 +1317,14 @@ class LinkController extends ODRCustomController
                     WHERE dtm.secondaryDataTree = :datatree_to_delete
                     AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
                 )->setParameters(
-                    array( 'datatree_to_delete' => $previous_datatree_id )    // have to use the id, since $datatree is deleted by now
+                    [ 'datatree_to_delete' => $previous_datatree_id ]    // have to use the id, since $datatree is deleted by now
                 );
                 $results = $query->getResult();
 
                 if ( !empty($results) ) {
                     foreach ($results as $dt) {
                         /** @var DataTree $dt */
-                        $props = array('secondaryDataTree' => null);
+                        $props = ['secondaryDataTree' => null];
                         $entity_modify_service->updateDatatreeMeta($user, $dt, $props, true);
                     }
 
@@ -1384,9 +1380,9 @@ class LinkController extends ODRCustomController
 
                 // A datatype got linked, so any themes that use this master theme as their source
                 //  need to get updated themselves
-                $properties = array(
+                $properties = [
                     'sourceSyncVersion' => $theme->getSourceSyncVersion() + 1
-                );
+                ];
                 $entity_modify_service->updateThemeMeta($user, $theme, $properties);    // flush here
             }
 
@@ -1414,7 +1410,7 @@ class LinkController extends ODRCustomController
                     $event = new DatatypeLinkStatusChangedEvent($local_datatype->getGrandparent(), $new_remote_datatype, $previous_remote_datatype, $user);
                     $dispatcher->dispatch(DatatypeLinkStatusChangedEvent::NAME, $event);
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
 //                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -1433,11 +1429,11 @@ class LinkController extends ODRCustomController
                 $remote_datatype_id = $previous_remote_datatype_id;
 
             // Reload the theme element
-            $return['d'] = array(
+            $return['d'] = [
                 'element_id' => $theme_element->getId(),
                 'using_linked_type' => $using_linked_type,
                 'linked_datatype_id' => $remote_datatype_id,
-            );
+            ];
 
         }
         catch (\Exception $e) {
@@ -1474,7 +1470,7 @@ class LinkController extends ODRCustomController
 
         // 1) Temporarily add a link from local_datatype to remote_datatype
         if ( !isset($datatree_array[$remote_datatype_id]) )
-            $datatree_array[$remote_datatype_id] = array();
+            $datatree_array[$remote_datatype_id] = [];
         if ( !in_array($local_datatype_id, $datatree_array[$remote_datatype_id]) )
             $datatree_array[$remote_datatype_id][] = $local_datatype_id;
 
@@ -1541,12 +1537,12 @@ class LinkController extends ODRCustomController
      */
     private function deleteLinkedThemes($em, $user, $local_datatype_id, $remote_datatype_id)
     {
-        $ids_to_delete = array(
-            'themes' => array(),
-            'theme_elements' => array(),
-            'theme_datafields' => array(),
-            'theme_datatypes' => array(),
-        );
+        $ids_to_delete = [
+            'themes' => [],
+            'theme_elements' => [],
+            'theme_datafields' => [],
+            'theme_datatypes' => [],
+        ];
 
         // Locate all ThemeElements in all Themes across the database where $local_datatype_id
         //  contains a link to $remote_datatype_id
@@ -1558,10 +1554,10 @@ class LinkController extends ODRCustomController
             WHERE tdt.dataType = :remote_datatype_id AND t.dataType = :local_datatype_id
             AND tdt.deletedAt IS NULL AND te.deletedAt IS NULL AND t.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'remote_datatype_id' => $remote_datatype_id,
                 'local_datatype_id' => $local_datatype_id
-            )
+            ]
         );
         $results = $query->getArrayResult();
 
@@ -1582,10 +1578,10 @@ class LinkController extends ODRCustomController
             JOIN ODRAdminBundle:Theme AS parent WITH t.parentTheme = parent
             WHERE t.id IN (:theme_ids)
             AND t.deletedAt IS NULL AND parent.deletedAt IS NULL'
-        )->setParameters( array('theme_ids' => $ids_to_delete['themes']) );
+        )->setParameters( ['theme_ids' => $ids_to_delete['themes']] );
         $results = $query->getArrayResult();
 
-        $top_level_themes = array();
+        $top_level_themes = [];
         foreach ($results as $result)
             $top_level_themes[ $result['parent_id'] ] = 1;
         $top_level_themes = array_keys($top_level_themes);
@@ -1601,11 +1597,11 @@ class LinkController extends ODRCustomController
             SET t.deletedAt = :now, t.deletedBy = :deleted_by
             WHERE t.id IN (:theme_ids) AND t.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'now' => new \DateTime(),
                 'deleted_by' => $user->getId(),
                 'theme_ids' => $ids_to_delete['themes'],
-            )
+            ]
         );
         $rows = $query->execute();
 
@@ -1615,10 +1611,10 @@ class LinkController extends ODRCustomController
             SET tm.deletedAt = :now
             WHERE tm.theme IN (:theme_ids) AND tm.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'now' => new \DateTime(),
                 'theme_ids' => $ids_to_delete['themes'],
-            )
+            ]
         );
         $rows = $query->execute();
 
@@ -1628,11 +1624,11 @@ class LinkController extends ODRCustomController
             SET te.deletedAt = :now, te.deletedBy = :deleted_by
             WHERE te.id IN (:theme_element_ids) AND te.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'now' => new \DateTime(),
                 'deleted_by' => $user->getId(),
                 'theme_element_ids' => $ids_to_delete['theme_elements'],
-            )
+            ]
         );
         $rows = $query->execute();
 
@@ -1642,10 +1638,10 @@ class LinkController extends ODRCustomController
             SET tem.deletedAt = :now
             WHERE tem.themeElement IN (:theme_element_ids) AND tem.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'now' => new \DateTime(),
                 'theme_element_ids' => $ids_to_delete['theme_elements'],
-            )
+            ]
         );
         $rows = $query->execute();
 
@@ -1655,11 +1651,11 @@ class LinkController extends ODRCustomController
             SET tdf.deletedAt = :now, tdf.deletedBy = :deleted_by
             WHERE tdf.id IN (:theme_datafield_ids) AND tdf.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'now' => new \DateTime(),
                 'deleted_by' => $user->getId(),
                 'theme_datafield_ids' => $ids_to_delete['theme_datafields'],
-            )
+            ]
         );
         $rows = $query->execute();
 
@@ -1669,11 +1665,11 @@ class LinkController extends ODRCustomController
             SET tdt.deletedAt = :now, tdt.deletedBy = :deleted_by
             WHERE tdt.id IN (:theme_datatype_ids) AND tdt.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'now' => new \DateTime(),
                 'deleted_by' => $user->getId(),
                 'theme_datatype_ids' => $ids_to_delete['theme_datatypes'],
-            )
+            ]
         );
         $rows = $query->execute();
 
@@ -1710,7 +1706,7 @@ class LinkController extends ODRCustomController
             AND te.deletedAt IS NULL AND tdt.deletedAt IS NULL
             AND c_t.deletedAt IS NULL AND c_te.deletedAt IS NULL
             AND c_tdf.deletedAt IS NULL AND c_tdt.deletedAt IS NULL'
-        )->setParameters( array('theme_element_id' => $theme_element_id) );
+        )->setParameters( ['theme_element_id' => $theme_element_id] );
         $results = $query->getArrayResult();
 
         foreach ($results as $result) {
@@ -1761,10 +1757,10 @@ class LinkController extends ODRCustomController
             SET dtm.deletedAt = :now
             WHERE dtm.id IN (:dtm_id) AND dtm.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'now' => new \DateTime(),
                 'dtm_id' => $previous_datatree->getDataTreeMeta()->getId()
-            )
+            ]
         );
         $query->execute();
 
@@ -1773,11 +1769,11 @@ class LinkController extends ODRCustomController
             SET dt.deletedAt = :now, dt.deletedBy = :user_id
             WHERE dt.id = (:dt_id) AND dt.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'now' => new \DateTime(),
                 'user_id' => $user->getId(),
                 'dt_id' => $previous_datatree->getId()
-            )
+            ]
         );
         $query->execute();
 
@@ -1792,18 +1788,18 @@ class LinkController extends ODRCustomController
             WHERE ancestor.dataType = :ancestor_datatype AND descendant.dataType = :descendant_datatype
             AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'ancestor_datatype' => $local_datatype_id,
                 'descendant_datatype' => $previous_remote_datatype_id
-            )
+            ]
         );
         $results = $query->getArrayResult();
 
 
         // Need to get two lists...one of all the LinkedDatatree entries that need deleting,
         //  and another for all of the ancestor datarecords that need updating
-        $ldt_ids = array();
-        $datarecord_ids = array();
+        $ldt_ids = [];
+        $datarecord_ids = [];
         foreach ($results as $result) {
             $dr_id = $result['ancestor_id'];
             $ldt_id = $result['ldt_id'];
@@ -1820,11 +1816,11 @@ class LinkController extends ODRCustomController
                 SET ldt.deletedAt = :now, ldt.deletedBy = :user_id
                 WHERE ldt.id IN (:ldt_ids) AND ldt.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'now' => new \DateTime(),
                     'user_id' => $user->getId(),
                     'ldt_ids' => $ldt_ids
-                )
+                ]
             );
             $query->execute();
         }
@@ -1845,7 +1841,7 @@ class LinkController extends ODRCustomController
      */
     public function getlinkeddatarecordsAction($local_datarecord_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -1890,8 +1886,8 @@ class LinkController extends ODRCustomController
             // Need a list of remote datarecords that "link to" or are "linked from" the local datarecord
             // Don't want to have to hydrate a bunch of datarecords to check permissions, so need to
             //  locate the info to do it "manually"...
-            $data = array();
-            $linked_record_data = array();
+            $data = [];
+            $linked_record_data = [];
             $conn = $em->getConnection();
 
             // Because of mysql, it's better to run a couple queries...need to first have info on all
@@ -1918,13 +1914,13 @@ class LinkController extends ODRCustomController
                 $dt_name = $result['dt_name'];
                 $dt_search_slug = $result['dt_search_slug'];
 
-                $data[$dt_id] = array(
+                $data[$dt_id] = [
                     'dt_name' => $dt_name,
                     'dt_public_date' => $dt_public_date,
                     'search_slug' => $dt_search_slug,
                     'direction' => 'links to',    // local record links to remote record
-                    'records' => array(),
-                );
+                    'records' => [],
+                ];
             }
 
             // Get the datatypes that could link to the local datatype
@@ -1952,13 +1948,13 @@ class LinkController extends ODRCustomController
                 $gdt_search_slug = $result['gdt_search_slug'];
 
                 // Store basic info about the datatype...
-                $data[$dt_id] = array(
+                $data[$dt_id] = [
                     'dt_name' => $dt_name,
                     'dt_public_date' => $dt_public_date,
                     'search_slug' => $gdt_search_slug,
                     'direction' => 'linked to by',    // local record linked to by remote record
-                    'records' => array(),
-                );
+                    'records' => [],
+                ];
 
                 // ...with several modifications if it's actually linked to by a child datatype
                 if ( $dt_id !== $gdt_id ) {
@@ -1988,7 +1984,7 @@ class LinkController extends ODRCustomController
                 $ddt_id = $result['ddt_id'];
 
                 // Want an entry for every record that is linked to by the local datarecord
-                $data[$ddt_id]['records'][$ddr_id] = array('public_date' => $ddrm_public_date, 'grandparent' => $ddr_id, 'linked' => true);
+                $data[$ddt_id]['records'][$ddr_id] = ['public_date' => $ddrm_public_date, 'grandparent' => $ddr_id, 'linked' => true];
 
                 // Since records can only link to grandparent records, don't need to get/store any
                 //  additional record info
@@ -2030,15 +2026,15 @@ class LinkController extends ODRCustomController
 
                 // Want an entry for every record that links to the local datarecord...
                 if ( !isset($data[$adt_id]['records'][$adr_id]) )
-                    $data[$adt_id]['records'][$adr_id] = array('public_date' => $adrm_public_date, 'parent' => $pdr_id, 'grandparent' => $gdr_id);
+                    $data[$adt_id]['records'][$adr_id] = ['public_date' => $adrm_public_date, 'parent' => $pdr_id, 'grandparent' => $gdr_id];
                 // ...with a flag to indicate it does actually link directly to the local datarecord
                 $data[$adt_id]['records'][$adr_id]['linked'] = true;
 
                 // Ensure the public dates for the parents/grandparent are also accessible
                 if ( !isset($data[$adt_id]['records'][$pdr_id]) )
-                    $data[$adt_id]['records'][$pdr_id] = array('public_date' => $pdrm_public_date, 'parent' => $pdr_id, 'grandparent' => $gdr_id);
+                    $data[$adt_id]['records'][$pdr_id] = ['public_date' => $pdrm_public_date, 'parent' => $pdr_id, 'grandparent' => $gdr_id];
                 if ( !isset($data[$adt_id]['records'][$gdr_id]) )
-                    $data[$adt_id]['records'][$gdr_id] = array('public_date' => $gdrm_public_date, 'parent' => $pdr_id, 'grandparent' => $gdr_id);
+                    $data[$adt_id]['records'][$gdr_id] = ['public_date' => $gdrm_public_date, 'parent' => $pdr_id, 'grandparent' => $gdr_id];
             }
 
 
@@ -2073,17 +2069,17 @@ class LinkController extends ODRCustomController
                 if ( $has_dt_permissions ) {
                     // ...then create an entry for it
                     if ( !isset($linked_record_data[$dt_id]) ) {
-                        $linked_record_data[$dt_id] = array(
+                        $linked_record_data[$dt_id] = [
                             'direction' => $dt_data['direction'],
                             'dt_name' => $dt_data['dt_name'],
                             'search_slug' => $dt_data['search_slug'],
                             'gdt_id' => $gdt_id,
-                        );
+                        ];
                     }
 
                     // Need to also check permissions for all linked records of this datatype...it'll
                     //  be easier to eventually drop what's in $dr_data
-                    $tmp_dr_list = array();
+                    $tmp_dr_list = [];
                     foreach ($dt_data['records'] as $dr_id => $dr_data) {
                         // Starting from the remote record that actually links to the local record...
                         if ( isset($dr_data['linked']) ) {
@@ -2129,9 +2125,7 @@ class LinkController extends ODRCustomController
 
             // ----------------------------------------
             // Slightly easier to read if the datatypes are sorted
-            uasort($linked_record_data, function($a, $b) {
-                return strcmp($a['dt_name'], $b['dt_name']);
-            });
+            uasort($linked_record_data, fn($a, $b) => strcmp((string) $a['dt_name'], (string) $b['dt_name']));
 
             // Easier if PHP creates the extra info string
             $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
@@ -2147,7 +2141,7 @@ class LinkController extends ODRCustomController
 
             // Want to locate names for at least some of the records
             foreach ($linked_record_data as $dt_id => $dt_data) {
-                $names = array();
+                $names = [];
                 if ( count($dt_data['records']) > 0 ) {
                     // Can use this cached list since it's faster to rebuild...
                     $gdt_id = $dt_data['gdt_id'];
@@ -2165,9 +2159,9 @@ class LinkController extends ODRCustomController
                         // Generate a link to the grandparent record...
                         $url = $router->generate(
                             'odr_display_view',
-                            array(
+                            [
                                 'datarecord_id' => $gdr_id
-                            )
+                            ]
                         );
                         // ...and then store it as the actual name
                         $names[] = '<a target="_blank" href="'.$site_baseurl.$dt_data['search_slug'].'#'.$url.'">'.$dr_name.'</a>';
@@ -2197,15 +2191,15 @@ class LinkController extends ODRCustomController
 
             // ----------------------------------------
             // Get Templating Object
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Link:datarecord_link_info.html.twig',
-                    array(
+                    [
                         'local_datarecord' => $local_datarecord,
                         'linked_record_data' => $linked_record_data,
-                    )
+                    ]
                 )
-            );
+            ];
 
         }
         catch (\Exception $e) {
@@ -2242,7 +2236,7 @@ class LinkController extends ODRCustomController
      */
     public function getlinkabledatarecordsAction($ancestor_datatype_id, $descendant_datatype_id, $local_datarecord_id, $search_theme_id, $search_key, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -2291,10 +2285,10 @@ class LinkController extends ODRCustomController
 
             // Ensure a link exists from ancestor to descendant datatype
             $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
-                array(
+                [
                     'ancestor' => $ancestor_datatype->getId(),
                     'descendant' => $descendant_datatype->getId()
-                )
+                ]
             );
             if ($datatree == null)
                 throw new ODRNotFoundException('DataTree');
@@ -2339,18 +2333,18 @@ class LinkController extends ODRCustomController
             // ----------------------------------------
             // Need to detour a bit here, and check whether the search slug ends with "/admin"...
             $referrer = $request->server->get('HTTP_REFERER');
-            if ( substr($referrer, -6) === '/admin' ) {
+            if ( str_ends_with((string) $referrer, '/admin') ) {
                 // ...because if it does, then the search sidebar won't work properly
-                $baseurl = substr($referrer, 0, -5).$ancestor_datatype->getSearchSlug();
+                $baseurl = substr((string) $referrer, 0, -5).$ancestor_datatype->getSearchSlug();
                 $fragment = $request->server->get('PHP_SELF');
                 $url = $baseurl.'#'.$fragment;
 
                 // Can't use $this->redirect(...) because of the fragment
-                $return = array(
+                $return = [
                     'r' => 3,
                     't' => 'html',
-                    'd' => array('url' => $url)
-                );
+                    'd' => ['url' => $url]
+                ];
                 $response = new Response(json_encode($return));
                 $response->headers->set('Content-Type', 'application/json');
                 return $response;
@@ -2401,9 +2395,9 @@ class LinkController extends ODRCustomController
             if ( $remote_datatype_search_key === '' ) {
                 // ...then encode a default one to use
                 $remote_datatype_search_key = $search_key_service->encodeSearchKey(
-                    array(
+                    [
                         'dt_id' => $remote_datatype->getId()
-                    )
+                    ]
                 );
             }
 
@@ -2417,7 +2411,7 @@ class LinkController extends ODRCustomController
 
             // Determine which, if any, datarecords can't be linked to because doing so would
             //  violate the "multiple_allowed" rule
-            $illegal_datarecords = array();
+            $illegal_datarecords = [];
             if ($local_datarecord_is_ancestor) {
                 /* do nothing...the "multiple_allowed" rule will be enforced elsewhere */
             }
@@ -2433,10 +2427,10 @@ class LinkController extends ODRCustomController
                     WHERE descendant.dataType = :descendant_datatype AND ancestor.dataType = :ancestor_datatype
                     AND descendant.deletedAt IS NULL AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL'
                 )->setParameters(
-                    array(
+                    [
                         'descendant_datatype' => $descendant_datatype->getId(),
                         'ancestor_datatype' => $ancestor_datatype->getId()
-                    )
+                    ]
                 );
                 $results = $query->getArrayResult();
 
@@ -2461,9 +2455,9 @@ class LinkController extends ODRCustomController
             $permissions_service->filterByGroupPermissions($local_dt_array, $local_dr_array, $user_permissions);
 
             // Need to stack the arrays so display_ajax.html.twig works
-            $local_dt_array = array($local_datatype->getId() => $database_info_service->stackDatatypeArray($local_dt_array, $grandparent_datatype->getId()));
-            $local_dr_array = array($local_datarecord->getId() => $datarecord_info_service->stackDatarecordArray($local_dr_array, $grandparent_datarecord->getID()));
-            $local_dt_theme_array = array($local_dt_master_theme->getId() => $theme_info_service->stackThemeArray($local_dt_theme_array, $local_dt_master_theme->getId()));
+            $local_dt_array = [$local_datatype->getId() => $database_info_service->stackDatatypeArray($local_dt_array, $grandparent_datatype->getId())];
+            $local_dr_array = [$local_datarecord->getId() => $datarecord_info_service->stackDatarecordArray($local_dr_array, $grandparent_datarecord->getID())];
+            $local_dt_theme_array = [$local_dt_master_theme->getId() => $theme_info_service->stackThemeArray($local_dt_theme_array, $local_dt_master_theme->getId())];
 
 
             // ----------------------------------------
@@ -2471,10 +2465,10 @@ class LinkController extends ODRCustomController
             $remote_theme_id = $theme_info_service->getPreferredThemeId($user, $remote_datatype->getId(), 'linking');
 
             // Render the dialog box for this request
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Link:link_datarecord_form.html.twig',
-                    array(
+                    [
                         'search_theme_id' => $search_theme_id,
                         'search_key' => $search_key,
                         'remote_datatype_search_key' => $remote_datatype_search_key,
@@ -2502,9 +2496,9 @@ class LinkController extends ODRCustomController
 
                         'is_top_level' => 1,
                         'record_display_view' => 'multiple',    // disable the display javascript
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x30878efd;
@@ -2534,7 +2528,7 @@ class LinkController extends ODRCustomController
      */
     public function linkdatarecordsAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -2549,7 +2543,7 @@ class LinkController extends ODRCustomController
             $local_datarecord_id = $post['local_datarecord_id'];
             $ancestor_datatype_id = $post['ancestor_datatype_id'];
             $descendant_datatype_id = $post['descendant_datatype_id'];
-            $datarecords = array();
+            $datarecords = [];
             if ( isset($post['datarecords']) ) {
                 if ( isset($post['post_type']) && $post['post_type'] == 'JSON' ) {
                     foreach ($post['datarecords'] as $index => $data) {
@@ -2614,10 +2608,10 @@ class LinkController extends ODRCustomController
             // Ensure a link exists from ancestor to descendant datatype
             /** @var DataTree $datatree */
             $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
-                array(
+                [
                     'ancestor' => $ancestor_datatype->getId(),
                     'descendant' => $descendant_datatype->getId()
-                )
+                ]
             );
             if ($datatree == null)
                 throw new ODRNotFoundException('DataTree');
@@ -2657,7 +2651,7 @@ class LinkController extends ODRCustomController
 
             if ( !$can_view_remote_datarecords ) {
                 // User apparently doesn't have view permissions for the remote datatype...prevent them from touching a non-public datarecord in that datatype
-                $remote_datarecord_ids = array();
+                $remote_datarecord_ids = [];
                 foreach ($datarecords as $id => $num)
                     $remote_datarecord_ids[] = $id;
 
@@ -2669,10 +2663,10 @@ class LinkController extends ODRCustomController
                     WHERE dr.id IN (:datarecord_ids) AND drm.publicDate = :public_date
                     AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL'
                 )->setParameters(
-                    array(
+                    [
                         'datarecord_ids' => $remote_datarecord_ids,
                         'public_date' => "2200-01-01 00:00:00"
-                    )
+                    ]
                 );
                 $results = $query->getArrayResult();
 
@@ -2706,14 +2700,14 @@ class LinkController extends ODRCustomController
                 WHERE ldt.'.$local_relation.' = :datarecord AND remote_dr.dataType = :remote_datatype_id
                 AND ldt.deletedAt IS NULL AND remote_dr.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'datarecord' => $local_datarecord->getId(),
                     'remote_datatype_id' => $remote_datatype_id
-                )
+                ]
             );
             $results = $query->getResult();
 
-            $linked_datatree = array();
+            $linked_datatree = [];
             foreach ($results as $num => $ldt)
                 $linked_datatree[] = $ldt;
             /** @var LinkedDataTree[] $linked_datatree */
@@ -2781,28 +2775,28 @@ class LinkController extends ODRCustomController
                         WHERE ancestor IN (:datarecords) AND descendant.dataType = :datatype_id
                         AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
                     )->setParameters(
-                        array(
+                        [
                             'datarecords' => $ancestor_records,
                             'datatype_id' => $local_datatype_id
-                        )
+                        ]
                     );
                     $results = $query->getArrayResult();
 
                     // Determine which descendant datarecords the ancestors are already linking to
-                    $tmp = array();
+                    $tmp = [];
                     foreach ($results as $result) {
                         $ancestor_id = $result['ancestor_id'];
                         $descendant_id = $result['descendant_id'];
 
                         if ( !isset($tmp[$ancestor_id]) )
-                            $tmp[$ancestor_id] = array();
+                            $tmp[$ancestor_id] = [];
                         $tmp[$ancestor_id][$descendant_id] = 1;
                     }
 
                     // Insert the datarecords requested via post into this list...
                     foreach ($datarecords as $ancestor_id => $num) {
                         if ( !isset($tmp[$ancestor_id]) )
-                            $tmp[$ancestor_id] = array();
+                            $tmp[$ancestor_id] = [];
                         $tmp[$ancestor_id][$local_datarecord_id] = 1;
                     }
 
@@ -2821,7 +2815,7 @@ class LinkController extends ODRCustomController
             $change_made = false;
 
             // Likely going to need to clear cache entries for multiple records
-            $records_needing_events = array();
+            $records_needing_events = [];
 
             if ($remove_records_not_in_post) {
                 foreach ($linked_datatree as $ldt) {
@@ -2876,10 +2870,10 @@ class LinkController extends ODRCustomController
                     WHERE dtsf.dataType = :local_datatype_id AND remote_df.dataType = :remote_datatype_id
                     AND dtsf.deletedAt IS NULL AND remote_df.deletedAt IS NULL'
                 )->setParameters(
-                    array(
+                    [
                         'local_datatype_id' => $local_datatype_id,
                         'remote_datatype_id' => $remote_datatype_id,
-                    )
+                    ]
                 );
                 $dtsf_ids = $query->getArrayResult();
 
@@ -2974,12 +2968,12 @@ class LinkController extends ODRCustomController
 
 
             // ----------------------------------------
-            $return['d'] = array(
+            $return['d'] = [
                 'datatype_id' => $descendant_datatype->getId(),
                 'datarecord_id' => $local_datarecord->getId(),
 
                 'change_made' => $change_made,
-            );
+            ];
 
             if ( $has_secondary_datatree )
                 $return['d']['has_secondary_datatree'] = true;
@@ -3011,7 +3005,7 @@ class LinkController extends ODRCustomController
      */
     public function unlinkrecordAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -3026,7 +3020,7 @@ class LinkController extends ODRCustomController
             $local_datarecord_id = $post['local_datarecord_id'];
             $ancestor_datatype_id = $post['ancestor_datatype_id'];
             $descendant_datatype_id = $post['descendant_datatype_id'];
-            $datarecords = array();
+            $datarecords = [];
             if ( isset($post['datarecords']) ) {
                 if ( isset($post['post_type']) && $post['post_type'] == 'JSON' ) {
                     foreach ($post['datarecords'] as $index => $data) {
@@ -3080,10 +3074,10 @@ class LinkController extends ODRCustomController
             // Ensure a link exists from ancestor to descendant datatype
             /** @var DataTree $datatree */
             $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
-                array(
+                [
                     'ancestor' => $ancestor_datatype->getId(),
                     'descendant' => $descendant_datatype->getId()
-                )
+                ]
             );
             if ($datatree == null)
                 throw new ODRNotFoundException('DataTree');
@@ -3119,7 +3113,7 @@ class LinkController extends ODRCustomController
 
             if (!$can_view_remote_datarecords) {
                 // User apparently doesn't have view permissions for the remote datatype...prevent them from touching a non-public datarecord in that datatype
-                $remote_datarecord_ids = array();
+                $remote_datarecord_ids = [];
                 foreach ($datarecords as $id => $num)
                     $remote_datarecord_ids[] = $id;
 
@@ -3130,7 +3124,7 @@ class LinkController extends ODRCustomController
                     JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
                     WHERE dr.id IN (:datarecord_ids) AND drm.publicDate = "2200-01-01 00:00:00"
                     AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL'
-                )->setParameters( array('datarecord_ids' => $remote_datarecord_ids) );
+                )->setParameters( ['datarecord_ids' => $remote_datarecord_ids] );
                 $results = $query->getArrayResult();
 
                 // ...if there are, then prevent the action since the user isn't allowed to see them
@@ -3158,10 +3152,10 @@ class LinkController extends ODRCustomController
                 FROM ODRAdminBundle:LinkedDataTree AS ldt
                 WHERE ldt.'.$remote.' = :datarecord
                 AND ldt.deletedAt IS NULL'
-            )->setParameters( array('datarecord' => $local_datarecord->getId()) );
+            )->setParameters( ['datarecord' => $local_datarecord->getId()] );
             $results = $query->getResult();
 
-            $linked_datatree = array();
+            $linked_datatree = [];
             foreach ($results as $num => $ldt)
                 $linked_datatree[] = $ldt;
             /** @var LinkedDataTree[] $linked_datatree */
@@ -3174,7 +3168,7 @@ class LinkController extends ODRCustomController
             // ----------------------------------------
             // Going to need to clear the "associated_datarecords_for_<dr_id>" cache entry for
             //  potentially multiple datarecords...
-            $records_needing_events = array();
+            $records_needing_events = [];
 
             foreach ($linked_datatree as $ldt) {
                 $remote_datarecord = null;
@@ -3246,10 +3240,10 @@ class LinkController extends ODRCustomController
 
 
             // ----------------------------------------
-            $return['d'] = array(
+            $return['d'] = [
                 'datatype_id' => $descendant_datatype->getId(),
                 'datarecord_id' => $local_datarecord->getId()
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0xdd047dcd;
@@ -3282,7 +3276,7 @@ class LinkController extends ODRCustomController
      */
     public function loadinlinelinkAction($theme_element_id, $parent_datarecord_id, $top_level_datarecord_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -3359,7 +3353,7 @@ class LinkController extends ODRCustomController
             while ( is_numeric($fake_dr_id) )
                 $fake_dr_id = UniqueUtility::uniqueIdReal();
 
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $odr_render_service->loadInlineLinkChildtype(
                     $user,
                     $theme_element,
@@ -3369,7 +3363,7 @@ class LinkController extends ODRCustomController
                     $edit_shows_all_fields
                 ),
                 'fake_dr_id' => $fake_dr_id,
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0xe36a63f7;
@@ -3395,7 +3389,7 @@ class LinkController extends ODRCustomController
      */
     public function replacelinkspageAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -3431,7 +3425,7 @@ class LinkController extends ODRCustomController
             );
             $results = $query->getArrayResult();
 
-            $datatype_ids = array();
+            $datatype_ids = [];
             foreach ($results as $result) {
                 $ancestor_id = $result['ancestor_id'];
                 $descendant_id = $result['descendant_id'];
@@ -3452,33 +3446,33 @@ class LinkController extends ODRCustomController
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
                 AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL
                 ORDER BY dtm.longName'
-            )->setParameters( array('datatype_ids' => $datatype_ids) );
+            )->setParameters( ['datatype_ids' => $datatype_ids] );
             $results = $query->getArrayResult();
 
-            $datatype_data = array();
+            $datatype_data = [];
             foreach ($results as $result) {
                 $dt_id = $result['dt_id'];
                 $dt_name = $result['longName'];
                 $df_id = $result['df_id'];
                 $df_name = $result['fieldName'];
 
-                $datatype_data[$dt_id] = array(
+                $datatype_data[$dt_id] = [
                     'dt_name' => $dt_name,
                     'df_id' => $df_id,
                     'df_name' => $df_name,
-                );
+                ];
             }
 
             // ----------------------------------------
             // Render and return a page displaying the installed/available plugins
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Link:replace_links_page.html.twig',
-                    array(
+                    [
                         'datatype_data' => $datatype_data,
-                    )
+                    ]
                 )
-            );
+            ];
 
         }
         catch (\Exception $e) {
@@ -3505,7 +3499,7 @@ class LinkController extends ODRCustomController
      */
     public function replacelinksdataAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -3566,10 +3560,10 @@ class LinkController extends ODRCustomController
             // ----------------------------------------
             // Useful to count how many links the relevant record has...
             $datatree_array = $datatree_info_service->getDatatreeArray();
-            $linked_ancestors = $datatree_info_service->getLinkedAncestors(array($dr->getDataType()->getId()), $datatree_array);
-            $linked_descendants = $datatree_info_service->getLinkedDescendants(array($dr->getDataType()->getId()), $datatree_array);
+            $linked_ancestors = $datatree_info_service->getLinkedAncestors([$dr->getDataType()->getId()], $datatree_array);
+            $linked_descendants = $datatree_info_service->getLinkedDescendants([$dr->getDataType()->getId()], $datatree_array);
 
-            $affected_datatype_ids = array();
+            $affected_datatype_ids = [];
             foreach ($linked_ancestors as $dt_id)
                 $affected_datatype_ids[$dt_id] = 1;
             foreach ($linked_descendants as $dt_id)
@@ -3578,46 +3572,46 @@ class LinkController extends ODRCustomController
             $affected_datatype_ids = array_keys($affected_datatype_ids);
             $all_linked_datatrees = self::getLinkedDatatrees($em, $dr, $affected_datatype_ids);
 
-            $links_to = array();
+            $links_to = [];
             foreach ($all_linked_datatrees['dr_is_ancestor'] as $ldt) {
                 /** @var LinkedDataTree $ldt */
                 $dt = $ldt->getDescendant()->getDataType();
                 $dt_id = $dt->getId();
 
                 if ( !isset($links_to[$dt_id]) )
-                    $links_to[$dt_id] = array('dt_name' => $dt->getShortName(), 'count' => 0);
+                    $links_to[$dt_id] = ['dt_name' => $dt->getShortName(), 'count' => 0];
                 $links_to[$dt_id]['count']++;
             }
 
-            $linked_from = array();
+            $linked_from = [];
             foreach ($all_linked_datatrees['dr_is_descendant'] as $ldt) {
                 /** @var LinkedDataTree $ldt */
                 $dt = $ldt->getAncestor()->getDataType();
                 $dt_id = $dt->getId();
 
                 if ( !isset($linked_from[$dt_id]) )
-                    $linked_from[$dt_id] = array('dt_name' => $dt->getShortName(), 'count' => 0);
+                    $linked_from[$dt_id] = ['dt_name' => $dt->getShortName(), 'count' => 0];
                 $linked_from[$dt_id]['count']++;
             }
 
 
             // ----------------------------------------
             // Render and return
-            $return['d'] = array(
+            $return['d'] = [
                 'dr_id' => $dr->getId(),
                 'links_to' => $templating->render(
                     'ODRAdminBundle:Link:replace_links_info.html.twig',
-                    array(
+                    [
                         'direction' => 'to',
                         'link_data' => $links_to,
-                    ),
+                    ],
                 ),
                 'linked_from' => $templating->render(
                     'ODRAdminBundle:Link:replace_links_info.html.twig',
-                    array(
+                    [
                         'direction' => 'from',
                         'link_data' => $linked_from,
-                    ),
+                    ],
                 ),
                 'html' => $odr_render_service->getDisplayHTML(
                     $user,
@@ -3626,7 +3620,7 @@ class LinkController extends ODRCustomController
                     null,      // just use the master theme
                     'multiple' // don't attach the javascript for a display page
                 ),
-            );
+            ];
 
         }
         catch (\Exception $e) {
@@ -3662,10 +3656,10 @@ class LinkController extends ODRCustomController
             WHERE adr = :replaced_datarecord AND ddr.dataType IN (:datatype_ids)
             AND adr.deletedAt IS NULL AND ldt.deletedAt IS NULL AND ddr.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'replaced_datarecord' => $datarecord->getId(),
                 'datatype_ids' => $affected_datatype_ids
-            )
+            ]
         );
         /** @var LinkedDataTree[] $dr_is_ancestor */
         $dr_is_ancestor = $query->getResult();
@@ -3679,18 +3673,18 @@ class LinkController extends ODRCustomController
             WHERE ddr = :replaced_datarecord AND adr.dataType IN (:datatype_ids)
             AND adr.deletedAt IS NULL AND ldt.deletedAt IS NULL AND ddr.deletedAt IS NULL'
         )->setParameters(
-            array(
+            [
                 'replaced_datarecord' => $datarecord->getId(),
                 'datatype_ids' => $affected_datatype_ids
-            )
+            ]
         );
         /** @var LinkedDataTree[] $dr_is_descendant */
         $dr_is_descendant = $query->getResult();
 
-        return array(
+        return [
             'dr_is_ancestor' => $dr_is_ancestor,
             'dr_is_descendant' => $dr_is_descendant,
-        );
+        ];
     }
 
 
@@ -3703,7 +3697,7 @@ class LinkController extends ODRCustomController
      */
     public function replacelinksworkerAction(Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
         $return['d'] = '';
@@ -3784,8 +3778,8 @@ class LinkController extends ODRCustomController
 
             // Need to verify the given datatree information...
             $datatree_array = $datatree_info_service->getDatatreeArray();
-            $linked_ancestors = $datatree_info_service->getLinkedAncestors(array($relevant_datatype->getId()), $datatree_array);
-            $linked_descendants = $datatree_info_service->getLinkedDescendants(array($relevant_datatype->getId()), $datatree_array);
+            $linked_ancestors = $datatree_info_service->getLinkedAncestors([$relevant_datatype->getId()], $datatree_array);
+            $linked_descendants = $datatree_info_service->getLinkedDescendants([$relevant_datatype->getId()], $datatree_array);
 
             // TODO - do I want an option so this only works on a subset of the available datatypes?
 //            foreach ($affected_datatype_ids as $dt_id) {
@@ -3793,7 +3787,7 @@ class LinkController extends ODRCustomController
 //                    throw new ODRBadRequestException('Invalid datatype id');
 //            }
 
-            $affected_datatype_ids = array();
+            $affected_datatype_ids = [];
             foreach ($linked_ancestors as $dt_id)
                 $affected_datatype_ids[$dt_id] = 1;
             foreach ($linked_descendants as $dt_id)
@@ -3810,12 +3804,12 @@ class LinkController extends ODRCustomController
             // ----------------------------------------
             // Need to keep track of which datarecords need to have events fired...
             // Each of the ancestor records being modified needs to fire a DatarecordModified Event
-            $datarecord_modified_events = array();
+            $datarecord_modified_events = [];
             // Each of the descendant records needs to fire a DatarecordLinkStatusChanged Event,
             //  but grouped together by the datatype of the descendant records
-            $datarecord_link_status_change_events = array();
+            $datarecord_link_status_change_events = [];
 
-            $descendants_to_replace = array();
+            $descendants_to_replace = [];
             foreach ($dr_is_ancestor as $ldt) {
                 // Can't create new links inside this loop, so save for another loop
                 $old_descendant_record = $ldt->getDescendant();
@@ -3836,7 +3830,7 @@ class LinkController extends ODRCustomController
                 $descendant_dt = $old_descendant_record->getDataType();
                 $descendant_dt_id = $descendant_dt->getId();
                 if ( !isset($datarecord_link_status_change_events[$descendant_dt_id]) )
-                    $datarecord_link_status_change_events[$descendant_dt_id] = array('records' => array(), 'dt' => $descendant_dt);
+                    $datarecord_link_status_change_events[$descendant_dt_id] = ['records' => [], 'dt' => $descendant_dt];
                 $datarecord_link_status_change_events[$descendant_dt_id]['records'][ $old_descendant_record->getId() ] = 1;
 
 
@@ -3846,7 +3840,7 @@ class LinkController extends ODRCustomController
                 $em->persist($ldt);
             }
 
-            $ancestors_to_replace = array();
+            $ancestors_to_replace = [];
             foreach ($dr_is_descendant as $ldt) {
                 // Can't create new links inside this loop, so save for another loop
                 $old_ancestor_record = $ldt->getAncestor();
@@ -3861,7 +3855,7 @@ class LinkController extends ODRCustomController
                 $descendant_dt = $replaced_datarecord->getDataType();
                 $descendant_dt_id = $descendant_dt->getId();
                 if ( !isset($datarecord_link_status_change_events[$descendant_dt_id]) ) {
-                    $datarecord_link_status_change_events[$descendant_dt_id] = array('records' => array(), 'dt' => $descendant_dt);
+                    $datarecord_link_status_change_events[$descendant_dt_id] = ['records' => [], 'dt' => $descendant_dt];
 
                     // It should always contain the id of the replacement record...
                     $datarecord_link_status_change_events[$descendant_dt_id]['records'][ $replacement_datarecord->getId() ] = 1;
@@ -3936,9 +3930,9 @@ class LinkController extends ODRCustomController
 
 
             // ----------------------------------------
-            $return['d'] = array(
+            $return['d'] = [
 
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0xbe15828a;

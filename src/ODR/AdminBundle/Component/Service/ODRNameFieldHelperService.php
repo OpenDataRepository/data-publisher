@@ -25,36 +25,14 @@ class ODRNameFieldHelperService
 {
 
     /**
-     * @var ContainerInterface
-     */
-    private $container;
-
-    /**
-     * @var CacheService
-     */
-    private $cache_service;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * ODRNameFieldHelperService constructor.
      *
      * @param ContainerInterface $container
      * @param CacheService $cache_service
      * @param Logger $logger
      */
-    public function __construct(
-        ContainerInterface $container,
-        CacheService $cache_service,
-        Logger $logger
-    ) {
-        $this->container = $container;
-        $this->cache_service = $cache_service;
-        $this->logger = $logger;
+    public function __construct(private readonly ContainerInterface $container, private readonly CacheService $cache_service, private readonly Logger $logger)
+    {
     }
 
 
@@ -76,9 +54,9 @@ class ODRNameFieldHelperService
      */
     public function checkNameFields($datatype_array, &$datarecord_array)
     {
-        $records_to_recache = array();
+        $records_to_recache = [];
         /** @var DatafieldPluginInterface[] $render_plugin_lookup */
-        $render_plugin_lookup = array();
+        $render_plugin_lookup = [];
 
         // ----------------------------------------
         // Determine if any of the datarecords don't have a nameField_formatted value yet...
@@ -104,7 +82,7 @@ class ODRNameFieldHelperService
                 }
                 else {
                     // The datatype has at least one namefield
-                    $name_field_values = array();
+                    $name_field_values = [];
                     foreach ($dt['nameFields'] as $display_order => $df_id) {
                         // The datafield listed here may not necessarily belong to the current
                         //  datatype...
@@ -144,11 +122,11 @@ class ODRNameFieldHelperService
                                     $render_plugin = $render_plugin_lookup[$plugin_class_name];
 
                                     // Need to provide some rendering options to the plugins...
-                                    $rendering_options = array(
+                                    $rendering_options = [
                                         'context' => 'text',    // TODO - there's also an 'html' context that's currently only used by the reference plugins...does it make sense to use it for this?
                                         'is_link' => $is_link,
                                         'is_datatype_admin' => false  // TODO - nothing in 'text' context uses this, but if that changes it could quickly become problematic...can't have error messages being saved in cached_datarecord_<dr_id>
-                                    );
+                                    ];
                                     if ( $render_plugin->canExecutePlugin($rpi, $plugin_df, $plugin_dr, $rendering_options) ) {
                                         // plugin does want to execute, so let it
                                         $name_field_values[$display_order] = $render_plugin->execute($plugin_df, $plugin_dr, $rpi, $rendering_options);
@@ -179,7 +157,7 @@ class ODRNameFieldHelperService
         //  any records that got modified
         foreach ($records_to_recache as $gp_dr_id => $num) {
             // Need to locate all of this datarecord's non-linked descendants...
-            $tmp = array();
+            $tmp = [];
             foreach ($datarecord_array as $dr_id => $dr) {
                 if ( $dr['grandparent']['id'] === $gp_dr_id )
                     $tmp[$dr_id] = $dr;
@@ -295,7 +273,7 @@ class ODRNameFieldHelperService
         // If something was found...
         if ( !is_null($drf) ) {
             // ...then determine the typeclass before returning whatever value the datafield has
-            $typeclass = lcfirst( $drf['dataField']['dataFieldMeta']['fieldType']['typeClass'] );
+            $typeclass = lcfirst( (string) $drf['dataField']['dataFieldMeta']['fieldType']['typeClass'] );
             if ( !isset($drf[$typeclass][0]['value']) )
                 return '';
 

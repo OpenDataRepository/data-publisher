@@ -51,7 +51,7 @@ class CloneDatatypePreloaderMonitorCommand extends ContainerAwareCommand
         while (true) {
             // Run command until manually stopped
 
-            $pids = array();
+            $pids = [];
             exec("ps auxww |grep 'odr_datatype:clone_datatype_preloader' | grep -v grep", $pids);
 
             $output->writeln( 'PIDS OUTPUT: ' . var_export($pids));

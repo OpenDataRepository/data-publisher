@@ -32,52 +32,16 @@ class PermissionsManagementService
 {
 
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var CacheService
-     */
-    private $cache_service;
-
-    /**
-     * @var DatatreeInfoService
-     */
-    private $datatree_info_service;
-
-    /**
-     * @var SearchAPIService
-     */
-    private $search_api_service;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * PermissionsManagementService constructor.
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param CacheService $cache_service
      * @param DatatreeInfoService $datatree_info_service
      * @param SearchAPIService $search_api_service
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        CacheService $cache_service,
-        DatatreeInfoService $datatree_info_service,
-        SearchAPIService $search_api_service,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->cache_service = $cache_service;
-        $this->datatree_info_service = $datatree_info_service;
-        $this->search_api_service = $search_api_service;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly DatatreeInfoService $datatree_info_service, private readonly SearchAPIService $search_api_service, private readonly Logger $logger)
+    {
     }
 
 
@@ -91,7 +55,7 @@ class PermissionsManagementService
     public function getDatatypePermissions($user)
     {
         if ($user === "anon." || $user == null)
-            return array();
+            return [];
 
         $user_permissions = self::getUserPermissionsArray($user);
         return $user_permissions['datatypes'];
@@ -108,7 +72,7 @@ class PermissionsManagementService
     public function getDatafieldPermissions($user)
     {
         if ($user === "anon." || $user == null)
-            return array();
+            return [];
 
         $user_permissions = self::getUserPermissionsArray($user);
         return $user_permissions['datafields'];
@@ -142,10 +106,10 @@ class PermissionsManagementService
             $complete_datarecord_list = $this->search_api_service->performSearch(
                 $datatype,
                 $search_key,
-                array(), // empty user permissions array since searching as super admin
+                [], // empty user permissions array since searching as super admin
                 true,    // want to return the complete datarecord list
-                array(), // complete datarecord lists can't be sorted
-                array(),
+                [], // complete datarecord lists can't be sorted
+                [],
                 true     // search as super admin, so no filtering takes place
             );
 
@@ -755,10 +719,10 @@ class PermissionsManagementService
         try {
             // Users that aren't logged in don't have permissions
             if ($user == null || $user === 'anon.') {
-                return array(
-                    'datatypes' => array(),
-                    'datafields' => array()
-                );
+                return [
+                    'datatypes' => [],
+                    'datafields' => []
+                ];
             }
 
             // Permissions are cached per user to allow other parts of ODR can force a rebuild
@@ -771,7 +735,7 @@ class PermissionsManagementService
 
             // ----------------------------------------
             // If this point is reached, the user's permissions arrays need to be rebuilt
-            $user_permissions = array('datatypes' => array(), 'datafields' => array());
+            $user_permissions = ['datatypes' => [], 'datafields' => []];
 
             if ( $user->hasRole('ROLE_SUPER_ADMIN') ) {
                 // Super admins have permissions for all undeleted datatypes and datafields by default
@@ -821,7 +785,7 @@ class PermissionsManagementService
                     WHERE ug.user = :user_id
                     AND ug.deletedAt IS NULL AND g.deletedAt IS NULL
                     AND gdtp.deletedAt IS NULL AND dt.deletedAt IS NULL'
-                )->setParameters( array('user_id' => $user_id) );
+                )->setParameters( ['user_id' => $user_id] );
                 $results = $query->getArrayResult();
 
                 foreach ($results as $result) {
@@ -865,7 +829,7 @@ class PermissionsManagementService
                     WHERE ug.user = :user_id AND gm.datarecord_restriction IS NOT NULL
                     AND ug.deletedAt IS NULL AND g.deletedAt IS NULL AND gm.deletedAt IS NULL
                     AND dt.deletedAt IS NULL'
-                )->setParameters( array('user_id' => $user_id) );
+                )->setParameters( ['user_id' => $user_id] );
                 $results = $query->getArrayResult();
 
                 foreach ($results as $result) {
@@ -892,7 +856,7 @@ class PermissionsManagementService
                     WHERE ug.user = :user_id
                     AND ug.deletedAt IS NULL AND g.deletedAt IS NULL
                     AND gdfp.deletedAt IS NULL AND df.deletedAt IS NULL AND dt.deletedAt IS NULL'
-                )->setParameters( array('user_id' => $user_id) );
+                )->setParameters( ['user_id' => $user_id] );
                 $results = $query->getArrayResult();
 
                 foreach ($results as $result) {
@@ -992,15 +956,15 @@ class PermissionsManagementService
             AND g.deletedAt IS NULL AND gm.deletedAt IS NULL
             AND gdtp.deletedAt IS NULL AND gdfp.deletedAt IS NULL
             AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND df_dt.deletedAt IS NULL'
-        )->setParameters( array('group_id' => $group_id) );
+        )->setParameters( ['group_id' => $group_id] );
         $results = $query->getArrayResult();
 //exit( '<pre>'.print_r($results, true).'</pre>' );
 
         // Read the query result to find...
         $top_level_datatype_id = '';
         $datarecord_restriction = '';
-        $datatype_permissions = array();
-        $datafield_permissions = array();
+        $datatype_permissions = [];
+        $datafield_permissions = [];
 
         foreach ($results as $group) {
             // Store which datatype this group belongs to (can different from which group it affects)
@@ -1017,7 +981,7 @@ class PermissionsManagementService
                     continue;
 
                 $dt_id = $permission['dataType']['id'];
-                $datatype_permissions[$dt_id] = array();
+                $datatype_permissions[$dt_id] = [];
 
                 if ($permission['can_view_datatype'])
                     $datatype_permissions[$dt_id]['dt_view'] = 1;
@@ -1043,10 +1007,10 @@ class PermissionsManagementService
 
                 $dt_id = $permission['dataField']['dataType']['id'];
                 if ( !isset($datafield_permissions[$dt_id]) )
-                    $datafield_permissions[$dt_id] = array();
+                    $datafield_permissions[$dt_id] = [];
 
                 $df_id = $permission['dataField']['id'];
-                $datafield_permissions[$dt_id][$df_id] = array();
+                $datafield_permissions[$dt_id][$df_id] = [];
 
                 if ($permission['can_view_datafield'])
                     $datafield_permissions[$dt_id][$df_id]['view'] = 1;
@@ -1057,12 +1021,12 @@ class PermissionsManagementService
 
         // ----------------------------------------
         // Return the final array
-        return array(
+        return [
             'top_level_datatype_id' => $top_level_datatype_id,
             'datarecord_restriction' => $datarecord_restriction,
             'datatypes' => $datatype_permissions,
             'datafields' => $datafield_permissions,
-        );
+        ];
     }
 
 
@@ -1079,17 +1043,17 @@ class PermissionsManagementService
     public function filterByGroupPermissions(&$datatype_array, &$datarecord_array, $permissions_array)
     {
         // Save relevant permissions...
-        $datatype_permissions = array();
+        $datatype_permissions = [];
         if ( isset($permissions_array['datatypes']) )
             $datatype_permissions = $permissions_array['datatypes'];
-        $datafield_permissions = array();
+        $datafield_permissions = [];
         if ( isset($permissions_array['datafields']) )
             $datafield_permissions = $permissions_array['datafields'];
 
 
-        $can_view_datatype = array();
-        $can_view_datarecord = array();
-        $datafields_to_remove = array();
+        $can_view_datatype = [];
+        $can_view_datarecord = [];
+        $datafields_to_remove = [];
         foreach ($datatype_array as $dt_id => $dt) {
             // Store whether the user can view each of the datatypes
             if ( isset($datatype_permissions[$dt_id]['dt_view']) )

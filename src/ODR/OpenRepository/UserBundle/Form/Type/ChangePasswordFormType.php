@@ -27,6 +27,7 @@ class ChangePasswordFormType extends AbstractType
         $builder->remove('current_password');
     }
 
+    #[\Override]
     public function getParent()
     {
         return 'fos_user_change_password';

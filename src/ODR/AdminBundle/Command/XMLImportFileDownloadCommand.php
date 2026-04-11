@@ -55,7 +55,7 @@ class XMLImportFileDownloadCommand extends ContainerAwareCommand
                 $job = $pheanstalk->watch('import_file')->ignore('default')->reserve();
 
                 // Get Job Data
-                $data = json_decode($job->getData());
+                $data = json_decode((string) $job->getData());
 
                 // 
                 $str = 'XMLImportFileDownloadCommand.php: Attempting to import the '.$data->object_type.' "'.$data->original_name.'" into drf '.$data->drf_id.' from '.$data->redis_prefix.'...';
@@ -71,7 +71,7 @@ class XMLImportFileDownloadCommand extends ContainerAwareCommand
 $output->writeln($data->url);
 
                 // Create the required url and the parameters to send
-                $parameters = array(
+                $parameters = [
                     'object_type' => $data->object_type,
                     'drf_id' => $data->drf_id,
                     'user_id' => $data->user_id,
@@ -79,10 +79,10 @@ $output->writeln($data->url);
                     'original_name' => $data->original_name,
                     'metadata' => $data->metadata,
                     'api_key' => $data->api_key
-                );
+                ];
 
                 // Set the options for the POST request
-                curl_setopt_array($ch, array(
+                curl_setopt_array($ch, [
                         CURLOPT_POST => 1,
                         CURLOPT_HEADER => 0,
                         CURLOPT_URL => $data->url,
@@ -91,7 +91,7 @@ $output->writeln($data->url);
                         CURLOPT_FORBID_REUSE => 1,
                         CURLOPT_TIMEOUT => 120,
                         CURLOPT_POSTFIELDS => http_build_query($parameters)
-                    )
+                    ]
                 );
 
                 // Send the request

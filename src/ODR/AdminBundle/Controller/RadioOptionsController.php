@@ -60,7 +60,7 @@ class RadioOptionsController extends ODRCustomController
      */
     public function getradiooptionlistAction($datafield_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -146,18 +146,18 @@ class RadioOptionsController extends ODRCustomController
             $df_array = $datatype_array[$datatype->getId()]['dataFields'][$datafield->getId()];
 
             // Render the template
-            $return['d'] = array(
+            $return['d'] = [
                 'html' => $templating->render(
                     'ODRAdminBundle:Displaytemplate:radio_option_dialog_form.html.twig',
-                    array(
+                    [
                         'datafield' => $df_array,
 
                         'is_derived_field' => $is_derived_field,
                         'can_modify_template' => $can_modify_template,
                         'out_of_sync' => $out_of_sync,
-                    )
+                    ]
                 )
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x71d2cc47;
@@ -183,7 +183,7 @@ class RadioOptionsController extends ODRCustomController
      */
     public function addradiooptionAction($datafield_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -355,11 +355,11 @@ class RadioOptionsController extends ODRCustomController
 
             // ----------------------------------------
             // Instruct the page to reload to get the updated HTML
-            $return['d'] = array(
+            $return['d'] = [
                 'datafield_id' => $datafield->getId(),
                 'reload_datafield' => true,
                 'radio_option_id' => $radio_option->getId(),
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x33ef7d94;
@@ -385,7 +385,7 @@ class RadioOptionsController extends ODRCustomController
      */
     public function deleteradiooptionAction($radio_option_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -468,10 +468,10 @@ class RadioOptionsController extends ODRCustomController
 
             // Check whether any jobs that are currently running would interfere with the deletion
             //  of this radio option
-            $new_job_data = array(
+            $new_job_data = [
                 'job_type' => 'delete_radio_option',
                 'target_entity' => $datafield,
-            );
+            ];
 
             $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
@@ -482,16 +482,16 @@ class RadioOptionsController extends ODRCustomController
             //  changes get made without the user's knowledge/consent...which is bad.
 
             // ----------------------------------------
-            $radio_options_to_delete = array($radio_option_id);
+            $radio_options_to_delete = [$radio_option_id];
             if ( $is_derived_field ) {
                 // ...if this is a request to delete a radio option from a derived field, then its
                 //  master radio option also needs to be deleted
                 /** @var RadioOptions $master_radio_option */
                 $master_radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
-                    array(
+                    [
                         'dataField' => $datafield->getMasterDataField(),
                         'radioOptionUuid' => $radio_option->getRadioOptionUuid(),
-                    )
+                    ]
                 );
 
                 $radio_options_to_delete[] = $master_radio_option->getId();
@@ -503,10 +503,10 @@ class RadioOptionsController extends ODRCustomController
                'SELECT rs.id
                 FROM ODRAdminBundle:RadioSelection AS rs
                 WHERE rs.radioOption IN (:radio_option_list) AND rs.deletedAt IS NULL'
-            )->setParameters( array('radio_option_list' => $radio_options_to_delete) );
+            )->setParameters( ['radio_option_list' => $radio_options_to_delete] );
             $results = $query->getArrayResult();
 
-            $radio_selections_to_delete = array();
+            $radio_selections_to_delete = [];
             foreach ($results as $num => $rs)
                 $radio_selections_to_delete[] = $rs['id'];
 
@@ -523,8 +523,8 @@ class RadioOptionsController extends ODRCustomController
                     ro.deletedBy = '.$user->getId().'
                 WHERE rom.radio_option_id = ro.id AND ro.id IN (?)
                 AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL';
-            $parameters = array(1 => $radio_options_to_delete);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $parameters = [1 => $radio_options_to_delete];
+            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
             // Delete the RadioSelection entries
@@ -532,8 +532,8 @@ class RadioOptionsController extends ODRCustomController
                'UPDATE odr_radio_selection AS rs
                 SET rs.deletedAt = NOW()
                 WHERE rs.id IN (?)';
-            $parameters = array(1 => $radio_selections_to_delete);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $parameters = [1 => $radio_selections_to_delete];
+            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
             // No errors, commit transaction
@@ -591,9 +591,9 @@ class RadioOptionsController extends ODRCustomController
 
             // ----------------------------------------
             // Need to let the browser know which datafield to reload
-            $return['d'] = array(
+            $return['d'] = [
                 'datafield_id' => $datafield->getId()
-            );
+            ];
         }
         catch (\Exception $e) {
             // Rollback if error encountered
@@ -623,7 +623,7 @@ class RadioOptionsController extends ODRCustomController
      */
     public function saveradiooptionnameAction($radio_option_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -716,10 +716,10 @@ class RadioOptionsController extends ODRCustomController
 
             // Check whether any jobs that are currently running would interfere with the deletion
             //  of this datarecord
-            $new_job_data = array(
+            $new_job_data = [
                 'job_type' => 'rename_radio_option',
                 'target_entity' => $datafield,
-            );
+            ];
 
             $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
@@ -729,9 +729,9 @@ class RadioOptionsController extends ODRCustomController
             // ----------------------------------------
             // Could have to rename more than one radio option...
             $master_radio_option = null;
-            $properties = array(
+            $properties = [
                 'optionName' => $option_name
-            );
+            ];
 
             // The request to rename this radio option can come from one of three places...
             if ( $is_derived_field ) {
@@ -739,10 +739,10 @@ class RadioOptionsController extends ODRCustomController
                 //  master radio option also needs to be renamed
                 /** @var RadioOptions $master_radio_option */
                 $master_radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
-                    array(
+                    [
                         'dataField' => $datafield->getMasterDataField(),
                         'radioOptionUuid' => $radio_option->getRadioOptionUuid(),
-                    )
+                    ]
                 );
                 $entity_modify_service->updateRadioOptionsMeta($user, $master_radio_option, $properties, true);    // don't flush immediately
             }
@@ -806,11 +806,11 @@ class RadioOptionsController extends ODRCustomController
 
             // ----------------------------------------
             // Get the javascript to reload the datafield
-            $return['d'] = array(
+            $return['d'] = [
                 'reload_modal' => $changes_made,
                 'datafield_id' => $datafield->getId(),
                 'radio_option_id' => $radio_option->getId(),
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0xdf4e2574;
@@ -837,7 +837,7 @@ class RadioOptionsController extends ODRCustomController
      */
     public function defaultradiooptionAction($radio_option_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = "";
         $return['d'] = "";
@@ -919,10 +919,10 @@ class RadioOptionsController extends ODRCustomController
                 //  also needs to be modified
                 /** @var RadioOptions $master_radio_option */
                 $master_radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
-                    array(
+                    [
                         'dataField' => $datafield->getMasterDataField(),
                         'radioOptionUuid' => $radio_option->getRadioOptionUuid(),
-                    )
+                    ]
                 );
                 self::updateDefaultStatus($em, $entity_modify_service, $user, $master_radio_option);
             }
@@ -1005,15 +1005,15 @@ class RadioOptionsController extends ODRCustomController
                 JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOption = ro
                 WHERE rom.isDefault = 1 AND ro.dataField = :datafield
                 AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL'
-            )->setParameters( array('datafield' => $datafield->getId()) );
+            )->setParameters( ['datafield' => $datafield->getId()] );
             $results = $query->getResult();
 
             /** @var RadioOptions[] $results */
             foreach ($results as $num => $ro) {
                 // ...and set them all to false
-                $properties = array(
+                $properties = [
                     'isDefault' => false
-                );
+                ];
                 $entity_modify_service->updateRadioOptionsMeta($user, $ro, $properties, true);    // don't flush immediately...
             }
 
@@ -1023,18 +1023,18 @@ class RadioOptionsController extends ODRCustomController
             }
             else {
                 // Set this radio option as selected by default
-                $properties = array(
+                $properties = [
                     'isDefault' => true
-                );
+                ];
                 $entity_modify_service->updateRadioOptionsMeta($user, $radio_option, $properties, true);    // don't flush here...
             }
         }
         else {
             // Multiple radio options are allowed to be "default" for Multiple Radio/Select fields,
             //  so only need to toggle the "default" status for the current radio option
-            $properties = array(
+            $properties = [
                 'isDefault' => !$originally_was_default
-            );
+            ];
             $entity_modify_service->updateRadioOptionsMeta($user, $radio_option, $properties, true);    // don't flush here...
         }
     }
@@ -1050,7 +1050,7 @@ class RadioOptionsController extends ODRCustomController
      */
     public function saveradiooptionorderAction($datafield_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1131,11 +1131,11 @@ class RadioOptionsController extends ODRCustomController
                     JOIN ro.radioOptionMeta AS rom
                     WHERE ro.dataField = :datafield
                     AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL'
-                )->setParameters( array('datafield' => $datafield_id) );
+                )->setParameters( ['datafield' => $datafield_id] );
                 $results = $query->getArrayResult();
 
                 // Organize by the id of the radio option
-                $radio_option_list = array();
+                $radio_option_list = [];
                 foreach ($results as $result) {
                     $ro_id = $result['ro_id'];
                     $display_order = $result['displayOrder'];
@@ -1156,9 +1156,9 @@ class RadioOptionsController extends ODRCustomController
                         $ro = $repo_radio_options->find($ro_id);
 
                         // ...and update its displayOrder
-                        $properties = array(
+                        $properties = [
                             'displayOrder' => $index,
-                        );
+                        ];
                         $entity_modify_service->updateRadioOptionsMeta($user, $ro, $properties, true);    // don't flush immediately...
                         $changes_made = true;
                     }
@@ -1213,7 +1213,7 @@ class RadioOptionsController extends ODRCustomController
      */
     public function saveradiooptionlistAction($datafield_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1299,10 +1299,10 @@ class RadioOptionsController extends ODRCustomController
                 JOIN ODRAdminBundle:RadioOptionsMeta rom WITH rom.radioOption = ro
                 WHERE ro.dataField = :datafield_id
                 AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL'
-            )->setParameters( array('datafield_id' => $datafield->getId()) );
+            )->setParameters( ['datafield_id' => $datafield->getId()] );
             $results = $query->getArrayResult();
 
-            $existing_radio_options = array();
+            $existing_radio_options = [];
             foreach ($results as $result) {
                 $ro_id = $result['ro_id'];
                 $ro_name = $result['optionName'];
@@ -1325,7 +1325,7 @@ class RadioOptionsController extends ODRCustomController
             // Parse and process radio options
             foreach ($radio_option_list as $option_name) {
                 // Remove whitespace
-                $option_name = trim($option_name);
+                $option_name = trim((string) $option_name);
                 if ( strlen($option_name) < 1 )
                     continue;
 
@@ -1427,9 +1427,9 @@ class RadioOptionsController extends ODRCustomController
 
             // ----------------------------------------
             // Always going to need to reload the datafield after this
-            $return['d'] = array(
+            $return['d'] = [
                 'datafield_id' => $datafield->getId(),
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0xfcc760f4;
@@ -1457,7 +1457,7 @@ class RadioOptionsController extends ODRCustomController
      */
     public function radioselectionAction($datarecord_id, $datafield_id, $radio_option_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1551,16 +1551,16 @@ class RadioOptionsController extends ODRCustomController
                 }
 
                 // Update the RadioSelection entity to match $new_value
-                $properties = array('selected' => $new_value);
+                $properties = ['selected' => $new_value];
                 $entity_modify_service->updateRadioSelection($user, $radio_selection, $properties);
             }
             else if ($typename == 'Single Radio' || $typename == 'Single Select') {
                 // Probably need to change selected status of at least one other RadioSelection entity...
                 /** @var RadioSelection[] $radio_selections */
                 $radio_selections = $repo_radio_selection->findBy(
-                    array(
+                    [
                         'dataRecordFields' => $drf->getId()
-                    )
+                    ]
                 );
 
                 foreach ($radio_selections as $rs) {
@@ -1568,7 +1568,7 @@ class RadioOptionsController extends ODRCustomController
                         if ($rs->getSelected() == 1) {
                             // Deselect all RadioOptions that are selected, and are not the one the
                             //  user wants to be selected
-                            $properties = array('selected' => 0);
+                            $properties = ['selected' => 0];
                             $entity_modify_service->updateRadioSelection($user, $rs, $properties, true);    // should only be one, technically...
                         }
                     }
@@ -1580,7 +1580,7 @@ class RadioOptionsController extends ODRCustomController
                     $radio_selection = $entity_create_service->createRadioSelection($user, $radio_option, $drf);
 
                     // ...ensure it's selected
-                    $properties = array('selected' => 1);
+                    $properties = ['selected' => 1];
                     $entity_modify_service->updateRadioSelection($user, $radio_selection, $properties, true);    // flushing doesn't help...
                 }
 

@@ -24,18 +24,12 @@ class OrganizationPlugin implements DatatypePluginInterface
 {
 
     /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-
-    /**
      * OrganizationPlugin constructor.
      *
      * @param EngineInterface $templating
      */
-    public function __construct(EngineInterface $templating) {
-        $this->templating = $templating;
+    public function __construct(private readonly EngineInterface $templating)
+    {
     }
 
 
@@ -71,7 +65,7 @@ class OrganizationPlugin implements DatatypePluginInterface
      * @return string
      * @throws \Exception
      */
-    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
+    public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = [], $datatype_permissions = [], $datafield_permissions = [], $token_list = [])
     {
         // This render plugin does not override any part of the rendering, and therefore this function will never be called.
         return '';

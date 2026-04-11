@@ -60,38 +60,8 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
     // The plugin assumes that it is receiving chemical elements...so it can also take the liberty
     //  of assuming the elements might have specific character prefixes
     // TODO - change these with renderPluginOptions?
-    private const AT_LEAST_ONE_CHAR = '~';
-    private const NONE_CHAR = '!';
-
-    /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var CacheService
-     */
-    private $cache_service;
-
-    /**
-     * @var SearchService
-     */
-    private $search_service;
-
-    /**
-     * @var SortService
-     */
-    private $sort_service;
-
-    /**
-     * @var EngineInterface
-     */
-    private $templating;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
+    private const string AT_LEAST_ONE_CHAR = '~';
+    private const string NONE_CHAR = '!';
 
     /**
      * @var array
@@ -102,7 +72,7 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
     /**
      * ChemicalElementsSearchPlugin constructor.
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param CacheService $cache_service
      * @param SearchService $search_service
      * @param SortService $sort_service
@@ -110,21 +80,14 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
      * @param Logger $logger
      */
     public function __construct(
-        EntityManager $entity_manager,
-        CacheService $cache_service,
-        SearchService $search_service,
-        SortService $sort_service,
-        EngineInterface $templating,
-        Logger $logger
+        private readonly EntityManager $em,
+        private readonly CacheService $cache_service,
+        private readonly SearchService $search_service,
+        private readonly SortService $sort_service,
+        private readonly EngineInterface $templating,
+        private readonly Logger $logger
     ) {
-        $this->em = $entity_manager;
-        $this->cache_service = $cache_service;
-        $this->search_service = $search_service;
-        $this->sort_service = $sort_service;
-        $this->templating = $templating;
-        $this->logger = $logger;
-
-        $this->typeclass_map = array(
+        $this->typeclass_map = [
             // All of these are searched via their "value" field in the backend database
             'ShortVarchar' => 'odr_short_varchar',
             'MediumVarchar' => 'odr_medium_varchar',
@@ -140,7 +103,7 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
 //            'Image' => 'odr_image',
 
             // Searches on radio options require multiple tables in the query
-        );
+        ];
     }
 
 
@@ -162,12 +125,12 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
     {
         // ----------------------------------------
         // Don't continue if called on the wrong type of datafield
-        $allowed_typeclasses = array(
+        $allowed_typeclasses = [
             'ShortVarchar',
             'MediumVarchar',
             'LongVarchar',
             'LongText'
-        );
+        ];
         $typeclass = $datafield->getFieldType()->getTypeClass();
         if ( !in_array($typeclass, $allowed_typeclasses) )
             throw new ODRBadRequestException('ChemicalElementsSearchPlugin::searchPluginField() called with '.$typeclass.' datafield', 0xc508f89f);
@@ -194,7 +157,7 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
         $recache = false;
         $cached_searches = $this->cache_service->get('cached_search_df_'.$datafield->getId());
         if ( !$cached_searches )
-            $cached_searches = array();
+            $cached_searches = [];
 
         // Need to go through all three "groups" of elements...
         foreach ($elements['all'] as $element) {
@@ -306,7 +269,7 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
 
         // Pretty sure this isn't needed, but remain safe
         if ( is_null($results) )
-            $results = array();
+            $results = [];
 
 
         // ----------------------------------------
@@ -321,17 +284,17 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
 
             // These records must not contain elements that aren't already in the 'all' and
             //  'at_least_one' arrays in order to pass this requirement
-            $existing_elements = array();
+            $existing_elements = [];
             foreach ($elements['all'] as $num => $elem)
                 $existing_elements[$elem] = 1;
             foreach ($elements['at_least_one'] as $num => $elem)
                 $existing_elements[$elem] = 1;
 
             // Intentionally wipe the existing list of matching records, it's part of $dr_list now
-            $results = array();
+            $results = [];
             foreach ($dr_list as $dr_id => $value) {
                 // Explode the chemical element list for this record...
-                $dr_elems = explode(' ', strtolower($value));
+                $dr_elems = explode(' ', strtolower((string) $value));
 
                 $include_record = true;
                 foreach ($dr_elems as $elem) {
@@ -358,11 +321,11 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
 
         // Now that the elements have been combined, convert into the format SearchAPIService
         //  expects...
-        $end_result = array(
+        $end_result = [
             'dt_id' => $datafield->getDataType()->getId(),
             'records' => $results,
             'guard' => false,    // the plugin never explicitly searches on the empty string
-        );
+        ];
 
         // ...then return the results of the search
         return $end_result;
@@ -377,34 +340,34 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
      */
     private function parseValue($search_term)
     {
-        $value = mb_strtolower($search_term['value']);
+        $value = mb_strtolower((string) $search_term['value']);
 
         // Get rid of "smart" quotes
-        $value = str_replace(array("“", "”"), '"', $value);
+        $value = str_replace(["“", "”"], '"', $value);
 
         // If the empty string was given, then search for records without elements
         if ( $value === "\"\"" ) {
             // ...without this condition, there would be no search terms, and therefore there would
             //  never be any records that match
-            return array(
-                'all' => array(''),
-                'at_least_one' => array(),
-                'none' => array(),
+            return [
+                'all' => [''],
+                'at_least_one' => [],
+                'none' => [],
                 'exclude_nonselected' => false,
-            );
+            ];
         }
 
         // Otherwise...eliminate any commas and quotes, then explode on spaces
-        $value = str_replace(array(',', "\"", "\'"), ' ', $value);
+        $value = str_replace([',', "\"", "\'"], ' ', $value);
         $elements = explode(' ', $value);
 
         // RRUFF originally had three "groups" of elements in its chemical search...
         // 1) search for minerals with ALL of these elements
-        $all = array();
+        $all = [];
         // 2) search for minerals with AT LEAST ONE of these elements
-        $at_least_one = array();
+        $at_least_one = [];
         // 3) search for minerals with NONE of these elements
-        $none = array();
+        $none = [];
 
         // For the purposes of ODR, categories 2 and 3 are indicated by the characters '~' or '!'
         //  before the element, respectively    TODO - change these with renderPluginOptions?
@@ -420,11 +383,11 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
             else if ( $element !== '' ) {
                 //
                 $cat_OR = $cat_NOT = false;
-                if ( strpos($element, self::AT_LEAST_ONE_CHAR) !== false ) {
+                if ( str_contains($element, self::AT_LEAST_ONE_CHAR) ) {
                     $cat_OR = true;
                     $element = substr($element, 1);
                 }
-                else if ( strpos($element, self::NONE_CHAR) !== false ) {
+                else if ( str_contains($element, self::NONE_CHAR) ) {
                     $cat_NOT = true;
                     $element = substr($element, 1);
                 }
@@ -468,14 +431,14 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
 
         // If the "exclude nonselected" flag exists, then completely ignore anything in $none
         if ( $exclude_nonselected )
-            $none = array();
+            $none = [];
 
-        return array(
+        return [
             'all' => $all,
             'at_least_one' => $at_least_one,
             'none' => $none,
             'exclude_nonselected' => $exclude_nonselected,
-        );
+        ];
     }
 
 
@@ -501,14 +464,14 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
             JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
             WHERE e.data_field_id = :datafield_id AND e.value LIKE :element
             AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL';
-        $params = array(
+        $params = [
             'datafield_id' => $datafield_id,
             'element' => '%'.$element.'%',
-        );
-        $types = array(
+        ];
+        $types = [
             'datafield_id' => ParameterType::INTEGER,
             'element' => ParameterType::STRING,
-        );
+        ];
 
         // Execute the native SQL query
         $conn = $this->em->getConnection();
@@ -519,16 +482,16 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
         // The results need another filtering pass...if the user searched for "S", then the results
         //  also currently have everything with "Si", "Sn", etc...this is the entire issue the plugin
         //  is meant to solve
-        $selected_datarecords = array();
+        $selected_datarecords = [];
         // There is one other caveat though...a search for something like "Nb^" should match any
         //  valence state for the element "Nb"
         $has_open_valence = false;
-        if ( strpos($element, '^') !== false )
+        if ( str_contains($element, '^') )
             $has_open_valence = true;
 
         foreach ($results as $result) {
             $dr_id = $result['dr_id'];
-            $element_str = mb_strtolower($result['element_str']);
+            $element_str = mb_strtolower((string) $result['element_str']);
 
             // The list of elements needs to be exploded...
             $elements = explode(' ', $element_str);
@@ -538,7 +501,7 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
                     $selected_datarecords[$dr_id] = 1;
                     break;
                 }
-                else if ($has_open_valence && strpos($e, $element) === 0 ) {
+                else if ($has_open_valence && str_starts_with($e, $element) ) {
                     $selected_datarecords[$dr_id] = 1;
                     break;
                 }
@@ -549,10 +512,10 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
         //  datarecords
         $unselected_datarecords = array_diff_key($all_datarecord_ids, $selected_datarecords);
 
-        return array(
+        return [
             '0' => $unselected_datarecords,
             '1' => $selected_datarecords
-        );
+        ];
     }
 
 
@@ -593,12 +556,12 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
     {
         $output = $this->templating->render(
             'ODROpenRepositoryGraphBundle:RRUFF:ChemicalElementsSearch/chemical_elements_search_datafield.html.twig',
-            array(
+            [
                 'datatype' => $datatype,
                 'datafield' => $datafield,
 
                 'preset_value' => $preset_value,
-            )
+            ]
         );
 
         return $output;

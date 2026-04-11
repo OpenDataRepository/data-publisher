@@ -23,13 +23,8 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 class PasswordResettingListener implements EventSubscriberInterface
 {
-    private $router;
-    private $site_baseurl;
-
-    public function __construct(UrlGeneratorInterface $router, $site_baseurl)
+    public function __construct(private readonly UrlGeneratorInterface $router, private $site_baseurl)
     {
-        $this->router = $router;
-        $this->site_baseurl = $site_baseurl;
     }
 
     /**
@@ -37,9 +32,9 @@ class PasswordResettingListener implements EventSubscriberInterface
      */
     public static function getSubscribedEvents()
     {
-        return array(
+        return [
             FOSUserEvents::RESETTING_RESET_SUCCESS => 'onPasswordResettingSuccess',
-        );
+        ];
     }
 
     public function onPasswordResettingSuccess(FormEvent $event)

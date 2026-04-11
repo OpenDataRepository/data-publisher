@@ -42,56 +42,16 @@ class SearchSidebarService
      *
      * @var string[]
      */
-    const PAGE_INTENT = array(
+    const PAGE_INTENT = [
         1 => 'searching',
         2 => 'linking',
-    );
-
-    /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var CacheService
-     */
-    private $cache_service;
-
-    /**
-     * @var DatabaseInfoService
-     */
-    private $database_info_service;
-
-    /**
-     * @var DatatreeInfoService
-     */
-    private $datatree_info_service;
-
-    /**
-     * @var PermissionsManagementService
-     */
-    private $permissions_service;
-
-    /**
-     * @var UserManager
-     */
-    private $user_manager;
-
-    /**
-     * @var Session
-     */
-    private $session;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
+    ];
 
 
     /**
      * SearchSidebarService constructor.
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param CacheService $cache_service
      * @param DatabaseInfoService $database_info_service
      * @param DatatreeInfoService $datatree_info_service
@@ -100,24 +60,8 @@ class SearchSidebarService
      * @param Session $session
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        CacheService $cache_service,
-        DatabaseInfoService $database_info_service,
-        DatatreeInfoService $datatree_info_service,
-        PermissionsManagementService $permissions_service,
-        UserManager $user_manager,
-        Session $session,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->cache_service = $cache_service;
-        $this->database_info_service = $database_info_service;
-        $this->datatree_info_service = $datatree_info_service;
-        $this->permissions_service = $permissions_service;
-        $this->user_manager = $user_manager;
-        $this->session = $session;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly DatabaseInfoService $database_info_service, private readonly DatatreeInfoService $datatree_info_service, private readonly PermissionsManagementService $permissions_service, private readonly UserManager $user_manager, private readonly Session $session, private readonly Logger $logger)
+    {
     }
 
 
@@ -149,7 +93,7 @@ class SearchSidebarService
         if ( isset($search_params['inverse']) )
             $inverse_target_datatype_id = intval($search_params['inverse']);
 
-        $sidebar_datatype_array = array();
+        $sidebar_datatype_array = [];
         if ( $inverse_target_datatype_id === -1 ) {
             // A value of -1 indicates "not in inverse mode"...load the target datatype and any of
             //  its linked descendants
@@ -163,12 +107,12 @@ class SearchSidebarService
         }
 
         // ...then filter the array to just what the user can see
-        $datarecord_array = array();
+        $datarecord_array = [];
         $user_permissions = $this->permissions_service->getUserPermissionsArray($user);
         $datatype_permissions = $this->permissions_service->getDatatypePermissions($user);
         $this->permissions_service->filterByGroupPermissions($sidebar_datatype_array, $datarecord_array, $user_permissions);
 
-        $sidebar_array = array();
+        $sidebar_array = [];
         if ( !is_null($sidebar_layout_id) ) {
             // If a sidebar layout is specified, then verify whether the user can actually use
             //  the requested layout...
@@ -214,7 +158,7 @@ class SearchSidebarService
         if ( !isset($search_params['inverse']) ) {
             // Read the datatype array to get the info required so users can change which descendants
             //  the search includes in the results
-            $tmp = self::createDescendantSelector($sidebar_array['datatype_array'], array($target_datatype_id => 1), '', '');
+            $tmp = self::createDescendantSelector($sidebar_array['datatype_array'], [$target_datatype_id => 1], '', '');
             $sidebar_array['descendant_selection'] = $tmp;
         }
 
@@ -258,10 +202,10 @@ class SearchSidebarService
             WHERE sl = :sidebar_layout_id
             AND sl.deletedAt IS NULL AND slm.deletedAt IS NULL
             AND sl_map.deletedAt IS NULL AND sl_map_df.deletedAt IS NULL AND sl_map_df_dt.deletedAt IS NULL'
-        )->setParameters( array('sidebar_layout_id' => $sidebar_layout_id) );
+        )->setParameters( ['sidebar_layout_id' => $sidebar_layout_id] );
         $results = $query->getArrayResult();
 
-        $sidebar_array = array();
+        $sidebar_array = [];
         foreach ($results as $sl_num => $sl) {
             // Only allow user to view if the layout is shared, or they created it, or they're an
             //  admin of this datatype
@@ -330,16 +274,16 @@ class SearchSidebarService
     private function constructSidebarLayoutArray($datatype_array, $sidebar_layout_array, $search_params)
     {
         // Should only be one entry in the array...
-        $sl_array = array();
+        $sl_array = [];
         foreach ($sidebar_layout_array as $sl_id => $sl)
             $sl_array = $sl;
 
-        $sidebar_array = array(
+        $sidebar_array = [
             'layout_array' => $sl_array,
             'datatype_array' => $datatype_array,
-            'always_display' => array(),
-            'extended_display' => array(),
-        );
+            'always_display' => [],
+            'extended_display' => [],
+        ];
 
         // Copy the info for each datafield in the layout from the cached datatype array
         if ( isset($sl_array['sidebarLayoutMap']) ) {
@@ -353,10 +297,10 @@ class SearchSidebarService
                 // If this is the entry for the "general search" input...
                 if ($df_id === 0) {
                     // ...
-                    $sidebar_array[$category][$df_id] = array(
+                    $sidebar_array[$category][$df_id] = [
                         'id' => 0,
                         'displayOrder' => $sl_map['displayOrder']
-                    );
+                    ];
 
                     // Skip to the next datafield
                     continue;
@@ -382,10 +326,10 @@ class SearchSidebarService
                     // Search params have a "general search" term...
                     if ( !(isset($sidebar_array['always_display'][0]) || isset($sidebar_array['extended_display'][0])) ) {
                         // ...the "general search" input isn't already in the sidebar layout, add it
-                        $sidebar_array['extended_display'][0] = array(
+                        $sidebar_array['extended_display'][0] = [
                             'id' => 0,
                             'displayOrder' => 999
-                        );
+                        ];
                     }
                 }
                 else {
@@ -419,7 +363,7 @@ class SearchSidebarService
                                 //  fields that have search values in them
                                 $sidebar_array['always_display'][$df_id] = $dt['dataFields'][$df_id];
                                 $sidebar_array['always_display'][$df_id]['displayOrder'] = 999;
-                                $sidebar_array['always_display'][$df_id]['dataType'] = array('id' => $dt_id);
+                                $sidebar_array['always_display'][$df_id]['dataType'] = ['id' => $dt_id];
                                 // ...similarly, ensure the field does not appear in the other section
                                 unset( $sidebar_array['extended_display'][$df_id] );
 
@@ -493,14 +437,14 @@ class SearchSidebarService
                 $datatype_array[$dt_id]['dataFields'][$df_id]['dataType']['id'] = $dt_id;
         }
 
-        $sidebar_array = array(
-            'layout_array' => array(),    // empty array is interpreted as not using a layout
+        $sidebar_array = [
+            'layout_array' => [],    // empty array is interpreted as not using a layout
             'datatype_array' => $datatype_array,
-            'always_display' => array(
-                0 => array()    // placeholder for the general search field
-            ),
-            'extended_display' => array()    // no sense duplicating the datatype array
-        );
+            'always_display' => [
+                0 => []    // placeholder for the general search field
+            ],
+            'extended_display' => []    // no sense duplicating the datatype array
+        ];
 
         return $sidebar_array;
     }
@@ -521,7 +465,7 @@ class SearchSidebarService
     {
         // Don't display any other users when the current user isn't logged in
         if ( $user == 'anon.' )
-            return array();
+            return [];
 
         $is_super_admin = false;
         if ( $user->hasRole('ROLE_SUPER_ADMIN') )
@@ -532,7 +476,7 @@ class SearchSidebarService
         $datatype_permissions = $this->permissions_service->getDatatypePermissions($user);
         $dt_array = $datatype_array['datatype_array'];
 
-        $editable_datatypes = array();
+        $editable_datatypes = [];
         foreach ($dt_array as $dt_id => $dt_data) {
             if ( $is_super_admin
                 || isset($datatype_permissions[$dt_id]['dr_edit'])
@@ -545,7 +489,7 @@ class SearchSidebarService
 
         // If the user doesn't have any of the relevant permissions, then don't show them any users
         if ( empty($editable_datatypes) )
-            return array();
+            return [];
 
 
         // ----------------------------------------
@@ -554,8 +498,8 @@ class SearchSidebarService
         /** @var ODRUser[] $all_users */
         $all_users = $this->user_manager->findUsers();
 
-        $user_lookup = array();
-        $super_admins = array();
+        $user_lookup = [];
+        $super_admins = [];
         foreach ($all_users as $u) {
             if ( $u->isEnabled() ) {
                 if ($u->hasRole('ROLE_SUPER_ADMIN'))
@@ -568,11 +512,11 @@ class SearchSidebarService
 
         // ----------------------------------------
         // Need to find all users that can currently (and used to be able to) modify these datatypes
-        $user_list = array();
+        $user_list = [];
 
         $conn = $this->em->getConnection();
-        $params = array('datatype_ids' => $editable_datatypes);
-        $types = array('datatype_ids' => \Doctrine\DBAL\Connection::PARAM_INT_ARRAY);
+        $params = ['datatype_ids' => $editable_datatypes];
+        $types = ['datatype_ids' => \Doctrine\DBAL\Connection::PARAM_INT_ARRAY];
 
 
         // Two tables to check...do the GroupDatatypePermissions table first...
@@ -660,10 +604,10 @@ class SearchSidebarService
                 LEFT JOIN ODRAdminBundle:DataTypeMeta dtm WITH dtm.dataType = dt
                 WHERE dt.id IN (:datatype_ids)
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
-            )->setParameters( array('datatype_ids' => $top_level_datatype_ids) );
+            )->setParameters( ['datatype_ids' => $top_level_datatype_ids] );
             $results = $query->getArrayResult();
 
-            $top_level_datatype_names = array();
+            $top_level_datatype_names = [];
             foreach ($results as $result) {
                 $dt_id = $result['dt_id'];
                 $dt_name = $result['shortName'];
@@ -673,7 +617,7 @@ class SearchSidebarService
                 if ( $dt_public_date->format('Y-m-d H:i:s') === '2200-01-01 00:00:00')
                     $is_public = false;
 
-                $top_level_datatype_names[$dt_id] = array($dt_name, $is_public);
+                $top_level_datatype_names[$dt_id] = [$dt_name, $is_public];
             }
 
             $this->cache_service->set('top_level_datatype_names', $top_level_datatype_names);
@@ -689,7 +633,7 @@ class SearchSidebarService
         if ( $user !== 'anon.' && $user->hasRole('ROLE_SUPER_ADMIN') )
             $is_super_admin = true;
 
-        $sidebar_datatype_names = array();
+        $sidebar_datatype_names = [];
         foreach ($inverse_associated_datatypes as $num => $dt_id) {
             // Don't need to return the name for the requested bottom-level datatype
             if ($dt_id === $bottom_level_datatype_id)
@@ -733,9 +677,9 @@ class SearchSidebarService
                         // The search key uses a '-' prefix before the option/tag id to indicate
                         //  "unselected"...a '~' prefix indicates selected, but to merge by the
                         //  opposite of the field default
-                        $selected_ids = array();
-                        $alt_selected_ids = array();
-                        $unselected_ids = array();
+                        $selected_ids = [];
+                        $alt_selected_ids = [];
+                        $unselected_ids = [];
                         foreach ($ids as $id) {
                             if ( $id[0] === '-' )
                                 $unselected_ids[] = substr($id, 1);
@@ -746,11 +690,11 @@ class SearchSidebarService
                         }
 
                         // ...all this because it's easier for twig
-                        $search_params[$df_id] = array(
+                        $search_params[$df_id] = [
                             'selected' => $selected_ids,
                             'alt_selected' => $alt_selected_ids,
                             'unselected' => $unselected_ids
-                        );
+                        ];
                     }
                 }
             }
@@ -771,7 +715,7 @@ class SearchSidebarService
      */
     private function createDescendantSelector($datatype_array, $datatype_ids, $prev_prefix, $prev_label)
     {
-        $descendant_info = array();
+        $descendant_info = [];
 
         foreach ($datatype_ids as $dt_id => $num) {
             if ( isset($datatype_array[$dt_id]) ) {
@@ -787,13 +731,13 @@ class SearchSidebarService
                     $current_label = /*$prev_label.' >> '.*/$dt['dataTypeMeta']['shortName'];
                 }
 
-                $descendant_info[$dt_id] = array(
+                $descendant_info[$dt_id] = [
                     'prefix' => $current_prefix,
                     'label' => $current_label,
-                    'descendants' => array(),
-                );
+                    'descendants' => [],
+                ];
 
-                $descendant_ids = array();
+                $descendant_ids = [];
                 if ( isset($dt['descendants']) ) {
                     foreach ($dt['descendants'] as $child_dt_id => $child_dt)
                         $descendant_ids[$child_dt_id] = 0;
@@ -833,7 +777,7 @@ class SearchSidebarService
         );
         $results = $query->getArrayResult();
 
-        $sidebar_layout_ids = array();
+        $sidebar_layout_ids = [];
         foreach ($results as $result)
             $sidebar_layout_ids[] = $result['layout_id'];
 
@@ -878,16 +822,16 @@ class SearchSidebarService
             AND slm_idt.deletedAt IS NULL AND slm_idtm.deletedAt IS NULL
             ORDER BY slm.displayOrder, slm.layoutName'
         )->setParameters(
-            array(
+            [
                 'datatype_id' => $datatype->getId(),
                 'user_id' => $user_id,    // Only get layout preference entries belonging to the user calling the function
-            )
+            ]
         );
         $results = $query->getArrayResult();
 
         // Filter the list of sidebar layouts based on what the user is allowed to see
         $is_datatype_admin = $this->permissions_service->isDatatypeAdmin($user, $datatype);
-        $filtered_layouts = array();
+        $filtered_layouts = [];
         foreach ($results as $sidebar_layout) {
             // Easier to extract some of these properties from the array...
             $sidebar_layout_meta = $sidebar_layout['sidebarLayoutMeta'][0];
@@ -915,7 +859,7 @@ class SearchSidebarService
                 || $is_datatype_admin
             ) {
                 // layouts can be defaults for multiple sidebar intents...
-                $default_for_labels = array();
+                $default_for_labels = [];
                 $default_for = $sidebar_layout_meta['defaultFor'];
                 foreach (self::PAGE_INTENT as $bit => $label) {
                     if ( $default_for & $bit )
@@ -924,7 +868,7 @@ class SearchSidebarService
 
                 // Users' preferred layouts are independent of whether the layout is default for a
                 //  given sidebar intent...
-                $user_preference_labels = array();
+                $user_preference_labels = [];
                 if ( !is_null($sidebar_layout_preferences) ) {
                     $user_default_for = $sidebar_layout_preferences['defaultFor'];
                     foreach (self::PAGE_INTENT as $bit => $label) {
@@ -941,7 +885,7 @@ class SearchSidebarService
 
                 // Would prefer if this didn't use yet another dialog, but there's just too much
                 //  useful information that needs displaying...
-                $sidebar_layout_record = array(
+                $sidebar_layout_record = [
                     'id' => $sidebar_layout['id'],
                     'name' => $sidebar_layout_meta['layoutName'],
                     'description' => $sidebar_layout_meta['layoutDescription'],
@@ -959,7 +903,7 @@ class SearchSidebarService
 
                     'default_for' => $default_for_labels,
                     'user_preference_for' => $user_preference_labels,
-                );
+                ];
 
                 $filtered_layouts[] = $sidebar_layout_record;
             }
@@ -1059,10 +1003,10 @@ class SearchSidebarService
             JOIN odr_sidebar_layout_meta AS slm ON slm.sidebar_layout_id = sl.id
             WHERE sl.data_type_id = :datatype_id AND (slm.default_for & :intent_id)
             AND sl.deletedAt IS NULL AND slm.deletedAt IS NULL';
-        $params = array(
+        $params = [
             'datatype_id' => $datatype_id,
             'intent_id' => $intent_id,
-        );
+        ];
         $conn = $this->em->getConnection();
         $results = $conn->executeQuery($query, $params);
 
@@ -1126,12 +1070,12 @@ class SearchSidebarService
 
 
         // Load any existing session layouts
-        $session_layouts = array();
+        $session_layouts = [];
         if ( $this->session->has('session_sidebar_layouts') )
             $session_layouts = $this->session->get('session_sidebar_layouts');
 
         if ( !isset($session_layouts[$datatype_id]) )
-            $session_layouts[$datatype_id] = array();
+            $session_layouts[$datatype_id] = [];
 
         // Save the layout choice in the session
         $session_layouts[$datatype_id][$intent] = $sidebar_layout_id;
@@ -1155,7 +1099,7 @@ class SearchSidebarService
         }
 
         // Load any existing session layouts
-        $session_layouts = array();
+        $session_layouts = [];
         if ( $this->session->has('session_sidebar_layouts') )
             $session_layouts = $this->session->get('session_sidebar_layouts');
 
@@ -1203,11 +1147,11 @@ class SearchSidebarService
             WHERE dt.id = :datatype_id
             AND slp.createdBy = :user_id AND (slp.default_for & :intent_id)
             AND slp.deletedAt IS NULL AND sl.deletedAt IS NULL AND dt.deletedAt IS NULL';
-        $params = array(
+        $params = [
             'datatype_id' => $datatype_id,
             'user_id' => $user->getId(),
             'intent_id' => $intent_id,
-        );
+        ];
         $conn = $this->em->getConnection();
         $results = $conn->executeQuery($query, $params);
 
@@ -1256,11 +1200,11 @@ class SearchSidebarService
             WHERE dt.id = :datatype_id
             AND slp.createdBy = :user_id AND (slp.default_for & :intent_id)
             AND slp.deletedAt IS NULL AND sl.deletedAt IS NULL AND dt.deletedAt IS NULL';
-        $params = array(
+        $params = [
             'datatype_id' => $sidebar_layout->getDataType()->getId(),
             'user_id' => $user->getId(),
             'intent_id' => $intent_id,
-        );
+        ];
         $conn = $this->em->getConnection();
         $results = $conn->executeQuery($query, $params);
 
@@ -1283,10 +1227,10 @@ class SearchSidebarService
         // ----------------------------------------
         // Attempt to locate the sidebarLayoutPreferences entry for the given layout/User pair
         $slp = $this->em->getRepository('ODRAdminBundle:SidebarLayoutPreferences')->findOneBy(
-            array(
+            [
                 'sidebarLayout' => $sidebar_layout->getId(),
                 'createdBy' => $user->getId(),
-            )
+            ]
         );
 
         // If one doesn't exist, create it
@@ -1336,11 +1280,11 @@ class SearchSidebarService
             WHERE dt.id = :datatype_id
             AND slp.createdBy = :user_id AND (slp.default_for & :intent_id)
             AND slp.deletedAt IS NULL AND sl.deletedAt IS NULL AND dt.deletedAt IS NULL';
-        $params = array(
+        $params = [
             'datatype_id' => $datatype_id,
             'user_id' => $user->getId(),
             'intent_id' => $intent,
-        );
+        ];
         $conn = $this->em->getConnection();
         $results = $conn->executeQuery($query, $params);
 

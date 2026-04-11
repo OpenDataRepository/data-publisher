@@ -62,7 +62,7 @@ class TagsController extends ODRCustomController
      */
     public function loadtagmodalAction($datafield_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -170,11 +170,11 @@ class TagsController extends ODRCustomController
                 foreach ($job_data as $num => $job) {
                     if ( $job['can_delete'] === false ) {
                         $desc = $job['description'];
-                        if ( strpos($desc, 'Tag Rebuild of Datafield') === false )
+                        if ( !str_contains((string) $desc, 'Tag Rebuild of Datafield') )
                             throw new ODRException('Unexpected description for tag_rebuild job');
 
-                        $matches = array();
-                        preg_match('/(\d+)/', $desc, $matches);
+                        $matches = [];
+                        preg_match('/(\d+)/', (string) $desc, $matches);
                         $df_id = $matches[0];
                         if ( $datafield->getId() == $df_id ) {
                             $conflicting_job = $job;
@@ -192,15 +192,15 @@ class TagsController extends ODRCustomController
             if ( !is_null($conflicting_job) ) {
                 // If there is a conflicting job, then return a different version of the tag modal
                 //  that checks for the job to be finished
-                $return['d'] = array(
+                $return['d'] = [
                     'html' => $templating->render(
                         'ODRAdminBundle:Tags:tag_design_checker.html.twig',
-                        array(
+                        [
                             'tracked_job' => $conflicting_job,
                             'datafield_id' => $datafield_id,
-                        )
+                        ]
                     )
-                );
+                ];
             }
             else {
                 // If there's no conflicting job, then execute as normal
@@ -209,24 +209,24 @@ class TagsController extends ODRCustomController
                     throw new ODRException('unable to locate the cached entry for this datafield');
 
                 $cached_df = $datatype_array[$datatype->getId()]['dataFields'][$datafield->getId()];
-                $stacked_tag_list = array();
+                $stacked_tag_list = [];
                 if ( isset($cached_df['tags']) )
                     $stacked_tag_list = $cached_df['tags'];
 
                 // Render and return the html for the list
-                $return['d'] = array(
+                $return['d'] = [
                     'html' => $templating->render(
                         'ODRAdminBundle:Tags:tag_design_wrapper.html.twig',
-                        array(
+                        [
                             'datafield' => $cached_df,
                             'stacked_tags' => $stacked_tag_list,
 
                             'is_derived_field' => $is_derived_field,
                             'can_modify_template' => $can_modify_template,
                             'out_of_sync' => $out_of_sync,
-                        )
+                        ]
                     )
-                );
+                ];
             }
         }
         catch (\Exception $e) {
@@ -253,7 +253,7 @@ class TagsController extends ODRCustomController
      */
     public function createtagAction($datafield_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -375,10 +375,10 @@ class TagsController extends ODRCustomController
                 if ( $is_derived_field ) {
                     /** @var Tags|null $master_parent_tag */
                     $master_parent_tag = $em->getRepository('ODRAdminBundle:Tags')->findOneBy(
-                        array(
+                        [
                             'dataField' => $datafield->getMasterDataField()->getId(),
                             'tagUuid' => $parent_tag->getTagUuid(),
-                        )
+                        ]
                     );
                     if ($master_parent_tag == null)
                         throw new ODRNotFoundException('Master Parent Tag');
@@ -504,11 +504,11 @@ class TagsController extends ODRCustomController
 
             // ----------------------------------------
             // Instruct the page to reload to get the updated HTML
-            $return['d'] = array(
+            $return['d'] = [
                 'datafield_id' => $datafield->getId(),
                 'reload_datafield' => true,
                 'tag_id' => $new_tag->getId(),
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0xdc63b458;
@@ -534,7 +534,7 @@ class TagsController extends ODRCustomController
      */
     public function validatetaglistAction($datafield_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -630,9 +630,9 @@ class TagsController extends ODRCustomController
 
             // ----------------------------------------
             // Verify that the tag data passed in is reasonable
-            $lines = array();
-            $errors = array();
-            $posted_tags = array();
+            $lines = [];
+            $errors = [];
+            $posted_tags = [];
 
             $tag_list = $post['tag_list'];
             if ( strlen($tag_list) > 0 ) {
@@ -652,7 +652,7 @@ class TagsController extends ODRCustomController
                 if ($line === '')
                     continue;
 
-                $new_tags = array($line);
+                $new_tags = [$line];
                 if ( $datafield->getTagsAllowMultipleLevels() )
                     $new_tags = explode($post['tag_hierarchy_delimiter'], $line);
 
@@ -660,11 +660,11 @@ class TagsController extends ODRCustomController
                     // TODO - other errors?
                     $tag = trim($tag);
                     if ($tag === '') {
-                        $errors[] = array(
+                        $errors[] = [
                             'line_num' => $line_num,
                             'message' => 'Blank tag at level '.($num+1),
                             'line' => $line,
-                        );
+                        ];
                     }
                     else {
                         $new_tags[$num] = $tag;
@@ -696,7 +696,7 @@ class TagsController extends ODRCustomController
 
                 // Going to store the potential import data in the user's session...
                 $session = $request->getSession();
-                $tag_import_lists = array();
+                $tag_import_lists = [];
                 if ( $session->has('tag_import_lists') )
                     $tag_import_lists = $session->get('tag_import_lists');
 
@@ -711,31 +711,31 @@ class TagsController extends ODRCustomController
 
 
                 // Render and return the given tag list as HTML so it can be verified
-                $return['d'] = array(
+                $return['d'] = [
                     'html' => $templating->render(
                         'ODRAdminBundle:Tags:tag_import_validate.html.twig',
-                        array(
+                        [
                             'would_create_new_tag' => $would_create_new_tag,
                             'stacked_tags' => $stacked_tag_array,
 
                             'datafield_id' => $datafield->getId(),
                             'token' => $token,
-                        )
+                        ]
                     )
-                );
+                ];
 
             }
             else {
                 // ...otherwise, render a quick little error dialogue
                 $return['r'] = 1;
-                $return['d'] = array(
+                $return['d'] = [
                     'html' => $templating->render(
                         'ODRAdminBundle:Tags:tag_import_errors.html.twig',
-                        array(
+                        [
                             'errors' => $errors,
-                        )
+                        ]
                     )
-                );
+                ];
             }
         }
         catch (\Exception $e) {
@@ -763,7 +763,7 @@ class TagsController extends ODRCustomController
      */
     public function importtaglistAction($datafield_id, $token, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -891,7 +891,7 @@ class TagsController extends ODRCustomController
 
             // Splice each of the posted tag trees into the existing stacked tag structure
             // Flushing can be delayed until afterwards
-            $hydrated_tag_array = array();
+            $hydrated_tag_array = [];
 
             foreach ($posted_tags as $num => $new_tags) {
                 $stacked_tag_array = self::createTagsForListImport(
@@ -1069,10 +1069,10 @@ class TagsController extends ODRCustomController
                     // ...but if it hasn't, then hydrate it directly
                     // NOTE - theoretically this should only get triggered on tags that haven't been created by this function
                     $parent_tag = $em->getRepository('ODRAdminBundle:Tags')->findOneBy(
-                        array(
+                        [
                             'tagUuid' => $parent_tag_uuid,
                             'dataField' => $datafield_id,
-                        )
+                        ]
                     );
                     $hydrated_tag_array[$datafield_id.'_'.$parent_tag_uuid] = $parent_tag;
                 }
@@ -1100,10 +1100,10 @@ class TagsController extends ODRCustomController
                         // ...but if it hasn't, then hydrate it directly
                         // NOTE - theoretically this should only get triggered on tags that haven't been created by this function
                         $parent_master_tag = $em->getRepository('ODRAdminBundle:Tags')->findOneBy(
-                            array(
+                            [
                                 'tagUuid' => $parent_tag_uuid,
                                 'dataField' => $master_datafield_id,
-                            )
+                            ]
                         );
                         $hydrated_tag_array[$master_datafield_id.'_'.$parent_tag_uuid] = $parent_master_tag;
                     }
@@ -1119,13 +1119,13 @@ class TagsController extends ODRCustomController
                 }
             }
 
-            $stacked_tag_array[$tag_name] = array(
+            $stacked_tag_array[$tag_name] = [
                 'id' => $current_tag_uuid,    // Don't really care what the ID is...only used for rendering
-                'tagMeta' => array(
+                'tagMeta' => [
                     'tagName' => $tag_name
-                ),
+                ],
                 'tagUuid' => $current_tag_uuid,
-            );
+            ];
         }
 
         // If $posted_tags has more than one tag in the array, then need to check for descendents...
@@ -1134,7 +1134,7 @@ class TagsController extends ODRCustomController
             $new_tags = array_slice($posted_tags, 1);
 
             // ...and get any children the existing tag already has
-            $existing_child_tags = array();
+            $existing_child_tags = [];
             if ( isset($stacked_tag_array[$tag_name]['children']) )
                 $existing_child_tags = $stacked_tag_array[$tag_name]['children'];
 
@@ -1167,7 +1167,7 @@ class TagsController extends ODRCustomController
      */
     public function deletetagAction($tag_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1267,10 +1267,10 @@ class TagsController extends ODRCustomController
 
             // Check whether any jobs that are currently running would interfere with the deletion
             //  of this tag
-            $new_job_data = array(
+            $new_job_data = [
                 'job_type' => 'delete_tag',
                 'target_entity' => $datafield,
-            );
+            ];
 
             $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
@@ -1285,9 +1285,9 @@ class TagsController extends ODRCustomController
                 WHERE tt.child IN (:child_tags)
                 AND tt.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'child_tags' => $tag->getId(),
-                )
+                ]
             );
             $results = $query->getArrayResult();
 
@@ -1299,16 +1299,16 @@ class TagsController extends ODRCustomController
 
             // ----------------------------------------
             // When deleting a tag, all of its children need deleted too...
-            $relevant_tags = array($tag);
+            $relevant_tags = [$tag];
             if ( $is_derived_field ) {
                 // ...if this is a request to delete a tag from a derived field, then its master
                 //  tag also needs to be deleted
                 /** @var Tags $master_tag */
                 $master_tag = $em->getRepository('ODRAdminBundle:Tags')->findOneBy(
-                    array(
+                    [
                         'dataField' => $datafield->getMasterDataField(),
                         'tagUuid' => $tag->getTagUuid(),
-                    )
+                    ]
                 );
 
                 $relevant_tags[] = $master_tag;
@@ -1330,14 +1330,14 @@ class TagsController extends ODRCustomController
                 WHERE (tt.parent IN (:parent_tags) OR tt.child IN (:child_tags) )
                 AND tt.deletedAt IS NULL'
             )->setParameters(
-                array(
+                [
                     'parent_tags' => $tags_to_delete,
                     'child_tags' => $tags_to_delete,
-                )
+                ]
             );
             $results = $query->getArrayResult();
 
-            $tag_trees_to_delete = array();
+            $tag_trees_to_delete = [];
             foreach ($results as $num => $tt)
                 $tag_trees_to_delete[] = $tt['id'];
 
@@ -1347,10 +1347,10 @@ class TagsController extends ODRCustomController
                'SELECT ts.id
                 FROM ODRAdminBundle:TagSelection AS ts
                 WHERE ts.tag IN (:tag_list) AND ts.deletedAt IS NULL'
-            )->setParameters( array('tag_list' => $tags_to_delete) );
+            )->setParameters( ['tag_list' => $tags_to_delete] );
             $results = $query->getArrayResult();
 
-            $tag_selections_to_delete = array();
+            $tag_selections_to_delete = [];
             foreach ($results as $num => $ts)
                 $tag_selections_to_delete[] = $ts['id'];
 
@@ -1367,8 +1367,8 @@ class TagsController extends ODRCustomController
                     t.deletedBy = '.$user->getId().'
                 WHERE tm.tag_id = t.id AND t.id IN (?)
                 AND t.deletedAt IS NULL AND tm.deletedAt IS NULL';
-            $parameters = array(1 => $tags_to_delete);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $parameters = [1 => $tags_to_delete];
+            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
             // Delete the tag tree entries
@@ -1376,8 +1376,8 @@ class TagsController extends ODRCustomController
                'UPDATE odr_tag_tree AS tt
                 SET tt.deletedAt = NOW(), tt.deletedBy = '.$user->getId().'
                 WHERE tt.id IN (?)';
-            $parameters = array(1 => $tag_trees_to_delete);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $parameters = [1 => $tag_trees_to_delete];
+            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
             // Delete the tag selection entries
@@ -1385,8 +1385,8 @@ class TagsController extends ODRCustomController
                'UPDATE odr_tag_selection AS ts
                 SET ts.deletedAt = NOW()
                 WHERE ts.id IN (?)';
-            $parameters = array(1 => $tag_selections_to_delete);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $parameters = [1 => $tag_selections_to_delete];
+            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
             // No error encountered, commit changes
@@ -1446,9 +1446,9 @@ class TagsController extends ODRCustomController
 
             // ----------------------------------------
             // Need to let the browser know which datafield to reload
-            $return['d'] = array(
+            $return['d'] = [
                 'datafield_id' => $datafield->getId()
-            );
+            ];
         }
         catch (\Exception $e) {
             // Abort a transaction if one is active
@@ -1478,7 +1478,7 @@ class TagsController extends ODRCustomController
      */
     private function findTagsToDelete($relevant_tags)
     {
-        $tags_to_delete = array();
+        $tags_to_delete = [];
 
         /** @var TagHelperService $tag_helper_service */
         $tag_helper_service = $this->container->get('odr.tag_helper_service');
@@ -1496,16 +1496,16 @@ class TagsController extends ODRCustomController
                 $tag_hierarchy = $tag_hierarchy[$datatype_id][$datafield_id];
             else
                 // ...if it doesn't, then there won't be any child tags to find
-                $tag_hierarchy = array();
+                $tag_hierarchy = [];
 
             // Use the tag hierarchy to locate all children of the tag being deleted
             $tags_to_delete[] = $tag_id;
 
-            $tags_to_process = array($tag_id);
+            $tags_to_process = [$tag_id];
             while ( !empty($tags_to_process) ) {
                 // While there's still tags to be processed...
                 $tmp = $tags_to_process;
-                $tags_to_process = array();
+                $tags_to_process = [];
 
                 foreach ($tmp as $num => $t_id) {
                     // ...if this tag has children...
@@ -1535,7 +1535,7 @@ class TagsController extends ODRCustomController
      */
     public function movetagAction($datafield_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -1598,7 +1598,7 @@ class TagsController extends ODRCustomController
 
             $tag_ordering = $post['tag_ordering'];
             if ( !is_array($tag_ordering) )
-                $tag_ordering = array();
+                $tag_ordering = [];
 
             $child_tag_id = $post['child_tag_id'];
             $parent_tag_id = $post['parent_tag_id'];
@@ -1631,7 +1631,7 @@ class TagsController extends ODRCustomController
 
             // If $parent_tag_id exists, also require it to be non-zero
             if ($parent_tag_id !== '') {
-                if ( preg_match($pattern, $parent_tag_id) === false )
+                if ( preg_match($pattern, (string) $parent_tag_id) === false )
                     throw new ODRBadRequestException('Non-numeric tag id');
 
                 $parent_tag_id = intval($parent_tag_id);
@@ -1706,7 +1706,7 @@ class TagsController extends ODRCustomController
                 JOIN ODRAdminBundle:DataFields df WITH t.dataField = df
                 WHERE t IN (:tags)
                 AND t.deletedAt IS NULL AND df.deletedAt IS NULL'
-            )->setParameters( array('tags' => $tag_ordering) );
+            )->setParameters( ['tags' => $tag_ordering] );
             $results = $query->getArrayResult();
 
             foreach ($results as $result) {
@@ -1718,10 +1718,10 @@ class TagsController extends ODRCustomController
             // ----------------------------------------
             // Check whether any jobs that are currently running would interfere with a newly
             //  created 'tag_rebuild' job for this datatype
-            $new_job_data = array(
+            $new_job_data = [
                 'job_type' => 'tag_rebuild',
                 'target_entity' => $datafield,
-            );
+            ];
 
             $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
@@ -1733,7 +1733,7 @@ class TagsController extends ODRCustomController
 
             // ----------------------------------------
             // Only create/delete tag tree entries if the tag field allows child/parent tags
-            $changes_made = array();
+            $changes_made = [];
             if ( $datafield->getTagsAllowMultipleLevels() ) {
                 // The request to move this tag can come from one of three places...
                 if ( $is_derived_field ) {
@@ -1779,11 +1779,11 @@ class TagsController extends ODRCustomController
                     JOIN t.tagMeta AS tm
                     WHERE t.dataField = :datafield
                     AND t.deletedAt IS NULL AND tm.deletedAt IS NULL'
-                )->setParameters( array('datafield' => $datafield_id) );
+                )->setParameters( ['datafield' => $datafield_id] );
                 $results = $query->getArrayResult();
 
                 // Organize by the id of the tag
-                $tag_list = array();
+                $tag_list = [];
                 foreach ($results as $result) {
                     $t_id = $result['t_id'];
                     $display_order = $result['displayOrder'];
@@ -1799,9 +1799,9 @@ class TagsController extends ODRCustomController
                         $tag = $repo_tags->find($tag_id);
 
                         // ...and update its displayOrder
-                        $properties = array(
+                        $properties = [
                             'displayOrder' => $display_order
-                        );
+                        ];
                         $entity_modify_service->updateTagMeta($user, $tag, $properties, true);    // don't flush immediately...
                         $tag_sort_order_changed = true;
 
@@ -1809,10 +1809,10 @@ class TagsController extends ODRCustomController
                             // If this is a derived field, then need to also update the master tag
                             /** @var Tags $master_tag */
                             $master_tag = $repo_tags->findOneBy(
-                                array(
+                                [
                                     'dataField' => $datafield->getMasterDataField(),
                                     'tagUuid' => $tag->getTagUuid()
-                                )
+                                ]
                             );
 
                             // Can just reuse the properties array for the derived tag
@@ -1838,7 +1838,7 @@ class TagsController extends ODRCustomController
                     $event = new DatatypeModifiedEvent($datatype, $user);    // don't need to delete datarecord entries...neither tag parents nor sort order is stored in them
                     $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
                 }
-                catch (\Exception $e) {
+                catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
 //                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -1862,7 +1862,7 @@ class TagsController extends ODRCustomController
                         $event = new DatafieldModifiedEvent($datafield, $user);
                         $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
                     }
-                    catch (\Exception $e) {
+                    catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
                         //  event
 //                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
@@ -1912,20 +1912,20 @@ class TagsController extends ODRCustomController
     {
         /** @var Tags $child_tag */
         $child_tag = $em->getRepository('ODRAdminBundle:Tags')->findOneBy(
-            array(
+            [
                 'dataField' => $datafield->getId(),
                 'tagUuid' => $child_tag_uuid
-            )
+            ]
         );
 
         /** @var Tags|null $parent_tag */
         $parent_tag = null;
         if ( !is_null($parent_tag_uuid) ) {
             $parent_tag = $em->getRepository('ODRAdminBundle:Tags')->findOneBy(
-                array(
+                [
                     'dataField' => $datafield->getId(),
                     'tagUuid' => $parent_tag_uuid
-                )
+                ]
             );
         }
 
@@ -1938,7 +1938,7 @@ class TagsController extends ODRCustomController
             LEFT JOIN ODRAdminBundle:Tags AS t_p WITH tt.parent = t_p
             WHERE t_c = :tag_id
             AND t_c.deletedAt IS NULL AND tt.deletedAt IS NULL AND t_p.deletedAt IS NULL'
-        )->setParameters( array('tag_id' => $child_tag->getId()) );
+        )->setParameters( ['tag_id' => $child_tag->getId()] );
         $result = $query->getResult();
 
         /** @var TagTree $tag_tree */
@@ -1989,11 +1989,11 @@ class TagsController extends ODRCustomController
         if ($create_new_entry)
             $entity_create_service->createTagTree($user, $parent_tag, $child_tag);
 
-        return array(
+        return [
             'create_new_entry' => $create_new_entry,
             'delete_old_entry' => $delete_old_entry,
             'tag_hierarchy_changed' => $tag_hierarchy_changed,
-        );
+        ];
     }
 
 
@@ -2020,10 +2020,10 @@ class TagsController extends ODRCustomController
         // ----------------------------------------
         // Check whether any jobs that are currently running would interfere with a newly
         //  created 'tag_rebuild' job for this datatype
-        $new_job_data = array(
+        $new_job_data = [
             'job_type' => 'tag_rebuild',
             'target_entity' => $datafield,
-        );
+        ];
 
         $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
         if ( !is_null($conflicting_job) )
@@ -2037,7 +2037,7 @@ class TagsController extends ODRCustomController
             FROM ODRAdminBundle:DataRecord dr
             WHERE dr.dataType = :datatype_id
             AND dr.deletedAt IS NULL'
-        )->setParameters( array('datatype_id' => $datatype->getId()) );
+        )->setParameters( ['datatype_id' => $datatype->getId()] );
         $results = $query->getArrayResult();
 
         if ( !empty($results) ) {
@@ -2047,7 +2047,7 @@ class TagsController extends ODRCustomController
             // Create a tracked job for this...
             $job_type = 'tag_rebuild';
             $target_entity = 'datafield_'.$datafield->getId();
-            $additional_data = array('description' => 'Tag Rebuild of Datafield '.$datafield->getId().', DataType '.$datatype->getId());
+            $additional_data = ['description' => 'Tag Rebuild of Datafield '.$datafield->getId().', DataType '.$datatype->getId()];
             $restrictions = 'datatype_'.$top_level_datatype->getId();
 
             $total = intval( count($results) / $records_per_job );
@@ -2065,12 +2065,12 @@ class TagsController extends ODRCustomController
             $api_key = $this->container->getParameter('beanstalk_api_key');
             $pheanstalk = $this->get('pheanstalk');
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');    // debug purposes only
-            $url = $this->generateUrl('odr_tag_rebuild_worker', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+            $url = $this->generateUrl('odr_tag_rebuild_worker', [], UrlGeneratorInterface::ABSOLUTE_URL);
 
             $priority = 1024;   // should be roughly default priority
             $delay = 1;
 
-            $datarecord_list = array();
+            $datarecord_list = [];
             $count = 0;
             foreach ($results as $result) {
                 $dr_id = $result["dr_id"];
@@ -2080,7 +2080,7 @@ class TagsController extends ODRCustomController
                 if ( ($count % $records_per_job) === 0) {
 
                     $priority = 1024;   // should be roughly default priority
-                    $payload = array(
+                    $payload = [
                         "job_type" => 'tag_rebuild',
                         "tracked_job_id" => $tracked_job_id,
 
@@ -2091,19 +2091,19 @@ class TagsController extends ODRCustomController
                         "redis_prefix" => $redis_prefix,    // debug purposes only
                         "url" => $url,
                         "api_key" => $api_key,
-                    );
+                    ];
                     $payload = json_encode($payload);
 
                     $pheanstalk->useTube('tag_rebuild')->put($payload, $priority, $delay);
 
                     // Reset for next pile of datarecords
-                    $datarecord_list = array();
+                    $datarecord_list = [];
                 }
             }
 
             // Update any remaining datarecords
             if ( !empty($datarecord_list) ) {
-                $payload = array(
+                $payload = [
                     "job_type" => 'tag_rebuild',
                     "tracked_job_id" => $tracked_job_id,
 
@@ -2114,7 +2114,7 @@ class TagsController extends ODRCustomController
                     "redis_prefix" => $redis_prefix,    // debug purposes only
                     "url" => $url,
                     "api_key" => $api_key,
-                );
+                ];
                 $payload = json_encode($payload);
 
                 $pheanstalk->useTube('tag_rebuild')->put($payload, $priority, $delay);
@@ -2133,7 +2133,7 @@ class TagsController extends ODRCustomController
      */
     public function renametagAction($tag_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -2238,10 +2238,10 @@ class TagsController extends ODRCustomController
 
             // Check whether any jobs that are currently running would interfere with the deletion
             //  of this datarecord
-            $new_job_data = array(
+            $new_job_data = [
                 'job_type' => 'rename_tag',
                 'target_entity' => $datafield,
-            );
+            ];
 
             $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
             if ( !is_null($conflicting_job) )
@@ -2251,9 +2251,9 @@ class TagsController extends ODRCustomController
             // ----------------------------------------
             // Could have to rename more than one tag...
             $master_tag = null;
-            $properties = array(
+            $properties = [
                 'tagName' => $tag_name
-            );
+            ];
 
             // The request to rename this tag can come from one of three places...
             if ( $is_derived_field ) {
@@ -2261,10 +2261,10 @@ class TagsController extends ODRCustomController
                 //  tag also needs to be renamed
                 /** @var Tags $master_tag */
                 $master_tag = $em->getRepository('ODRAdminBundle:Tags')->findOneBy(
-                    array(
+                    [
                         'dataField' => $datafield->getMasterDataField(),
                         'tagUuid' => $tag->getTagUuid(),
-                    )
+                    ]
                 );
                 $entity_modify_service->updateTagMeta($user, $master_tag, $properties, true);    // don't flush immediately
             }
@@ -2328,11 +2328,11 @@ class TagsController extends ODRCustomController
 
             // ----------------------------------------
             // Get the javascript to reload the datafield
-            $return['d'] = array(
+            $return['d'] = [
                 'reload_modal' => $changes_made,
                 'datafield_id' => $datafield->getId(),
                 'tag_id' => $tag->getId(),
-            );
+            ];
         }
         catch (\Exception $e) {
             $source = 0x480125c5;
@@ -2360,7 +2360,7 @@ class TagsController extends ODRCustomController
      */
     public function tagselectionAction($datarecord_id, $datafield_id, $tag_id, Request $request)
     {
-        $return = array();
+        $return = [];
         $return['r'] = 0;
         $return['t'] = '';
         $return['d'] = '';
@@ -2452,7 +2452,7 @@ class TagsController extends ODRCustomController
             // This array entry requests that:
             // 1) if the tag selection does not exist, then create it and set to 'selected'
             // 2) if the tag selection does exist, then toggle between 'selected'/'unselected'
-            $selections = array($tag->getId() => '!');
+            $selections = [$tag->getId() => '!'];
 
             // Perform the update
             $tag_helper_service->updateSelectedTags($user, $drf, $selections);

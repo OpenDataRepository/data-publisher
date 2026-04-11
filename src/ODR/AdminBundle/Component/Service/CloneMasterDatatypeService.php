@@ -51,55 +51,6 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 class CloneMasterDatatypeService
 {
     /**
-     * @var EntityManager $em
-     */
-    private $em;
-
-    /**
-     * @var CacheService
-     */
-    private $cache_service;
-
-    /**
-     * @var CloneMasterTemplateThemeService
-     */
-    private $clone_master_template_theme_service;
-
-    /**
-     * @var DatabaseInfoService
-     */
-    private $dbi_service;
-
-    /**
-     * @var EntityCreationService
-     */
-    private $ec_service;
-
-    /**
-     * @var UUIDService
-     */
-    private $uuid_service;
-
-    /**
-     * @var EventDispatcherInterface
-     */
-    private $event_dispatcher;
-
-    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-
-    /**
-     * @var UserManagerInterface
-     */
-    private $user_manager;
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * The user that started this cloning process
      *
      * @var ODRUser
@@ -123,83 +74,73 @@ class CloneMasterDatatypeService
     /**
      * @var int[]
      */
-    private $associated_datatypes = array();
+    private $associated_datatypes = [];
 
     /**
      * @var DataType[]
      */
-    private $created_datatypes = array();
+    private $created_datatypes = [];
 
     /**
      * @var Group[]
      */
-    private $created_groups = array();
+    private $created_groups = [];
 
     /**
      * @var DataType[]
      */
-    private $dt_mapping = array();
+    private $dt_mapping = [];
 
     /**
      * @var DataFields[]
      */
-    private $df_mapping = array();
+    private $df_mapping = [];
 
     /**
      * @var DataTypeSpecialFields[]
      */
-    private $dtsf_mapping = array();
+    private $dtsf_mapping = [];
 
     /**
      * @var RenderPluginInstance[]
      */
-    private $rpi_mapping = array();
+    private $rpi_mapping = [];
 
     /**
      * @var DataType[]
      */
-    private $existing_datatypes = array();
+    private $existing_datatypes = [];
 
     /**
      * @var Theme[]
      */
-    private $source_themes = array();
+    private $source_themes = [];
 
 
     /**
      * CloneMasterDatatypeService constructor.
      *
-     * @param EntityManager $entity_manager
+     * @param EntityManager $em
      * @param CacheService $cache_service
      * @param CloneMasterTemplateThemeService $clone_master_template_theme_service
-     * @param DatabaseInfoService $database_info_service
-     * @param EntityCreationService $entity_creation_service
+     * @param DatabaseInfoService $dbi_service
+     * @param EntityCreationService $ec_service
      * @param UUIDService $uuid_service
      * @param UserManagerInterface $user_manager
      * @param EventDispatcherInterface $event_dispatcher
      * @param Logger $logger
      */
     public function __construct(
-        EntityManager $entity_manager,
-        CacheService $cache_service,
-        CloneMasterTemplateThemeService $clone_master_template_theme_service,
-        DatabaseInfoService $database_info_service,
-        EntityCreationService $entity_creation_service,
-        UUIDService $uuid_service,
-        UserManagerInterface $user_manager,
-        EventDispatcherInterface $event_dispatcher,
-        Logger $logger
+        private readonly EntityManager $em,
+        private readonly CacheService $cache_service,
+        private readonly CloneMasterTemplateThemeService $clone_master_template_theme_service,
+        private readonly DatabaseInfoService $dbi_service,
+        private readonly EntityCreationService $ec_service,
+        private readonly UUIDService $uuid_service,
+        private readonly UserManagerInterface $user_manager,
+        private readonly EventDispatcherInterface $event_dispatcher,
+        private readonly Logger $logger
     ) {
-        $this->em = $entity_manager;
-        $this->cache_service = $cache_service;
-        $this->clone_master_template_theme_service = $clone_master_template_theme_service;
-        $this->dbi_service = $database_info_service;
-        $this->ec_service = $entity_creation_service;
-        $this->uuid_service = $uuid_service;
-        $this->user_manager = $user_manager;
-        $this->event_dispatcher = $event_dispatcher;
-        $this->logger = $logger;
-
         $this->original_datatype = null;
     }
 
@@ -259,7 +200,7 @@ class CloneMasterDatatypeService
             }
 
             // Save which user started this creation process
-            $this->user = $this->user_manager->findUserBy( array('id' => $user_id) );
+            $this->user = $this->user_manager->findUserBy( ['id' => $user_id] );
             if ( is_null($this->user) )
                 throw new ODRNotFoundException('User');
 
@@ -314,27 +255,27 @@ class CloneMasterDatatypeService
                 FROM ODRAdminBundle:DataType AS dt
                 WHERE dt.grandparent IN (:grandparent_ids)
                 AND dt.deletedAt IS NULL'
-            )->setParameters( array('grandparent_ids' => $grandparent_datatype_ids) );
+            )->setParameters( ['grandparent_ids' => $grandparent_datatype_ids] );
             $results = $query->getArrayResult();
 
-            $associated_datatypes = array();
+            $associated_datatypes = [];
             foreach ($results as $result)
                 $associated_datatypes[] = $result['dt_id'];
 
             $this->logger->debug('CloneMasterDatatypeService: $associated_datatypes: '.print_r($associated_datatypes, true));
 
             // Remove linked datatypes that already exist in template group
-            $this->existing_datatypes = array(); // $repo_datatype->findBy(array('template_group' => $template_group));
+            $this->existing_datatypes = []; // $repo_datatype->findBy(array('template_group' => $template_group));
             if($template_group !== "" && strlen($template_group) > 0) {
                 $this->existing_datatypes = $repo_datatype->findBy(
-                    array(
+                    [
                         'template_group' => $template_group,
                         'metadata_for' => null,
                         'metadata_datatype' => null
-                    )
+                    ]
                 );
                 // Need to determine which existing match the needed master types...
-                $valid_existing_datatypes = array();
+                $valid_existing_datatypes = [];
                 /** @var DataType $dt */
                 foreach($this->existing_datatypes as $dt) {
                     if (
@@ -354,7 +295,7 @@ class CloneMasterDatatypeService
             $this->associated_datatypes = $associated_datatypes;
 
             // Clone the master template datatype, and all its linked/child datatypes as well
-            $this->created_datatypes = array();
+            $this->created_datatypes = [];
             foreach ($associated_datatypes as $dt_id) {
                 $this->logger->info('----------------------------------------');
                 $new_datatype = null;
@@ -389,7 +330,7 @@ class CloneMasterDatatypeService
             // For convenience, define an array where the keys are ids of the master template
             //  datatypes, and the values are the new datatypes cloned from the master template
 //            $this->logger->info('----------------------------------------');
-            $this->dt_mapping = array($this->original_datatype->getId() => $this->original_datatype);    // TODO - why does $dt_mapping contain this?
+            $this->dt_mapping = [$this->original_datatype->getId() => $this->original_datatype];    // TODO - why does $dt_mapping contain this?
             // $this->dt_mapping = array($this->original_datatype->getMasterDataType()->getId() => $this->original_datatype);    // TODO - why does $dt_mapping contain this?
 
             // This creates the dt_mapping array
@@ -556,7 +497,7 @@ class CloneMasterDatatypeService
 
             // Locate which users already are members for this datatype's groups...most likely only
             //  going to be the user creating the datatype, but safer to be thorough
-            $user_list = array();
+            $user_list = [];
             foreach ($this->created_groups as $created_group) {
                 /** @var UserGroup[] $user_groups */
                 $user_groups = $created_group->getUserGroups();
@@ -570,7 +511,7 @@ class CloneMasterDatatypeService
                'SELECT u.id AS user_id
                 FROM ODROpenRepositoryUserBundle:User AS u
                 WHERE u.roles LIKE :role'
-            )->setParameters( array('role' => '%ROLE_SUPER_ADMIN%') );
+            )->setParameters( ['role' => '%ROLE_SUPER_ADMIN%'] );
             $results = $query->getArrayResult();
 
             foreach ($results as $result)
@@ -908,7 +849,7 @@ class CloneMasterDatatypeService
 
             // Need to process Tags...
             /** @var Tags[] $new_tag_entities */
-            $new_tag_entities = array();
+            $new_tag_entities = [];
 
             /** @var Tags[] $parent_tag_array */
             $parent_tag_array = $parent_df->getTags();
@@ -967,7 +908,7 @@ class CloneMasterDatatypeService
                 JOIN ODRAdminBundle:Tags AS child WITH tt.child = child
                 WHERE parent.dataField = :df_id OR child.dataField = :df_id
                 AND parent.deletedAt IS NULL AND child.deletedAt IS NULL AND tt.deletedAt IS NULL'
-            )->setParameters( array('df_id' => $parent_df->getId()) );
+            )->setParameters( ['df_id' => $parent_df->getId()] );
             $results = $query->getArrayResult();
 
             // ...for each tag tree entry found...
@@ -1016,7 +957,7 @@ class CloneMasterDatatypeService
 
         /** @var DataTree[] $datatree_array */
         $datatree_array = $this->em->getRepository('ODRAdminBundle:DataTree')
-            ->findBy( array('ancestor' => $parent_datatype->getId()) );
+            ->findBy( ['ancestor' => $parent_datatype->getId()] );
 
         if ( empty($datatree_array) )
             $this->logger->debug('CloneMasterDatatypeService: -- no datatree entries found');
@@ -1069,7 +1010,7 @@ class CloneMasterDatatypeService
         //  grandparent datatype's groups instead of having their own
 
         /** @var DataTree[] $datatree_array */
-        $datatree_array = $this->em->getRepository('ODRAdminBundle:DataTree')->findBy( array('descendant' => $datatype->getId()) );
+        $datatree_array = $this->em->getRepository('ODRAdminBundle:DataTree')->findBy( ['descendant' => $datatype->getId()] );
         foreach ($datatree_array as $datatree) {
             if ($datatree->getDataTreeMeta()->getIsLink() == 0) {
                 // This datatype is a child of some other datatype...do NOT create any groups for it
@@ -1087,7 +1028,7 @@ class CloneMasterDatatypeService
             throw new ODRException('CloneMasterDatatypeService: Master Datatype '.$master_datatype->getId().' has no group entries to clone.');
 
         // Save New Groups with map for cloning datafields
-        $new_groups = array();
+        $new_groups = [];
 
         // Clone all of the master datatype's groups
         foreach ($master_groups as $master_group) {
@@ -1183,14 +1124,14 @@ class CloneMasterDatatypeService
         $repo_datatree = $this->em->getRepository('ODRAdminBundle:DataTree');
         $grandparent_datatype_id = $datatype->getId();
 
-        $datatree_array = array();
+        $datatree_array = [];
         // TODO Seriously bad.
         do {
             //
             $is_child = false;
 
             /** @var DataTree[] $datatree_array */
-            $datatree_array = $repo_datatree->findBy( array('descendant' => $grandparent_datatype_id) );
+            $datatree_array = $repo_datatree->findBy( ['descendant' => $grandparent_datatype_id] );
             foreach ($datatree_array as $datatree) {
                 if ($datatree->getDataTreeMeta()->getIsLink() == 0) {
                     $is_child = true;
@@ -1208,7 +1149,7 @@ class CloneMasterDatatypeService
 
         // Get all groups for this datatype's grandparent
         /** @var Group[] $grandparent_groups */
-        $grandparent_groups = $this->em->getRepository('ODRAdminBundle:Group')->findBy( array('dataType' => $grandparent_datatype_id) );
+        $grandparent_groups = $this->em->getRepository('ODRAdminBundle:Group')->findBy( ['dataType' => $grandparent_datatype_id] );
         if ( is_null($grandparent_groups) )
             throw new ODRException('CloneMasterDatatypeService: Grandparent Datatype '.$grandparent_datatype_id.' has no group entries');
 
@@ -1266,13 +1207,13 @@ class CloneMasterDatatypeService
         $repo_datatree = $this->em->getRepository('ODRAdminBundle:DataTree');
         $grandparent_datatype_id = $datatype->getId();
 
-        $datatree_array = array();
+        $datatree_array = [];
         do {
             //
             $is_child = false;
 
             /** @var DataTree[] $datatree_array */
-            $datatree_array = $repo_datatree->findBy( array('descendant' => $grandparent_datatype_id) );
+            $datatree_array = $repo_datatree->findBy( ['descendant' => $grandparent_datatype_id] );
             foreach ($datatree_array as $datatree) {
                 if ($datatree->getDataTreeMeta()->getIsLink() == 0) {
                     $is_child = true;
@@ -1290,7 +1231,7 @@ class CloneMasterDatatypeService
 
         // Get all groups for this datatype's grandparent
         /** @var Group[] $grandparent_groups */
-        $grandparent_groups = $this->em->getRepository('ODRAdminBundle:Group')->findBy( array('dataType' => $grandparent_datatype_id) );
+        $grandparent_groups = $this->em->getRepository('ODRAdminBundle:Group')->findBy( ['dataType' => $grandparent_datatype_id] );
         if ( is_null($grandparent_groups) )
             throw new ODRException('CloneMasterDatatypeService: Grandparent Datatype '.$grandparent_datatype_id.' has no group entries');
 

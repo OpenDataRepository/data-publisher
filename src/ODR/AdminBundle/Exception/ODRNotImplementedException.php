@@ -34,6 +34,7 @@ class ODRNotImplementedException extends ODRException
     /**
      * @inheritdoc
      */
+    #[\Override]
     public function getStatusCode()
     {
         return 501;

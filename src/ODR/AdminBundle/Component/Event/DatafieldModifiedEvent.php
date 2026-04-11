@@ -27,16 +27,6 @@ class DatafieldModifiedEvent extends Event implements ODREventInterface
     // Best practice is apparently to have the Event class define the event name
     const NAME = 'odr.event.datafield_modified_event';
 
-    /**
-     * @var DataFields
-     */
-    private $datafield;
-
-    /**
-     * @var ODRUser
-     */
-    private $user;
-
 
     /**
      * DatafieldModifiedEvent constructor.
@@ -44,12 +34,8 @@ class DatafieldModifiedEvent extends Event implements ODREventInterface
      * @param DataFields $datafield
      * @param ODRUser $user
      */
-    public function __construct(
-        DataFields $datafield,
-        ODRUser $user
-    ) {
-        $this->datafield = $datafield;
-        $this->user = $user;
+    public function __construct(private readonly DataFields $datafield, private readonly ODRUser $user)
+    {
     }
 
 
@@ -89,9 +75,9 @@ class DatafieldModifiedEvent extends Event implements ODREventInterface
      */
     public function getErrorInfo()
     {
-        return array(
+        return [
             self::NAME,
             'df '.$this->datafield->getId(),
-        );
+        ];
     }
 }

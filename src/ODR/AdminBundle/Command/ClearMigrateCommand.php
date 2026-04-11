@@ -55,7 +55,7 @@ class ClearMigrateCommand extends ContainerAwareCommand
             else
                 $job = $pheanstalk->watch('migrate_datafields')->ignore('default')->reserve(); 
 
-            $data = json_decode($job->getData());
+            $data = json_decode((string) $job->getData());
             $datafield_id = $data->datafield_id;
             $datarecord_id = $data->datarecord_id;
             $job_source = $data->redis_prefix;

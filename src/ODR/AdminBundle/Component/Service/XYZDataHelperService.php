@@ -32,55 +32,16 @@ class XYZDataHelperService
 {
 
     /**
-     * @var EntityManager
-     */
-    private $em;
-
-    /**
-     * @var EntityCreationService
-     */
-    private $entity_create_service;
-
-    /**
-     * @var EntityMetaModifyService
-     */
-    private $entity_modify_service;
-
-    /**
-     * @var EventDispatcherInterface
-     */
-    private $event_dispatcher;
-
-    // NOTE - $event_dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
-    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
-
-    /**
-     * @var Logger
-     */
-    private $logger;
-
-
-    /**
      * XYZDataHelperService constructor.
      *
-     * @param EntityManager $entity_manager
-     * @param EntityCreationService $entity_creation_service
-     * @param EntityMetaModifyService $entity_meta_modify_service
+     * @param EntityManager $em
+     * @param EntityCreationService $entity_create_service
+     * @param EntityMetaModifyService $entity_modify_service
      * @param EventDispatcherInterface $event_dispatcher
      * @param Logger $logger
      */
-    public function __construct(
-        EntityManager $entity_manager,
-        EntityCreationService $entity_creation_service,
-        EntityMetaModifyService $entity_meta_modify_service,
-        EventDispatcherInterface $event_dispatcher,
-        Logger $logger
-    ) {
-        $this->em = $entity_manager;
-        $this->entity_create_service = $entity_creation_service;
-        $this->entity_modify_service = $entity_meta_modify_service;
-        $this->event_dispatcher = $event_dispatcher;
-        $this->logger = $logger;
+    public function __construct(private readonly EntityManager $em, private readonly EntityCreationService $entity_create_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly Logger $logger)
+    {
     }
 
 
@@ -109,7 +70,7 @@ class XYZDataHelperService
 
         $expected_num_columns = count( explode(',', $datafield->getXyzDataColumnNames()) );
 
-        $new_data = array();
+        $new_data = [];
 
         if ( $value !== '' ) {
             $points = explode('|', $value);
@@ -152,14 +113,14 @@ class XYZDataHelperService
         // Now that the new data is valid, it makes sense to get the existing data...
         /** @var XYZData[] $xyz_data_values */
         $xyz_data_values = $this->em->getRepository('ODRAdminBundle:XYZData')->findBy(
-            array(
+            [
                 'dataRecord' => $datarecord->getId(),
                 'dataField' => $datafield->getId(),
-            )
+            ]
         );
 
-        $xyz_lookup = array();
-        $old_data = array();
+        $xyz_lookup = [];
+        $old_data = [];
         foreach ($xyz_data_values as $xyz_data) {
             // This field should always have an x_value...use it as the key of the array
             $x_value = strval($xyz_data->getXValue());
@@ -175,7 +136,7 @@ class XYZDataHelperService
 
         // ----------------------------------------
         // Go through both old and new arrays to determine if there's any difference
-        $entries_to_create = $entries_to_modify = $entries_to_delete = array();
+        $entries_to_create = $entries_to_modify = $entries_to_delete = [];
         foreach ($old_data as $x_value => $data) {
             if ( !isset($new_data[$x_value]) || $replace_all ) {
                 $entries_to_delete[$x_value] = 1;
@@ -186,7 +147,7 @@ class XYZDataHelperService
         if ( !empty($new_data) ) {
             foreach ($new_data as $x_value => $data) {
                 if ( !isset($old_data[$x_value]) ) {
-                    $entries_to_create[$x_value] = array();
+                    $entries_to_create[$x_value] = [];
                     if ( isset($data['y_value']) )
                         $entries_to_create[$x_value]['y_value'] = $data['y_value'];
                     if ( isset($data['z_value']) )
@@ -211,7 +172,7 @@ class XYZDataHelperService
                 }
 
                 if ( !($old_y_value == $new_y_value && $old_z_value == $new_z_value) ) {
-                    $entries_to_modify[$x_value] = array();
+                    $entries_to_modify[$x_value] = [];
                     if ( !is_null($new_y_value) )
                         $entries_to_modify[$x_value]['y_value'] = $new_y_value;
                     if ( !is_null($new_z_value) )
@@ -248,16 +209,16 @@ class XYZDataHelperService
 
         // ----------------------------------------
         // New entries can then get created
-        $batch_values = array();
+        $batch_values = [];
         foreach ($entries_to_create as $x_value => $data) {
             $created = true;
 
             if ($expected_num_columns == 1 )
-                $batch_values[] = array('x' => $x_value);
+                $batch_values[] = ['x' => $x_value];
             else if ($expected_num_columns == 2 )
-                $batch_values[] = array('x' => $x_value, 'y' => $data['y_value']);
+                $batch_values[] = ['x' => $x_value, 'y' => $data['y_value']];
             else if ($expected_num_columns == 3 )
-                $batch_values[] = array('x' => $x_value, 'y' => $data['y_value'], 'z' => $data['z_value']);
+                $batch_values[] = ['x' => $x_value, 'y' => $data['y_value'], 'z' => $data['z_value']];
         }
 
         if ( !empty($batch_values) ) {
@@ -273,7 +234,7 @@ class XYZDataHelperService
             $modified = true;
 
             $entity = $xyz_lookup[$x_value];
-            $props = array('x_value' => $x_value);
+            $props = ['x_value' => $x_value];
             if ( isset($data['y_value']) )
                 $props['y_value'] = $data['y_value'];
             if ( isset($data['z_value']) )

@@ -56,7 +56,7 @@ class PreCacheRecordsCommand extends ContainerAwareCommand
                 $job = $pheanstalk->watch('odr_record_precache')->ignore('default')->reserve();
 
                 // Get Job Data
-                $data = json_decode($job->getData()); 
+                $data = json_decode((string) $job->getData()); 
 
                 // 
                 $action_url = 'https:' . $data->url;
@@ -69,10 +69,10 @@ class PreCacheRecordsCommand extends ContainerAwareCommand
                 $ch = curl_init();
 
                 // Create the required parameters to send
-                $parameters = array();
+                $parameters = [];
 
                 // Set the options for the POST request
-                curl_setopt_array($ch, array(
+                curl_setopt_array($ch, [
                         CURLOPT_POST => 1,
                         CURLOPT_HEADER => 0,
                         CURLOPT_URL => $action_url,
@@ -81,7 +81,7 @@ class PreCacheRecordsCommand extends ContainerAwareCommand
                         CURLOPT_FORBID_REUSE => 1,
                         CURLOPT_TIMEOUT => 120, 
                         CURLOPT_POSTFIELDS => http_build_query($parameters)
-                    )
+                    ]
                 );
 
                 // Send the request
