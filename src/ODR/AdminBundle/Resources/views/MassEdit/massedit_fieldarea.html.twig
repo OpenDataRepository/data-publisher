@@ -60,10 +60,13 @@
                 {% set child_datatype = datatype['descendants'][child_datatype_id]['datatype'] %}
                 {% set child_theme = theme_element['themeDataType'][0]['childTheme']['theme'] %}
 
+                {% set new_datatype_prefix = datatype_prefix ~ '_' ~ child_datatype_id %}
+
                 {% include 'ODRAdminBundle:MassEdit:massedit_childtype.html.twig' with {
                     'datatype_array': child_datatype,
                     'theme_array': child_theme,
 
+                    'ancestor_datatype_id': target_datatype_id,
                     'target_datatype_id': child_datatype_id,
                     'target_theme_id': child_theme_id,
 
@@ -72,8 +75,12 @@
                     'datafield_permissions': datafield_permissions,
 
                     'is_top_level': 0,
+                    'is_link': theme_datatype.is_link,
+                    'multiple_allowed': theme_datatype.multiple_allowed,
 
                     'mass_edit_trigger_datafields': mass_edit_trigger_datafields,
+                    'datatype_prefix': new_datatype_prefix,
+                    'affected_datatypes': affected_datatypes,
                 } %}
             {% endif %}
         {% endfor %}

@@ -598,18 +598,20 @@ class ODRRenderService
      * @param DataType $datatype
      * @param string $odr_tab_id
      * @param array $mass_edit_trigger_datafields {@link MassEditTriggerEventInterface::getMassEditTriggerFields()}
+     * @param array $affected_datatypes
      * @param Theme|null $theme
      *
      * @return string
      */
-    public function getMassEditHTML($user, $datatype, $odr_tab_id, $mass_edit_trigger_datafields, $theme = null)
+    public function getMassEditHTML($user, $datatype, $odr_tab_id, $mass_edit_trigger_datafields, $affected_datatypes, $theme = null)
     {
         $template_name = 'ODRAdminBundle:MassEdit:massedit_ajax.html.twig';
         $extra_parameters = array(
             'odr_tab_id' => $odr_tab_id,
-            'include_links' => false,
+            'include_links' => true,  // do want the data from linked descendants, even though the field contents can't be modified
 
             'mass_edit_trigger_datafields' => $mass_edit_trigger_datafields,
+            'affected_datatypes' => $affected_datatypes,
         );
 
         $datarecord = null;

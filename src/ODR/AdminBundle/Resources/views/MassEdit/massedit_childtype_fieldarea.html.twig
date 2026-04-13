@@ -12,6 +12,8 @@
 
 {% set rendering_options = {
     'is_top_level': is_top_level,
+    'is_link': is_link,
+    'multiple_allowed': multiple_allowed,
     'context': 'mass_edit',
     'is_datatype_admin': is_datatype_admin,
     'mass_edit_trigger_datafields': mass_edit_trigger_datafields
@@ -32,21 +34,13 @@
     {% endif %}
 {% endfor %}
 
-{% set content = '' %}
-{% if can_execute_plugin and render_plugin_instance.renderPlugin.overrideFields %}
-    {# MassEdit has no datarecords to work with #}
-    {% set content = []|datatype_plugin(datatype, render_plugin_instance, theme_array, rendering_options, [], datatype_permissions, datafield_permissions) %}
-    {% if content|length > 0 %}
-        <!-- html for {{ render_plugin_instance.renderPlugin.pluginName }} -->
-        {{ content|raw }}
-    {% endif %}
-{% endif %}
-
-{% if not can_execute_plugin or content|length == 0 %}
-    {% include 'ODRAdminBundle:MassEdit:massedit_fieldarea.html.twig' with {
+{% if is_top_level == 0 and is_link == 1 %}
+    {# Ignore the possibility of render plugins when about to render a linked descendant #}
+    {% include 'ODRAdminBundle:MassEdit:massedit_linked_descendant.html.twig' with {
         'datatype_array': datatype_array,
         'theme_array': theme_array,
 
+        'ancestor_datatype_id': ancestor_datatype_id,
         'target_datatype_id': target_datatype_id,
         'target_theme_id': target_theme_id,
 
@@ -55,9 +49,44 @@
         'datafield_permissions': datafield_permissions,
 
         'is_top_level': is_top_level,
+        'is_link': is_link,
+        'multiple_allowed': multiple_allowed,
 
-        'mass_edit_trigger_datafields': mass_edit_trigger_datafields,
+        'datatype_prefix': datatype_prefix,
+        'affected_datatypes': affected_datatypes,
     } %}
+{% else %}
+    {% set content = '' %}
+    {% if can_execute_plugin and render_plugin_instance.renderPlugin.overrideFields %}
+        {# MassEdit has no datarecords to work with #}
+        {% set content = []|datatype_plugin(datatype, render_plugin_instance, theme_array, rendering_options, [], datatype_permissions, datafield_permissions) %}
+    {% endif %}
+
+    {% if content|length > 0 %}
+        <!-- html for {{ render_plugin_instance.renderPlugin.pluginName }} -->
+        {{ content|raw }}
+    {% else %}
+        {% include 'ODRAdminBundle:MassEdit:massedit_fieldarea.html.twig' with {
+            'datatype_array': datatype_array,
+            'theme_array': theme_array,
+
+            'ancestor_datatype_id': ancestor_datatype_id,
+            'target_datatype_id': target_datatype_id,
+            'target_theme_id': target_theme_id,
+
+            'is_datatype_admin': is_datatype_admin,
+            'datatype_permissions': datatype_permissions,
+            'datafield_permissions': datafield_permissions,
+
+            'is_top_level': is_top_level,
+            'is_link': is_link,
+            'multiple_allowed': multiple_allowed,
+
+            'mass_edit_trigger_datafields': mass_edit_trigger_datafields,
+            'datatype_prefix': datatype_prefix,
+            'affected_datatypes': affected_datatypes,
+        } %}
+    {% endif %}
 {% endif %}
 
 {% endspaceless %}

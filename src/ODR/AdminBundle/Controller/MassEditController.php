@@ -33,6 +33,7 @@ use ODR\AdminBundle\Entity\ShortVarchar;
 use ODR\AdminBundle\Entity\StoredSearchKey;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\TrackedJob;
+use ODR\AdminBundle\Exception\ODRNotImplementedException;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
 use ODR\AdminBundle\Component\Event\DatarecordDeletedEvent;
@@ -100,8 +101,6 @@ class MassEditController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
             /** @var ODRRenderService $odr_render_service */
             $odr_render_service = $this->container->get('odr.render_service');
             /** @var PermissionsManagementService $permissions_service */
@@ -212,74 +211,6 @@ class MassEditController extends ODRCustomController
 
 
             // ----------------------------------------
-            // In order for the MassEditTrigger event to work, it needs a list of datafields that
-            //  render plugins might want to overwrite...easiest way to do this is to first figure
-            //  out whether the datatype has any plugins that listen to the MassEditTrigger event
-            $mass_edit_trigger_plugins = array();
-
-            $dt_array = $database_info_service->getDatatypeArray($datatype_id, false);    // not allowed to mass edit linked datatypes
-            foreach ($dt_array as $dt_id => $dt) {
-                // Check any plugins attached to the datatype...
-                foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
-                    $plugin_events = $rpi['renderPlugin']['renderPluginEvents'];
-                    if ( isset($plugin_events['MassEditTriggerEvent']) ) {
-                        // ...if the plugin listens to the MassEditTrigger Event, then store its name
-                        //  so it can be queried later
-                        $plugin_classname = $rpi['renderPlugin']['pluginClassName'];
-                        if ( !isset($mass_edit_trigger_plugins[$plugin_classname]) )
-                            $mass_edit_trigger_plugins[$plugin_classname] = array();
-                        $mass_edit_trigger_plugins[$plugin_classname][] = $rpi;
-                    }
-                }
-
-                // Check any plugins attached to the datatype's datafields...
-                if ( !empty($dt['dataFields']) ) {
-                    foreach ($dt['dataFields'] as $df_id => $df) {
-                        foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
-                            $plugin_events = $rpi['renderPlugin']['renderPluginEvents'];
-                            if ( isset($plugin_events['MassEditTriggerEvent']) ) {
-                                // ...if the plugin listens to the MassEditTrigger Event, then store
-                                //  its name so it can be queried later
-                                $plugin_classname = $rpi['renderPlugin']['pluginClassName'];
-                                if ( !isset($mass_edit_trigger_plugins[$plugin_classname]) )
-                                    $mass_edit_trigger_plugins[$plugin_classname] = array();
-                                $mass_edit_trigger_plugins[$plugin_classname][] = $rpi;
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Now that the relevant plugins have been found...
-            $mass_edit_trigger_datafields = array();
-
-            foreach ($mass_edit_trigger_plugins as $plugin_classname => $rpi_list) {
-                // ...load up each of the plugins...
-                /** @var MassEditTriggerEventInterface $plugin_svc */
-                $plugin_svc = $this->container->get($plugin_classname);
-
-                // ...and "ask" them what fields they intend to override
-                foreach ($rpi_list as $num => $rpi) {
-                    $rp_id = $rpi['renderPlugin']['id'];
-                    $rp_name = $rpi['renderPlugin']['pluginName'];
-
-                    $ret = $plugin_svc->getMassEditOverrideFields($rpi);
-                    foreach ($ret as $df_id) {
-                        if ( !isset($mass_edit_trigger_datafields[$df_id]) )
-                            $mass_edit_trigger_datafields[$df_id] = array();
-
-                        // Need to be able to differentiate between which plugin the user requested
-                        //  in case the field has multiple plugins that could be run
-                        $mass_edit_trigger_datafields[$df_id][] = array(
-                            'plugin_id' => $rp_id,
-                            'plugin_name' => $rp_name
-                        );
-                    }
-                }
-            }
-
-
-            // ----------------------------------------
             // Generate the HTML required for a header
             $header_html = $templating->render(
                 'ODRAdminBundle:MassEdit:massedit_header.html.twig',
@@ -290,8 +221,18 @@ class MassEditController extends ODRCustomController
                 )
             );
 
+            // Need a list of datafields that plugins might want to override MassEdit behavior for
+            $mass_edit_trigger_datafields = self::getMassEditTriggerDatafields($datatype_id);
+
+            // Need a list of datatypes that the search key affects for the purposes of displaying
+            //  a very specific type of warning.  convertSearchKeyToCriteria() does a lot more than
+            //  MassEdit needs, but it's just string/array manipulation so it shouldn't take too long
+            $searchable_datafields = $search_api_service->getSearchableDatafieldsForUser(array($datatype_id), $user_permissions);
+            $criteria = $search_key_service->convertSearchKeyToCriteria($search_key, $searchable_datafields, $user_permissions);
+            $affected_datatypes = $criteria['affected_datatypes'];
+
             // Get the mass edit page rendered
-            $page_html = $odr_render_service->getMassEditHTML($user, $datatype, $odr_tab_id, $mass_edit_trigger_datafields);
+            $page_html = $odr_render_service->getMassEditHTML($user, $datatype, $odr_tab_id, $mass_edit_trigger_datafields, $affected_datatypes);
 
             $return['d'] = array( 'html' => $header_html.$page_html );
         }
@@ -306,6 +247,85 @@ class MassEditController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
+    }
+
+
+    /**
+     * In order for the MassEditTrigger event to work, it needs a list of datafields that render
+     * plugins might want to override.
+     *
+     * @param int $datatype_id
+     * @return array
+     */
+    private function getMassEditTriggerDatafields($datatype_id)
+    {
+        /** @var DatabaseInfoService $database_info_service */
+        $database_info_service = $this->container->get('odr.database_info_service');
+
+        $dt_array = $database_info_service->getDatatypeArray($datatype_id, false);    // not allowed to mass edit field contents in linked descendants
+        foreach ($dt_array as $dt_id => $dt) {
+            // Check any plugins attached to the datatype...
+            foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
+                $plugin_events = $rpi['renderPlugin']['renderPluginEvents'];
+                if ( isset($plugin_events['MassEditTriggerEvent']) ) {
+                    // ...if the plugin listens to the MassEditTrigger Event, then store its name
+                    //  so it can be queried later
+                    $plugin_classname = $rpi['renderPlugin']['pluginClassName'];
+                    if ( !isset($mass_edit_trigger_plugins[$plugin_classname]) )
+                        $mass_edit_trigger_plugins[$plugin_classname] = array();
+                    $mass_edit_trigger_plugins[$plugin_classname][] = $rpi;
+                }
+            }
+
+            // Check any plugins attached to the datatype's datafields...
+            if ( !empty($dt['dataFields']) ) {
+                foreach ($dt['dataFields'] as $df_id => $df) {
+                    foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
+                        $plugin_events = $rpi['renderPlugin']['renderPluginEvents'];
+                        if ( isset($plugin_events['MassEditTriggerEvent']) ) {
+                            // ...if the plugin listens to the MassEditTrigger Event, then store
+                            //  its name so it can be queried later
+                            $plugin_classname = $rpi['renderPlugin']['pluginClassName'];
+                            if ( !isset($mass_edit_trigger_plugins[$plugin_classname]) )
+                                $mass_edit_trigger_plugins[$plugin_classname] = array();
+                            $mass_edit_trigger_plugins[$plugin_classname][] = $rpi;
+                        }
+                    }
+                }
+            }
+        }
+
+
+        // ----------------------------------------
+        // Now that the relevant plugins have been found...
+        $mass_edit_trigger_datafields = array();
+
+        foreach ($mass_edit_trigger_plugins as $plugin_classname => $rpi_list) {
+            // ...load up each of the plugins...
+            /** @var MassEditTriggerEventInterface $plugin_svc */
+            $plugin_svc = $this->container->get($plugin_classname);
+
+            // ...and "ask" them what fields they intend to override
+            foreach ($rpi_list as $num => $rpi) {
+                $rp_id = $rpi['renderPlugin']['id'];
+                $rp_name = $rpi['renderPlugin']['pluginName'];
+
+                $ret = $plugin_svc->getMassEditOverrideFields($rpi);
+                foreach ($ret as $df_id) {
+                    if ( !isset($mass_edit_trigger_datafields[$df_id]) )
+                        $mass_edit_trigger_datafields[$df_id] = array();
+
+                    // Need to be able to differentiate between which plugin the user requested
+                    //  in case the field has multiple plugins that could be run
+                    $mass_edit_trigger_datafields[$df_id][] = array(
+                        'plugin_id' => $rp_id,
+                        'plugin_name' => $rp_name
+                    );
+                }
+            }
+        }
+
+        return $mass_edit_trigger_plugins;
     }
 
 
@@ -332,7 +352,7 @@ class MassEditController extends ODRCustomController
                 throw new ODRBadRequestException();
 
             // Need at least one of these fields in the post...
-            if ( !isset($post['datafields']) && !isset($post['public_status']) && !isset($post['event_triggers']) )
+            if ( !isset($post['datafields']) && !isset($post['public_status']) && !isset($post['event_triggers']) && !isset($post['unlinks']) )
                 throw new ODRBadRequestException();
 
             $odr_tab_id = $post['odr_tab_id'];
@@ -346,6 +366,12 @@ class MassEditController extends ODRCustomController
             $public_status = array();
             if ( isset($post['public_status']) )
                 $public_status = $post['public_status'];
+
+            $unlinks = array();
+            if ( isset($post['unlinks']) )
+                $unlinks = $post['unlinks'];
+
+            // TODO - links?
 
             $event_triggers = array();
             if ( isset($post['event_triggers']) )
@@ -616,7 +642,7 @@ class MassEditController extends ODRCustomController
                     unset( $event_triggers[$df_id] );
             }
 
-
+            // ----------------------------------------
             // If the user attempted to mass update public status of datarecords, verify that they're
             //  allowed to do that
             foreach ($public_status as $dt_id => $status) {
@@ -628,6 +654,22 @@ class MassEditController extends ODRCustomController
                     throw new ODRForbiddenException();
             }
 
+            // ----------------------------------------
+            // If the user attempted to unlink records, verify that they're allowed to do that
+            $available_prefixes = array();
+            if ( !empty($unlinks) ) {
+                // Easiest way to do this is to recursively dig through the (limited) datatype array
+                $top_level_dt_id = $datatype->getId();
+                $stacked_dt_array = $database_info_service->stackDatatypeArray($dt_array, $top_level_dt_id);
+                $available_prefixes = self::checkDatarecordUnlinkPrefixes(strval($top_level_dt_id), $stacked_dt_array, $datatype_permissions);
+            }
+
+            // If the post has a prefix that's not in the array, then it's invalid
+            foreach ($unlinks as $prefix => $val) {
+                if ( !isset($available_prefixes[$prefix]) )
+                    throw new ODRForbiddenException();
+            }
+
 
             // ----------------------------------------
             // Now that all possible requests are valid, delete the datarecord list out of the user's session
@@ -635,10 +677,15 @@ class MassEditController extends ODRCustomController
             unset( $list[$odr_tab_id] );
             $session->set('mass_edit_datarecord_lists', $list);
 
+            throw new ODRNotImplementedException('do not continue');
+
             // If content of datafields was modified, get/create an entity to track the progress of this mass edit
             // Don't create a TrackedJob if this mass_edit just changes public status
             $tracked_job_id = -1;
-            if ( count($public_status) > 0 || (count($datafield_list) > 0 && count($datarecords) > 0) ) {
+            if ( count($public_status) > 0                                  // going to update record public status
+                || (count($datafield_list) > 0 && count($datarecords) > 0)  // going to update field values
+                || count($unlinks) > 0                                      // going to unlink records
+            ) {
                 $job_type = 'mass_edit';
                 $target_entity = 'datatype_'.$datatype_id;
                 $additional_data = array('description' => 'Mass Edit of DataType '.$datatype_id, 'datafield_list' => array_keys($datafield_list));
@@ -813,6 +860,16 @@ class MassEditController extends ODRCustomController
                 }
             }
 
+
+            // ----------------------------------------
+            // Set the url for mass unlinking
+            $url = $this->generateUrl('odr_mass_update_unlinks', array(), UrlGeneratorInterface::ABSOLUTE_URL);
+
+            foreach ($unlinks as $prefix => $val) {
+
+            }
+
+            // ----------------------------------------
             // TODO - better way of dealing with this?
             /** @var TrackedJob $tracked_job */
             $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
@@ -900,6 +957,67 @@ class MassEditController extends ODRCustomController
 
         // If this point is reached, then the given render plugin doesn't affect the given datafield
         return array();
+    }
+
+
+    /**
+     * Digs through the given datatype array to locate all possible ancestor/descendant datatype
+     * pairs that the user can modify.
+     *
+     * @param string $current_prefix
+     * @param array $dt A stacked datatype array without linked descendants in it
+     * @param array $datatype_permissions
+     * @return array
+     */
+    private function checkDatarecordUnlinkPrefixes($current_prefix, $dt, $datatype_permissions)
+    {
+        $available_prefixes = array();
+
+        if ( !empty($dt['descendants']) ) {
+            foreach ($dt['descendants'] as $descendant_dt_id => $descendant_dt_data) {
+
+                $descendant_prefix = $current_prefix.'_'.$descendant_dt_id;
+
+                if ( $descendant_dt_data['is_link'] === 0 ) {
+                    // This is a child datatype...
+                    if ( !empty($descendant_dt_data['datatype'][$descendant_dt_id]['descendants']) ) {
+                        // ...and it has descendants of its own
+                        $descendant_dt = $descendant_dt_data['datatype'][$descendant_dt_id];
+                        $tmp = self::checkDatarecordUnlinkPrefixes($descendant_prefix, $descendant_dt, $datatype_permissions);
+
+                        // Merge any available link possibiilties
+                        foreach ($tmp as $prefix => $val)
+                            $available_prefixes[$prefix] = 1;
+                    }
+                }
+                else {
+                    // This is a linked datatype...it won't have any descendants of its own in this
+                    //  array
+                    $underscore = strrpos($current_prefix, '_');
+                    $current_dt_id = 0;
+                    if ( $underscore === false )
+                        $current_dt_id = intval($current_prefix);
+                    else
+                        $current_dt_id = substr($current_prefix, $underscore+1);
+
+                    $can_view_ancestor_datatype = $can_view_descendant_datatype = $can_edit_ancestor_datarecord = false;
+                    if ( isset($datatype_permissions[$current_dt_id]['dt_view']) )
+                        $can_view_ancestor_datatype = true;
+                    if ( isset($datatype_permissions[$current_dt_id]['dr_edit']) )
+                        $can_edit_ancestor_datarecord = true;
+                    if ( isset($datatype_permissions[$descendant_dt_id]['dt_view']) )
+                        $can_view_descendant_datatype = true;
+
+                    // If the user has all three of these permissions, then they can (theoretically)
+                    //  change links for this ancestor/descendant datatype set
+                    // They could still not have edit permissions to the ancestor record, though...
+                    if ( $can_view_ancestor_datatype && $can_view_descendant_datatype && $can_edit_ancestor_datarecord )
+                        $available_prefixes[$descendant_prefix] = 1;
+                }
+            }
+        }
+
+        return $available_prefixes;
     }
 
 

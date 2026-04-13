@@ -5758,3 +5758,10 @@ div.ODRRenderPlugin_CSVTable_wrapper div.dataTables_scrollBody {
     cursor: pointer;
     color: rgb(75,75,75) !important;
 }
+
+.ODRMassEdit_PublicSelect, .ODRMassEdit_UnlinkSelect {
+    margin-left: 15px !important;
+}
+.ODRMassEdit_UnlinkSelectWarn {
+    color: red;
+}

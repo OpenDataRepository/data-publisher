@@ -46,6 +46,7 @@
         'datatype_array': datatype_array,
         'theme_array': theme_array,
 
+        'ancestor_datatype_id': 0,
         'initial_datatype_id': initial_datatype_id,
         'initial_theme_id': initial_theme_id,
 
@@ -54,6 +55,7 @@
         'datafield_permissions': datafield_permissions,
 
         'mass_edit_trigger_datafields': mass_edit_trigger_datafields,
+        'affected_datatypes': affected_datatypes,
     } %}
 
 </div>
@@ -111,7 +113,6 @@ $(function() {
  * Attaches event handlers to all relevant elements on the page.
  */
 function initPage() {
-
     // Hide all theme elements without input fields
     $("#MassEditForm .ODRThemeElement").each(function() {
         var found = false;
@@ -158,7 +159,6 @@ function initPage() {
                 $(this).parent().parent().find('input').prop('checked', false);
         }
     });
-
     $("#MassEditForm .ODRDatePicker_clear").unbind('click').click(function() {
         var blocked = false;
         if ( $(this).closest('.ODRDataField').find('input.ODRMassEdit_block').length > 0 )
@@ -176,6 +176,7 @@ function initPage() {
         }
     });
 
+    // Checkboxes to wipe any value entered in the field
     $("#MassEditForm .ODRParagraphField_clear").unbind('click').click(function() {
         var blocked = false;
         if ( $(this).closest('.ODRDataField').find('input.ODRMassEdit_block').length > 0 )
@@ -192,7 +193,6 @@ function initPage() {
                 $(input).prop("disabled", false);
         }
     });
-
     $("#MassEditForm .ODRField_clear").unbind('click').click(function() {
         var blocked = false;
         if ( $(this).closest('.ODRDataField').find('input.ODRMassEdit_block').length > 0 )
@@ -210,7 +210,7 @@ function initPage() {
         }
     });
 
-    // Tristate checkbox
+    // Radio Tristate checkboxes
     $("#MassEditForm .ODRRadioLabel > .ODRTristateCheckbox").unbind('click').click(function() {
         // Grab data about the option being clicked
         var icon = $(this).children('i').first();
@@ -245,8 +245,7 @@ function initPage() {
             $(input).val(1);
         }
     });
-
-    // tag Tristate checkbox
+    // Tag Tristate checkboxes
     $("#MassEditForm .ODRTagLabel > .ODRTristateCheckbox").unbind('click').click(function () {
         // Grab data about the tag being clicked
         var icon_div = $(this).children('i').first();
@@ -269,6 +268,15 @@ function initPage() {
             $(this).attr('title', 'Select this tag in all records that match the search');
             $(icon_div).addClass('fa-check');
             $(input_div).val(1);
+        }
+    });
+
+    $(".ODRMassEdit_UnlinkSelect").unbind('change').change(function() {
+        if ( $(this).next().length > 0 ) {
+            if ( $(this).children('option:selected').val() == -2 )
+                $(this).next().removeClass('ODRHidden');
+            else
+                $(this).next().addClass('ODRHidden');
         }
     });
 
@@ -345,7 +353,7 @@ function doMassUpdate() {
     }
 
     // Public status
-    $("#MassEditForm .ODRPublicSelect").each(function() {
+    $("#MassEditForm .ODRMassEdit_PublicSelect").each(function() {
         // Grab the ID of the datatype
         var datatype_id = $(this).attr('rel');
 
@@ -357,6 +365,22 @@ function doMassUpdate() {
         var val = $(this).val();
         if (val == '-1' || val == '1') {
             var element = $("<input>", {"id": "PublicStatus_" + datatype_id, "class": "massedit_form_input", "type": "hidden", "value": val, "name": "public_status[" + datatype_id + "]"});
+            $("#massedit_form").append(element);
+        }
+    });
+
+    $("#MassEditForm .ODRMassEdit_UnlinkSelect").each(function() {
+        // Grab the prefix of this selection
+        var datatype_prefix = $(this).attr('rel');
+
+        // Remove any value for this field currently stored in the form
+        if ( $("#UnlinkSelect_" + datatype_prefix) !== null )
+            $("#UnlinkSelect_" + datatype_prefix).remove();
+
+        // Save any value currently in this field
+        var val = $(this).val();
+        if ( val == '-1' || val == '-2' ) {
+            var element = $("<input>", {"id": "UnlinkSelect_" + datatype_prefix, "class": "massedit_form_input", "type": "hidden", "value": val, "name": "unlinks[" + datatype_prefix + "]"});
             $("#massedit_form").append(element);
         }
     });
@@ -702,11 +726,11 @@ function ODRMassEdit_setupIntroJS() {
         .attr('data-step', '9')
         .attr('data-intro', "File and Image fields don't allow you to upload new files/images or delete existing files/images from here, but you have the option to change whether all files/images uploaded to this field are public or not.");
 
-    $('.ODRPublicSelect').first()
+    $('.ODRMassEdit_PublicSelect').first()
         .attr('data-step', '10')
         .attr('data-intro', "This dropdown gives you the option to change the public status of all top-level records in this database.");
-    if ( $('.ODRPublicSelect').length > 1 ) {
-        var childtype_publicstatus = $('.ODRPublicSelect')[1];
+    if ( $('.ODRMassEdit_PublicSelect').length > 1 ) {
+        var childtype_publicstatus = $('.ODRMassEdit_PublicSelect')[1];
         $(childtype_publicstatus)
             .attr('data-step', '11')
             .attr('data-intro', "If you instead want to change the public status of all records in a child database, then you can do that with the dropdown next to the child database's header.");

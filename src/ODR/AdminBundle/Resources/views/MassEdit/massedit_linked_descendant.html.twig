@@ -1,0 +1,21 @@
+{% spaceless %}
+
+<div class="ODRThemeElement pure-u-1">
+    <div class="ODRInnerBox">
+        <input type="hidden" />
+
+        <div>{{ datatype_prefix }}</div>
+        <div>multiple_allowed: {{ multiple_allowed }}</div>
+        {# TODO - so we don't want to let users edit field contents #}
+
+        {# TODO - ...we want the ability to link to something #}
+            {# TODO - so inline link in here? #}
+            {# TODO - ...ability to create "missing" child records?  AKA ima -> reference a -> reference? #}
+
+        {# TODO - ...we want the ability to unlink #}
+            {# TODO - ...trivial for single-allowed #}
+            {# TODO - multiple allowed...unlink all? unlink matched? #}
+    </div>
+</div>
+
+{% endspaceless %}
