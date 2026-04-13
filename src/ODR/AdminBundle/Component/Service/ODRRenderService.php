@@ -469,12 +469,18 @@ class ODRRenderService
         );
 
         // Determine whether to display the "Currently Linked Records..." div
-        $datatree_array = $this->datatree_info_service->getDatatreeArray();
-        $linked_ancestors = $this->datatree_info_service->getLinkedAncestors(array($datatype_id), $datatree_array);
-        $linked_descendants = $this->datatree_info_service->getLinkedDescendants(array($datatype_id), $datatree_array);
+        if ( $user !== 'anon.' ) {
+            // ...the user must be logged in
 
-        if ( count($linked_ancestors) > 0 || count($linked_descendants) > 0 )
-            $extra_parameters['has_linked_datatypes'] = 1;
+            $datatree_array = $this->datatree_info_service->getDatatreeArray();
+            $linked_ancestors = $this->datatree_info_service->getLinkedAncestors(array($datatype_id), $datatree_array);
+            $linked_descendants = $this->datatree_info_service->getLinkedDescendants(array($datatype_id), $datatree_array);
+
+            // ...and there has to actually be at least one related datatype
+            if ( count($linked_ancestors) > 0 || count($linked_descendants) > 0 )
+                $extra_parameters['has_linked_datatypes'] = 1;
+        }
+
 
         if ( !is_null($theme) ) {
             if ( $theme->getDataType()->getId() !== $datatype_id )
