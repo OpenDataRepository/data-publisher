@@ -57,8 +57,28 @@ class AppKernel extends Kernel
     /**
      * @inheritdoc
      */
+    public function getRootDir()
+    {
+        if (null === $this->rootDir) {
+            // The default implementation uses ReflectionObject which resolves
+            // symlinks. For symlinked instances, ODR_APP_DIR provides the
+            // unresolved path so cache/logs go to the correct instance.
+            if (defined('ODR_APP_DIR')) {
+                $this->rootDir = ODR_APP_DIR;
+            } else {
+                $r = new \ReflectionObject($this);
+                $this->rootDir = dirname($r->getFileName());
+            }
+        }
+
+        return $this->rootDir;
+    }
+
+    /**
+     * @inheritdoc
+     */
     public function registerContainerConfiguration(LoaderInterface $loader)
     {
-        $loader->load(__DIR__.'/config/config_'.$this->getEnvironment().'.yml');
+        $loader->load($this->getRootDir().'/config/config_'.$this->getEnvironment().'.yml');
     }
 }
