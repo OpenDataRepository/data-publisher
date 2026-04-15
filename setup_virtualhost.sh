@@ -70,6 +70,11 @@ for srcpath in "$SRC"/* "$SRC"/.[!.]* "$SRC"/..?*; do
         if [ -d "$SRC/app/config" ]; then
           cp -a "$SRC/app/config/." "$DEST/app/config/" || true
         fi
+        # Use prefixed routes for WordPress-integrated linked instances
+        if [ -f "$DEST/app/config/routing_prefixed.yml" ]; then
+          cp "$DEST/app/config/routing_prefixed.yml" "$DEST/app/config/routing.yml"
+          echo "Copied routing_prefixed.yml over routing.yml"
+        fi
         echo "Copied app/config contents"
 
       elif [ "$childname" = "logs" ]; then
