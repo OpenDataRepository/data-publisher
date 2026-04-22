@@ -24,6 +24,10 @@
     {% include 'ODRAdminBundle:Default:file_download_dialog.html.twig' with {
         'initial_datarecord_id': initial_datarecord_id,
     } %}
+
+    {% if has_linked_datatypes > 0 %}  {# ODRRenderService::getDisplayHTML() only allows this to be greater than zero when the user is logged in #}
+        <div id="ODRRecordLinkInfoWrapperDiv"></div>
+    {% endif %}
 {% endif %}
 
 {% if record_display_view == "single" %}
@@ -68,6 +72,9 @@
         // Can't initialize all of the tag fields here with a single call
         {# TODO - will need to figure out another solution if something reloads a tag field in Display #}
 
+        {% if has_linked_datatypes > 0 %}  {# ODRRenderService::getDisplayHTML() only allows this to be greater than zero when the user is logged in #}
+        GetLinkedDatarecords({{ datarecord.id }});  {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        {% endif %}
 
 {% if (odr_wordpress_integrated and theme.themeMeta.disableSearchSidebar == true) or search_key == '' %}
         disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}

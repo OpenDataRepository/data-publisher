@@ -258,7 +258,11 @@ class TextResultsController extends ODRCustomController
 
                 // This could be a search key from a 3rd-party source...as such, it needs to be merged
                 //  with whatever the datatype has stored for default search parameters
-                $merged_search_key = $pagination_helper_service->mergeWithDefaultSearchKey($search_key, $datatype, StoredSearchKey::SEARCH_CONTEXT);
+                $merged_search_key = '';
+                if ($intent === 'searching')
+                    $merged_search_key = $pagination_helper_service->mergeWithDefaultSearchKey($search_key, $datatype, StoredSearchKey::SEARCH_CONTEXT);
+                else if ($intent === 'linking')
+                    $merged_search_key = $pagination_helper_service->mergeWithDefaultSearchKey($search_key, $datatype, StoredSearchKey::LINK_CONTEXT);
 
                 // Update the tab's search key, sort criteria, and datarecord list for pagination purposes
                 $original_datarecord_list = $pagination_helper_service->updateTabSearchCriteria($odr_tab_id, $datatype, $theme, $user_permissions, $merged_search_key);
@@ -310,7 +314,11 @@ class TextResultsController extends ODRCustomController
             else {
                 // This is for a linking page...need to merge with a linking-specific default search
                 //  key if one exists
-                $merged_search_key = $pagination_helper_service->mergeWithDefaultSearchKey($search_key, $datatype, StoredSearchKey::LINK_CONTEXT);
+                $merged_search_key = '';
+                if ($intent === 'searching')
+                    $merged_search_key = $pagination_helper_service->mergeWithDefaultSearchKey($search_key, $datatype, StoredSearchKey::SEARCH_CONTEXT);
+                else if ($intent === 'linking')
+                    $merged_search_key = $pagination_helper_service->mergeWithDefaultSearchKey($search_key, $datatype, StoredSearchKey::LINK_CONTEXT);
 
                 $original_datarecord_list = $search_api_service->performSearch(
                     $datatype,

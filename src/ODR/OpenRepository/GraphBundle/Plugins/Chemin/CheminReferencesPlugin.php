@@ -65,13 +65,7 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
 
 
     /**
-     * Returns whether the plugin can be executed in the current context.
-     *
-     * @param array $render_plugin_instance
-     * @param array $datatype
-     * @param array $rendering_options
-     *
-     * @return bool
+     * @inheritDoc
      */
     public function canExecutePlugin($render_plugin_instance, $datatype, $rendering_options)
     {
@@ -92,24 +86,10 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
 
 
     /**
-     * Executes the CheminReferences Plugin on the provided datarecord
-     *
-     * @param array $datarecords
-     * @param array $datatype
-     * @param array $render_plugin_instance
-     * @param array $theme_array
-     * @param array $rendering_options
-     * @param array $parent_datarecord
-     * @param array $datatype_permissions
-     * @param array $datafield_permissions
-     * @param array $token_list
-     *
-     * @return string
-     * @throws \Exception
+     * @inheritDoc
      */
     public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = array(), $datatype_permissions = array(), $datafield_permissions = array(), $token_list = array())
     {
-
         try {
             // ----------------------------------------
             // Need this to determine whether to throw an error or not
@@ -117,6 +97,7 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
 
             // Grab various properties from the render plugin array
             $fields = $render_plugin_instance['renderPluginMap'];
+
 
             // ----------------------------------------
             // The datatype array shouldn't be wrapped with its ID number here...
@@ -255,7 +236,7 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
                 }
 
                 // Need to try to ensure urls are valid...
-                if ( $datafield_mapping['url'] !== '' ) {
+                if ( $datafield_mapping['url'] !== '' && !is_array($datafield_mapping['url']) ) {
                     // Ensure that DOIs that aren't entirely links still are valid
                     if ( stripos($datafield_mapping['url'], 'doi:') === 0 )
                         $datafield_mapping['url'] = 'https://doi.org/'.trim( substr($datafield_mapping['url'], 4) );
@@ -350,6 +331,7 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
                         'display_type' => $rendering_options['display_type'],
 
                         'token_list' => $token_list,
+
                         'reference_field_list' => $reference_field_list,
                         'chemistry_plugin_fields' => $chemistry_plugin_fields,
                     )
@@ -400,11 +382,15 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
             if ( isset($datarecord['dataRecordFields'][$df_id]) ) {
                 $drf = $datarecord['dataRecordFields'][$df_id];
 
-                // Brute-force typeclass since there's only two possibilities
+                // Brute-force typeclass since there are only four possibilities
                 if ( isset($drf['longText'][0]['value']) )
                     $value_mapping[$df_id] = $drf['longText'][0]['value'];
                 else if ( isset($drf['longVarchar'][0]['value']) )
                     $value_mapping[$df_id] = $drf['longVarchar'][0]['value'];
+                else if ( isset($drf['mediumVarchar'][0]['value']) )
+                    $value_mapping[$df_id] = $drf['mediumVarchar'][0]['value'];
+                else if ( isset($drf['shortVarchar'][0]['value']) )
+                    $value_mapping[$df_id] = $drf['shortVarchar'][0]['value'];
             }
         }
 

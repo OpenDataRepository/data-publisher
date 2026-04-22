@@ -114,6 +114,16 @@
         {% endif %}
     {% endif %}
 
+    {% set url = '' %}
+    {% set url_using_render_plugin = false %}
+    {% if mapping.url is iterable and mapping.url|length > 0 %}
+        {# NOTE - these datafield_plugin calls work because ReferencesPlugin.php finds the renderPluginInstance that actually renders something...it's not the original cached datafield array #}
+        {% set url_using_render_plugin = true %}
+        {% set url = mapping.url.datafield|datafield_plugin(datarecord, mapping.url.render_plugin_instance, rendering_options)|raw %}
+    {% else %}
+        {% set url = mapping.url %}
+    {% endif %}
+
     {% include 'ODROpenRepositoryGraphBundle:Base:References/references_base.html.twig' with {
         'author': author,
         'year': year,
@@ -128,11 +138,13 @@
         'pages': pages,
     } %}
 
-    {% if mapping.url is defined and mapping.url != '' and (original_context == 'display' or original_context == 'html') %}
-        {% if 'doi.org' in mapping.url %}
-            ;&nbsp;<a href="{{ mapping.url }}" title="Open URL" target="_blank">{{ mapping.url }}</a>
+    {% if url != '' and (original_context == 'display' or original_context == 'html') %}
+        {% if url_using_render_plugin %}
+            {{ url|raw }}
+        {% elseif 'doi.org' in url %}
+            ;&nbsp;<a href="{{ url }}" title="Open URL" target="_blank">{{ url }}</a>
         {% else %}
-            &nbsp;<a href="{{ mapping.url }}" title="Open URL" target="_blank">[<i class="fa fa-external-link"></i> URL]</a>
+            &nbsp;<a href="{{ url }}" title="Open URL" target="_blank">[<i class="fa fa-external-link"></i> URL]</a>
         {% endif %}
     {% endif %}
 

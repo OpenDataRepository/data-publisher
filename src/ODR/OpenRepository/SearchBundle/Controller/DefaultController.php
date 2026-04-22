@@ -791,7 +791,12 @@ class DefaultController extends Controller
             // NOTE: DisplaytemplateController::converttostoredsearchkeyAction() also parses a form
             //  to generate a search key, and thus is vaguely similar
             // However, that location intentionally ignores any existing "default parameters"
-            $default_search_key = $search_key_service->getDefaultSearchKeyForContext($datatype, StoredSearchKey::SEARCH_CONTEXT);
+            $default_search_key = '';
+            if ( $intent === 'searching' )
+                $default_search_key = $search_key_service->getDefaultSearchKeyForContext($datatype, StoredSearchKey::SEARCH_CONTEXT);
+            else if ( $intent === 'linking' )
+                $default_search_key = $search_key_service->getDefaultSearchKeyForContext($datatype, StoredSearchKey::LINK_CONTEXT);
+
             $default_search_params = array();
             if ($default_search_key !== '' )
                 $default_search_params = $search_key_service->decodeSearchKey($default_search_key);

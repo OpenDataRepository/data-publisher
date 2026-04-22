@@ -3,7 +3,7 @@ odr_plugins.base.url_button:
     category: Base
     plugin_type: datafield
     render: odr_plugins.base.url_button
-    version: 1.0.0
+    version: 1.1.0
     override_fields: false
     override_field_reload: false
     override_child: false
@@ -11,15 +11,15 @@ odr_plugins.base.url_button:
     override_export: false
     override_search: false
     override_sort: false
-    description: The datafield will get turned into a button that will take the user to a specific URL.  Both strings must be filled out.
+    description: The datafield will get replaced by a button that will take the user to a specific URL.  Both strings must be filled out.
     suppress_no_fields_note: false
     registered_events:
 
     required_fields:
         url_field:
             name: URL Field
-            description: TODO
-            type: ShortVarchar
+            description: The datafield to replace
+            type: IntegerValue|ShortVarchar|MediumVarchar|LongVarchar
 
     config_options:
         button_label:
