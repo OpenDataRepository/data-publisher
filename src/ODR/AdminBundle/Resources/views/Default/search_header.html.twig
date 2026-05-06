@@ -4,6 +4,13 @@
 
 {% if search_key != '' %}
 <div id="ODRSearchResultsButtons" class="pure-u-1-2 pure-u-xl-1-3 pure-u-xxl-1-4 pure-u-xxxl-1-4 pure-u-x4k-1-4">
+    {% if config_odr_wordpress_integrated %}
+        {# Sends the user back to the WordPress search-form page (configured
+           via odr_wordpress_search_redirects). modifySearch() and
+           ODR_MODIFY_SEARCH_MAP are defined in Default/common_js.html.twig. #}
+        <button type="button" id="ODRModifySearch" class="pure-button pure-button-primary" onclick="modifySearch();">Modify Search</button>
+    {% endif %}
+
     {% if search_result_count > 1 %}
         <button id="ODRSearchResultsPrevious" class="pure-button pure-button-primary" onclick="changeResult('prev');">
             <i class="fa fa-backward"></i><span>&nbsp;Prev</span>
