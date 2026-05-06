@@ -177,6 +177,7 @@ parameters:
 
     # Is this a Wordpress-integrated Installation
     odr_wordpress_integrated: false
+    odr_wordpress_search_redirects: '/odr/rruff_sample:/rruff||/odr/rruff_reference:/references||/odr/amcsd:/amcsd'
 
     # This is used to generate redirects and file download links in the site
     # NOTE - no protocol, and no trailing forward slash  e.g. "//odr.io"

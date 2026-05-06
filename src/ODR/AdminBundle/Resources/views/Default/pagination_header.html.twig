@@ -71,6 +71,10 @@
     </div>
 
     <div class="pure-u-lg-9-24 pure-u-md-23-24 pure-u-sm-23-24">
+        {% if config_odr_wordpress_integrated and theme.themeMeta.disableSearchSidebar == true %}
+            {# Modify Search Button — sends the user back to the WordPress search page (URL stub before '#', with '/odr' stripped). #}
+            <button type="button" id="ODRModifySearch" class="pure-button pure-button-primary" onclick="modifySearch();">Modify Search</button>&nbsp;
+        {% endif %}
         {% if num_datarecords > 1 %}
         <span id="ODRPaginationSpan">
             <span class="ODRPaginationLabel Cursor">Show:&nbsp;</span>
@@ -240,6 +244,60 @@
             });
         });
     });
+
+    {#
+        Lookup of search-results URL stub → WordPress search-form URL stub.
+        Built from the global parameter `odr_wordpress_search_redirects`
+        (format: "key1:value1||key2:value2||..."). The key is the path the
+        user is *coming from* (the portion between the host and the '#'),
+        the value is the path to redirect to. This lets us configure exact
+        target pages instead of relying on a fragile string substitution.
+    #}
+    {% set odr_modify_search_map = {} %}
+    {% if config_odr_wordpress_search_redirects is defined and config_odr_wordpress_search_redirects is not empty %}
+        {% for entry in config_odr_wordpress_search_redirects|split('||') %}
+            {% set parts = entry|split(':', 2) %}
+            {% if parts|length == 2 %}
+                {% set odr_modify_search_map = odr_modify_search_map|merge({(parts[0]): parts[1]}) %}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+    var ODR_MODIFY_SEARCH_MAP = {{ odr_modify_search_map|json_encode|raw }};
+
+    /**
+     * Sends the user back to the WordPress search page that produced this
+     * search. Takes the URL stub between the host and the '#', looks it up
+     * in ODR_MODIFY_SEARCH_MAP (configured via odr_wordpress_search_redirects)
+     * and redirects to the mapped path. The mapping lets us point each
+     * search-results page at exactly the right WordPress search form,
+     * which the previous "/odr" string substitution couldn't do reliably
+     * because of naming overlaps between datatype slugs and page slugs.
+     */
+    function modifySearch() {
+        var rawUrl = window.location.href.split('#')[0];
+        var anchor = document.createElement('a');
+        anchor.href = rawUrl;
+        var path = anchor.pathname;
+        var stripped = path.replace(/\/$/, '');
+
+        var match = null;
+        if (ODR_MODIFY_SEARCH_MAP.hasOwnProperty(stripped)) {
+            match = stripped;
+        } else if (ODR_MODIFY_SEARCH_MAP.hasOwnProperty(path)) {
+            match = path;
+        }
+
+        if (match !== null) {
+            window.location.href = anchor.protocol + '//' + anchor.host + ODR_MODIFY_SEARCH_MAP[match];
+            return;
+        }
+
+        // No mapping configured for this stub — log and stay on the page so
+        // the user can see something went wrong (avoids a confusing redirect
+        // loop or a 404 if we silently strip "/odr").
+        console.warn('Modify Search: no redirect configured for path', path);
+        alert('No "Modify Search" mapping is configured for this page (' + path + ').');
+    }
 
     /**
      * Changes the displayed page for a search result.
