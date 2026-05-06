@@ -16,7 +16,7 @@
                 <li id="ODRDatabaseLanding" class="pure-menu-item"><a class="pure-menu-link" href="#{{ href }}">Dashboard</a></li>
             {% endif %}
 
-            {% if header_middle_title != '' %}
+            {% if header_middle_title != '' and not config_odr_wordpress_integrated %}
                 <li class="pure-menu-item"><a class="pure-menu-link" href="{{ header_middle_path }}" rel="test">{{ header_middle_title }}</a></li>
             {% endif %}
         </ul>
