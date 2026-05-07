@@ -7,6 +7,19 @@ umask(0000);
 
 set_time_limit(0);
 
+// Tell AppKernel which app/ directory this invocation is for. When this
+// console script is itself a symlink (linked-instance setup), __DIR__ and
+// realpath()-style lookups resolve to the source tree, so AppKernel ends up
+// loading config from the wrong instance. argv[0] is the path the user
+// typed and is NOT symlink-resolved, so dirname(argv[0]) is the linked
+// instance's app/ directory.
+if (!defined('ODR_APP_DIR')) {
+    $odr_console_path = $_SERVER['argv'][0];
+    if (substr($odr_console_path, 0, 1) !== '/')
+        $odr_console_path = getcwd() . '/' . $odr_console_path;
+    define('ODR_APP_DIR', dirname($odr_console_path));
+}
+
 /**
  * @var Composer\Autoload\ClassLoader
  */
