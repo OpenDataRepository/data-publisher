@@ -225,6 +225,11 @@ class StaticRenderService
         $version = (int)$this->redis->incr(self::VERSION_KEY_PREFIX . $datarecord_id);
 
         $url = $this->fetch_baseurl . '/view/record/' . $datarecord_uuid;
+        // The cached page injects a script that calls this endpoint to
+        // detect whether the visitor is logged in (then redirects to the
+        // dynamic URL if so). Same hostname as the dynamic page so the
+        // browser sends the right session cookies.
+        $auth_check_url = $this->fetch_baseurl . '/api/v1/auth/status';
         $output_path = self::getOutputPathByUuid($datatype_uuid, $datarecord_uuid);
 
         $payload = json_encode(array(
@@ -233,6 +238,7 @@ class StaticRenderService
             'datarecord_id' => $datarecord_id,
             'version' => $version,
             'url' => $url,
+            'auth_check_url' => $auth_check_url,
             'output_path' => $output_path,
         ));
 

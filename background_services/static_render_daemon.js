@@ -106,7 +106,7 @@ function findChromiumExecutable() {
 
 async function processJob(jobData) {
     const data = JSON.parse(jobData);
-    const { datarecord_id, version, url, output_path } = data;
+    const { datarecord_id, version, url, output_path, auth_check_url } = data;
 
     // De-dup check: if a newer enqueue has bumped the version past ours,
     // skip rendering. We still let the caller delete the job afterward.
@@ -166,6 +166,31 @@ async function processJob(jobData) {
             });
         } catch (e) {
             console.log(`  [stage] network-idle didn't settle within ${NETWORK_IDLE_TIMEOUT_MS}ms, proceeding anyway`);
+        }
+
+        // Inject a small redirect script into <head> *before* capturing
+        // HTML. The script runs only when the cached file is served (it
+        // does nothing on the live page since the daemon's render is
+        // discarded right after). When a logged-in visitor lands on the
+        // cached static page, the script detects their session via a
+        // CORS-enabled `auth/status` endpoint on the dynamic host and
+        // redirects them to the dynamic URL — that way they see the
+        // full record including any non-public data they're allowed to
+        // view.
+        stage = 'inject_redirect';
+        if (auth_check_url && url) {
+            await page.evaluate((checkUrl, dynamicUrl) => {
+                var s = document.createElement('script');
+                s.setAttribute('data-odr-static-redirect', '1');
+                s.textContent =
+                    "(function(){try{" +
+                        "fetch(" + JSON.stringify(checkUrl) + ",{credentials:'include',cache:'no-store'})" +
+                        ".then(function(r){return r.ok?r.json():null;})" +
+                        ".then(function(d){if(d&&d.logged_in){window.location.replace(" + JSON.stringify(dynamicUrl) + ");}})" +
+                        ".catch(function(){});" +
+                    "}catch(e){}})();";
+                document.head.appendChild(s);
+            }, auth_check_url, url);
         }
 
         // Grab the entire document. We reach for outerHTML directly so

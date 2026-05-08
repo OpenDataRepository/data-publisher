@@ -8298,6 +8298,71 @@ class APIController extends ODRCustomController
 
 
     /**
+     * Reports whether the current request comes from a logged-in user.
+     * Used by cached static pages to decide whether to redirect the
+     * visitor to the dynamic version (which can show non-public data).
+     *
+     *   GET /api/v1/auth/status
+     *   200: { "logged_in": true|false }
+     *
+     * CORS: the cached static files are typically served from a
+     * different host than the dynamic backend (site_baseurl vs
+     * wordpress_site_baseurl in WP-integrated mode). We allow a
+     * credentialed cross-origin request from site_baseurl so the
+     * cached page can call back to check session state.
+     *
+     * @param string  $version
+     * @param Request $request
+     * @return Response
+     */
+    public function authStatusAction($version, Request $request)
+    {
+        $logged_in = false;
+        try {
+            $token = $this->container->get('security.token_storage')->getToken();
+            if ($token !== null) {
+                $user = $token->getUser();
+                $logged_in = is_object($user) && $user !== 'anon.';
+            }
+        } catch (\Exception $e) {
+            // Any failure → treat as anonymous; never error here, we want
+            // the cached page's redirect script to keep working silently.
+        }
+
+        $response = new JsonResponse(array('logged_in' => $logged_in));
+
+        // CORS: allow the cached-file origin (site_baseurl) to call us
+        // with credentials. We only allow that one origin, never `*`,
+        // because credentialed requests + wildcard origin is forbidden
+        // by the spec anyway.
+        $req_origin = $request->headers->get('Origin');
+        if ($req_origin) {
+            $allowed = self::normalizeOrigin($this->getParameter('site_baseurl'));
+            if ($allowed !== '' && self::normalizeOrigin($req_origin) === $allowed) {
+                $response->headers->set('Access-Control-Allow-Origin', $req_origin);
+                $response->headers->set('Access-Control-Allow-Credentials', 'true');
+                $response->headers->set('Vary', 'Origin');
+            }
+        }
+        return $response;
+    }
+
+    /**
+     * Strip protocol-relative `//` and trailing slashes; force https.
+     * Used to compare an incoming Origin header against a configured
+     * baseurl.
+     */
+    private static function normalizeOrigin($origin)
+    {
+        $origin = trim((string)$origin);
+        $origin = preg_replace('#^https?:#', '', $origin);
+        $origin = ltrim($origin, '/');
+        $origin = rtrim($origin, '/');
+        return $origin === '' ? '' : 'https://' . $origin;
+    }
+
+
+    /**
      * Enqueues every public, top-level record of the given dataset for
      * static-render. Returns the count of records queued.
      *

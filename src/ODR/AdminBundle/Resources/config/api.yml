@@ -678,6 +678,16 @@ odr_api_statistics_update_bots:
 
 # ----- Static Render -----
 
+# Lightweight "am I logged in?" probe used by cached static pages to
+# decide whether to redirect to the dynamic version. Returns
+# {logged_in: bool}, includes CORS headers for site_baseurl callers.
+odr_api_auth_status:
+  path: /api/{version}/auth/status
+  defaults: { _controller: ODRAdminBundle:API:authStatus, _format: json }
+  methods: [ GET ]
+  requirements:
+    version: 'v\d+'
+
 # Enqueue a full datatype to be rendered to static HTML.
 # Body: { "user_email": "<admin email>" }
 odr_api_static_render_enqueue:
