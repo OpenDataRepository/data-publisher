@@ -33,7 +33,8 @@ class StaticRenderEnqueueCommand extends ContainerAwareCommand
             ->setName('odr_static_render:enqueue')
             ->setDescription('Enqueues static-render jobs for every public top-level record of a datatype.')
             ->addOption('datatype_id', null, InputOption::VALUE_REQUIRED, 'Numeric datatype id')
-            ->addOption('datatype_uuid', null, InputOption::VALUE_REQUIRED, 'Datatype UUID (alternative to --datatype_id)');
+            ->addOption('datatype_uuid', null, InputOption::VALUE_REQUIRED, 'Datatype UUID (alternative to --datatype_id)')
+            ->addOption('limit', null, InputOption::VALUE_REQUIRED, 'Cap how many records to enqueue (default: all). Useful for smoke tests.', 0);
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
@@ -64,13 +65,18 @@ class StaticRenderEnqueueCommand extends ContainerAwareCommand
             return 1;
         }
 
+        $limit = (int)$input->getOption('limit');
+        if ($limit < 0)
+            $limit = 0;
+
         $output->writeln(sprintf(
-            'Enqueueing public records for datatype %d (%s)...',
+            'Enqueueing public records for datatype %d (%s)%s...',
             $datatype->getId(),
-            $datatype->getUniqueId()
+            $datatype->getUniqueId(),
+            $limit > 0 ? sprintf(' (limit=%d)', $limit) : ''
         ));
 
-        $count = $static_render_service->enqueueDatatype($datatype);
+        $count = $static_render_service->enqueueDatatype($datatype, $limit);
 
         $output->writeln(sprintf('Queued %d record(s) on tube "%s".', $count, \ODR\AdminBundle\Component\Service\StaticRenderService::TUBE_NAME));
         return 0;

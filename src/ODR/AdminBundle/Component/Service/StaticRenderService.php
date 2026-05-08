@@ -53,6 +53,13 @@ class StaticRenderService
     const JOB_PRIORITY = 1024;
 
     /**
+     * Max URLs allowed per child sitemap by the sitemaps.org / Google /
+     * Bing spec. Exceeding this causes search engines to reject the
+     * sitemap. We split per-datatype output into pages of this size.
+     */
+    const SITEMAP_MAX_URLS = 50000;
+
+    /**
      * @var EntityManager
      */
     private $em;
@@ -75,10 +82,24 @@ class StaticRenderService
     private $odr_web_dir;
 
     /**
-     * @var string Absolute base URL to use when constructing the worker target
-     *             URL (e.g. "https://dev.rruff.net").
+     * @var string Absolute base URL the *worker* uses to fetch the live
+     *             page for rendering. WP-integrated installs need to hit
+     *             the WordPress host (e.g. https://dev.rruff.net) so the
+     *             whole WP page chrome loads. Non-integrated installs
+     *             just use site_baseurl.
      */
-    private $site_baseurl;
+    private $fetch_baseurl;
+
+    /**
+     * @var string Absolute base URL used in the *sitemap* and any other
+     *             public link to the cached static file. Always derived
+     *             from site_baseurl, never from the WP host — the static
+     *             files live under the ODR web root, served directly by
+     *             Apache. Multiple WP-integrated sites can share a single
+     *             ODR backend, so all their cached pages live under the
+     *             one site_baseurl.
+     */
+    private $sitemap_baseurl;
 
     /**
      * @var string Per-site sub-directory under web/uploads/static/ derived
@@ -101,17 +122,35 @@ class StaticRenderService
         $redis,
         $odr_web_directory,
         $site_baseurl,
+        $wordpress_site_baseurl,
+        $odr_wordpress_integrated,
         LoggerInterface $logger
     ) {
         $this->em = $entity_manager;
         $this->pheanstalk = $pheanstalk;
         $this->redis = $redis;
         $this->odr_web_dir = rtrim($odr_web_directory, '/');
-        // site_baseurl can be a protocol-relative '//host'; force https for the worker.
-        $this->site_baseurl = self::normalizeBaseurl($site_baseurl);
-        // Same source used to derive the per-site folder name under
-        // web/uploads/static/, so a shared web root can host multiple sites.
-        $this->site_folder = self::deriveSiteFolder($site_baseurl);
+
+        $integrated = !empty($odr_wordpress_integrated)
+            && $odr_wordpress_integrated !== '0'
+            && strtolower((string)$odr_wordpress_integrated) !== 'false';
+
+        // The worker fetches via the WP host when integrated so the full
+        // WordPress chrome / theme renders around the ODR content. The
+        // sitemap, on the other hand, always points at the cached file
+        // via site_baseurl — the static files are served by Apache from
+        // the ODR web root and don't need to go through WordPress at all.
+        $fetch_source = $integrated && !empty($wordpress_site_baseurl)
+            ? $wordpress_site_baseurl
+            : $site_baseurl;
+        $this->fetch_baseurl = self::normalizeBaseurl($fetch_source);
+        $this->sitemap_baseurl = self::normalizeBaseurl($site_baseurl);
+
+        // The per-site sub-directory still derives from the *site identity*
+        // (i.e. the WP host when integrated) — multiple WP-integrated sites
+        // can share one ODR backend, so the folder is what disambiguates
+        // their cached output under the shared web root.
+        $this->site_folder = self::deriveSiteFolder($fetch_source);
         $this->logger = $logger;
     }
 
@@ -185,7 +224,7 @@ class StaticRenderService
         // they're picking up a stale (superseded) job.
         $version = (int)$this->redis->incr(self::VERSION_KEY_PREFIX . $datarecord_id);
 
-        $url = $this->site_baseurl . '/view/record/' . $datarecord_uuid;
+        $url = $this->fetch_baseurl . '/view/record/' . $datarecord_uuid;
         $output_path = self::getOutputPathByUuid($datatype_uuid, $datarecord_uuid);
 
         $payload = json_encode(array(
@@ -230,9 +269,14 @@ class StaticRenderService
      * same definition of "visible record" the public API does — id+uuid
      * pulled in one pass, no per-record entity hydration.
      *
+     * @param DataType $datatype
+     * @param int      $limit Maximum number of records to enqueue (0 = no
+     *                        cap, the default). Useful for smoke tests.
+     * @return int            Count of records queued.
+     *
      * @throws \InvalidArgumentException if $datatype is not a top-level datatype
      */
-    public function enqueueDatatype(DataType $datatype)
+    public function enqueueDatatype(DataType $datatype, $limit = 0)
     {
         // Top-level datatypes have no parent, or are their own parent.
         // Static rendering only makes sense for top-level datatypes —
@@ -259,6 +303,8 @@ class StaticRenderService
             'datatype_id' => $datatype_id,
             'public_date' => '2200-01-01 00:00:00',
         ));
+        if ($limit > 0)
+            $query->setMaxResults((int)$limit);
 
         $rows = $query->getArrayResult();
         $count = 0;
@@ -279,5 +325,153 @@ class StaticRenderService
     {
         $value = $this->redis->get(self::VERSION_KEY_PREFIX . $record->getId());
         return $value === null ? 0 : (int)$value;
+    }
+
+    /**
+     * Deletes the rendered static HTML file for a record (no-op if the
+     * file doesn't exist). Used by the delete / made-private event hooks.
+     */
+    public function deleteStaticFileByUuid($datatype_uuid, $record_uuid)
+    {
+        $path = self::getOutputPathByUuid($datatype_uuid, $record_uuid);
+        if (is_file($path) && @unlink($path)) {
+            if ($this->logger !== null)
+                $this->logger->info('StaticRenderService: deleted static file '.$path);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * @see deleteStaticFileByUuid
+     */
+    public function deleteStaticFile(DataType $datatype, DataRecord $record)
+    {
+        return self::deleteStaticFileByUuid($datatype->getUniqueId(), $record->getUniqueId());
+    }
+
+    /**
+     * Returns the beanstalkd `stats-tube` snapshot for the static-render
+     * tube, useful for a queue-status endpoint. Returns null if the tube
+     * is empty/unknown.
+     */
+    public function getQueueStatus()
+    {
+        try {
+            $stats = $this->pheanstalk->statsTube(self::TUBE_NAME);
+            return array(
+                'name'           => self::TUBE_NAME,
+                'ready'          => isset($stats['current-jobs-ready'])    ? (int)$stats['current-jobs-ready']    : 0,
+                'reserved'       => isset($stats['current-jobs-reserved']) ? (int)$stats['current-jobs-reserved'] : 0,
+                'delayed'        => isset($stats['current-jobs-delayed'])  ? (int)$stats['current-jobs-delayed']  : 0,
+                'buried'         => isset($stats['current-jobs-buried'])   ? (int)$stats['current-jobs-buried']   : 0,
+                'total_jobs'     => isset($stats['total-jobs'])            ? (int)$stats['total-jobs']            : 0,
+                'workers'        => isset($stats['current-watching'])      ? (int)$stats['current-watching']      : 0,
+            );
+        } catch (\Exception $e) {
+            if ($this->logger !== null)
+                $this->logger->warning('StaticRenderService::getQueueStatus failed: '.$e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Returns a flat list of every rendered static file (relative to
+     * web/uploads/static/{site_folder}/) along with its mtime. Used by
+     * the sitemap controller. Skips empty / non-html files.
+     *
+     * @return array of [ 'datatype_uuid' => string, 'record_uuid' => string,
+     *                    'mtime' => int, 'path' => string ]
+     */
+    public function listRenderedFiles()
+    {
+        $base = $this->odr_web_dir . '/uploads/static/' . $this->site_folder;
+        $out = array();
+        if (!is_dir($base))
+            return $out;
+
+        // First level under {site_folder}/ is datatype_uuid dirs.
+        foreach (glob($base . '/*', GLOB_ONLYDIR) as $dt_dir) {
+            $datatype_uuid = basename($dt_dir);
+            foreach (glob($dt_dir . '/*.html') as $file_path) {
+                $record_uuid = basename($file_path, '.html');
+                $out[] = array(
+                    'datatype_uuid' => $datatype_uuid,
+                    'record_uuid'   => $record_uuid,
+                    'mtime'         => filemtime($file_path),
+                    'path'          => $file_path,
+                );
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * Returns the public URL (under site_baseurl) for a rendered static
+     * file, suitable for a sitemap entry. Always uses site_baseurl so
+     * Googlebot fetches the cached HTML directly from the ODR host
+     * without going through WordPress, regardless of whether this
+     * install is WP-integrated.
+     */
+    public function getPublicUrlForFile($datatype_uuid, $record_uuid)
+    {
+        return $this->sitemap_baseurl . '/uploads/static/'
+            . $this->site_folder . '/'
+            . $datatype_uuid . '/'
+            . $record_uuid . '.html';
+    }
+
+    /**
+     * Like listRenderedFiles() but groups the result by datatype_uuid and
+     * sorts each group by record_uuid (so pagination across requests is
+     * stable). Used by the sitemap-index controller to know how many
+     * pages each datatype needs.
+     *
+     * @return array<string, array<int, array{record_uuid:string, mtime:int, path:string}>>
+     */
+    public function listRenderedFilesByDatatype()
+    {
+        $base = $this->odr_web_dir . '/uploads/static/' . $this->site_folder;
+        $out = array();
+        if (!is_dir($base))
+            return $out;
+
+        foreach (glob($base . '/*', GLOB_ONLYDIR) as $dt_dir) {
+            $datatype_uuid = basename($dt_dir);
+            $files = array();
+            foreach (glob($dt_dir . '/*.html') as $file_path) {
+                $files[] = array(
+                    'record_uuid' => basename($file_path, '.html'),
+                    'mtime'       => filemtime($file_path),
+                    'path'        => $file_path,
+                );
+            }
+            if (empty($files))
+                continue;
+            usort($files, function ($a, $b) {
+                return strcmp($a['record_uuid'], $b['record_uuid']);
+            });
+            $out[$datatype_uuid] = $files;
+        }
+        return $out;
+    }
+
+    /**
+     * Returns the public URL of a child sitemap for a datatype. Page 1
+     * is `/sitemap-{uuid}.xml`; subsequent pages append `-{N}`.
+     *
+     * Uses fetch_baseurl (the WP host when WP-integrated) rather than
+     * sitemap_baseurl, because /sitemap-*.xml is a *dynamic* Symfony
+     * route — the request has to enter through WordPress to reach
+     * Symfony in WP-integrated mode. Only the cached `/uploads/static/`
+     * file URLs use sitemap_baseurl; those are served by Apache
+     * directly without going through Symfony at all.
+     */
+    public function getChildSitemapUrl($datatype_uuid, $page = 1)
+    {
+        $name = 'sitemap-' . $datatype_uuid;
+        if ($page > 1)
+            $name .= '-' . (int)$page;
+        return $this->fetch_baseurl . '/' . $name . '.xml';
     }
 }
