@@ -2852,4 +2852,182 @@ class SearchQueryService
 
         return $datarecords;
     }
+
+
+
+
+    /**
+     * Runs a query to return an array of the following form:
+     * <pre>
+     * array(
+     *     <child_dr_id> => <parent_dr_id>,
+     *     ...
+     * )
+     * </pre>
+     *
+     * @param int $datatype_id The id of the child datatype
+     *
+     * @return array
+     */
+    public function getParentDatarecords_new($datatype_id)
+    {
+        $query =
+            'SELECT dr.id AS dr_id, parent.id AS parent_id
+            FROM odr_data_record AS dr
+            JOIN odr_data_record AS parent ON dr.parent_id = parent.id
+            JOIN odr_data_record AS grandparent ON dr.grandparent_id = grandparent.id
+            WHERE dr.data_type_id = '.$datatype_id.'
+            AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL AND grandparent.deletedAt IS NULL';
+        $conn = $this->em->getConnection();
+//        $results = $conn->fetchAll($query);    // can debug with this, but might run into memory issues
+        $results = $conn->executeQuery($query);
+
+        // Child datarecords can only have a single parent datarecord
+        $datarecords = array();
+        foreach ($results as $result)
+            $datarecords[ $result['dr_id'] ] = intval($result['parent_id']);
+
+        return $datarecords;
+    }
+
+
+    /**
+     * Runs a query to return an array of the following form:
+     * <pre>
+     * array(
+     *     <parent_dr_id> => array(
+     *         <child_dr_id>,
+     *         ...
+     *     ),
+     *     ...
+     * )
+     * </pre>
+     * The array of child datarecord ids can be empty.
+     *
+     * @param int $datatype_id The id of the parent datatype
+     *
+     * @return array
+     */
+    public function getChildDatarecords_new($datatype_id)
+    {
+        $query =
+            'SELECT dr.id AS dr_id, parent.id AS parent_id
+            FROM odr_data_record AS parent
+            JOIN odr_data_record AS grandparent ON parent.grandparent_id = grandparent.id
+            LEFT JOIN odr_data_record AS dr ON dr.parent_id = parent.id
+            WHERE parent.data_type_id = '.$datatype_id.'
+            AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL AND grandparent.deletedAt IS NULL';
+        $conn = $this->em->getConnection();
+//        $results = $conn->fetchAll($query);    // can debug with this, but might run into memory issues
+        $results = $conn->executeQuery($query);
+
+        // Parent datarecords could have multiple children, but may also not have any
+        $datarecords = array();
+        foreach ($results as $result) {
+            $dr_id = $result['dr_id'];
+            $parent_id = $result['parent_id'];
+
+            if ( !isset($datarecords[$parent_id]) )
+                $datarecords[$parent_id] = array();
+            // Want to capture parents without child records, so can't put this check in the query
+            if ($dr_id !== $parent_id)
+                $datarecords[$parent_id][$dr_id] = '';
+        }
+
+        return $datarecords;
+    }
+
+
+    /**
+     * Runs a query to return an array of the following form:
+     * <pre>
+     * array(
+     *     <descendant_dr_id> => array(
+     *         <ancestor_dr_id>,
+     *         ...
+     *     ),
+     *     ...
+     * )
+     * </pre>
+     * The array of ancestor datarecord ids can be empty.
+     *
+     * @param int $datatype_id The id of the descendant datatype
+     *
+     * @return array
+     */
+    public function getLinkedParentDatarecords_new($datatype_id)
+    {
+        $query =
+            'SELECT descendant.id AS descendant_id, ancestor.id AS ancestor_id
+            FROM odr_data_record AS descendant
+            LEFT JOIN odr_linked_data_tree AS ldt ON (ldt.descendant_id = descendant.id AND ldt.deletedAt IS NULL)
+            LEFT JOIN odr_data_record AS ancestor ON (ldt.ancestor_id = ancestor.id AND ancestor.deletedAt IS NULL)
+            WHERE descendant.data_type_id = '.$datatype_id.'
+            AND descendant.deletedAt IS NULL';
+        $conn = $this->em->getConnection();
+//        $results = $conn->fetchAll($query);    // can debug with this, but might run into memory issues
+        $results = $conn->executeQuery($query);
+
+        // Linked datarecords can have multiple ancestor datarecords
+        $datarecords = array();
+        foreach ($results as $result) {
+            $ancestor_id = $result['ancestor_id'];
+            $descendant_id = $result['descendant_id'];
+
+            if ( !isset($datarecords[$descendant_id]) )
+                $datarecords[$descendant_id] = array();
+            // Want to capture descendants without ancestors, but don't want to store null keys
+            if ( !is_null($ancestor_id) )
+                $datarecords[$descendant_id][$ancestor_id] = '';
+        }
+
+        return $datarecords;
+    }
+
+
+    /**
+     * Runs a query to return an array of the following form:
+     * <pre>
+     * array(
+     *     <ancestor_dr_id> => array(
+     *         <descendant_dr_id>,
+     *         ...
+     *     ),
+     *     ...
+     * )
+     * </pre>
+     * The array of descendant datarecord ids can be empty.
+     *
+     * @param int $datatype_id The id of the ancestor datatype
+     *
+     * @return array
+     */
+    public function getLinkedChildDatarecords_new($datatype_id)
+    {
+        $query =
+            'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
+            FROM odr_data_record AS ancestor
+            LEFT JOIN odr_linked_data_tree AS ldt ON (ldt.ancestor_id = ancestor.id AND ldt.deletedAt IS NULL)
+            LEFT JOIN odr_data_record AS descendant ON (ldt.descendant_id = descendant.id AND descendant.deletedAt IS NULL)
+            WHERE ancestor.data_type_id = '.$datatype_id.'
+            AND ancestor.deletedAt IS NULL';
+        $conn = $this->em->getConnection();
+//        $results = $conn->fetchAll($query);    // can debug with this, but might run into memory issues
+        $results = $conn->executeQuery($query);
+
+        // Linked datarecords can have multiple ancestor datarecords
+        $datarecords = array();
+        foreach ($results as $result) {
+            $ancestor_id = $result['ancestor_id'];
+            $descendant_id = $result['descendant_id'];
+
+            if ( !isset($datarecords[$ancestor_id]) )
+                $datarecords[$ancestor_id] = array();
+            // Want to capture ancestors without descendants, but don't want to store null keys
+            if ( !is_null($descendant_id) )
+                $datarecords[$ancestor_id][$descendant_id] = '';
+        }
+
+        return $datarecords;
+    }
 }

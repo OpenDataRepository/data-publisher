@@ -16,6 +16,7 @@
 namespace ODR\AdminBundle\Controller;
 
 // Entities
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataRecordFields;
@@ -26,6 +27,9 @@ use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageSizes;
 use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\TrackedJob;
+use ODR\OpenRepository\GraphBundle\Plugins\SearchOverrideInterface;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
 use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
@@ -1505,7 +1509,7 @@ $ret .= '  Set current to '.$count."\n";
     }
 
 
-    public function asdfAction(Request $request)
+    public function asdfAction($search_key, $complete, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -1528,48 +1532,411 @@ $ret .= '  Set current to '.$count."\n";
             $em = $this->getDoctrine()->getManager();
             $conn = $em->getConnection();
 
-            $query =
-               'SELECT iv.value AS mineral_id, mv.value AS display_name
-                FROM odr_data_record dr
-                LEFT JOIN odr_data_record_fields iv_drf ON (iv_drf.data_record_id = dr.id AND iv_drf.data_field_id = 7050 AND iv_drf.deletedAt IS NULL)
-                LEFT JOIN odr_integer_value iv ON (iv.data_record_fields_id = iv_drf.id AND iv.deletedAt IS NULL)
-                LEFT JOIN odr_data_record_fields mv_drf ON (mv_drf.data_record_id = dr.id AND mv_drf.data_field_id = 7052 AND mv_drf.deletedAt IS NULL)
-                LEFT JOIN odr_medium_varchar mv ON (mv.data_record_fields_id = mv_drf.id AND mv.deletedAt IS NULL)
-                WHERE dr.data_type_id = 736
-                AND dr.deletedAt IS NULL';
-            $results = $conn->executeQuery($query);
+            /** @var DatatreeInfoService $datatree_info_service */
+            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            /** @var SearchAPIService $search_api_service */
+            $search_api_service = $this->container->get('odr.search_api_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
+            /** @var SearchService $search_service */
+            $search_service = $this->container->get('odr.search_service');
+            /** @var SortService $sort_service */
+            $sort_service = $this->container->get('odr.sort_service');
 
-            print '<table border=1><tr><th>mineral id</th><th>display name</th><th>ascii name</th></tr>';
-            foreach ($results as $result) {
-                $matches = array();
-                $ascii_name = str_replace(
-                    array('Å', 'Á', 'á', 'à', 'ä', 'å', 'ã', 'ă', 'Č', 'ć', 'ç', 'č', 'É', 'é', 'ë', 'ê', 'è', 'ĕ', 'ě', 'ę', 'í', 'ï', 'ł', 'ň', 'ñ', 'ń', 'Ö', 'ö', 'ø', 'ő', 'ó', 'ô', 'ř', 'Š', 'š', 'ş', 'ţ', 'ü', 'ú', 'ý', 'Ż', 'ž', 'ż'),
-                    array('A', 'A', 'a', 'a', 'a', 'a', 'a', 'a', 'C', 'c', 'c', 'c', 'E', 'e', 'e', 'e', 'e', 'e', 'e', 'e', 'i', 'i', 'l', 'n', 'n', 'n', 'O', 'o', 'o', 'o', 'o', 'o', 'r', 'S', 's', 's', 't', 'u', 'u', 'y', 'Z', 'z', 'z'),
-                    $result['display_name']
-                );
 
-                $ascii_name = str_replace(
-                    array("'", '<i>', '</i>', '_', '^'),
-                    '',
-                    $ascii_name
-                );
+            $user_permissions = array();
+            $search_as_super_admin = true;
+            $ignore_searchable = true;
 
-                if ( preg_match('/[^a-zA-Z0-9\-\+\_\^\(\)]/', $ascii_name, $matches) === 1 ) {
-                    print '<tr>';
-                    print '<td>'.$result['mineral_id'].'</td>';
-                    print '<td>'.$result['display_name'].'</td>';
-                    print '<td>'.$ascii_name.'</td>';
-                    print '</tr>';
-                }
-                else {
-                    print '<tr>';
-                    print '<td>'.$result['mineral_id'].'</td>';
-                    print '<td>'.$result['display_name'].'</td>';
-                    print '<td>'.$ascii_name.'</td>';
-                    print '</tr>';
-                }
+            // TODO - some of these search keys effectively aren't covered in the existing tests...
+            // unrigged criteria
+
+            // ----------------------------------------
+            // rruff references
+//            $params = array('dt_id' => 734, 'inverse' => '-1');  // should total 24643
+//            https://theta.odr.io/app_dev.php/rruff_reference#/app_dev.php/search/display/0/eyJkdF9pZCI6IjczNCIsIjcwMzUiOiJkb3ducyIsICJpbnZlcnNlIjoiLTEifQ
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczNCIsIjcwMzUiOiJkb3ducyIsICJpbnZlcnNlIjoiLTEifQ
+            // ima list
+//            $params = array('dt_id' => 736, '7062' => "-1094,-1104");  // should total 6213, due to including tags
+//            https://theta.odr.io/app_dev.php/ima#/app_dev.php/search/display/0/eyJkdF9pZCI6IjczNiIsIjcwNjIiOiItMTA5NCwtMTEwNCJ9
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczNiIsIjcwNjIiOiItMTA5NCwtMTEwNCJ9
+            // ima list (no tags)
+            $params = array('dt_id' => 736, '7062' => "*1094,*1104");  // should total 6530
+//            https://theta.odr.io/app_dev.php/ima#/app_dev.php/search/display/0/eyJkdF9pZCI6NzM2LCI3MDYyIjoiKjEwOTQsKjExMDQifQ
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6NzM2LCI3MDYyIjoiKjEwOTQsKjExMDQifQ
+            // rruff samples
+//            $params = array('dt_id' => 738);  // should total 6336
+//            https://theta.odr.io/app_dev.php/rruff_sample#/app_dev.php/search/display/0/eyJkdF9pZCI6IjczOCJ9
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczOCJ9
+
+
+            // rruff references courtesy of Linsay Podjasek
+//            $params = array('dt_id' => 734, 'inverse' => 736, 'dt_734_c_by' => '276', '7062' => "-1094,-1104");  // 0, because none of Lindsay's references are linked to by IMA
+//            https://theta.odr.io/app_dev.php/rruff_reference#/app_dev.php/search/display/0/eyJkdF83MzRfY19ieSI6IjI3NiIsImR0X2lkIjoiNzM2IiwiNzA2MiI6IioxMDk0LCoxMTA0In0
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF83MzRfY19ieSI6IjI3NiIsImR0X2lkIjoiNzM2IiwiNzA2MiI6IioxMDk0LCoxMTA0In0
+
+//            $params = array('dt_id' => 734, 'inverse' => '-1', 'dt_734_c_by' => '276');  // 43 total
+//            https://theta.odr.io/app_dev.php/rruff_reference#/app_dev.php/search/display/0/eyJkdF83MzRfY19ieSI6IjI3NiIsImR0X2lkIjoiNzM0IiwiaW52ZXJzZSI6Ii0xIn0
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF83MzRfY19ieSI6IjI3NiIsImR0X2lkIjoiNzM0IiwiaW52ZXJzZSI6Ii0xIn0
+
+
+            // ----------------------------------------
+            // ima records where status notes have 'antiquity'
+//            $params = array('dt_id' => 736, '7614' => 'antiquity');  // should total 36
+//            https://theta.odr.io/app_dev.php/ima#/app_dev.php/search/display/0/eyJkdF9pZCI6IjczNiIsIjcwNjIiOiItMTA5NCwtMTEwNCIsIjc2MTQiOiJhbnRpcXVpdHkifQ
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczNiIsIjcwNjIiOiItMTA5NCwtMTEwNCIsIjc2MTQiOiJhbnRpcXVpdHkifQ
+
+//             ima records where status notes have 'antiquity' in a note that's not first
+//            $params = array('dt_id' => 736, '7614' => 'antiquity', '7613' => '>0');  // should total 1...35 of the 36 have 'antiquity' in status note #0
+            // no actual search for it
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczNiIsIjcwNjIiOiItMTA5NCwtMTEwNCIsIjc2MTQiOiJhbnRpcXVpdHkiLCI3NjEzIjoiPjAifQ
+
+            // references of status notes with 'antiquity'
+//            $params = array('dt_id' => 734, 'inverse' => 736, '7062' => '*1094,*1104', '7614' => 'antiquity');  // should total 9
+//            https://theta.odr.io/app_dev.php/ima#/app_dev.php/search/display/0/eyJkdF9pZCI6IjczNCIsImludmVyc2UiOiI3MzYiLCI3MDYyIjoiKjEwOTQsKjExMDQiLCI3NjE0IjoiYW50aXF1aXR5In0
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczNCIsImludmVyc2UiOiI3MzYiLCI3MDYyIjoiKjEwOTQsKjExMDQiLCI3NjE0IjoiYW50aXF1aXR5In0
+
+            // ima where status notes have 'antiquity' and author has 'downs'
+//            $params = array('dt_id' => 736, '7062' => '*1094,*1104', '7614' => 'antiquity', '7035' => 'downs');  // 15 total...36 minerals have a status note with 'antiquity', and 15 of those have a reference from 'downs'
+//            https://theta.odr.io/app_dev.php/ima#/app_dev.php/search/display/0/eyJkdF9pZCI6NzM2LCI3MDM1IjoiZG93bnMiLCI3MDYyIjoiKjEwOTQsKjExMDQiLCI3NjE0IjoiYW50aXF1aXR5In0
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6NzM2LCI3MDM1IjoiZG93bnMiLCI3MDYyIjoiKjEwOTQsKjExMDQiLCI3NjE0IjoiYW50aXF1aXR5In0
+
+            // references where status notes have 'antiquity' and author has 'downs'
+//            $params = array('dt_id' => 734, 'inverse' => 736, '7062' => '*1094,*1104', '7614' => 'antiquity', '7035' => 'downs');  // should total 0...'downs' hasn't been around since antiquity
+            // NOTE: existing search system returns 165, because it takes antiquity/downs "up" to a list of minerals before "going back down" to references
+//            https://theta.odr.io/app_dev.php/ima#/app_dev.php/search/display/0/eyJkdF9pZCI6IjczNCIsImludmVyc2UiOiI3MzYiLCI3MDYyIjoiKjEwOTQsKjExMDQiLCI3NjE0IjoiYW50aXF1aXR5IiwiNzAzNSI6ImRvd25zIn0
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczNCIsImludmVyc2UiOiI3MzYiLCI3MDYyIjoiKjEwOTQsKjExMDQiLCI3NjE0IjoiYW50aXF1aXR5IiwiNzAzNSI6ImRvd25zIn0
+
+
+            // ----------------------------------------
+            // ima records where mineral name
+//            $params = array('dt_id' => 736, '7052' => 'ab', '7062' => "-1094,-1104");  // should have 117 entries
+//            https://theta.odr.io/app_dev.php/ima#/app_dev.php/search/display/0/eyJkdF9pZCI6IjczNiIsIjcwNTIiOiJhYiIsIjcwNjIiOiItMTA5NCwtMTEwNCJ9
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczNiIsIjcwNTIiOiJhYiIsIjcwNjIiOiItMTA5NCwtMTEwNCJ9
+
+//            $params = array('dt_id' => 736, '7052' => 'abe', '7062' => "-1094,-1104");  // should have 16 entries
+//            https://theta.odr.io/app_dev.php/ima#/app_dev.php/search/display/0/eyJkdF9pZCI6IjczNiIsIjcwNTIiOiJhYmUiLCI3MDYyIjoiLTEwOTQsLTExMDQifQ
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczNiIsIjcwNTIiOiJhYmUiLCI3MDYyIjoiLTEwOTQsLTExMDQifQ
+
+//            $params = array('dt_id' => 736, '7052' => 'abelsonite', '7062' => "-1094,-1104");  // should have 1 entries
+//            https://theta.odr.io/app_dev.php/ima#/app_dev.php/search/display/0/eyJkdF9pZCI6IjczNiIsIjcwNTIiOiJhYmVsc29uaXRlIiwiNzA2MiI6Ii0xMDk0LC0xMTA0In0
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczNiIsIjcwNTIiOiJhYmVsc29uaXRlIiwiNzA2MiI6Ii0xMDk0LC0xMTA0In0
+
+//            $params = array('dt_id' => 736, '7052' => 'abelsoniteasdf', '7062' => "-1094,-1104");  // should have 0 entries
+//            https://theta.odr.io/app_dev.php/ima#/app_dev.php/search/display/0/eyJkdF9pZCI6IjczNiIsIjcwNTIiOiJhYmVsc29uaXRlYXNkZiIsIjcwNjIiOiItMTA5NCwtMTEwNCJ9
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczNiIsIjcwNTIiOiJhYmVsc29uaXRlYXNkZiIsIjcwNjIiOiItMTA5NCwtMTEwNCJ9
+
+
+            // ----------------------------------------
+            // rruff references, reference author has 'downs'
+//            $params = array('dt_id' => 734, '7035' => 'downs');  // should total 202
+//            https://theta.odr.io/app_dev.php/rruff_reference#/app_dev.php/search/display/0/eyJkdF9pZCI6IjczNCIsIjcwMzUiOiJkb3ducyIsICJpbnZlcnNlIjoiLTEifQ
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczNCIsIjcwMzUiOiJkb3ducyIsICJpbnZlcnNlIjoiLTEifQ
+
+            // ima list, reference author has 'downs'
+//            $params = array('dt_id' => 736, '7035' => 'downs', '7062' => "-1094,-1104");  // should total 365
+//            https://theta.odr.io/app_dev.php/ima#/app_dev.php/search/display/0/eyJkdF9pZCI6IjczNiIsIjcwMzUiOiJkb3ducyIsIjcwNjIiOiItMTA5NCwtMTEwNCJ9
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczNiIsIjcwMzUiOiJkb3ducyIsIjcwNjIiOiItMTA5NCwtMTEwNCJ9
+
+            // rruff samples, reference author has 'downs'
+//            $params = array('dt_id' => 738, '7035' => 'downs', '7062' => "-1094,-1104");  // should total 864
+//            https://theta.odr.io/app_dev.php/rruff_sample#/app_dev.php/search/display/0/eyJkdF9pZCI6IjczOCIsIjcwMzUiOiJkb3ducyJ9
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczOCIsIjcwMzUiOiJkb3ducyJ9
+
+
+            // varieties of inverse
+//            $params = array('dt_id' => 734, 'inverse' => '-1', '7035' => 'downs');  // should total 202.  existing search system should match
+//            https://theta.odr.io/app_dev.php/ima#/app_dev.php/search/display/0/eyJkdF9pZCI6IjczNCIsImludmVyc2UiOiItMSIsIjcwMzUiOiJkb3ducyJ9
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczNCIsImludmVyc2UiOiItMSIsIjcwMzUiOiJkb3ducyJ9
+
+//            $params = array('dt_id' => 734, 'inverse' => '736', '7035' => 'downs');  // should also total 202, inverse should have zero effect.  existing search system thinks it's 165
+//            https://theta.odr.io/app_dev.php/ima#/app_dev.php/search/display/0/eyJkdF9pZCI6IjczNCIsImludmVyc2UiOiI3MzYiLCI3MDM1IjoiZG93bnMifQ
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczNCIsImludmVyc2UiOiI3MzYiLCI3MDM1IjoiZG93bnMifQ
+
+//            $params = array('dt_id' => 734, 'inverse' => '736', '7052' => 'abelsonite');  // should total 5
+//            https://theta.odr.io/app_dev.php/ima#/app_dev.php/search/display/0/eyJkdF9pZCI6IjczNCIsImludmVyc2UiOiI3MzYiLCI3MDUyIjoiYWJlbHNvbml0ZSJ9
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczNCIsImludmVyc2UiOiI3MzYiLCI3MDUyIjoiYWJlbHNvbml0ZSJ9
+
+//            $params = array('dt_id' => 734, 'inverse' => '736', '7052' => 'abelsonite', '7035' => 'downs');  // should total 1
+//            https://theta.odr.io/app_dev.php/ima#/app_dev.php/search/display/0/eyJkdF9pZCI6IjczNCIsImludmVyc2UiOiI3MzYiLCI3MDUyIjoiYWJlbHNvbml0ZSIsIjcwMzUiOiJkb3ducyJ9
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczNCIsImludmVyc2UiOiI3MzYiLCI3MDUyIjoiYWJlbHNvbml0ZSIsIjcwMzUiOiJkb3ducyJ9
+
+
+//            $params = array('dt_id' => 734, 'inverse' => '738', '7052' => 'abelsonite', '7112' => '785');  // should still total 5
+//            https://theta.odr.io/app_dev.php/ima#/app_dev.php/search/display/0/eyJkdF9pZCI6IjczNCIsImludmVyc2UiOiI3MzgiLCI3MDUyIjoiYWJlbHNvbml0ZSIsIjcxMTIiOiI3ODUifQ
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczNCIsImludmVyc2UiOiI3MzgiLCI3MDUyIjoiYWJlbHNvbml0ZSIsIjcxMTIiOiI3ODUifQ
+
+//            $params = array('dt_id' => 734, 'inverse' => '738', '7052' => 'abelsonite', '7035' => 'downs', '7112' => '785');  // should still total 1
+//            https://theta.odr.io/app_dev.php/ima#/app_dev.php/search/display/0/eyJkdF9pZCI6IjczNCIsImludmVyc2UiOiI3MzgiLCI3MDUyIjoiYWJlbHNvbml0ZSIsIjcxMTIiOiI3ODUiLCI3MDM1IjoiZG93bnMifQ
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczNCIsImludmVyc2UiOiI3MzgiLCI3MDUyIjoiYWJlbHNvbml0ZSIsIjcxMTIiOiI3ODUiLCI3MDM1IjoiZG93bnMifQ
+
+//            $params = array('dt_id' => 734, 'inverse' => '738', '7052' => 'abelsonite', '7112' => '785', '7081' => 'Cameca SX50');  // should still total 5
+//            https://theta.odr.io/app_dev.php/ima#/app_dev.php/search/display/0/eyJkdF9pZCI6IjczNCIsImludmVyc2UiOiI3MzgiLCI3MDUyIjoiYWJlbHNvbml0ZSIsIjcxMTIiOiI3ODUsIjcwODEiOiJDYW1lY2EgU1g1MCcifQ
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczNCIsImludmVyc2UiOiI3MzgiLCI3MDUyIjoiYWJlbHNvbml0ZSIsIjcxMTIiOiI3ODUsIjcwODEiOiJDYW1lY2EgU1g1MCcifQ
+            // TODO - would be nice if i could somehow figure out how to prevent this one from creating 30+ paths for the instruments datatype to reach the reference datatype
+            // TODO - technically, all "paths" for the instrument datatype "go through" the sample datatype, so they could theoretically get "cut off" there
+            // TODO - ...but i suspect that doing that would also require the paths involving the instrument list to "finish up" BEFORE rruff samples does anything else
+
+            // ----------------------------------------
+            // instruments with 'rossman'
+//            $params = array('dt_id' => 741, '7081' => 'Rossman');  // should total 2
+//            https://theta.odr.io/app_dev.php/ima#/app_dev.php/search/display/0/eyJkdF9pZCI6Ijc0MSIsIjcwODEiOiJyb3NzbWFuIn0
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6Ijc0MSIsIjcwODEiOiJyb3NzbWFuIn0
+
+            // rruff_infrared records that have instruments with 'rossman'
+//            $params = array('dt_id' => 758, '7081' => 'Rossman');  // should total 112
+//            https://theta.odr.io/app_dev.php/ima#/app_dev.php/search/display/0/eyJkdF9pZCI6Ijc1OCIsIjcwODEiOiJyb3NzbWFuIn0
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6Ijc1OCIsIjcwODEiOiJyb3NzbWFuIn0
+
+            // rruff sample records that have instruments with 'rossman'
+//            $params = array('dt_id' => 738, '7081' => 'Rossman');  // should also total 112, because rossman is only used for infrared
+//            https://theta.odr.io/app_dev.php/ima#/app_dev.php/search/display/0/eyJkdF9pZCI6IjczOCIsIjcwODEiOiJyb3NzbWFuIn0
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczOCIsIjcwODEiOiJyb3NzbWFuIn0
+
+            // instruments used by rruff infrared
+//            $params = array('dt_id' => 741, 'inverse' => 758, '7141' => 'R');  // should total 19
+//            https://theta.odr.io/app_dev.php/ima#/app_dev.php/search/display/0/eyJkdF9pZCI6Ijc0MSIsImludmVyc2UiOiI3NTgiLCI3MTQxIjoiUiJ9
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6Ijc0MSIsImludmVyc2UiOiI3NTgiLCI3MTQxIjoiUiJ9
+
+
+            // ----------------------------------------
+            // rruff references, general search of 'downs'
+//            $params = array('dt_id' => 734, 'gen' => 'downs');  // should total 209
+//            https://theta.odr.io/app_dev.php/rruff_reference#/app_dev.php/search/display/0/eyJkdF9pZCI6IjczNCIsImdlbiI6ImRvd25zIiwiaW52ZXJzZSI6Ii0xIn0
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczNCIsImdlbiI6ImRvd25zIiwiaW52ZXJzZSI6Ii0xIn0
+
+            // ima list, general search of 'downs'
+//            $params = array('dt_id' => 736, 'gen' => 'downs', '7062' => "-1094,-1104");  // should total 376
+//            https://theta.odr.io/app_dev.php/ima#/app_dev.php/search/display/0/eyJkdF9pZCI6IjczNiIsImdlbiI6ImRvd25zIiwiNzA2MiI6Ii0xMDk0LC0xMTA0In0
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczNiIsImdlbiI6ImRvd25zIiwiNzA2MiI6Ii0xMDk0LC0xMTA0In0
+
+            // rruff samples, general search of 'downs'
+//            $params = array('dt_id' => 738, 'gen' => 'downs');  // should total 6001
+//            https://theta.odr.io/app_dev.php/rruff_sample#/app_dev.php/search/display/0/eyJkdF9pZCI6IjczOCIsImdlbiI6ImRvd25zIn0
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczOCIsImdlbiI6ImRvd25zIn0
+
+
+            // ----------------------------------------
+            // ima minerals (ignoring tags)
+//            $params = array('dt_id' => 736, '7062' => "*1094,*1104");  // should total 6530
+//            https://theta.odr.io/app_dev.php/ima#/app_dev.php/search/display/0/eyJkdF9pZCI6IjczNiIsIjcwNjIiOiIqMTA5NCwqMTEwNCJ9
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczNiIsIjcwNjIiOiIqMTA5NCwqMTEwNCJ9
+
+            // ima minerals (ignoring tags) with a references
+//            $params = array('dt_id' => 736, '7062' => "*1094,*1104", '7035' => '!""');  // should total 6487
+//            https://theta.odr.io/app_dev.php/ima#/app_dev.php/search/display/0/eyJkdF9pZCI6IjczNiIsIjcwMzUiOiIhXCJcIiIsIjcwNjIiOiIqMTA5NCwqMTEwNCJ9
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczNiIsIjcwMzUiOiIhXCJcIiIsIjcwNjIiOiIqMTA5NCwqMTEwNCJ9
+
+            // ima minerals (ignoring tags) without a references
+//            $params = array('dt_id' => 736, '7062' => "*1094,*1104", '7035' => '""');  // should total 43 (6530-6487). TODO new and existing search system won't work
+//            https://theta.odr.io/app_dev.php/ima#/app_dev.php/search/display/0/eyJkdF9pZCI6IjczNiIsIjcwMzUiOiIhXCJcIiIsIjcwNjIiOiIqMTA5NCwqMTEwNCJ9
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczNiIsIjcwMzUiOiIhXCJcIiIsIjcwNjIiOiIqMTA5NCwqMTEwNCJ9
+
+
+            // ----------------------------------------
+//            $params = array('dt_id' => 734, 'inverse' => '-1');  // should total 24643
+//            https://theta.odr.io/app_dev.php/rruff_reference#/app_dev.php/search/display/0/eyJkdF9pZCI6IjczNCIsIjcwMzUiOiJkb3ducyIsICJpbnZlcnNlIjoiLTEifQ
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczNCIsIjcwMzUiOiJkb3ducyIsICJpbnZlcnNlIjoiLTEifQ
+
+            // references linked to by ima minerals
+//            $params = array('dt_id' => 734, 'inverse' => 736, '7052' => '!""');  // should total 18620
+//            https://theta.odr.io/app_dev.php/rruff_reference#/app_dev.php/search/display/0/eyJkdF9pZCI6IjczNCIsImludmVyc2UiOiI3MzYiLCI3MDUyIjoiIVwiXCIifQ
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczNCIsImludmVyc2UiOiI3MzYiLCI3MDUyIjoiIVwiXCIifQ
+
+            // references not linked to by ima minerals
+//            $params = array('dt_id' => 734, 'inverse' => 736, '7052' => '""');  // should total 6023 (24643-18620)  // TODO new and existing search system won't work
+//            https://theta.odr.io/app_dev.php/rruff_reference#/app_dev.php/search/display/0/eyJkdF9pZCI6IjczNCIsImludmVyc2UiOiI3MzYiLCI3MDUyIjoiXCJcIiJ9
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczNCIsImludmVyc2UiOiI3MzYiLCI3MDUyIjoiXCJcIiJ9
+
+
+
+
+            // ----------------------------------------
+            // ----------------------------------------
+            // ----------------------------------------
+//            $params = array('dt_id' => 738, 'dt_738_pub' => '0', '7069' => 'R06');  // will return 17 results when logged in
+//            $search_as_super_admin = false;  $ignore_searchable = false;  // will return 1057 (1074-17) results when not logged in
+//            https://theta.odr.io/app_dev.php/rruff_sample#/app_dev.php/search/display/2010/eyJkdF83MzhfcHViIjoiMCIsImR0X2lkIjoiNzM4IiwiNzA2OSI6IlIwNiJ9
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF83MzhfcHViIjoiMCIsImR0X2lkIjoiNzM4IiwiNzA2OSI6IlIwNiJ9
+
+//            $params = array('dt_id' => 738, '7112' => '532', '7069' => 'R06');  // will return 1064 results when logged in
+//            $search_as_super_admin = false;  $ignore_searchable = false;  // will return 1048 (1064-16) results when not logged in
+//            https://theta.odr.io/app_dev.php/rruff_sample#/app_dev.php/search/display/2010/eyJkdF9pZCI6IjczOCIsIjcwNjkiOiJSMDYiLCI3MTEyIjoiNTMyIn0
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6IjczOCIsIjcwNjkiOiJSMDYiLCI3MTEyIjoiNTMyIn0
+
+
+            // ----------------------------------------
+            // ----------------------------------------
+            // ----------------------------------------
+
+//            $params = array('dt_id' => 734, 7035 => 'downs', 'inverse' => -1);  // should return 202 results
+//            https://theta.odr.io/app_dev.php/rruff_reference#/app_dev.php/search/display/0/eyJkdF9pZCI6NzM0LCJpbnZlcnNlIjotMSwiNzAzNSI6ImRvd25zIn0
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6NzM0LCJpbnZlcnNlIjotMSwiNzAzNSI6ImRvd25zIn0
+//            $params = array('dt_id' => 734, 7036 => 'pyroxene', 'inverse' => -1);  // should return 214 results
+//            https://theta.odr.io/app_dev.php/rruff_reference#/app_dev.php/search/display/0/eyJkdF9pZCI6NzM0LCJpbnZlcnNlIjotMSwiNzAzNiI6InB5cm94ZW5lIn0
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6NzM0LCJpbnZlcnNlIjotMSwiNzAzNiI6InB5cm94ZW5lIn0
+
+//            $params = array('dt_id' => 734, 7035 => 'downs', 7036 => 'pyroxene', 'inverse' => -1);  // should return 10 results
+//            https://theta.odr.io/app_dev.php/rruff_reference#/app_dev.php/search/display/0/eyJkdF9pZCI6NzM0LCJpbnZlcnNlIjotMSwiNzAzNSI6ImRvd25zIiwiNzAzNiI6InB5cm94ZW5lIn0
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6NzM0LCJpbnZlcnNlIjotMSwiNzAzNSI6ImRvd25zIiwiNzAzNiI6InB5cm94ZW5lIn0
+//            $params = array('dt_id' => 734, 7035 => 'downs', 7036 => 'pyroxene', 'inverse' => -1, 'merge' => 'OR');  // should return (202-10)+(214-10)+10=406 results
+//            https://theta.odr.io/app_dev.php/rruff_reference#/app_dev.php/search/display/0/eyJkdF9pZCI6NzM0LCJpbnZlcnNlIjotMSwibWVyZ2UiOiJPUiIsIjcwMzUiOiJkb3ducyIsIjcwMzYiOiJweXJveGVuZSJ9
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6NzM0LCJpbnZlcnNlIjotMSwibWVyZ2UiOiJPUiIsIjcwMzUiOiJkb3ducyIsIjcwMzYiOiJweXJveGVuZSJ9
+
+//            $params = array('dt_id' => 734, 7035 => '!downs', 'inverse' => -1);  // should return (24643-202) = 24441 results
+//            https://theta.odr.io/app_dev.php/rruff_reference#/app_dev.php/search/display/0/eyJkdF9pZCI6NzM0LCJpbnZlcnNlIjotMSwiNzAzNSI6IiFkb3ducyJ9
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6NzM0LCJpbnZlcnNlIjotMSwiNzAzNSI6IiFkb3ducyJ9
+//            $params = array('dt_id' => 734, 7036 => '!pyroxene', 'inverse' => -1);  // should return (24643-214) = 24429 results
+//            https://theta.odr.io/app_dev.php/rruff_reference#/app_dev.php/search/display/0/eyJkdF9pZCI6NzM0LCJpbnZlcnNlIjotMSwiNzAzNiI6IiFweXJveGVuZSJ9
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6NzM0LCJpbnZlcnNlIjotMSwiNzAzNiI6IiFweXJveGVuZSJ9
+
+//            $params = array('dt_id' => 734, 7035 => '!downs', 7036 => 'pyroxene', 'inverse' => -1);  // should return (214-10)=204 results
+//            https://theta.odr.io/app_dev.php/rruff_reference#/app_dev.php/search/display/0/eyJkdF9pZCI6NzM0LCJpbnZlcnNlIjotMSwiNzAzNSI6IiFkb3ducyIsIjcwMzYiOiJweXJveGVuZSJ9
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6NzM0LCJpbnZlcnNlIjotMSwiNzAzNSI6IiFkb3ducyIsIjcwMzYiOiJweXJveGVuZSJ9
+//            $params = array('dt_id' => 734, 7035 => '!downs', 7036 => 'pyroxene', 'inverse' => -1, 'merge' => 'OR');  // should return (24441+10)= 24451
+//            https://theta.odr.io/app_dev.php/rruff_reference#/app_dev.php/search/display/0/eyJkdF9pZCI6NzM0LCJpbnZlcnNlIjotMSwibWVyZ2UiOiJPUiIsIjcwMzUiOiIhZG93bnMiLCI3MDM2IjoicHlyb3hlbmUifQ
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6NzM0LCJpbnZlcnNlIjotMSwibWVyZ2UiOiJPUiIsIjcwMzUiOiIhZG93bnMiLCI3MDM2IjoicHlyb3hlbmUifQ
+
+//            $params = array('dt_id' => 734, 7035 => 'downs', 7036 => '!pyroxene', 'inverse' => -1);  // should return (202-10)=192 results
+//            https://theta.odr.io/app_dev.php/rruff_reference#/app_dev.php/search/display/0/eyJkdF9pZCI6NzM0LCJpbnZlcnNlIjotMSwiNzAzNSI6ImRvd25zIiwiNzAzNiI6IiFweXJveGVuZSJ9
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6NzM0LCJpbnZlcnNlIjotMSwiNzAzNSI6ImRvd25zIiwiNzAzNiI6IiFweXJveGVuZSJ9
+//            $params = array('dt_id' => 734, 7035 => 'downs', 7036 => '!pyroxene', 'inverse' => -1, 'merge' => 'OR');  // should return (24429+10)= 24439
+//            https://theta.odr.io/app_dev.php/rruff_reference#/app_dev.php/search/display/0/eyJkdF9pZCI6NzM0LCJpbnZlcnNlIjotMSwibWVyZ2UiOiJPUiIsIjcwMzUiOiJkb3ducyIsIjcwMzYiOiIhcHlyb3hlbmUifQ
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6NzM0LCJpbnZlcnNlIjotMSwibWVyZ2UiOiJPUiIsIjcwMzUiOiJkb3ducyIsIjcwMzYiOiIhcHlyb3hlbmUifQ
+
+
+
+//            $params = array('dt_id' => 736, 7035 => 'downs', '7062' => "*1094,*1104");  // should return 368 results
+//            https://theta.odr.io/app_dev.php/rruff_reference#/app_dev.php/search/display/0/eyJkdF9pZCI6NzM2LCI3MDM1IjoiZG93bnMiLCI3MDYyIjoiKjEwOTQsKjExMDQifQ
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6NzM2LCI3MDM1IjoiZG93bnMiLCI3MDYyIjoiKjEwOTQsKjExMDQifQ
+//            $params = array('dt_id' => 736, 7036 => 'pyroxene', '7062' => "*1094,*1104");  // should return 60 results
+//            https://theta.odr.io/app_dev.php/rruff_reference#/app_dev.php/search/display/0/eyJkdF9pZCI6NzM2LCI3MDM2IjoicHlyb3hlbmUiLCI3MDYyIjoiKjEwOTQsKjExMDQifQ
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6NzM2LCI3MDM2IjoicHlyb3hlbmUiLCI3MDYyIjoiKjEwOTQsKjExMDQifQ
+
+//            $params = array('dt_id' => 736, 7035 => 'downs', 7036 => 'pyroxene', '7062' => "*1094,*1104");  // should return 7 results
+            // NOTE: despite Anorthite (among others) being on both individual lists, it's not on the combined result because none of Anorthite's references have both downs AND pyroxene at the same time
+//            https://theta.odr.io/app_dev.php/rruff_reference#/app_dev.php/search/display/0/eyJkdF9pZCI6NzM2LCI3MDM1IjoiZG93bnMiLCI3MDM2IjoicHlyb3hlbmUiLCI3MDYyIjoiKjEwOTQsKjExMDQifQ
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6NzM2LCI3MDM1IjoiZG93bnMiLCI3MDM2IjoicHlyb3hlbmUiLCI3MDYyIjoiKjEwOTQsKjExMDQifQ
+//            $params = array('dt_id' => 736, 7035 => 'downs', 7036 => 'pyroxene', '7062' => "*1094,*1104", 'merge' => 'OR');  // should return 407 results
+            // NOTE: 407 is correct, can no longer do direct math on the sets because of the required transformations
+//            https://theta.odr.io/app_dev.php/rruff_reference#/app_dev.php/search/display/0/eyJkdF9pZCI6NzM2LCJtZXJnZSI6Ik9SIiwiNzAzNSI6ImRvd25zIiwiNzAzNiI6InB5cm94ZW5lIiwiNzA2MiI6IioxMDk0LCoxMTA0In0
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6NzM2LCJtZXJnZSI6Ik9SIiwiNzAzNSI6ImRvd25zIiwiNzAzNiI6InB5cm94ZW5lIiwiNzA2MiI6IioxMDk0LCoxMTA0In0
+
+//            $params = array('dt_id' => 736, 7035 => '!downs', '7062' => "*1094,*1104");  // should return (6530-368)=6162 results  TODO
+            // NOTE: 6486 is the naive value
+//            https://theta.odr.io/app_dev.php/rruff_reference#/app_dev.php/search/display/0/eyJkdF9pZCI6NzM2LCI3MDM1IjoiIWRvd25zIiwiNzA2MiI6IioxMDk0LCoxMTA0In0
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6NzM2LCI3MDM1IjoiIWRvd25zIiwiNzA2MiI6IioxMDk0LCoxMTA0In0
+//            $params = array('dt_id' => 736, 7036 => '!pyroxene', '7062' => "*1094,*1104");  // should return (6530-60)=6470 results  TODO
+            // NOTE: 6484 is the naive value
+//            https://theta.odr.io/app_dev.php/rruff_reference#/app_dev.php/search/display/0/eyJkdF9pZCI6NzM2LCI3MDM2IjoiIXB5cm94ZW5lIiwiNzA2MiI6IioxMDk0LCoxMTA0In0
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6NzM2LCI3MDM2IjoiIXB5cm94ZW5lIiwiNzA2MiI6IioxMDk0LCoxMTA0In0
+
+
+            $params = array('dt_id' => 736, 7035 => '!downs', 7036 => 'pyroxene', '7062' => "*1094,*1104");  // should return 39 results
+            // TODO - this implies that yes, advanced search has to be split apart.  that it "can't match the empty string" apparently doesn't matter once it starts crossing datatypes
+            // TODO - my current hangup is what to do with something like "!a AND b" or "!a OR b", or when there's a compound in one field and something else in a second, or when the "'merge' => OR" is there...
+            // NOTE: 59 is the naive value
+//            https://theta.odr.io/app_dev.php/rruff_reference#/app_dev.php/search/display/0/eyJkdF9pZCI6NzM2LCI3MDM1IjoiIWRvd25zIiwiNzAzNiI6InB5cm94ZW5lIiwiNzA2MiI6IioxMDk0LCoxMTA0In0
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6NzM2LCI3MDM1IjoiIWRvd25zIiwiNzAzNiI6InB5cm94ZW5lIiwiNzA2MiI6IioxMDk0LCoxMTA0In0
+//            $params = array('dt_id' => 736, 7035 => '!downs', 7036 => 'pyroxene', '7062' => "*1094,*1104", 'merge' => 'OR');  // should return TODO
+//            https://theta.odr.io/app_dev.php/rruff_reference#/app_dev.php/search/display/0/eyJkdF9pZCI6NzM2LCJtZXJnZSI6Ik9SIiwiNzAzNSI6IiFkb3ducyIsIjcwMzYiOiJweXJveGVuZSIsIjcwNjIiOiIqMTA5NCwqMTEwNCJ9
+//            https://theta.odr.io/app_dev.php/admin/asdf/eyJkdF9pZCI6NzM2LCJtZXJnZSI6Ik9SIiwiNzAzNSI6IiFkb3ducyIsIjcwMzYiOiJweXJveGVuZSIsIjcwNjIiOiIqMTA5NCwqMTEwNCJ9
+
+
+
+            // TODO - ...the ultimate question is "where does this criteria resolve?"
+            // TODO - e.g. do you want minerals with a reference that has both lafuente and downs at the same time?  or do you want minerals that have references from both lafuente and downs?
+            // TODO - the former has the criteria "resolve" at the reference level, so fewer results...the latter has the criteria "resolve" at the mineral level, so more results
+            // TODO - this also means the former will have far more results when negation is involved, even overlapping with the non-negated results...
+            // TODO - ...while the latter will have far fewer results when negation is involved
+
+            // TODO - historically, advanced search in ODR has worked like the former, while general search works like the latter
+            // TODO - ...except it also had to do some extra shit to compensate for records without descendants
+
+
+            // TODO - compared to resolving "later", resolving "now" returns a very small number of false negatives, and a very large number of false positives...so to speak
+            // TODO - ...most of this has to do with it latching onto records that match negations by themself, and then getting their parents
+            // TODO - e.g. Abelsonite matches "downs" because his name is on 1 of the 5 references for that mineral...and Abelsonite also matches "!downs" because the other 4 references aren't
+
+
+
+
+            // ----------------------------------------
+            if ($search_key === '')
+                $search_key = $search_key_service->encodeSearchKey($params);
+            else
+                $params = $search_key_service->decodeSearchKey($search_key);
+            print '<pre>'.$search_key.'</pre>';
+            print '<pre>'.print_r($params, true).'</pre>';
+
+
+            // ----------------------------------------
+            $desired_datatype_id = intval($params['dt_id']);
+            $family_datatype_id = $desired_datatype_id;
+            if ( isset($params['inverse']) ) {
+                $inverse_dt_id = intval($params['inverse']);
+                if ($inverse_dt_id > 0)
+                    $family_datatype_id = intval($params['inverse']);
             }
-            print '</table>';
+
+            /** @var DataType $family_datatype */
+            $family_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($family_datatype_id);
+            if ($family_datatype == null)
+                throw new ODRNotFoundException('Datatype');
+            /** @var DataType $desired_datatype */
+            $desired_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($desired_datatype_id);
+            if ($desired_datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+
+            $datatype_ids = $datatree_info_service->getAssociatedDatatypes($family_datatype_id, true);
+            $query = $em->createQuery(
+               'SELECT dt.id AS dt_id, dtm.shortName AS dt_name
+                FROM ODRAdminBundle:DataType dt
+                JOIN ODRAdminBundle:DataTypeMeta dtm WITH dtm.dataType = dt
+                WHERE dt.id IN (:datatype_ids)
+                AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
+            )->setParameters( array('datatype_ids' => $datatype_ids) );
+            $results = $query->getArrayResult();
+
+            $dt_names = array();
+            foreach ($results as $result)
+                $dt_names[ $result['dt_id'] ] = $result['dt_name'];
+
+//            unset($dt_names[818]);
+            print '<pre>'.print_r($dt_names, true).'</pre>';
+
+            $dr_names = array();
+            foreach ($dt_names as $dt_id => $dt_name)
+                $dr_names[$dt_id] = $sort_service->getNamedDatarecordList($dt_id);
+//            print '<pre>'.print_r($dr_names, true).'</pre>';  exit();
+
+            if ($complete === '')
+                $complete = false;
+            else
+                $complete = true;
+//            $complete = true;
+
+            $grandparent_ids = $search_api_service->performSearch_new(
+//            $grandparent_ids = $search_api_service->performSearch(
+                $desired_datatype,
+                $search_key,
+                $user_permissions,
+                $complete,
+                array(),
+                array(),
+                $search_as_super_admin,
+                $ignore_searchable,
+                false
+            );
+
+            $results = array();
+            foreach ($grandparent_ids as $num => $dr_id)
+                $results[$dr_id] = $dr_names[$desired_datatype_id][$dr_id];
+            asort($results);
+
+            print '<pre># of $results: '.count($results).'</pre>';
+            print '<pre>'.print_r($results, true).'</pre>';
 
         }
         catch (\Exception $e) {
@@ -1582,6 +1949,29 @@ $ret .= '  Set current to '.$count."\n";
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'text/html');
+//        $response->headers->set('Content-Type', 'application/json');
         return $response;
+    }
+
+    const HAS_GENERAL_SEARCH_CRITERIA = 0b0001;
+    const HAS_ADV_SEARCH_CRITERIA = 0b0010;
+
+    /**
+     * @param array $graph
+     * @param array $counts
+     * @param array $dt_names
+     * @param int $current_datatype_id
+     * @param int $indent
+     */
+    private function printgraph($graph, $counts, $dt_names, $current_datatype_id, $indent = 0)
+    {
+        for ($i = 0; $i < $indent; $i++)
+            print "    ";
+
+        print '('.$current_datatype_id.') '.$dt_names[$current_datatype_id].': '.$counts[$current_datatype_id]."\n";
+        if ( isset($graph[$current_datatype_id]) ) {
+            foreach ($graph[$current_datatype_id] as $child_dt_id => $tmp)
+                self::printgraph($graph, $counts, $dt_names, $child_dt_id, $indent + 1);
+        }
     }
 }

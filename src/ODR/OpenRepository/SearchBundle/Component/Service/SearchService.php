@@ -2507,6 +2507,60 @@ class SearchService
 
 
     /**
+     * Returns one of four different arrays of related records, depending on the two boolean flags.
+     *
+     * This is combined from getCachedSearchDatarecordList() and getInverseSearchDatarecordList()...
+     * despite being the one to name them in the first place, they always managed to confuse me.
+     *
+     * @param int $datatype_id
+     * @param bool $datatype_is_ancestor If true, the values of the array will be descendants to $datatype_id
+     *                                   If false, then the values of the array be ancestors to $datatype_id
+     * @param bool $descendants_are_links If true, the values of the array will be linked records
+     *                                    If false, the values of the array will be child/parent records
+     * @return array
+     */
+    public function getCachedDatarecordList($datatype_id, $datatype_is_ancestor = false, $descendants_are_links = false)
+    {
+        $cache_key = '';
+        if ($datatype_is_ancestor) {
+            if ($descendants_are_links)
+                $cache_key = 'cached_search_dt_'.$datatype_id.'_linked_dr_children';
+            else
+                $cache_key = 'cached_search_dt_'.$datatype_id.'_dr_children';
+        }
+        else {
+            if ($descendants_are_links)
+                $cache_key = 'cached_search_dt_'.$datatype_id.'_linked_dr_parents';
+            else
+                $cache_key = 'cached_search_dt_'.$datatype_id.'_dr_parents';
+        }
+
+        // Attempt to load the requested list from the cache...
+        $list = $this->cache_service->get($cache_key);  //$list = false;
+        if (!$list) {
+            // ...but if it doesn't exist, then have to (slowly) rebuild it
+            if ($datatype_is_ancestor) {
+                if ($descendants_are_links)
+                    $list = $this->search_query_service->getLinkedChildDatarecords_new($datatype_id);
+                else
+                    $list = $this->search_query_service->getChildDatarecords_new($datatype_id);
+            }
+            else {
+                if ($descendants_are_links)
+                    $list = $this->search_query_service->getLinkedParentDatarecords_new($datatype_id);
+                else
+                    $list = $this->search_query_service->getParentDatarecords_new($datatype_id);
+            }
+
+            // Save the list in the correct cache entry
+            $this->cache_service->set($cache_key, $list);
+        }
+
+        return $list;
+    }
+
+
+    /**
      * Returns a cached list of the uuids of all datarecords of the given datatype.
      *
      * This exists because {@link SearchService::getCachedSearchDatarecordList()} is also convenient
