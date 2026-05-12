@@ -388,6 +388,26 @@ odr_api_delete_dataset:
     dataset_uuid: '^[a-z0-9]+$'
     format: 'json'
 
+# Delete a single datarecord. Body: { "user_email": "..." }
+odr_api_delete_datarecord_single:
+  path:  /api/{version}/datarecord/{datarecord_uuid}
+  defaults: { _controller: ODRAdminBundle:API:deleteDatarecordByUUID }
+  methods: [ DELETE ]
+  requirements:
+    version: 'v\d+'
+    datarecord_uuid: '^[a-z0-9]+$'
+
+# Delete a batch of datarecords. Body:
+#   { "user_email": "...", "datarecord_uuids": ["uuid1", "uuid2", ...] }
+# Maximum 100 UUIDs per request; entire batch rejected if the caller
+# lacks permission on any single record (fail-closed).
+odr_api_delete_datarecord_bulk:
+  path:  /api/{version}/datarecord
+  defaults: { _controller: ODRAdminBundle:API:deleteDatarecordByUUID, datarecord_uuid: null }
+  methods: [ DELETE ]
+  requirements:
+    version: 'v\d+'
+
 odr_api_dataset_quota:
   path:  /api/{version}/dataset/quota/{dataset_uuid}
   defaults: { _controller: ODRAdminBundle:API:datasetQuotaByUUID, version: 'v3' }
