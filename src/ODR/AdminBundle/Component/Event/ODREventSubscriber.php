@@ -867,6 +867,13 @@ class ODREventSubscriber implements EventSubscriberInterface
 
             // Also delete the related dashboard entry
             $this->cache_service->delete('dashboard_'.$grandparent->getDataType()->getId());
+
+            // ----------------------------------------
+            // If the grandparent is a public top-level record, queue a
+            // re-render of its static HTML snapshot. Dedup is handled by
+            // the static-render service's per-record version counter, so
+            // rapid edits collapse into a single render of the latest state.
+            self::enqueueGrandparentForStaticRender($grandparent);
         }
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
@@ -874,6 +881,47 @@ class ODREventSubscriber implements EventSubscriberInterface
             $base_info = array(self::class);
             $event_info = $event->getErrorInfo();
             $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
+        }
+    }
+
+
+    /**
+     * Re-enqueue the static-render of a record, but only if it's a
+     * public top-level record. Failures here must not break the rest
+     * of the event handler, so any error is swallowed + logged.
+     *
+     * @param \ODR\AdminBundle\Entity\DataRecord $grandparent
+     */
+    private function enqueueGrandparentForStaticRender($grandparent)
+    {
+        try {
+            // Only top-level records get a standalone static page.
+            if ($grandparent->getId() !== $grandparent->getGrandparent()->getId())
+                return;
+            // Skip non-public records — sitemap/SEO only cares about public.
+            if (!$grandparent->isPublic())
+                return;
+
+            /** @var \ODR\AdminBundle\Component\Service\StaticRenderService $svc */
+            $svc = $this->container->get('odr.static_render_service');
+            $svc->enqueueRecord($grandparent);
+        } catch (\Throwable $e) {
+            $this->logger->warning('ODREventSubscriber: static-render enqueue failed: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Delete the static HTML file for a record (used on hard delete or
+     * "made private"). Best-effort; logs and swallows on failure.
+     */
+    private function deleteStaticFileFor($datatype_uuid, $record_uuid)
+    {
+        try {
+            /** @var \ODR\AdminBundle\Component\Service\StaticRenderService $svc */
+            $svc = $this->container->get('odr.static_render_service');
+            $svc->deleteStaticFileByUuid($datatype_uuid, $record_uuid);
+        } catch (\Throwable $e) {
+            $this->logger->warning('ODREventSubscriber: static-render delete failed: '.$e->getMessage());
         }
     }
 
@@ -933,10 +981,15 @@ class ODREventSubscriber implements EventSubscriberInterface
 
                 if ( !is_array($datarecord_uuid) ) {
                     $this->cache_service->delete('json_record_'.$datarecord_uuid);
+                    // If the deleted record was top-level, drop its static
+                    // HTML snapshot too so the sitemap stays accurate.
+                    self::deleteStaticFileFor($datatype->getUniqueId(), $datarecord_uuid);
                 }
                 else {
-                    foreach ($datarecord_uuid as $dr_uuid)
+                    foreach ($datarecord_uuid as $dr_uuid) {
                         $this->cache_service->delete('json_record_'.$dr_uuid);
+                        self::deleteStaticFileFor($datatype->getUniqueId(), $dr_uuid);
+                    }
                 }
             }
 
@@ -1006,6 +1059,20 @@ class ODREventSubscriber implements EventSubscriberInterface
             $this->cache_service->delete('cached_datarecord_'.$dr->getId());
             $this->cache_service->delete('cached_table_data_'.$dr->getId());
             $this->cache_service->delete('json_record_' . $dr->getUniqueId());
+
+            // ----------------------------------------
+            // Static-render synchronization on public-status change:
+            //   public  -> queue a re-render
+            //   private -> drop the existing static file from disk
+            // $dr is the grandparent of the datarecord whose status changed.
+            try {
+                if ($dr->isPublic())
+                    self::enqueueGrandparentForStaticRender($dr);
+                else
+                    self::deleteStaticFileFor($dr->getDataType()->getUniqueId(), $dr->getUniqueId());
+            } catch (\Throwable $e) {
+                $this->logger->warning('ODREventSubscriber: static-render public-status sync failed: '.$e->getMessage());
+            }
         }
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
