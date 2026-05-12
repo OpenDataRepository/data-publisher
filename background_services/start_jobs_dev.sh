@@ -1,5 +1,7 @@
 #!/bin/bash
 
+
+
 cd /home/rruff/data-publisher/background_services
 nodemon ima_data_builder.js >> ../app/logs/ima_data_builder.log 2>&1 &
 nodemon ima_data_finisher.js >> ../app/logs/ima_data_finisher.log 2>&1 &
@@ -17,3 +19,5 @@ nodemon amcsd_record_analyzer.js >> ../app/logs/amcsd_record_analyzer.log 2>&1 &
 
 nodemon statistics_processor.js >> ../app/logs/statistics_processor.log 2>&1 &
 nodemon statistics_daily_aggregator.js >> ../app/logs/statistics_daily_aggregator.log 2>&1 &
+
+STATIC_RENDER_IGNORE_HTTPS_ERRORS=1 nodemon static_render_daemon.js >> ../app/logs/static_render_daemon.log 2>&1 &

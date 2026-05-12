@@ -21,3 +21,5 @@ node amcsd_record_analyzer.js >> ../app/logs/amcsd_record_analyzer.log 2>&1 &
 
 node statistics_processor.js >> ../app/logs/statistics_processor.log 2>&1 &
 node statistics_daily_aggregator.js >> ../app/logs/statistics_daily_aggregator.log 2>&1 &
+
+node static_render_daemon.js >> ../app/logs/static_render_daemon.log 2>&1 &
