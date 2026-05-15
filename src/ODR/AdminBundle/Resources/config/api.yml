@@ -388,6 +388,26 @@ odr_api_delete_dataset:
     dataset_uuid: '^[a-z0-9]+$'
     format: 'json'
 
+# Delete a single datarecord. Body: { "user_email": "..." }
+odr_api_delete_datarecord_single:
+  path:  /api/{version}/record/{datarecord_uuid}
+  defaults: { _controller: ODRAdminBundle:API:deleteDatarecordByUUID }
+  methods: [ DELETE ]
+  requirements:
+    version: 'v\d+'
+    datarecord_uuid: '^[a-z0-9]+$'
+
+# Delete a batch of datarecords. Body:
+#   { "user_email": "...", "datarecord_uuids": ["uuid1", "uuid2", ...] }
+# Maximum 100 UUIDs per request; entire batch rejected if the caller
+# lacks permission on any single record (fail-closed).
+odr_api_delete_datarecord_bulk:
+  path:  /api/{version}/record
+  defaults: { _controller: ODRAdminBundle:API:deleteDatarecordByUUID, datarecord_uuid: null }
+  methods: [ DELETE ]
+  requirements:
+    version: 'v\d+'
+
 odr_api_dataset_quota:
   path:  /api/{version}/dataset/quota/{dataset_uuid}
   defaults: { _controller: ODRAdminBundle:API:datasetQuotaByUUID, version: 'v3' }
@@ -674,4 +694,59 @@ odr_api_statistics_update_bots:
   methods: [ POST ]
   requirements:
     version: 'v\d+'
+
+
+# ----- Static Render -----
+
+# Lightweight "am I logged in?" probe used by cached static pages to
+# decide whether to redirect to the dynamic version. Returns
+# {logged_in: bool}, includes CORS headers for site_baseurl callers.
+odr_api_auth_status:
+  path: /api/{version}/auth/status
+  defaults: { _controller: ODRAdminBundle:API:authStatus, _format: json }
+  methods: [ GET ]
+  requirements:
+    version: 'v\d+'
+
+# Enqueue a full datatype to be rendered to static HTML.
+# Body: { "user_email": "<admin email>" }
+odr_api_static_render_enqueue:
+  path: /api/{version}/dataset/{dataset_uuid}/static_render
+  defaults: { _controller: ODRAdminBundle:API:staticRenderEnqueue, _format: json }
+  methods: [ POST ]
+  requirements:
+    version: 'v\d+'
+    dataset_uuid: '^[a-z0-9]+$'
+
+# Snapshot of the static-render beanstalkd tube (queue depth, workers).
+odr_api_static_render_status:
+  path: /api/{version}/static_render/status
+  defaults: { _controller: ODRAdminBundle:API:staticRenderStatus, _format: json }
+  methods: [ GET ]
+  requirements:
+    version: 'v\d+'
+
+# Top-level sitemap index. Lists per-datatype child sitemaps (paginated
+# when a datatype has more than 50,000 records). Public, no auth.
+odr_sitemap:
+  path: /sitemap.xml
+  defaults: { _controller: ODRAdminBundle:API:sitemap }
+  methods: [ GET ]
+
+# Child sitemap for a single datatype, page 1 (URLs of static files).
+odr_sitemap_datatype:
+  path: /sitemap-{dataset_uuid}.xml
+  defaults: { _controller: ODRAdminBundle:API:sitemapDatatype, page: 1 }
+  methods: [ GET ]
+  requirements:
+    dataset_uuid: '^[a-z0-9]+$'
+
+# Child sitemap, paginated form (page 2+).
+odr_sitemap_datatype_page:
+  path: /sitemap-{dataset_uuid}-{page}.xml
+  defaults: { _controller: ODRAdminBundle:API:sitemapDatatype }
+  methods: [ GET ]
+  requirements:
+    dataset_uuid: '^[a-z0-9]+$'
+    page: '\d+'
 

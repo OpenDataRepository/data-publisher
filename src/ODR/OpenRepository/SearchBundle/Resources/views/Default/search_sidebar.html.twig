@@ -131,7 +131,11 @@
                         {% if inverse_dt_names is defined and inverse_dt_names|length > 0 %}
                             &nbsp;
                             <span class="FRight">
-                                Search Ancestor: <select id="inverse_dt_select" name="inverse">
+                                {% set has_default_criteria = false %}
+                                {% if default_search_params is defined and default_search_params['inverse'] is defined %}
+                                    {% set has_default_criteria = true %}
+                                {% endif %}
+                                Search Ancestor: <select id="inverse_dt_select" {% if has_default_criteria %}class="ODRDefaultCriteria"{% endif %} name="inverse">
                                 <option value="-1">none</option>
                                 {% for dt_id,dt_name in inverse_dt_names %}
                                     <option value="{{ dt_id }}" {% if current_inverse_dt_id == dt_id %}selected{% endif %}>{{ dt_name }}</option>

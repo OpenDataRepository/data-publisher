@@ -41,6 +41,14 @@ services:
     odr.markdown.parser:
         class: ODR\AdminBundle\Component\Service\ODRMarkdownParserService
 
+    odr.json_exception_subscriber:
+        class: ODR\AdminBundle\Component\Event\JsonExceptionSubscriber
+        arguments:
+            $environment: "%kernel.environment%"
+            $logger: "@logger"
+        tags:
+            - { name: kernel.event_subscriber }
+
     # Defines an event subscriber to disseminate events to relevant render plugins
     odr.event_subscriber:
         class: ODR\AdminBundle\Component\Event\ODREventSubscriber
@@ -409,6 +417,18 @@ services:
             $entity_manager: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
             $entity_creation_service: "@odr.entity_creation_service"
+            $logger: "@logger"
+
+    odr.static_render_service:
+        class: ODR\AdminBundle\Component\Service\StaticRenderService
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $pheanstalk: "@pheanstalk"
+            $redis: "@snc_redis.default"
+            $odr_web_directory: "%odr_web_directory%"
+            $site_baseurl: "%site_baseurl%"
+            $wordpress_site_baseurl: "%wordpress_site_baseurl%"
+            $odr_wordpress_integrated: "%odr_wordpress_integrated%"
             $logger: "@logger"
 
     odr.uuid_service:

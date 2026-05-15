@@ -263,9 +263,10 @@
 
         var post_data = $(search_form).serialize();
         post_data += '&search_theme_id=' + search_theme_id + '&intent=' + intent;
+        // console.log('post_data:', post_data);
 
         // The serialized post will have a value for every single datafield, most of which will be
-        //  the empty string...which is (usually) bad.
+        //  the empty string...which is (usually) undesireable
         var datafields_with_default_values = new Map();
         if (intent !== 'stored_search_keys') {
             // ...the exception being when the empty string exists to override a default search parameter
@@ -276,21 +277,27 @@
             // console.log('datafields_with_default_values', datafields_with_default_values);
         }
 
-        var cleaned = [];
         var df_values = post_data.split(/&/);
         // console.log('df_values', df_values);
 
+        var cleaned = [];
         $.each(df_values, function(index, elem) {
-            if ( elem.charAt(elem.length-1) !== '=' )
+            if ( !elem.endsWith('=') )
                 cleaned.push(elem);
-            else if ( datafields_with_default_values.has(elem.substring(0,elem.length-1)) )
+            else if ( datafields_with_default_values.has(elem.replace('=','')) )
                 cleaned.push(elem);
         });
         // console.log('cleaned', cleaned);
-
         post_data = cleaned.join('&');
-        // Don't want the default merge type, or the default inverse value in here
-        post_data = post_data.replace('&merge=AND', '').replace('&inverse=-1', '');
+
+        // Don't preserve the default merge type
+        post_data = post_data.replace('&merge=AND', '');
+        // Whether to preserve the default inverse parameter depends on whether it's part of the
+        //  datatype's default search key...
+        if ( !$("#inverse_dt_select").hasClass('ODRDefaultCriteria') ) {
+            // ...if it's not, then get rid of it
+            post_data = post_data.replace('&inverse=-1', '');
+        }
         // console.log(post_data);
         // return;
 

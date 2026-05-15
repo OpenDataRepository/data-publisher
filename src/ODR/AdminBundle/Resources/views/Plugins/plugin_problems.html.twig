@@ -6,21 +6,25 @@
             <thead><tr>
                 <th></th>
                 <th>Database</th>
+                <th>Child Database</th>
                 <th>Datafield</th>
                 <th>Error</th>
             </tr></thead>
             <tbody>
-{% for grandparent_dt_id, dt_data in plugin_update_problems %}
-    {% for dt_name, df_data in dt_data %}
-        {% for df_name, df_problems in df_data %}
-            {% for num, msg in df_problems %}
-                <tr>
-                    <td><i class='ODRRenderPluginProblemDatatype fa fa-external-link' rel="{{ grandparent_dt_id }}"></i></td>
-                    <td>{{ dt_name }}</td>
-                    <td>{{ df_name }}</td>
-                    <td>{{ msg }}</td>
-                </tr>
-           {% endfor %}
+{% for grandparent_dt_id, gdt_data in plugin_update_problems %}
+    {% for gdt_name, dt_data in gdt_data %}
+        {% for dt_name, df_data in dt_data %}
+            {% for df_name, df_problems in df_data %}
+                {% for num, msg in df_problems %}
+                    <tr>
+                        <td><i class='ODRRenderPluginProblemDatatype fa fa-external-link' rel="{{ grandparent_dt_id }}"></i></td>
+                        <td>{{ gdt_name }}</td>
+                        <td>{{ dt_name }}</td>
+                        <td>{{ df_name }}</td>
+                        <td>{{ msg }}</td>
+                    </tr>
+               {% endfor %}
+            {% endfor %}
         {% endfor %}
     {% endfor %}
 {% endfor %}

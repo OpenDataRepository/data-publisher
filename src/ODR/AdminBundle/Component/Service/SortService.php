@@ -600,7 +600,7 @@ class SortService
                     JOIN ODRAdminBundle:RadioSelection AS rs WITH rs.radioOption = ro
                     JOIN ODRAdminBundle:DataRecordFields AS drf WITH rs.dataRecordFields = drf
                     JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-                    WHERE dr.dataType = :datatype AND drf.dataField = :datafield AND rs.selected = 1
+                    WHERE dr.dataType = :datatype AND ro.dataField = :datafield AND rs.selected = 1
                     AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL AND rs.deletedAt IS NULL
                     AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
                 )->setParameters(

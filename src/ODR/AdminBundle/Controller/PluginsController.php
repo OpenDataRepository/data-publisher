@@ -1369,7 +1369,8 @@ class PluginsController extends ODRCustomController
                 partial rpi.{id}, partial rpm.{id}, partial rpf.{id, fieldName},
                 partial df.{id}, partial dfm.{id, fieldName, is_unique, allow_multiple_uploads},
                 partial ft.{id, typeClass, typeName},
-                partial dt.{id}, partial dtm.{id, shortName}, partial gdt.{id}
+                partial dt.{id}, partial dtm.{id, shortName},
+                partial gdt.{id}, partial gdtm.{id, shortName}
 
             FROM ODRAdminBundle:RenderPlugin rp
             JOIN rp.renderPluginInstance AS rpi
@@ -1383,13 +1384,15 @@ class PluginsController extends ODRCustomController
             JOIN df.dataType AS dt
             JOIN dt.dataTypeMeta AS dtm
             JOIN dt.grandparent AS gdt
+            JOIN gdt.dataTypeMeta AS gdtm
 
             WHERE rp.pluginClassName IN (:plugin_classnames)
             AND (rpi.dataType IS NOT NULL OR rpi.dataField IS NOT NULL)
             AND rp.deletedAt IS NULL AND rpi.deletedAt IS NULL
             AND rpm.deletedAt IS NULL AND rpf.deletedAt IS NULL
             AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL AND ft.deletedAt IS NULL
-            AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND gdt.deletedAt IS NULL'
+            AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
+            AND gdt.deletedAt IS NULL AND gdtm.deletedAt IS NULL'
         )->setParameters(
             array(
                 'plugin_classnames' => $plugin_classnames
@@ -1461,12 +1464,15 @@ class PluginsController extends ODRCustomController
                             $df = $rpi['renderPluginMap'][0]['dataField'];
                             $dt = $df['dataType'];
                             $dt_name = $dt['dataTypeMeta'][0]['shortName'];
-                            $grandparent_dt_id = $dt['grandparent']['id'];
+                            $gdt = $dt['grandparent'];
+                            $gdt_id = $gdt['id'];
+                            $gdt_name = $gdt['dataTypeMeta'][0]['shortName'];
 
                             self::insertPluginUpdateError(
                                 $plugin_update_problems,
                                 $plugin_classname,
-                                $grandparent_dt_id,
+                                $gdt_id,
+                                $gdt_name,
                                 $dt_name,
                                 '',    // empty datafield name
                                 'Converting this '.$current_plugin_type.' plugin into a '.$new_plugin_type.' plugin would break the existing renderPluginMap entries'
@@ -1481,15 +1487,17 @@ class PluginsController extends ODRCustomController
                             // Extract the name for the datafield and the datatype
                             $df = $rpi['renderPluginMap'][0]['dataField'];
                             $df_name = $df['dataFieldMeta'][0]['fieldName'];
-
                             $dt = $df['dataType'];
                             $dt_name = $dt['dataTypeMeta'][0]['shortName'];
-                            $grandparent_dt_id = $dt['grandparent']['id'];
+                            $gdt = $dt['grandparent'];
+                            $gdt_id = $gdt['id'];
+                            $gdt_name = $gdt['dataTypeMeta'][0]['shortName'];
 
                             self::insertPluginUpdateError(
                                 $plugin_update_problems,
                                 $plugin_classname,
-                                $grandparent_dt_id,
+                                $gdt_id,
+                                $gdt_name,
                                 $dt_name,
                                 $df_name,
                                 'Converting this '.$current_plugin_type.' plugin into a '.$new_plugin_type.' plugin would break the existing renderPluginMap entries'
@@ -1520,6 +1528,7 @@ class PluginsController extends ODRCustomController
                                         $plugin_update_problems,
                                         $plugin_classname,
                                         $df['grandparent_datatype_id'],
+                                        $df['grandparent_name'],
                                         $df['datatype_name'],
                                         $df['fieldName'],
                                         'The datafield is currently a "'.$df['typeClass'].'" typeclass, but the new plugin config only allows the '.implode('|', $rpf_changes['allowed_fieldtypes']).' typeclasses'
@@ -1540,6 +1549,7 @@ class PluginsController extends ODRCustomController
                                         $plugin_update_problems,
                                         $plugin_classname,
                                         $df['grandparent_datatype_id'],
+                                        $df['grandparent_name'],
                                         $df['datatype_name'],
                                         $df['fieldName'],
                                         'The new plugin config requires this datafield to be unique'
@@ -1551,6 +1561,7 @@ class PluginsController extends ODRCustomController
                                         $plugin_update_problems,
                                         $plugin_classname,
                                         $df['grandparent_datatype_id'],
+                                        $df['grandparent_name'],
                                         $df['datatype_name'],
                                         $df['fieldName'],
                                         'The new plugin config requires this datafield to not allow multiple file/image uploads'
@@ -1578,11 +1589,12 @@ class PluginsController extends ODRCustomController
      * @param array $plugin_update_problems
      * @param string $plugin_classname
      * @param int $grandparent_datatype_id
+     * @param string $grandparent_datatype_name
      * @param string $datatype_name
      * @param string $datafield_name
      * @param string $message
      */
-    private function insertPluginUpdateError(&$plugin_update_problems, $plugin_classname, $grandparent_datatype_id, $datatype_name, $datafield_name, $message)
+    private function insertPluginUpdateError(&$plugin_update_problems, $plugin_classname, $grandparent_datatype_id, $grandparent_datatype_name, $datatype_name, $datafield_name, $message)
     {
         if ( !isset($plugin_update_problems[$plugin_classname]) )
             $plugin_update_problems[$plugin_classname] = array();
@@ -1590,13 +1602,16 @@ class PluginsController extends ODRCustomController
         if ( !isset($plugin_update_problems[$plugin_classname][$grandparent_datatype_id]) )
             $plugin_update_problems[$plugin_classname][$grandparent_datatype_id] = array();
 
-        if ( !isset($plugin_update_problems[$plugin_classname][$grandparent_datatype_id][$datatype_name]) )
-            $plugin_update_problems[$plugin_classname][$grandparent_datatype_id][$datatype_name] = array();
+        if ( !isset($plugin_update_problems[$plugin_classname][$grandparent_datatype_id][$grandparent_datatype_name]) )
+            $plugin_update_problems[$plugin_classname][$grandparent_datatype_id][$grandparent_datatype_name] = array();
 
-        if ( !isset($plugin_update_problems[$plugin_classname][$grandparent_datatype_id][$datatype_name][$datafield_name]) )
-            $plugin_update_problems[$plugin_classname][$grandparent_datatype_id][$datatype_name][$datafield_name] = array();
+        if ( !isset($plugin_update_problems[$plugin_classname][$grandparent_datatype_id][$grandparent_datatype_name][$datatype_name]) )
+            $plugin_update_problems[$plugin_classname][$grandparent_datatype_id][$grandparent_datatype_name][$datatype_name] = array();
 
-        $plugin_update_problems[$plugin_classname][$grandparent_datatype_id][$datatype_name][$datafield_name][] = $message;
+        if ( !isset($plugin_update_problems[$plugin_classname][$grandparent_datatype_id][$grandparent_datatype_name][$datatype_name][$datafield_name]) )
+            $plugin_update_problems[$plugin_classname][$grandparent_datatype_id][$grandparent_datatype_name][$datatype_name][$datafield_name] = array();
+
+        $plugin_update_problems[$plugin_classname][$grandparent_datatype_id][$grandparent_datatype_name][$datatype_name][$datafield_name][] = $message;
     }
 
 
@@ -1625,9 +1640,12 @@ class PluginsController extends ODRCustomController
                     $dfm = $df['dataFieldMeta'][0];
                     $dt = $df['dataType'];
                     $dtm = $dt['dataTypeMeta'][0];
+                    $gdt = $dt['grandparent'];
+                    $gdtm = $gdt['dataTypeMeta'][0];
 
                     $mapped_datafields[$df_id] = array(
-                        'grandparent_datatype_id' => $dt['grandparent']['id'],
+                        'grandparent_datatype_id' => $gdt['id'],
+                        'grandparent_name' => $gdtm['shortName'],
                         'datatype_name' => $dtm['shortName'],
 
                         'fieldName' => $dfm['fieldName'],
@@ -1675,6 +1693,9 @@ class PluginsController extends ODRCustomController
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
+
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
 
             // ----------------------------------------
             // Determine user privileges
@@ -1929,7 +1950,8 @@ class PluginsController extends ODRCustomController
             // Flush now that all entities are created
             $em->flush();
 
-            // Don't need to update any cache entries
+            // Now that the database has been modified, delete this entry as well
+            $cache_service->delete('event_relevance_list');
         }
         catch (\Exception $e) {
             $source = 0x6f1b3a98;
@@ -3620,6 +3642,8 @@ class PluginsController extends ODRCustomController
             /** @var EventDispatcherInterface $event_dispatcher */
             $dispatcher = $this->get('event_dispatcher');
 
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatabaseInfoService $database_info_service */
             $database_info_service = $this->container->get('odr.database_info_service');
             /** @var DatafieldInfoService $datafield_info_service */
@@ -3774,6 +3798,8 @@ class PluginsController extends ODRCustomController
 
             // Both the "global" and the "theme-specific" option maps are intentionally ignored
 
+            // Now that the database has been modified, delete this entry as well
+            $cache_service->delete('event_relevance_list');
 
             // ----------------------------------------
             // Now that all the database changes have been made, wipe the relevant cache entries
@@ -3877,6 +3903,8 @@ class PluginsController extends ODRCustomController
             /** @var EventDispatcherInterface $event_dispatcher */
             $dispatcher = $this->get('event_dispatcher');
 
+            /** @var CacheService $cache_service */
+            $cache_service = $this->container->get('odr.cache_service');
             /** @var DatafieldInfoService $datafield_info_service */
             $datafield_info_service = $this->container->get('odr.datafield_info_service');
             /** @var DatabaseInfoService $database_info_service */
@@ -4293,6 +4321,9 @@ class PluginsController extends ODRCustomController
             // ----------------------------------------
             // Should be able to flush here
             $em->flush();
+
+            // Now that the database has been modified, delete this entry as well
+            $cache_service->delete('event_relevance_list');
 
             if ( $plugin_attached ) {
                 // Some render plugins need to do stuff when they get added to a datafield/datatype

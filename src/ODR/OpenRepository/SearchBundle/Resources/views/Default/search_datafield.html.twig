@@ -454,13 +454,26 @@
             {% set given_simple_params = true %}
         {% endif %}
 
+        {% set given_multirange_params = false %}
+        {% if search_params[datafield_id] is defined %}
+            {% set given_multirange_params = true %}
+        {% endif %}
+
+        {% set use_multirange_interface = datafield.dataFieldMeta.xyz_data_multirange_search %}
+        {% if given_multirange_params %}
+            {% set use_multirange_interface = true %}
+        {% elseif given_simple_params %}
+            {% set use_multirange_interface = false %}
+        {% endif %}
+
+
         {% if xyz_data_columns|length == 0 %}
         <span class="pure-u-1">
             <label class="pure-u-1" title="{{ description }}">{{ fieldname }}:</label>
             <span class="ODRInputError">Unable to search, no column names defined!</span>
         </span>
 
-        {% elseif (given_simple_params or datafield.dataFieldMeta.xyz_data_multirange_search == false) %}
+        {% elseif not use_multirange_interface %}
             {% set x_value = '' %}
             {% if search_params[x_key] is defined %}
                 {% set x_value = search_params[x_key] %}
