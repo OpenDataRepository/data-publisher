@@ -41,6 +41,14 @@ services:
     odr.markdown.parser:
         class: ODR\AdminBundle\Component\Service\ODRMarkdownParserService
 
+    odr.json_exception_subscriber:
+        class: ODR\AdminBundle\Component\Event\JsonExceptionSubscriber
+        arguments:
+            $environment: "%kernel.environment%"
+            $logger: "@logger"
+        tags:
+            - { name: kernel.event_subscriber }
+
     # Defines an event subscriber to disseminate events to relevant render plugins
     odr.event_subscriber:
         class: ODR\AdminBundle\Component\Event\ODREventSubscriber
