@@ -5199,28 +5199,51 @@ class APIController extends ODRCustomController
             /** @var EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            // Content is optional if datarecord_uuid is set
             $content = $request->getContent();
-            if (empty($content))
-                throw new ODRBadRequestException('User must be identified for permissions check.');
-
             $data = json_decode($content, true);
-            if (!is_array($data) || !isset($data['user_email']))
-                throw new ODRBadRequestException('user_email is required');
+            if (!is_array($data) && $datarecord_uuid === null)
+                throw new ODRJsonException('A record uuid or JSON body with a record_uuids[] array is rquired.', 400);
+
+/*
+            $user_email = '';
+            $_POST = self::parse_raw_http_request();
+            if (isset($post['user_email']))
+                $user_email = $_POST['user_email'];
+*/
+
+            $user_email = '';
+            if(isset($data['user_email'])) {
+                $user_email = $data['user_email'];
+            }
+
+            // <-- will return 'anon.' when nobody is logged in
+            /** @var ODRUser $logged_in_user */
+            $logged_in_user = $this->container->get('security.token_storage')->getToken()->getUser();   
+
+            if ($user_email === '') {
+                $user_email = $logged_in_user->getEmail();
+            } else if (!$logged_in_user->hasRole('ROLE_SUPER_ADMIN')) {
+                // We are acting as a user and do not have Super Permissions - Forbidden
+                throw new ODRForbiddenException();
+            }
 
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
             /** @var ODRUser $user */
-            $user = $user_manager->findUserBy(array('email' => $data['user_email']));
-            if (is_null($user))
-                throw new ODRNotFoundException('unrecognized email: "' . $data['user_email'] . '"');
+            $user = $user_manager->findUserBy(array('email' => $user_email));
+
+            if (is_null($user) || $user === 'anon.')
+                throw new ODRNotFoundException('unrecognized email: "' . $user_email . '"');
 
             // Build the working list of UUIDs from URL path + body. URL-path
             // UUID (if present) and body array entries are merged + deduped.
             $uuids = array();
             if ($datarecord_uuid !== null && $datarecord_uuid !== '')
                 $uuids[] = $datarecord_uuid;
-            if (isset($data['datarecord_uuids']) && is_array($data['datarecord_uuids'])) {
-                foreach ($data['datarecord_uuids'] as $u) {
+
+            if (isset($data['record_uuids']) && is_array($data['record_uuids'])) {
+                foreach ($data['record_uuids'] as $u) {
                     if (is_string($u) && $u !== '')
                         $uuids[] = $u;
                 }
@@ -5228,9 +5251,9 @@ class APIController extends ODRCustomController
             $uuids = array_values(array_unique($uuids));
 
             if (empty($uuids))
-                throw new ODRBadRequestException('No datarecord UUIDs provided');
+                throw new ODRBadRequestException('No record UUIDs provided');
             if (count($uuids) > 100)
-                throw new ODRBadRequestException('A maximum of 100 datarecords may be deleted per request');
+                throw new ODRBadRequestException('A maximum of 100 records may be deleted per request');
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
@@ -5243,10 +5266,13 @@ class APIController extends ODRCustomController
             foreach ($uuids as $uuid) {
                 /** @var DataRecord $dr */
                 $dr = $repo->findOneBy(array('unique_id' => $uuid));
+
                 if ($dr === null || $dr->getDeletedAt() !== null)
                     throw new ODRNotFoundException('Datarecord: ' . $uuid);
+
                 if (!$pm_service->canDeleteDatarecord($user, $dr->getDataType()))
                     throw new ODRForbiddenException();
+
                 $records[] = $dr;
             }
 
@@ -5265,10 +5291,12 @@ class APIController extends ODRCustomController
             ));
         } catch (\Exception $e) {
             $source = 0x517a7d01;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
+            if ($e instanceof ODRException) {
+                throw new ODRJsonException($e->getMessage(), $e->getStatusCode(), $e);
+            }
+            else {
+                throw new ODRJsonException($e->getMessage(), $e->getStatusCode(), $e);
+            }
         }
     }
 

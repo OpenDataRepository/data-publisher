@@ -1,3 +1,5 @@
+.geminiignore
+.agent
 # Cache and logs (Symfony2)
 /app/cache/*
 /app/crypto_dir/*
@@ -30,6 +32,7 @@
 /vendor/
 
 # Assets and user uploads
+/web/.well-known
 /web/bundles/
 /web/uploads/
 /web/uploads
