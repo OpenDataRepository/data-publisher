@@ -1006,32 +1006,13 @@ class SearchQueryService
             $search_params = self::parseField($search_value, $typeclass);
             $search_params['params']['datafield_id'] = $datafield_id;
 
-            // Define the base query for searching by filenames...
-            $query =
-               'SELECT dr.id AS dr_id, e_m.public_date
-                FROM odr_data_record AS dr
-                JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
-                JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
-                JOIN '.$this->typeclass_map[$typeclass].'_meta AS e_m ON e_m.'.strtolower($typeclass).'_id = e.id
-                WHERE e.data_field_id = :datafield_id AND ('.$search_params['str'].')
-                AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
-                AND e.deletedAt IS NULL AND e_m.deletedAt IS NULL';
-
-            // Also define the query used when searching for something without uploaded files/images...
-            $null_query =
-               'SELECT dr.id AS dr_id, "" AS public_date
-                FROM odr_data_record AS dr
-                LEFT JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id AND ((drf.data_field_id = '.$datafield_id.' AND drf.deletedAt IS NULL) OR drf.id IS NULL)
-                LEFT JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
-                WHERE dr.data_type_id = :datatype_id AND e.id IS NULL AND dr.deletedAt IS NULL';
-
             // Determine whether this query's search parameters contain an empty string...if so, may
             //  have to to run an additional query because of how ODR is designed...
             if ( self::isNullDrfPossible($search_params['str'], $search_params['params']) ) {
                 // ...but only when the query actually has a logical chance of returning results...
                 if ( self::canQueryReturnResults($search_params['str'], $search_params['params']) ) {
-                    $search_params['params']['datatype_id'] = $datatype_id;
-                    $query .= "\nUNION\n".$null_query;
+//                    $search_params['params']['datatype_id'] = $datatype_id;
+//                    $query .= "\nUNION\n".$null_query;
 
                     // Need to let SearchService::searchFileOrImageDatafield() know they might have
                     //  to trigger the 'public_only' protections, since the query involves the empty
@@ -1039,6 +1020,44 @@ class SearchQueryService
                     $involves_empty_string = true;
                 }
             }
+
+            // Define the base query for searching by filenames...
+            $query =
+               'SELECT dr.id AS dr_id, e_m.public_date
+                FROM odr_data_record AS dr
+                JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+                JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
+                JOIN '.$this->typeclass_map[$typeclass].'_meta AS e_m ON e_m.'.strtolower($typeclass).'_id = e.id
+                WHERE e.data_field_id = :datafield_id AND ';
+            if ( $involves_empty_string )
+                $query .= 'NOT ';
+            $query .=
+               '('.$search_params['str'].')
+                AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
+                AND e.deletedAt IS NULL AND e_m.deletedAt IS NULL';
+
+            // Also define the query used when searching for something without uploaded files/images...
+//            $null_query =
+//               'SELECT dr.id AS dr_id, "" AS public_date
+//                FROM odr_data_record AS dr
+//                LEFT JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id AND ((drf.data_field_id = '.$datafield_id.' AND drf.deletedAt IS NULL) OR drf.id IS NULL)
+//                LEFT JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
+//                WHERE dr.data_type_id = :datatype_id AND e.id IS NULL AND dr.deletedAt IS NULL';
+
+//            // Determine whether this query's search parameters contain an empty string...if so, may
+//            //  have to to run an additional query because of how ODR is designed...
+//            if ( self::isNullDrfPossible($search_params['str'], $search_params['params']) ) {
+//                // ...but only when the query actually has a logical chance of returning results...
+//                if ( self::canQueryReturnResults($search_params['str'], $search_params['params']) ) {
+//                    $search_params['params']['datatype_id'] = $datatype_id;
+//                    $query .= "\nUNION\n".$null_query;
+//
+//                    // Need to let SearchService::searchFileOrImageDatafield() know they might have
+//                    //  to trigger the 'public_only' protections, since the query involves the empty
+//                    //  string
+//                    $involves_empty_string = true;
+//                }
+//            }
 
             $results = $conn->fetchAll($query, $search_params['params']);
         }
@@ -1774,46 +1793,73 @@ class SearchQueryService
         $search_params = self::parseField($value, $typeclass, $doublequotes_force_exact_match, $search_converted);
         $search_params['params']['datafield_id'] = $datafield_id;
 
-
-        // ----------------------------------------
-        // Define the base query for searching
-        $query =
-           'SELECT dr.id AS dr_id
-            FROM odr_data_record AS dr
-            JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
-            JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
-            WHERE e.data_field_id = :datafield_id AND ('.$search_params['str'].')
-            AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL';
-
-        // Also define the query used when one of the search parameters is the empty string
-        $null_query =
-           'SELECT dr.id AS dr_id
-            FROM odr_data_record AS dr
-            LEFT JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id AND ((drf.data_field_id = '.$datafield_id.' AND drf.deletedAt IS NULL) OR drf.id IS NULL)
-            LEFT JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
-            WHERE dr.data_type_id = :datatype_id AND e.id IS NULL AND dr.deletedAt IS NULL';
-        // This query won't pick up cases where the drf exists and the storage entity was deleted,
-        //  but that shouldn't happen...if it does, most likely it's either a botched fieldtype
-        //  migration, or a change to the contents of a storage entity didn't complete properly
-
-
-        // ----------------------------------------
         // Determine whether this query's search parameters contain an empty string...if so, may
         //  have to to run an additional query because of how ODR is designed...
         $involves_empty_string = false;
         if ( self::isNullDrfPossible($search_params['str'], $search_params['params'], $search_converted) ) {
             // ...but only when the query actually has a logical chance of returning results...
             if ( self::canQueryReturnResults($search_params['str'], $search_params['params']) ) {
-                $search_params['params']['datatype_id'] = $datatype_id;
-                $query .= "\nUNION\n".$null_query;
+//                $search_params['params']['datatype_id'] = $datatype_id;
+//                $query .= "\nUNION\n".$null_query;
 
                 // Need to inform callers that this query can matches the empty string
-                // This is important because if this search is on a descendant datatype, then the
-                //  ancestor datatype needs to take records without descendants and merge_by_OR with
-                //  the descendant datatype's records that match the query
                 $involves_empty_string = true;
             }
         }
+
+
+        // ----------------------------------------
+        // Define the base query for searching
+        $query =
+//           'SELECT dr.id AS dr_id
+//            FROM odr_data_record AS dr
+//            JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+//            JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
+//            WHERE e.data_field_id = :datafield_id AND ('.$search_params['str'].')
+//            AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL';
+           'SELECT dr.id AS dr_id
+            FROM odr_data_record AS dr
+            JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+            JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
+            WHERE e.data_field_id = :datafield_id AND ';
+        if ( $involves_empty_string )
+            $query .= 'NOT ';
+        $query .=
+           '('.$search_params['str'].')
+            AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL';
+
+//        // Also define the query used when one of the search parameters is the empty string
+//        $null_query =
+//           'SELECT dr.id AS dr_id
+//            FROM odr_data_record AS dr
+//            LEFT JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id AND ((drf.data_field_id = '.$datafield_id.' AND drf.deletedAt IS NULL) OR drf.id IS NULL)
+//            LEFT JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
+//            WHERE dr.data_type_id = :datatype_id AND e.id IS NULL AND dr.deletedAt IS NULL';
+//        // This query won't pick up cases where the drf exists and the storage entity was deleted,
+//        //  but that shouldn't happen...if it does, most likely it's either a botched fieldtype
+//        //  migration, or a change to the contents of a storage entity didn't complete properly
+//
+//        if ( $involves_empty_string )
+//            $query .= "\nUNION\n".$null_query;
+
+
+//        // ----------------------------------------
+//        // Determine whether this query's search parameters contain an empty string...if so, may
+//        //  have to to run an additional query because of how ODR is designed...
+//        $involves_empty_string = false;
+//        if ( self::isNullDrfPossible($search_params['str'], $search_params['params'], $search_converted) ) {
+//            // ...but only when the query actually has a logical chance of returning results...
+//            if ( self::canQueryReturnResults($search_params['str'], $search_params['params']) ) {
+//                $search_params['params']['datatype_id'] = $datatype_id;
+//                $query .= "\nUNION\n".$null_query;
+//
+//                // Need to inform callers that this query can matches the empty string
+//                // This is important because if this search is on a descendant datatype, then the
+//                //  ancestor datatype needs to take records without descendants and merge_by_OR with
+//                //  the descendant datatype's records that match the query
+//                $involves_empty_string = true;
+//            }
+//        }
 
 
         // ----------------------------------------
@@ -2103,9 +2149,8 @@ class SearchQueryService
 
     /**
      * Determines whether the provided string of MYSQL conditions has a chance of returning search
-     * results or not.  If it has no chance of returning results, then the union query that locates
-     * null drf entries shouldn't be run...it would return datarecords that only match part of the
-     * query, instead of all.
+     * results or not.  If it has no chance of returning results, then the query negation should not
+     * happen TODO
      *
      * @param string $str
      * @param array $params

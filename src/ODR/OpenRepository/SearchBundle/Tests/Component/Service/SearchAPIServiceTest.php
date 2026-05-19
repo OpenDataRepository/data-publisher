@@ -291,6 +291,35 @@ class SearchAPIServiceTest extends WebTestCase
         $this->assertEqualsCanonicalizing( $expected_grandparent_ids, $grandparent_datarecord_list );
     }
 
+    /**
+     * @covers \ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService::performSearch
+     * @dataProvider provideSpecificSearchKeys
+     */
+    public function testSpecificSearchKeys($search_key, $expected_grandparent_ids, $search_as_super_admin)
+    {
+        exec('redis-cli flushall');
+        $client = static::createClient();
+        if ( $client->getContainer()->getParameter('database_name') !== 'odr_theta_2' )
+            $this->markTestSkipped('Wrong database');
+
+        /** @var SearchAPIService $search_api_service */
+        $search_api_service = $client->getContainer()->get('odr.search_api_service');
+
+ //        fwrite(STDERR, 'Search Key: '.$search_key."\n");
+        $grandparent_datarecord_list = $search_api_service->performSearch_new(
+            null,     // don't want to hydrate Datatypes here, so this is null
+            $search_key,
+            array(),  // search testing is with either zero permissions, or super-admin permissions
+            false,    // only want grandparent datarecord ids here
+            array(),  // testing doesn't need a specific set of sort datafields...
+            array(),  // ...or a specific sort order
+            $search_as_super_admin,
+            true      // the XYZData tests involve a field that isn't usually searchable
+        );
+
+        $this->assertEqualsCanonicalizing( $expected_grandparent_ids, $grandparent_datarecord_list );
+    }
+
 
     /**
      * @return array
@@ -645,7 +674,12 @@ class SearchAPIServiceTest extends WebTestCase
                     'dt_id' => 3,
                     '1' => "downs",
                 ),
-                array(98,127,114,139,101,111,130,113,136,120,117,123,119,129,125,110,107,134,128,100,118,131,116,105,138,109,99,135,103,106,112),
+                array(
+                    98,127,114,139,101,111,130,113,136,120,
+                    117,123,119,129,125,110,107,134,128,100,
+                    118,131,116,105,138,109,99,135,103,106,
+                    112
+                ),
                 true
             ],
             'RRUFF Sample: samples where RRUFF Reference::Authors contains "downs", without non-public records' => [
@@ -653,7 +687,11 @@ class SearchAPIServiceTest extends WebTestCase
                     'dt_id' => 3,
                     '1' => "downs",
                 ),
-                array(127,114,139,101,111,130,113,136,120,117,123,119,129,125,110,107,134,128,100,118,131,116,105,138,109,99,135,103,106,112),
+                array(
+                    /*98,*/127,114,139,101,111,130,113,136,120,
+                    117,123,119,129,125,110,107,134,128,100,
+                    118,131,116,105,138,109,99,135,103,106,112
+                ),
                 false
             ],
 
@@ -722,7 +760,12 @@ class SearchAPIServiceTest extends WebTestCase
                     'dt_id' => 3,
                     '36' => "!\"associated with\""
                 ),
-                array(98,100,101,103,105,106,107,108,109,111,114,116,117,118,120,121,122,123,124,125,126,127,128,130,131,132,133,136,137,138,139,134,110,99,135,104),
+                array(
+                    98,100,101,103,105,106,107,108,109,111,
+                    114,116,117,118,120,121,122,123,124,125,
+                    126,127,128,130,131,132,133,136,137,138,
+                    139,134,110,99,135,104
+                ),
                 false
             ],
             'RRUFF Sample: does not contain the phrase "associated with" and does not contain "variety", without non-public records' => [
@@ -730,369 +773,14 @@ class SearchAPIServiceTest extends WebTestCase
                     'dt_id' => 3,
                     '36' => "!\"associated with\" !variety"
                 ),
-                array(98,101,103,105,106,107,108,109,111,114,117,118,120,121,122,123,124,126,127,128,130,131,132,133,136,137,138,139,134,110,99,135,104),
+                array(
+                    98,101,103,105,106,107,108,109,111,114,
+                    117,118,120,121,122,123,124,126,127,128,
+                    130,131,132,133,136,137,138,139,134,110,
+                    99,135,104
+                ),
                 false
             ],
-
-            // ----------------------------------------
-            // searches for a single doublequote should be handled differently than paired quotes
-            'RRUFF Sample: sample_descriptions containing "\"", without non-public records' => [
-                array(
-                    'dt_id' => 3,
-                    '36' => "\""
-                ),
-                array(99,104,110,134,135),
-                false
-            ],
-            'RRUFF Sample: sample_descriptions not containing "\"", without non-public records' => [
-                array(
-                    'dt_id' => 3,
-                    '36' => "!\""
-                ),
-                array(98,100,101,102,103,105,106,107,108,109,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,136,137,138,139),
-                false
-            ],
-
-            'RRUFF Sample: sample_descriptions containing "\"a", without non-public records' => [
-                array(
-                    'dt_id' => 3,
-                    '36' => "\"a"
-                ),
-                array(134,110),
-                false
-            ],
-            'RRUFF Sample: sample_descriptions containing "\"description of", without non-public records' => [
-                array(
-                    'dt_id' => 3,
-                    '36' => "\"description of"
-                ),
-                array(99,104),
-                false
-            ],
-
-            'RRUFF Sample: sample_descriptions containing "description\"", without non-public records' => [
-                array(
-                    'dt_id' => 3,
-                    '36' => "description\""
-                ),
-                array(134,110,135),
-                false
-            ],
-            'RRUFF Sample: sample_descriptions containing "of a sample\"", without non-public records' => [
-                array(
-                    'dt_id' => 3,
-                    '36' => "of a sample\""
-                ),
-                array(99,104),
-                false
-            ],
-
-            // single doublequotes followed by a space
-            'RRUFF Sample: sample_descriptions containing "z OR \"", without non-public records' => [
-                array(
-                    'dt_id' => 3,
-                    '36' => "z OR \""
-                ),
-                array(102,115,127,132,134,110,99,135,104),
-                false
-            ],
-            'RRUFF Sample: sample_descriptions containing "\"" OR "z", without non-public records' => [
-                array(
-                    'dt_id' => 3,
-                    '36' => "\" OR z"
-                ),
-                array(102,115,127,132,134,110,99,135,104),
-                false
-            ],
-
-            // no closing doublequote means this should search for "\"" AND "sample" AND "description"
-            'RRUFF Sample: sample_descriptions containing "\" sample description", without non-public records' => [
-                array(
-                    'dt_id' => 3,
-                    '36' => "\" sample description"
-                ),
-                array(134,110,99,135,104),
-                false
-            ],
-            // closing doublequote means this should search for the phrase " sample description"
-            'RRUFF Sample: sample_descriptions containing "\" sample description\"", without non-public records' => [
-                array(
-                    'dt_id' => 3,
-                    '36' => "\" sample description\""
-                ),
-                array(134,110,135),
-                false
-            ],
-
-            // string tokens in a number field should return no results
-            'IMA List: mineral_id contains "abc", without non-public records' => [
-                array(
-                    'dt_id' => 2,
-                    '16' => 'abc'
-                ),
-                array(),
-                false
-            ],
-            'IMA List: mineral_id contains "7 abc"' => [
-                array(
-                    'dt_id' => 2,
-                    '16' => '7 abc'
-                ),
-                array(91,94,96),    // the "7" token should end up matching mineral_ids 777, 788, and 790
-                true
-            ],
-            'IMA List: mineral_id contains "7 abc", without non-public records' => [
-                array(
-                    'dt_id' => 2,
-                    '16' => '7 abc'
-                ),
-                array(94,96),    // the mineral_id 777 is non-public, so it won't be in a search done without permissions
-                false
-            ],
-
-            // a sequence of unmatched operators should get ignored
-            'IMA List: mineral_id contains "<will be autogenerated>", without non-public records' => [
-                // gets initially processed to...array("<", "&&", "will", "&&", "be", "&&", "autogenerated", "&&", ">")
-                // then the non-numeric parts get dropped...array("<", "&&", "&&", ">")
-                // then the unmatched logical operators get dropped...array("<", ">")
-                // then the trailing operators get dropped...array()
-                array(
-                    'dt_id' => 2,
-                    '16' => '<will be autogenerated>'
-                ),
-                array(),
-                false
-            ],
-
-            // ----------------------------------------
-            // inequality gotchas
-            'RRUFF Reference: article_title containing "<"' => [
-                array(
-                    'dt_id' => 1,
-                    '2' => '<'
-                ),
-                array(56),
-                true
-            ],
-            'RRUFF Reference: article_title containing ">"' => [
-                array(
-                    'dt_id' => 1,
-                    '2' => '>'
-                ),
-                array(56),
-                true
-            ],
-
-            'RRUFF Reference: article_title containing "<i>"' => [
-                array(
-                    'dt_id' => 1,
-                    '2' => '<i>'
-                ),
-                array(56),   // this test is the entire point of this block...need to confirm that the parser can guess it's seeing HTML tags
-                true
-            ],
-
-            'RRUFF Reference: article_title containing "<i"' => [
-                array(
-                    'dt_id' => 1,
-                    '2' => '<i'    // this should trigger the conventional inequality stuff...though the test is of limited value since the underlying field is a string
-                ),
-                array(
-                    6,53,54,60,69,75,83,84,85,88,   // starts with 'a'
-                    26,                             // starts with 'b'
-                    2,5,10,21,28,35,49,57,59,73,    // starts with 'c'
-                    40,52,80,                       // starts with 'd'
-                    44,48,77,                       // starts with 'e'
-                    14,15,20,27,45,                 // starts with 'f'
-                                                    // starts with 'g'
-                    8,11,                           // starts with 'h'
-                    78,                             // starts with '['
-                ),
-                true
-            ],
-            'RRUFF Reference: article_title containing "<i >g"' => [
-                array(
-                    'dt_id' => 1,
-                    '2' => '<i >g'
-                ),
-                array(8,11),    // this should only get references with an article title that start with an 'h' or 'H'...but not trigger the title containing '<i>'
-                true
-            ],
-            'RRUFF Reference: article_title containing ">g <i"' => [
-                array(
-                    'dt_id' => 1,
-                    '2' => '>g <i'
-                ),
-                array(8,11),
-                true
-            ],
-
-            // ----------------------------------------
-            // searches for "," and "!" as characters instead of operators
-            'RRUFF Reference: article_title containing ","' => [
-                array(
-                    'dt_id' => 1,
-                    '2' => ','
-                ),
-                array(
-                    /*1,*/2,/*3,4,5,6,7,*/8,/*9,10,*/
-                    11,/*12,13,*/14,/*15,*/16,/*17,18,*/19,/*20,*/
-                    21,/*22,23,*/24,/*25,26,27,28,29,30,*/
-                    31,/*32,*/33,34,35,/*36,37,38,*/39,40,
-                    41,42,/*43,44,45,46,47,48,*/49,/*50,*/
-                    51,/*52,53,*/54,55,56,/*57,*/58,59,/*60,*/
-                    61,/*62,63,64,65,*/66,/*67,*/68,69,/*70,*/
-                    /*71,72,73,*/74,/*75,*/76,/*77,78,79,*/80,
-                    /*81,82,*/83,84,/*85,*/86,/*87,*/88,/*89,90,*/
-                ),
-                true
-            ],
-            'RRUFF Reference: article_title containing ",", alternate version' => [
-                array(
-                    'dt_id' => 1,
-                    '2' => '","'
-                ),
-                array(
-                    /*1,*/2,/*3,4,5,6,7,*/8,/*9,10,*/
-                    11,/*12,13,*/14,/*15,*/16,/*17,18,*/19,/*20,*/
-                    21,/*22,23,*/24,/*25,26,27,28,29,30,*/
-                    31,/*32,*/33,34,35,/*36,37,38,*/39,40,
-                    41,42,/*43,44,45,46,47,48,*/49,/*50,*/
-                    51,/*52,53,*/54,55,56,/*57,*/58,59,/*60,*/
-                    61,/*62,63,64,65,*/66,/*67,*/68,69,/*70,*/
-                    /*71,72,73,*/74,/*75,*/76,/*77,78,79,*/80,
-                    /*81,82,*/83,84,/*85,*/86,/*87,*/88,/*89,90,*/
-                ),
-                true
-            ],
-            // These two shouldn't be different from the previous
-            'RRUFF Reference: article_title not empty and containing ","' => [
-                array(
-                    'dt_id' => 1,
-                    '2' => '!"" ","'
-                ),
-                array(
-                    /*1,*/2,/*3,4,5,6,7,*/8,/*9,10,*/
-                    11,/*12,13,*/14,/*15,*/16,/*17,18,*/19,/*20,*/
-                    21,/*22,23,*/24,/*25,26,27,28,29,30,*/
-                    31,/*32,*/33,34,35,/*36,37,38,*/39,40,
-                    41,42,/*43,44,45,46,47,48,*/49,/*50,*/
-                    51,/*52,53,*/54,55,56,/*57,*/58,59,/*60,*/
-                    61,/*62,63,64,65,*/66,/*67,*/68,69,/*70,*/
-                    /*71,72,73,*/74,/*75,*/76,/*77,78,79,*/80,
-                    /*81,82,*/83,84,/*85,*/86,/*87,*/88,/*89,90,*/
-                ),
-                true
-            ],
-            'RRUFF Reference: article_title containing "," and not empty' => [
-                array(
-                    'dt_id' => 1,
-                    '2' => '"," !""'
-                ),
-                array(
-                    /*1,*/2,/*3,4,5,6,7,*/8,/*9,10,*/
-                    11,/*12,13,*/14,/*15,*/16,/*17,18,*/19,/*20,*/
-                    21,/*22,23,*/24,/*25,26,27,28,29,30,*/
-                    31,/*32,*/33,34,35,/*36,37,38,*/39,40,
-                    41,42,/*43,44,45,46,47,48,*/49,/*50,*/
-                    51,/*52,53,*/54,55,56,/*57,*/58,59,/*60,*/
-                    61,/*62,63,64,65,*/66,/*67,*/68,69,/*70,*/
-                    /*71,72,73,*/74,/*75,*/76,/*77,78,79,*/80,
-                    /*81,82,*/83,84,/*85,*/86,/*87,*/88,/*89,90,*/
-                ),
-                true
-            ],
-
-            'RRUFF Reference: article_title not containing ","' => [
-                array(
-                    'dt_id' => 1,
-                    '2' => '!,'
-                ),
-                array(
-                    1,/*2,*/3,4,5,6,7,/*8,*/9,10,
-                    /*11,*/12,13,/*14,*/15,/*16,*/17,18,/*19,*/20,
-                    /*21,*/22,23,/*24,*/25,26,27,28,29,30,
-                    /*31,*/32,/*33,34,35,*/36,37,38,/*39,40,*/
-                    /*41,42,*/43,44,45,46,47,48,/*49,*/50,
-                    /*51,*/52,53,/*54,55,56,*/57,/*58,59,*/60,
-                    /*61,*/62,63,64,65,/*66,*/67,/*68,69,*/70,
-                    71,72,73,/*74,*/75,/*76,*/77,78,79,/*80,*/
-                    81,82,/*83,84,*/85,/*86,*/87,/*88,*/89,90,
-                ),
-                true
-            ],
-            // These two shouldn't be different from the previous
-            'RRUFF Reference: article_title not empty and not containing ","' => [
-                array(
-                    'dt_id' => 1,
-                    '2' => '!"" !,'
-                ),
-                array(
-                    1,/*2,*/3,4,5,6,7,/*8,*/9,10,
-                    /*11,*/12,13,/*14,*/15,/*16,*/17,18,/*19,*/20,
-                    /*21,*/22,23,/*24,*/25,26,27,28,29,30,
-                    /*31,*/32,/*33,34,35,*/36,37,38,/*39,40,*/
-                    /*41,42,*/43,44,45,46,47,48,/*49,*/50,
-                    /*51,*/52,53,/*54,55,56,*/57,/*58,59,*/60,
-                    /*61,*/62,63,64,65,/*66,*/67,/*68,69,*/70,
-                    71,72,73,/*74,*/75,/*76,*/77,78,79,/*80,*/
-                    81,82,/*83,84,*/85,/*86,*/87,/*88,*/89,90,
-                ),
-                true
-            ],
-            'RRUFF Reference: article_title not containing "," and not empty' => [
-                array(
-                    'dt_id' => 1,
-                    '2' => '!, !""'
-                ),
-                array(
-                    1,/*2,*/3,4,5,6,7,/*8,*/9,10,
-                    /*11,*/12,13,/*14,*/15,/*16,*/17,18,/*19,*/20,
-                    /*21,*/22,23,/*24,*/25,26,27,28,29,30,
-                    /*31,*/32,/*33,34,35,*/36,37,38,/*39,40,*/
-                    /*41,42,*/43,44,45,46,47,48,/*49,*/50,
-                    /*51,*/52,53,/*54,55,56,*/57,/*58,59,*/60,
-                    /*61,*/62,63,64,65,/*66,*/67,/*68,69,*/70,
-                    71,72,73,/*74,*/75,/*76,*/77,78,79,/*80,*/
-                    81,82,/*83,84,*/85,/*86,*/87,/*88,*/89,90,
-                ),
-                true
-            ],
-
-            'Graph Test: mineral name containing "!"' => [
-                array(
-                    'dt_id' => 9,
-                    '58' => '!'
-                ),
-                array(
-                    /*305,306,307,308,309,310,311,312,313,315,*/
-                    /*317,*/318,319,/*320,*/321
-                ),
-                true
-            ],
-            'Graph Test: mineral name containing "!", alternate version' => [
-                array(
-                    'dt_id' => 9,
-                    '58' => '"!"'
-                ),
-                array(
-                    /*305,306,307,308,309,310,311,312,313,315,*/
-                    /*317,*/318,319,/*320,*/321
-                ),
-                true
-            ],
-            'Graph Test: mineral name not containing "!"' => [
-                array(
-                    'dt_id' => 9,
-                    '58' => '!"!"'
-                ),
-                array(
-                    305,306,307,308,309,310,311,312,313,315,
-                    317,/*318,319,*/320,/*321*/
-                ),
-                true
-            ],
-            // Not doing anything for the string "!!", as that's ambiguous at the best of times
 
             // ----------------------------------------
             // simple general searches
@@ -1118,9 +806,14 @@ class SearchAPIServiceTest extends WebTestCase
                     'gen' => 'downs',
                 ),
                 array(
-                    98,    // samples linked to Abelsonite
-                    101,111,113,114,117,119,120,123,127,129,130,136,139,    // samples linked to Aegirine
-                    99,100,103,105,106,107,109,110,112,116,118,125,128,131,134,135,138    // samples linked to Anorthite
+                    // samples linked to Abelsonite
+                    98,
+                    // samples linked to Aegirine
+                    101,111,113,114,117,119,120,123,127,129,
+                    130,136,139,
+                    // samples linked to Anorthite
+                    99,100,103,105,106,107,109,110,112,116,
+                    118,125,128,131,134,135,138
                 ),
                 true
             ],
@@ -1540,18 +1233,26 @@ class SearchAPIServiceTest extends WebTestCase
                 true
             ],
 
+            'IMA List: search for minerals where a reference returns no results' => [
+                array(
+                    'dt_id' => 2,
+                    '1' => 'asdf'
+                ),
+                array(),
+                true
+            ],
             'IMA List: search for minerals without a reference' => [
                 array(
                     'dt_id' => 2,
                     '1' => '""',
                 ),
-                array(322),    // should return one result, the only IMA mineral without a linked reference
+                array(322),    // should return the only IMA mineral without a linked reference
                 true
             ],
             'IMA List: search for minerals with author == "downs" OR minerals without a reference' => [
                 array(
                     'dt_id' => 2,
-                    '1' => 'downs OR ""',
+                    '1' => 'downs OR ""',   // TODO - ...if it can match the empty string, and has the physical empty string as a term, then negating the entire piece of criteria won't work
                 ),
                 array(91,94,97,322),    // should return the three minerals referred to by "downs" and the only IMA mineral without a linked reference
                 true
@@ -1582,6 +1283,22 @@ class SearchAPIServiceTest extends WebTestCase
                 true
             ],
 
+            'RRUFF Sample: search for samples without a reference' => [
+                array(
+                    'dt_id' => 3,
+                    '1' => '""'
+                ),
+                array(323),  // the sample linked to the "unknown" mineral lacks any references
+                true
+            ],
+            'RRUFF Sample: search for samples without a mineral' => [
+                array(
+                    'dt_id' => 3,
+                    '17' => '""'
+                ),
+                array(),  // all samples are linked to minerals
+                true
+            ],
             'RRUFF Sample: search for minerals with non-public references and mineral_display_name !== ""' => [
                 array(
                     'dt_id' => 3,
@@ -1604,7 +1321,7 @@ class SearchAPIServiceTest extends WebTestCase
             // ----------------------------------------
             // IMPORTANT: while you might expect these next two tests to behave similarly to
             //  the two that are were run on the IMA List, you would be sorely mistaken.
-
+/*
             // ODR quasi-intentionally obsfucates searching in situations in which there are multiple
             // "paths" to reach a descendant...
             // e.g. "Samples" links to "Mineral", "Mineral" links to "References", "Samples" also links to "References"
@@ -1646,7 +1363,372 @@ class SearchAPIServiceTest extends WebTestCase
                 array(),    // should return nothing because it's impossible to match
                 true
             ],
+*/
 
+            // ----------------------------------------
+            // searches for a single doublequote should be handled differently than paired quotes
+            'RRUFF Sample: sample_descriptions containing "\"", without non-public records' => [
+                array(
+                    'dt_id' => 3,
+                    '36' => "\""
+                ),
+                array(99,104,110,134,135),
+                false
+            ],
+            'RRUFF Sample: sample_descriptions not containing "\"", without non-public records' => [
+                array(
+                    'dt_id' => 3,
+                    '36' => "!\""
+                ),
+                array(
+                    98,100,101,102,103,105,106,107,108,109,
+                    111,112,113,114,115,116,117,118,119,120,
+                    121,122,123,124,125,126,127,128,129,130,
+                    131,132,133,136,137,138,139
+                ),
+                false
+            ],
+
+            'RRUFF Sample: sample_descriptions containing "\"a", without non-public records' => [
+                array(
+                    'dt_id' => 3,
+                    '36' => "\"a"
+                ),
+                array(134,110),
+                false
+            ],
+            'RRUFF Sample: sample_descriptions containing "\"description of", without non-public records' => [
+                array(
+                    'dt_id' => 3,
+                    '36' => "\"description of"
+                ),
+                array(99,104),
+                false
+            ],
+
+            'RRUFF Sample: sample_descriptions containing "description\"", without non-public records' => [
+                array(
+                    'dt_id' => 3,
+                    '36' => "description\""
+                ),
+                array(134,110,135),
+                false
+            ],
+            'RRUFF Sample: sample_descriptions containing "of a sample\"", without non-public records' => [
+                array(
+                    'dt_id' => 3,
+                    '36' => "of a sample\""
+                ),
+                array(99,104),
+                false
+            ],
+
+            // single doublequotes followed by a space
+            'RRUFF Sample: sample_descriptions containing "z OR \"", without non-public records' => [
+                array(
+                    'dt_id' => 3,
+                    '36' => "z OR \""
+                ),
+                array(102,115,127,132,134,110,99,135,104),
+                false
+            ],
+            'RRUFF Sample: sample_descriptions containing "\"" OR "z", without non-public records' => [
+                array(
+                    'dt_id' => 3,
+                    '36' => "\" OR z"
+                ),
+                array(102,115,127,132,134,110,99,135,104),
+                false
+            ],
+
+            // no closing doublequote means this should search for "\"" AND "sample" AND "description"
+            'RRUFF Sample: sample_descriptions containing "\" sample description", without non-public records' => [
+                array(
+                    'dt_id' => 3,
+                    '36' => "\" sample description"
+                ),
+                array(134,110,99,135,104),
+                false
+            ],
+            // closing doublequote means this should search for the phrase " sample description"
+            'RRUFF Sample: sample_descriptions containing "\" sample description\"", without non-public records' => [
+                array(
+                    'dt_id' => 3,
+                    '36' => "\" sample description\""
+                ),
+                array(134,110,135),
+                false
+            ],
+
+            // string tokens in a number field should return no results
+            'IMA List: mineral_id contains "abc", without non-public records' => [
+                array(
+                    'dt_id' => 2,
+                    '16' => 'abc'
+                ),
+                array(),
+                false
+            ],
+            'IMA List: mineral_id contains "7 abc"' => [
+                array(
+                    'dt_id' => 2,
+                    '16' => '7 abc'
+                ),
+                array(91,94,96),    // the "7" token should end up matching mineral_ids 777, 788, and 790
+                true
+            ],
+            'IMA List: mineral_id contains "7 abc", without non-public records' => [
+                array(
+                    'dt_id' => 2,
+                    '16' => '7 abc'
+                ),
+                array(94,96),    // the mineral_id 777 is non-public, so it won't be in a search done without permissions
+                false
+            ],
+
+            // a sequence of unmatched operators should get ignored
+            'IMA List: mineral_id contains "<will be autogenerated>", without non-public records' => [
+                // gets initially processed to...array("<", "&&", "will", "&&", "be", "&&", "autogenerated", "&&", ">")
+                // then the non-numeric parts get dropped...array("<", "&&", "&&", ">")
+                // then the unmatched logical operators get dropped...array("<", ">")
+                // then the trailing operators get dropped...array()
+                array(
+                    'dt_id' => 2,
+                    '16' => '<will be autogenerated>'
+                ),
+                array(),
+                false
+            ],
+
+            // ----------------------------------------
+            // inequality gotchas
+            'RRUFF Reference: article_title containing "<"' => [
+                array(
+                    'dt_id' => 1,
+                    '2' => '<'
+                ),
+                array(56),
+                true
+            ],
+            'RRUFF Reference: article_title containing ">"' => [
+                array(
+                    'dt_id' => 1,
+                    '2' => '>'
+                ),
+                array(56),
+                true
+            ],
+
+            'RRUFF Reference: article_title containing "<i>"' => [
+                array(
+                    'dt_id' => 1,
+                    '2' => '<i>'
+                ),
+                array(56),   // this test is the entire point of this block...need to confirm that the parser can guess it's seeing HTML tags
+                true
+            ],
+
+            'RRUFF Reference: article_title containing "<i"' => [
+                array(
+                    'dt_id' => 1,
+                    '2' => '<i'    // this should trigger the conventional inequality stuff...though the test is of limited value since the underlying field is a string
+                ),
+                array(
+                    6,53,54,60,69,75,83,84,85,88,   // starts with 'a'
+                    26,                             // starts with 'b'
+                    2,5,10,21,28,35,49,57,59,73,    // starts with 'c'
+                    40,52,80,                       // starts with 'd'
+                    44,48,77,                       // starts with 'e'
+                    14,15,20,27,45,                 // starts with 'f'
+                    // starts with 'g'
+                    8,11,                           // starts with 'h'
+                    78,                             // starts with '['
+                ),
+                true
+            ],
+            'RRUFF Reference: article_title containing "<i >g"' => [
+                array(
+                    'dt_id' => 1,
+                    '2' => '<i >g'
+                ),
+                array(8,11),    // this should only get references with an article title that start with an 'h' or 'H'...but not trigger the title containing '<i>'
+                true
+            ],
+            'RRUFF Reference: article_title containing ">g <i"' => [
+                array(
+                    'dt_id' => 1,
+                    '2' => '>g <i'
+                ),
+                array(8,11),
+                true
+            ],
+
+            // ----------------------------------------
+            // searches for "," and "!" as characters instead of operators
+            'RRUFF Reference: article_title containing ","' => [
+                array(
+                    'dt_id' => 1,
+                    '2' => ','
+                ),
+                array(
+                    /*1,*/2,/*3,4,5,6,7,*/8,/*9,10,*/
+                    11,/*12,13,*/14,/*15,*/16,/*17,18,*/19,/*20,*/
+                    21,/*22,23,*/24,/*25,26,27,28,29,30,*/
+                    31,/*32,*/33,34,35,/*36,37,38,*/39,40,
+                    41,42,/*43,44,45,46,47,48,*/49,/*50,*/
+                    51,/*52,53,*/54,55,56,/*57,*/58,59,/*60,*/
+                    61,/*62,63,64,65,*/66,/*67,*/68,69,/*70,*/
+                    /*71,72,73,*/74,/*75,*/76,/*77,78,79,*/80,
+                    /*81,82,*/83,84,/*85,*/86,/*87,*/88,/*89,90,*/
+                ),
+                true
+            ],
+            'RRUFF Reference: article_title containing ",", alternate version' => [
+                array(
+                    'dt_id' => 1,
+                    '2' => '","'
+                ),
+                array(
+                    /*1,*/2,/*3,4,5,6,7,*/8,/*9,10,*/
+                    11,/*12,13,*/14,/*15,*/16,/*17,18,*/19,/*20,*/
+                    21,/*22,23,*/24,/*25,26,27,28,29,30,*/
+                    31,/*32,*/33,34,35,/*36,37,38,*/39,40,
+                    41,42,/*43,44,45,46,47,48,*/49,/*50,*/
+                    51,/*52,53,*/54,55,56,/*57,*/58,59,/*60,*/
+                    61,/*62,63,64,65,*/66,/*67,*/68,69,/*70,*/
+                    /*71,72,73,*/74,/*75,*/76,/*77,78,79,*/80,
+                    /*81,82,*/83,84,/*85,*/86,/*87,*/88,/*89,90,*/
+                ),
+                true
+            ],
+            // These two shouldn't be different from the previous
+            'RRUFF Reference: article_title not empty and containing ","' => [
+                array(
+                    'dt_id' => 1,
+                    '2' => '!"" ","'
+                ),
+                array(
+                    /*1,*/2,/*3,4,5,6,7,*/8,/*9,10,*/
+                    11,/*12,13,*/14,/*15,*/16,/*17,18,*/19,/*20,*/
+                    21,/*22,23,*/24,/*25,26,27,28,29,30,*/
+                    31,/*32,*/33,34,35,/*36,37,38,*/39,40,
+                    41,42,/*43,44,45,46,47,48,*/49,/*50,*/
+                    51,/*52,53,*/54,55,56,/*57,*/58,59,/*60,*/
+                    61,/*62,63,64,65,*/66,/*67,*/68,69,/*70,*/
+                    /*71,72,73,*/74,/*75,*/76,/*77,78,79,*/80,
+                    /*81,82,*/83,84,/*85,*/86,/*87,*/88,/*89,90,*/
+                ),
+                true
+            ],
+            'RRUFF Reference: article_title containing "," and not empty' => [
+                array(
+                    'dt_id' => 1,
+                    '2' => '"," !""'
+                ),
+                array(
+                    /*1,*/2,/*3,4,5,6,7,*/8,/*9,10,*/
+                    11,/*12,13,*/14,/*15,*/16,/*17,18,*/19,/*20,*/
+                    21,/*22,23,*/24,/*25,26,27,28,29,30,*/
+                    31,/*32,*/33,34,35,/*36,37,38,*/39,40,
+                    41,42,/*43,44,45,46,47,48,*/49,/*50,*/
+                    51,/*52,53,*/54,55,56,/*57,*/58,59,/*60,*/
+                    61,/*62,63,64,65,*/66,/*67,*/68,69,/*70,*/
+                    /*71,72,73,*/74,/*75,*/76,/*77,78,79,*/80,
+                    /*81,82,*/83,84,/*85,*/86,/*87,*/88,/*89,90,*/
+                ),
+                true
+            ],
+
+            'RRUFF Reference: article_title not containing ","' => [
+                array(
+                    'dt_id' => 1,
+                    '2' => '!,'
+                ),
+                array(
+                    1,/*2,*/3,4,5,6,7,/*8,*/9,10,
+                    /*11,*/12,13,/*14,*/15,/*16,*/17,18,/*19,*/20,
+                    /*21,*/22,23,/*24,*/25,26,27,28,29,30,
+                    /*31,*/32,/*33,34,35,*/36,37,38,/*39,40,*/
+                    /*41,42,*/43,44,45,46,47,48,/*49,*/50,
+                    /*51,*/52,53,/*54,55,56,*/57,/*58,59,*/60,
+                    /*61,*/62,63,64,65,/*66,*/67,/*68,69,*/70,
+                    71,72,73,/*74,*/75,/*76,*/77,78,79,/*80,*/
+                    81,82,/*83,84,*/85,/*86,*/87,/*88,*/89,90,
+                ),
+                true
+            ],
+            // These two shouldn't be different from the previous
+            'RRUFF Reference: article_title not empty and not containing ","' => [
+                array(
+                    'dt_id' => 1,
+                    '2' => '!"" !,'
+                ),
+                array(
+                    1,/*2,*/3,4,5,6,7,/*8,*/9,10,
+                    /*11,*/12,13,/*14,*/15,/*16,*/17,18,/*19,*/20,
+                    /*21,*/22,23,/*24,*/25,26,27,28,29,30,
+                    /*31,*/32,/*33,34,35,*/36,37,38,/*39,40,*/
+                    /*41,42,*/43,44,45,46,47,48,/*49,*/50,
+                    /*51,*/52,53,/*54,55,56,*/57,/*58,59,*/60,
+                    /*61,*/62,63,64,65,/*66,*/67,/*68,69,*/70,
+                    71,72,73,/*74,*/75,/*76,*/77,78,79,/*80,*/
+                    81,82,/*83,84,*/85,/*86,*/87,/*88,*/89,90,
+                ),
+                true
+            ],
+            'RRUFF Reference: article_title not containing "," and not empty' => [
+                array(
+                    'dt_id' => 1,
+                    '2' => '!, !""'
+                ),
+                array(
+                    1,/*2,*/3,4,5,6,7,/*8,*/9,10,
+                    /*11,*/12,13,/*14,*/15,/*16,*/17,18,/*19,*/20,
+                    /*21,*/22,23,/*24,*/25,26,27,28,29,30,
+                    /*31,*/32,/*33,34,35,*/36,37,38,/*39,40,*/
+                    /*41,42,*/43,44,45,46,47,48,/*49,*/50,
+                    /*51,*/52,53,/*54,55,56,*/57,/*58,59,*/60,
+                    /*61,*/62,63,64,65,/*66,*/67,/*68,69,*/70,
+                    71,72,73,/*74,*/75,/*76,*/77,78,79,/*80,*/
+                    81,82,/*83,84,*/85,/*86,*/87,/*88,*/89,90,
+                ),
+                true
+            ],
+
+            'Graph Test: mineral name containing "!"' => [
+                array(
+                    'dt_id' => 9,
+                    '58' => '!'
+                ),
+                array(
+                    /*305,306,307,308,309,310,311,312,313,315,*/
+                    /*317,*/318,319,/*320,*/321
+                ),
+                true
+            ],
+            'Graph Test: mineral name containing "!", alternate version' => [
+                array(
+                    'dt_id' => 9,
+                    '58' => '"!"'
+                ),
+                array(
+                    /*305,306,307,308,309,310,311,312,313,315,*/
+                    /*317,*/318,319,/*320,*/321
+                ),
+                true
+            ],
+            'Graph Test: mineral name not containing "!"' => [
+                array(
+                    'dt_id' => 9,
+                    '58' => '!"!"'
+                ),
+                array(
+                    305,306,307,308,309,310,311,312,313,315,
+                    317,/*318,319,*/320,/*321*/
+                ),
+                true
+            ],
+            // Not doing anything for the string "!!", as that's ambiguous at the best of times
 
             // ----------------------------------------
             // "Advanced" versions of XYZData searches...
@@ -3753,6 +3835,25 @@ class SearchAPIServiceTest extends WebTestCase
                     '66_x' => '>2.81 < 2.83',    // want records with an x between 2.81 and 2.83, no constraint on y
                 ),
                 array(325,326,327),
+                true
+            ],
+        ];
+    }
+
+    /**
+     * @return array
+     */
+    public function provideSpecificSearchKeys()
+    {
+        return [
+            'RRUFF Reference: general search of "abelsonite" and blank URL value' => [
+                'eyJkdF9pZCI6IjEiLCIxNCI6IiIsIjIiOiJhYmVsc29uaXRlIn0',  // {"dt_id":"1","14":"","2":"abelsonite"}
+                array(1,35,63,83),
+                true
+            ],
+            'RRUFF Reference: article title of "abelsonite" and blank URL value' => [
+                'eyJkdF9pZCI6IjEiLCIxNCI6IiIsImdlbiI6ImFiZWxzb25pdGUifQ',  // {"dt_id":"1","14":"","gen":"abelsonite"}
+                array(1,35,63,83),
                 true
             ],
         ];

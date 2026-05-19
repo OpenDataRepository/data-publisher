@@ -188,7 +188,15 @@ class SearchKeyService
             // ...if it doesn't, then that's an error
             throw new ODRException('Invalid JSON', 400, 0x6e1c96a1);
         }
-        else if ( isset($array['uuid']) ) {
+
+        // IMPORTANT: Blank entries can't be filtered out here...they're needed to override default
+        //  search parameters
+//        foreach ($array as $key => $value) {
+//            if ( $value === "" )
+//                unset( $array[$key] );
+//        }
+
+        if ( isset($array['uuid']) ) {
             // If the search params have the 'uuid' entry, then it points to an "oversize" search key
             $uuid = $array['uuid'];
 
@@ -1130,6 +1138,7 @@ class SearchKeyService
 
         // It's easier to understand the searching when it works by ensuring results match everything
         //  in the sidebar, but sometimes this needs to be changed...
+        $adv_criteria_num = 0;
         $default_merge_type = 'AND';
 
         foreach ($search_params as $key => $value) {
@@ -2054,8 +2063,8 @@ class SearchKeyService
                     }
                     else if ($pieces[1] === 's' || $pieces[1] === 'e') {
                         // This is a DatetimeValue field
-                        if ( $value !== '' && !isset($criteria[$dt_id][0]['search_terms'][$df_id]) ) {
-                            $criteria[$dt_id][0]['search_terms'][$df_id] = array(
+                        if ( $value !== '' && !isset($criteria[$dt_id][$adv_facet_num]['search_terms'][$df_id]) ) {
+                            $criteria[$dt_id][$adv_facet_num]['search_terms'][$df_id] = array(
                                 'before' => null,
                                 'after' => null,
                                 'entity_type' => 'datafield',
@@ -2067,7 +2076,7 @@ class SearchKeyService
                         if ( $value !== '' ) {
                             if ($pieces[1] === 's') {
                                 // start date for a DatetimeValue, aka "after this date"
-                                $criteria[$dt_id][0]['search_terms'][$df_id]['after'] = new \DateTime($value);
+                                $criteria[$dt_id][$adv_facet_num]['search_terms'][$df_id]['after'] = new \DateTime($value);
                             }
                             else {
                                 // end date for a DatetimeValue, aka "before this date"
@@ -2096,7 +2105,7 @@ class SearchKeyService
 //                                $date_end->add(new \DateInterval('P1D'));
                                 }
 
-                                $criteria[$dt_id][0]['search_terms'][$df_id]['before'] = $date_end;
+                                $criteria[$dt_id][$adv_facet_num]['search_terms'][$df_id]['before'] = $date_end;
                             }
                         }
                     }
@@ -2104,8 +2113,15 @@ class SearchKeyService
                         // This is a simple XYZData search...which is ironically more complicated
                         //  here, because the other type of XYZData search has already compressed
                         //  its entire set of parameters into a single string for a single field
-                        if ( !isset($criteria[$dt_id][0]['search_terms'][$df_id]) ) {
-                            $criteria[$dt_id][0]['search_terms'][$df_id] = array(
+                        $curr_facet_num = $adv_facet_num;
+                        foreach ($criteria[$dt_id] as $tmp_facet_num => $facet_data) {
+                            foreach ($facet_data['search_terms'] as $tmp_df_id => $tmp_df_data) {
+                                if ( $df_id == $tmp_df_id )
+                                    $curr_facet_num = $tmp_facet_num;
+                            }
+                        }
+                        if ( !isset($criteria[$dt_id][$curr_facet_num]['search_terms'][$df_id]) ) {
+                            $criteria[$dt_id][$curr_facet_num]['search_terms'][$df_id] = array(
                                 'entity_type' => 'datafield',
                                 'entity_id' => $df_id,
                                 'datatype_id' => $dt_id,
@@ -2116,11 +2132,11 @@ class SearchKeyService
                         //  format that the other search understands, so searching this XYZData
                         //  field gets its own search logic
                         if ( $pieces[1] === 'x' )
-                            $criteria[$dt_id][0]['search_terms'][$df_id]['x'] = $value;
+                            $criteria[$dt_id][$curr_facet_num]['search_terms'][$df_id]['x'] = $value;
                         else if ( $pieces[1] === 'y' )
-                            $criteria[$dt_id][0]['search_terms'][$df_id]['y'] = $value;
+                            $criteria[$dt_id][$curr_facet_num]['search_terms'][$df_id]['y'] = $value;
                         else if ( $pieces[1] === 'z' )
-                            $criteria[$dt_id][0]['search_terms'][$df_id]['z'] = $value;
+                            $criteria[$dt_id][$curr_facet_num]['search_terms'][$df_id]['z'] = $value;
                     }
                 }
                 else {
@@ -2207,30 +2223,48 @@ class SearchKeyService
         //  that datatype must be marked as "needs to match", so that the latter parts of the search
         //  process can correctly exclude records that don't match
         $affected_datatypes = array();
+        $datatypes_with_criteria = array();
         foreach ($criteria as $key => $facet_list) {
-            if ( !is_numeric($key) )
-                continue;
-
-            foreach ($facet_list as $facet_num => $facet) {
-                // Currently, all criteria except for general search are merged by AND
-//                if ( $facet['merge_type'] === 'AND' ) {
-                foreach ($facet['search_terms'] as $key => $params) {
-                    $dt_id = $params['datatype_id'];
-                    $affected_datatypes[$dt_id] = 1;
+            if ( $key === 'general' ) {
+                foreach ($facet_list as $facet_num => $facet) {
+                    if ($facet_num === 'merge_type')
+                        continue;
+                    foreach ($facet['search_terms'] as $df_id => $df_data) {
+                        $dt_id = $df_data['datatype_id'];
+                        if ( !isset($datatypes_with_criteria[$dt_id]) )
+                            $datatypes_with_criteria[$dt_id] = SearchAPIService::MATCHES_GEN;
+                        else
+                            $datatypes_with_criteria[$dt_id] |= SearchAPIService::MATCHES_GEN;
+                    }
                 }
-//                }
+            }
+            else if ( is_numeric($key) ) {
+                foreach ($facet_list as $facet_num => $facet) {
+                    foreach ($facet['search_terms'] as $df_id => $df_data) {
+                        $dt_id = $df_data['datatype_id'];
+                        $affected_datatypes[$dt_id] = 1;
+
+                        if ( !isset($datatypes_with_criteria[$dt_id]) )
+                            $datatypes_with_criteria[$dt_id] = SearchAPIService::MATCHES_ADV;
+                        else
+                            $datatypes_with_criteria[$dt_id] |= SearchAPIService::MATCHES_ADV;
+                    }
+                }
             }
         }
         $affected_datatypes = array_keys($affected_datatypes);
         $criteria['affected_datatypes'] = $affected_datatypes;
-
+        $criteria['datatypes_with_criteria'] = $datatypes_with_criteria;
         $criteria['default_merge_type'] = $default_merge_type;
 
         // Also going to need a list of all datatypes this search could run on, for later hydration
+        $all_datatypes = array();
         if ( is_null($inverse_target_datatype_id) )
-            $criteria['all_datatypes'] = $this->datatree_info_service->getAssociatedDatatypes($datatype_id, true);
+            $all_datatypes = $this->datatree_info_service->getAssociatedDatatypes($datatype_id, true);
         else
-            $criteria['all_datatypes'] = $this->datatree_info_service->getAssociatedDatatypes($inverse_target_datatype_id, true);
+            $all_datatypes = $this->datatree_info_service->getAssociatedDatatypes($inverse_target_datatype_id, true);
+        $criteria['all_datatypes'] = $all_datatypes;
+//        $criteria['all_datatypes'] = array_flip($all_datatypes);
 
         return $criteria;
     }

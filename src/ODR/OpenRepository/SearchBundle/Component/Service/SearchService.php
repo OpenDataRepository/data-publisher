@@ -1030,7 +1030,7 @@ class SearchService
                 // ...if it does not also have a public file...
                 if ( !isset($public_file_drs[$dr_id]) ) {
                     // ...then add it to the list of results
-                    $datarecord_lists['filename'][$dr_id] = 1;
+                    $datarecord_lists['filename'][$dr_id] = 1;    // TODO - is this still correct?  probably not...
                 }
             }
 
@@ -1043,7 +1043,7 @@ class SearchService
             if ( is_null($result) )
                 $result = $dr_list;
             else
-                $result = array_intersect_key($result, $dr_list);
+                $result = array_intersect_key($result, $dr_list);    // TODO - is this still correct?  probably not...
         }
 
         $end_result = array(
