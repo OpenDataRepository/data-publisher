@@ -1903,11 +1903,16 @@ $ret .= '  Set current to '.$count."\n";
             // ----------------------------------------
             // ----------------------------------------
 
-            $params = array(  // TODO - goddammit
-                'dt_id' => 2,
-                '1' => 'downs OR ""',
+            $params = array(  // RRUFF sample without references
+                'dt_id' => 3,
+                '1' => '""'
             );
 //            $search_as_super_admin = false;
+
+            // TODO - so the problem with this one is that it thinks pretty much every sample matches due to not having a direct reference
+            // TODO - ...so either need to:
+            // TODO - 1) make this use negation while somehow preventing negation for blank ima mineral aliases -> rruff reference???  FML
+            // TODO - 2) torque the multiple-path merge when it's empty string? FML
 
 
             // ----------------------------------------

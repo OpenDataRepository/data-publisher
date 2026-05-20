@@ -722,7 +722,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
         $end_result = array(
             'dt_id' => $datafield->getDataType()->getId(),
             'records' => $result['records'],
-            'guard' => $result['guard'],
+            'modify' => $result['modify'],
         );
 
         // ...then recache the search result

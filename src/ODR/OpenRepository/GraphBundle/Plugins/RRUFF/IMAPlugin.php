@@ -1240,7 +1240,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
         $search_value = $search_term['value'];
         $mineral_name_search_results = $this->search_service->searchTextOrNumberDatafield($mineral_name_df, $search_value);
-        $involves_empty_string = $mineral_name_search_results['guard'];
+        $query_modified = $mineral_name_search_results['modify'];
 
         if ( $search_value !== "\"\"" ) {
             // ...but should only search the "Mineral Aliases" and "Mineral ASCII Name" fields when
@@ -1267,7 +1267,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         return array(
             'dt_id' => $mineral_name_search_results['dt_id'],
             'records' => $final_dr_list,
-            'guard' => $involves_empty_string,
+            'modify' => $query_modified,
         );
     }
 

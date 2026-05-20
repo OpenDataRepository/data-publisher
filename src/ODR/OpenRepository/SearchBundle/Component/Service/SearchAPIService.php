@@ -462,9 +462,9 @@ class SearchAPIService
      * @param array $merge_types
      * @param array $facet_dr_list
      * @param array &$flattened_list {@see self::getSearchArrays()}
-     * @param array $negated_facets
+     * @param array $modified_facets
      */
-    public function performMerge($graph, $counts, $top_level_datatype_id, &$datatypes_with_criteria, $merge_types, $facet_dr_list, &$flattened_list, $negated_facets)
+    public function performMerge($graph, $counts, $top_level_datatype_id, &$datatypes_with_criteria, $merge_types, $facet_dr_list, &$flattened_list, $modified_facets)
     {
         // Unfortunately, there's a difference in merging depending on whether there are multiple
         //  paths to reach a datatype or not
@@ -504,43 +504,22 @@ class SearchAPIService
                 // There's only ever going to be one source/target dt pair per array entry
                 //  in $single, but don't know what they are
                 foreach ($single[$i] as $source_dt_id => $target_dt_id) {
-                    // TODO
-                    $guard = false;
-//                    if ( $negated_facets['advanced'][$source_dt_id] )
-//                        $guard = true;
-//                    if ( $guard && is_null($negated_facets['advanced'][$target_dt_id]) )
-//                        $negated_facets['advanced'][$target_dt_id] = true;
-
-//                    // Transform the set of descendant records into a set of ancestor records
-//                    $ret = self::transformRecordsFromCriteria($datatree_array, $facet_dr_list, $flattened_list, $source_dt_id, $target_dt_id, 'advanced', 0, $guard);
-//
-//                    // If any results were returned...
-//                    if ( isset($ret[0]) ) {
-//                        // ...then the results are always with any existing records in the ancestor's
-//                        //  facet list
-//                        if ( !isset($facet_dr_list[$target_dt_id]['advanced'][0]) ) {
-//                            // ...no datarecords for this facet yet, so just use the returned list
-//                            $facet_dr_list[$target_dt_id]['advanced'][0] = $ret[0];
-//                        }
-//                        else {
-//                            if ( $merge_types['advanced'] === 'OR' ) {
-//                                foreach ($ret[0] as $dr_id => $num)
-//                                    $facet_dr_list[$target_dt_id]['advanced'][0][$dr_id] = $num;
-//                            }
-//                            else {
-//                                // ...otherwise, merge by AND
-//                                $facet_dr_list[$target_dt_id]['advanced'][0] = array_intersect_key($facet_dr_list[$target_dt_id]['advanced'][0], $ret[0]);
-//                            }
-//                        }
-//                    }
-
-                    // TODO
+                    // Apparently this can be empty sometimes
                     if ( !isset($facet_dr_list[$source_dt_id]['advanced']) )
                         continue;
 
                     foreach ($facet_dr_list[$source_dt_id]['advanced'] as $facet_num => $dr_list) {
+                        // Need to know whether to include target records that are not related to
+                        //  source records
+                        $include_unrelated_records = false;
+                        if ( isset($modified_facets['advanced'][$facet_num])
+                            && $modified_facets['advanced'][$facet_num] === SearchQueryService::NEED_UNRELATED_RECORDS
+                        ) {
+                            $include_unrelated_records = true;
+                        }
+
                         // Transform the set of descendant records into a set of ancestor records
-                        $ret = self::transformRecordsFromCriteria($datatree_array, $facet_dr_list, $flattened_list, $source_dt_id, $target_dt_id, 'advanced', $facet_num, $guard);
+                        $ret = self::transformRecordsFromCriteria($datatree_array, $facet_dr_list, $flattened_list, $source_dt_id, $target_dt_id, 'advanced', $facet_num, $include_unrelated_records);
 
                         // If any results were returned...
                         if ( isset($ret[$facet_num]) ) {
@@ -570,55 +549,7 @@ class SearchAPIService
         if ( !empty($multiple) ) {
             // Each datatype with "multiple" paths has its own entry in here
             foreach ($multiple as $multipath_dt_id => $merges) {
-                // The order of the individual paths doesn't matter
-//                foreach ($merges as $postfix => $merge_order) {
-//                    // ...but the order of the datatypes does
-//                    for ($i = 0; $i < count($merge_order)-1; $i++) {
-//                        $source_dt_id = $merge_order[$i];
-//                        $target_dt_id = $merge_order[$i+1];
-//
-//                        // TODO
-//                        $guard = false;
-//                        if ( $negated_facets['advanced'][$source_dt_id] )
-//                            $guard = true;
-//                        if ( $guard && is_null($negated_facets['advanced'][$target_dt_id]) )
-//                            $negated_facets['advanced'][$target_dt_id] = true;
-
-//                        // Because each path needs to get merged together at the end, they
-//                        //  need to temporarily be stored in separate facets
-//                        $facet_num_target = $postfix;
-//                        // ...but the initial read depends on whether this is the first
-//                        //  step in the chain or not
-//                        $facet_num_src = $postfix;
-//                        if ($i === 0)
-//                            $facet_num_src = 0;
-//
-//                        // Transform the set of descendant records into a set of ancestor records
-//                        $ret = self::transformRecordsFromCriteria($datatree_array, $facet_dr_list, $flattened_list, $source_dt_id, $target_dt_id, 'advanced', $facet_num_src, $guard);
-//
-//                        // When doing these merges, the initial set of results are stored separately
-//                        //  from each other
-//                        if ( !isset($facet_dr_list[$target_dt_id]['advanced'][$facet_num_target]) ) {
-//                            $facet_dr_list[$target_dt_id]['advanced'][$facet_num_target] = array();
-//
-//                            foreach ($ret as $facet_num => $dr_list) {
-////                                if ($facet_num === $facet_num_target) {  // TODO - this seems like it should work, but doesn't?
-//                                    foreach ($dr_list as $dr_id => $num)
-//                                        $facet_dr_list[$target_dt_id]['advanced'][$facet_num_target][$dr_id] = $num;
-////                                }
-//                            }
-//                        }
-//                        else {
-//                            throw new ODRException('...apparently merging $multiple does require that other $facet_dr_list logic branch?');
-////                          $facet_dr_list[$target_dt_id]['advanced'][$facet_num_target] = array_intersect_key($facet_dr_list[$target_dt_id][$facet_num_target], $ret);
-//                        }
-
-                        // Do need these entries still
-//                        unset( $facet_dr_list[$target_dt_id]['advanced'][$facet_num_target] );
-//                    }
-//                }
-
-
+                // Need to handle each facet individually
                 foreach ($facet_dr_list[$multipath_dt_id]['advanced'] as $facet_num => $dr_list) {
                     // The order of the individual paths doesn't matter
                     foreach ($merges as $postfix => $merge_order) {
@@ -636,9 +567,17 @@ class SearchAPIService
                             if ($i === 0)
                                 $facet_num_src = $facet_num;
 
+                            // Need to know whether to include target records that are not related to
+                            //  source records
+                            $include_unrelated_records = false;
+                            if ( isset($modified_facets['advanced'][$facet_num])
+                                && $modified_facets['advanced'][$facet_num] === SearchQueryService::NEED_UNRELATED_RECORDS
+                            ) {
+                                $include_unrelated_records = true;
+                            }
+
                             // Transform the set of descendant records into a set of ancestor records
-                            $guard = false;
-                            $ret = self::transformRecordsFromCriteria($datatree_array, $facet_dr_list, $flattened_list, $source_dt_id, $target_dt_id, 'advanced', $facet_num_src, $guard);
+                            $ret = self::transformRecordsFromCriteria($datatree_array, $facet_dr_list, $flattened_list, $source_dt_id, $target_dt_id, 'advanced', $facet_num_src, $include_unrelated_records);
 
                             // When doing these merges, the initial set of results are stored separately
                             //  from each other
@@ -726,7 +665,7 @@ class SearchAPIService
                             if ( !isset($facet_dr_list[$dt_id]['advanced'][$facet_num]) )
                                 $facet_dr_list[$dt_id]['advanced'][$facet_num] = array();
 
-//                            if ( isset($negated_facets['advanced'][$facet_num]) || $merge_types['advanced'] === 'OR' ) {
+//                            if ( isset($modified_facets['advanced'][$facet_num]) || $merge_types['advanced'] === 'OR' ) {
                                 foreach ($dr_list as $dr_id => $num)
                                     $facet_dr_list[$dt_id]['advanced'][$facet_num][$dr_id] = $num;
 //                            }
@@ -737,8 +676,6 @@ class SearchAPIService
                     }
                 }
             }
-
-            $a = 1;
         }
 
         //
@@ -785,11 +722,11 @@ class SearchAPIService
         // There's still the issue of negated general search criteria to deal with, however...
         //  ...performing this requires lists of all datarecords in a datatype
         $full_dr_lists = array();
-        if ( !empty($negated_facets['general']) ) {
-            foreach ($negated_facets['general'] as $negated_facet_num => $num) {
+        if ( !empty($modified_facets['general']) ) {
+            foreach ($modified_facets['general'] as $modified_facet_num => $modification) {
                 // If the general search had at least one negated facet...
                 foreach ($facet_dr_list as $dt_id => $facet_list) {
-                    if ( isset($facet_list['general'][$negated_facet_num]) ) {
+                    if ( isset($facet_list['general'][$modified_facet_num]) ) {
                         // ...then there should be a datarecord list for this facet in this datatype
                         // Get the list of records for this datatype
                         if ( !isset($full_dr_lists[$dt_id]) )
@@ -797,34 +734,36 @@ class SearchAPIService
                         $tmp = $full_dr_lists[$dt_id];
 
                         // ...and then subtract the records that matched the "un-negated" search from it
-                        foreach ($facet_list['general'][$negated_facet_num] as $dr_id => $num)
+                        foreach ($facet_list['general'][$modified_facet_num] as $dr_id => $num)
                             unset( $tmp[$dr_id] );
 
                         // Want to completely replace the existing list of records for this facet
-                        $facet_dr_list[$dt_id]['general'][$negated_facet_num] = $tmp;
+                        $facet_dr_list[$dt_id]['general'][$modified_facet_num] = $tmp;
                     }
                 }
             }
         }
-        if ( !empty($negated_facets['advanced']) ) {
-            foreach ($negated_facets['advanced'] as $negated_facet_num => $num) {
+        if ( !empty($modified_facets['advanced']) ) {
+            foreach ($modified_facets['advanced'] as $modified_facet_num => $modification) {
                 // If the advanced search had at least one negated facet...
-                foreach ($facet_dr_list as $dt_id => $facet_list) {
-                    if ( isset($facet_list['advanced'][$negated_facet_num]) ) {
-                        // ...then there should be a datarecord list for this facet in this datatype
-                        // Get the list of records for this datatype
-                        if ( !isset($full_dr_lists[$dt_id]) )
-                            $full_dr_lists[$dt_id] = $this->search_service->getCachedDatarecordList($dt_id);
-                        $tmp = $full_dr_lists[$dt_id];
+                if ( $modification === SearchQueryService::NEGATED_QUERY ) {
+                    foreach ($facet_dr_list as $dt_id => $facet_list) {
+                        if ( isset($facet_list['advanced'][$modified_facet_num]) ) {
+                            // ...then there should be a datarecord list for this facet in this datatype
+                            // Get the list of records for this datatype
+                            if ( !isset($full_dr_lists[$dt_id]) )
+                                $full_dr_lists[$dt_id] = $this->search_service->getCachedDatarecordList($dt_id);
+                            $tmp = $full_dr_lists[$dt_id];
 
-                        // ...and then subtract the records that matched the "un-negated" search from it
-                        foreach ($facet_list['advanced'][$negated_facet_num] as $dr_id => $num) {
-                            unset( $tmp[$dr_id] );
+                            // ...and then subtract the records that matched the "un-negated" search from it
+                            foreach ($facet_list['advanced'][$modified_facet_num] as $dr_id => $num) {
+                                unset( $tmp[$dr_id] );
 //                            $flattened_list[$dt_id][$dr_id] |= SearchAPIService::NEGATED_MATCH;  // TODO - figure out if this is accurate
-                        }
+                            }
 
-                        // Want to completely replace the existing list of records for this facet
-                        $facet_dr_list[$dt_id]['advanced'][$negated_facet_num] = $tmp;
+                            // Want to completely replace the existing list of records for this facet
+                            $facet_dr_list[$dt_id]['advanced'][$modified_facet_num] = $tmp;
+                        }
                     }
                 }
             }
@@ -1267,9 +1206,8 @@ class SearchAPIService
                         }
                     }
 
-                    // If the search criteria involves the empty string...
+                    // If the search criteria requires unrelated records from the target...
                     if ($include_unrelated_records) {
-                        throw new ODRNotImplementedException('qwer');
                         // ...then need to also determine which records in the ancestor datatype do
                         //  not have descendant records of this datatype
                         $unrelated_target_records = $target_dr_list;
@@ -1324,36 +1262,30 @@ class SearchAPIService
                             }
                         }
                     }
-                }
-            }
 
-            // If the search criteria involves the empty string...
-            if ($include_unrelated_records) {
-                // ...then need to also determine which records in the descendant datatype are not
-                //  linked to by the ancestor datatype
+                    // If the search criteria involves the empty string...
+                    if ($include_unrelated_records) {
+                        // ...then need to also determine which records in the descendant datatype are not
+                        //  linked to by the ancestor datatype
+                        $unrelated_target_records = $target_dr_list;
 
-                throw new ODRNotImplementedException('zxcv');
-
-                // ...this gets an array where <descendant_dr_id> => array(<ancestor_dr_1> => '', <ancestor_dr_2> => '', ...)
-                $target_linked_to_by = $this->search_service->getCachedDatarecordList($target_dt_id, false, true);
-                foreach ($target_linked_to_by as $descendant_dr_id => $ancestor_dr_ids) {
-                    if ( $target_dr_list[$descendant_dr_id] >= SearchAPIService::CANT_VIEW) {
-                        // If the user can't view this descendant datarecord, then don't check any of
-                        //  its ancestors
-                        continue;
-                    }
-
-                    foreach ($ancestor_dr_ids as $ancestor_dr_id => $str) {
-                        if ( isset($source_dr_list[$descendant_dr_id]) ) {
-                            // If the ancestor datarecord has a descendant record of the relevant
-                            //  datatype, then it's not wanted when the empty string is involved
-                            continue 2;
+                        foreach ($source_links_to as $source_dr_id => $ancestor_dr_list) {
+                            if ( !empty($ancestor_dr_list)
+                                && $source_dr_list[$source_dr_id] < SearchAPIService::CANT_VIEW
+                            ) {
+                                foreach ($ancestor_dr_list as $ancestor_dr_id => $str) {
+                                    if ( isset($target_dr_list[$ancestor_dr_id])
+                                        && $target_dr_list[$ancestor_dr_id] < SearchAPIService::CANT_VIEW
+                                    ) {
+                                        unset( $unrelated_target_records[$ancestor_dr_id] );
+                                    }
+                                }
+                            }
                         }
-                    }
 
-                    // If this point is reached, then the ancestor record does not have a descendant
-                    //  record belonging to $source_dt_id
-                    $transformed_records[$ancestor_dr_id] = 1;
+                        foreach ($unrelated_target_records as $ancestor_dr_id => $num)
+                            $transformed_records[$facet_num][$ancestor_dr_id] = 1;
+                    }
                 }
             }
         }
@@ -1579,11 +1511,11 @@ class SearchAPIService
                         $dr_list = $rp->searchOverriddenField($entity, $search_term, $rpf_list, $rpo);
 
                         // If this search involved the empty string...
-                        $involves_empty_string = $dr_list['guard'];
-                        if ($involves_empty_string) {
+                        $query_modified = $dr_list['modify'];
+                        if ( $query_modified > SearchQueryService::NO_MODIFICATION ) {
                             // ...then insert an entry into the criteria array so that the later
                             //  call of self::mergeSearchResults() can properly compensate
-                            $criteria[$dt_id][$facet_num]['search_terms'][$key]['guard'] = true;
+                            $criteria[$dt_id][$facet_num]['search_terms'][$key]['modify'] = $query_modified;
                         }
                     }
                     else {
@@ -1700,19 +1632,20 @@ class SearchAPIService
                             // Short/Medium/LongVarchar, Paragraph Text, and Integer/DecimalValue
                             $dr_list = $this->search_service->searchTextOrNumberDatafieldGeneral($entity, $search_term['value']);
 
-                            // Don't need to do anything with 'guard' here...the methods required
-                            //  to deal with negation in general search terms supersede it
+                            // Don't care whether SearchService::searchTextOrNumberDatafieldGeneral()
+                            //  modified the query or not at this point...it's being kept track of
+                            //  elsewhere
                         }
                         else {
                             // Short/Medium/LongVarchar, Paragraph Text, and Integer/DecimalValue
                             $dr_list = $this->search_service->searchTextOrNumberDatafield($entity, $search_term['value']);
 
                             // If this search involved the empty string...
-                            $involves_empty_string = $dr_list['guard'];
-                            if ($involves_empty_string) {
+                            $query_modified = $dr_list['modify'];
+                            if ( $query_modified > SearchQueryService::NO_MODIFICATION ) {
                                 // ...then insert an entry into the criteria array so that the later
                                 //  call of self::mergeSearchResults() can properly compensate
-                                $criteria[$dt_id][$facet_num]['search_terms'][$key]['guard'] = true;
+                                $criteria[$dt_id][$facet_num]['search_terms'][$key]['modify'] = $query_modified;
                             }
                         }
                     }
@@ -1777,6 +1710,8 @@ class SearchAPIService
                             $facet_dr_list[$dt_id]['advanced'][$facet_num] = $dr_list['records'];
                         }
                         else {
+                            throw new ODRNotImplementedException('uiop');
+
                             // ...if this isn't the first set of records, then what to do depends on
                             //  the type of merge being performed...
                             if ( $merge_type === 'OR' ) {
@@ -1834,10 +1769,6 @@ class SearchAPIService
         if ( $return_all_results ) {
             // When no search criteria is specified, then every datarecord that the user can see
             //  needs to be marked as "matching" the search
-//            foreach ($flattened_list as $dr_id => $num) {
-//                if ( !($num & SearchAPIService::CANT_VIEW) )
-//                    $flattened_list[$dr_id] |= SearchAPIService::MATCHES_BOTH;
-//            }
             foreach ($flattened_list as $dt_id => $dr_list) {
                 foreach ($dr_list as $dr_id => $num) {
                     if ( !($num & SearchAPIService::CANT_VIEW) )
@@ -1851,38 +1782,6 @@ class SearchAPIService
             //  as the datafield criteria was being evaluated, this next set of merges have to follow
             //  a different, more complicated set of rules...
 
-//            //
-//            // TODO - move this into SearchKeyService::convertSearchKeyToCriteria()?
-//            $datatypes_with_criteria = array();
-//            if ( isset($criteria['general']) ) {
-//                foreach ($criteria['general'] as $facet_num => $facet) {
-//                    if ( $facet_num === 'merge_type' )
-//                        continue;
-//                    foreach ($facet['search_terms'] as $df_id => $df_data) {
-//                        $dt_id = $df_data['datatype_id'];
-//                        if ( !isset($datatypes_with_criteria[$dt_id]) )
-//                            $datatypes_with_criteria[$dt_id] = SearchAPIService::MATCHES_GEN;
-//                        else
-//                            $datatypes_with_criteria[$dt_id] |= SearchAPIService::MATCHES_GEN;
-//                    }
-//                }
-//            }
-//            foreach ($criteria as $dt_id => $dt_data) {
-//                if ( $dt_id === 'general' )
-//                    continue;
-//                foreach ($dt_data as $facet_num => $facet) {
-//                    if ( is_null($facet) )
-//                        continue;
-//                    foreach ($facet['search_terms'] as $df_id => $df_data) {
-//                        $dt_id = $df_data['datatype_id'];
-//                        if ( !isset($datatypes_with_criteria[$dt_id]) )
-//                            $datatypes_with_criteria[$dt_id] = SearchAPIService::MATCHES_ADV;
-//                        else
-//                            $datatypes_with_criteria[$dt_id] |= SearchAPIService::MATCHES_ADV;
-//                    }
-//                }
-//            }
-
             //
             // TODO - this doesn't feel complete at all
             $merge_types = array();
@@ -1895,76 +1794,63 @@ class SearchAPIService
                 $merge_types['advanced'] = $default_merge_type;
 
 
-//            // TODO - this doesn't seem required
-//            $was_general_search = $was_advanced_search = false;
-//            foreach ($datatypes_with_criteria as $dt_id => $val) {
-//                if ( ($val & SearchAPIService::MATCHES_ADV) === SearchAPIService::MATCHES_ADV )
-//                    $was_advanced_search = true;
-//                if ( ($val & SearchAPIService::MATCHES_GEN) === SearchAPIService::MATCHES_GEN )
-//                    $was_general_search = true;
-//            }
-//            $differentiate_search_types = $was_general_search && $was_advanced_search;
-
-
             // Rather than pass the full $criteria array to performMerge(), it makes more sense to
             //  extract the facets which are negated/guarded beforehand
-            $negated_facets = array('general' => array(), 'advanced' => array());
+            $modified_facets = array('general' => array(), 'advanced' => array());
             foreach ($criteria as $dt_id => $facet_list) {
-                // General search is easy to deal with
-                if ( $dt_id === 'general' ) {
-                    foreach ($facet_list as $facet_num => $facet) {
+                foreach ($facet_list as $facet_num => $facet) {
+                    if ( $dt_id === 'general' ) {
+                        // General search is easy to deal with
                         if ( $facet_num === 'merge_type' )
                             continue;
                         if ( isset($facet['negated']) )
-                            $negated_facets['general'][$facet_num] = 1;
+                            $modified_facets['general'][$facet_num] = SearchQueryService::NEGATED_QUERY;
                     }
-                }
-                else {
-//                    // TODO - need a way for this to get passed up and/or blocked if needed
-//                    $negated_facets['advanced'][$dt_id] = null;
+                    else {
+//                        // TODO - need a way for this to get passed up and/or blocked if needed
+//                        $modified_facets['advanced'][$facet_num] = null;
 //
-//                    // Advanced search is not easy
-//                    if ( !empty($facet_list) ) {
-//                        // TODO
-//                        $negated_facets['advanced'][$dt_id] = false;
+//                        // Advanced search is not easy
+//                        if ( !empty($facet_list) ) {
+//                            // TODO
+//                            $modified_facets['advanced'][$facet_num] = SearchQueryService::NO_MODIFICATION;
 //
-//                        foreach ($facet_list as $facet_num => $facet_data) {
-//                            $dt_merge_flag = $facet_data['merge_type'];
-//                            $can_match_empty_string = $cant_match_empty_string = null;
+////                            foreach ($facet_list as $facet_num => $facet_data) {
+//                                $dt_merge_flag = $facet['merge_type'];
+//                                $can_match_empty_string = $cant_match_empty_string = null;
 //
-//                            // Need to check all advanced search facets for the datatype
-//                            foreach ($facet_data['search_terms'] as $df_id => $df_data) {
-//                                if ( isset($df_data['guard']) )
-//                                    $can_match_empty_string = true;
-//                                else
-//                                    $cant_match_empty_string = true;
-//                            }
-//
-//                            if ( !is_null($can_match_empty_string) ) {
-//                                // guard can only be true if at least one piece of criteria could
-//                                //  feasibly match the empty string
-//                                if ( is_null($cant_match_empty_string) ) {
-//                                    // ...if no other piece of criteria requires a non-empty string,
-//                                    //  then the ancestor needs to locate records that aren't
-//                                    //  related to the descendant
-//                                    $negated_facets['advanced'][$dt_id] = true;
+//                                // Need to check all advanced search facets for the datatype
+//                                foreach ($facet['search_terms'] as $df_id => $df_data) {
+//                                    if ( isset($df_data['modify']) )
+//                                        $can_match_empty_string = true;
+//                                    else
+//                                        $cant_match_empty_string = true;
 //                                }
-//                                else {
-//                                    // ...if another piece of criteria does require a non-empty string,
-//                                    //  it depends on the merge type...!a OR b could still match
-//                                    //  the empty string, while !a AND b can't
-//                                    if ( $dt_merge_flag === 'OR' )
-//                                        $negated_facets['advanced'][$dt_id] = true;
+//
+//                                if ( !is_null($can_match_empty_string) ) {
+//                                    // guard can only be true if at least one piece of criteria could
+//                                    //  feasibly match the empty string
+//                                    if ( is_null($cant_match_empty_string) ) {
+//                                        // ...if no other piece of criteria requires a non-empty string,
+//                                        //  then the ancestor needs to locate records that aren't
+//                                        //  related to the descendant
+//                                        $modified_facets['advanced'][$facet_num] = SearchQueryService::NEED_UNRELATED_RECORDS;
+//                                    }
+//                                    else {
+//                                        // ...if another piece of criteria does require a non-empty string,
+//                                        //  it depends on the merge type...!a OR b could still match
+//                                        //  the empty string, while !a AND b can't
+//                                        if ( $dt_merge_flag === 'OR' )
+//                                            $modified_facets['advanced'][$facet_num] = SearchQueryService::NEED_UNRELATED_RECORDS;
+//                                    }
 //                                }
-//                            }
+////                            }
 //                        }
-//                    }
 
-                    if ( !empty($facet_list) ) {
-                        foreach ($facet_list as $facet_num => $facet_data) {
-                            foreach ($facet_data['search_terms'] as $df_id => $df_data) {
-                                if ( isset($df_data['guard']) )
-                                    $negated_facets['advanced'][$facet_num] = 1;
+                        if ( !empty($facet) ) {
+                            foreach ($facet['search_terms'] as $df_id => $df_data) {
+                                if ( isset($df_data['modify']) )
+                                    $modified_facets['advanced'][$facet_num] = $df_data['modify'];
                             }
                         }
                     }
@@ -1974,7 +1860,7 @@ class SearchAPIService
             // Actually perform the mess of opertaions to convert arbitrary sets of datarecord lists
             //  in $facet_dr_list into a set of datarecords of the top-level datatype, and simultaneously
             //  update $flattened_list so that it contains a final list of records
-            self::performMerge($graph, $counts, $datatype->getId(), $datatypes_with_criteria, $merge_types, $facet_dr_list, $flattened_list, /*$differentiate_search_types,*/ $negated_facets);
+            self::performMerge($graph, $counts, $datatype->getId(), $datatypes_with_criteria, $merge_types, $facet_dr_list, $flattened_list, $modified_facets);
         }
 
 
@@ -1987,45 +1873,7 @@ class SearchAPIService
             if ( is_null($datatree_array) )
                 $datatree_array = $this->datatree_info_service->getDatatreeArray();
             $datarecord_ids = self::getCompleteDatarecordList($datatree_array, $graph, $flattened_list, $datatype->getId());
-//            // ...then traverse $inflated_list to get the final set of datarecords that match the search
-//            // NOTE: intentionally no check for $inverse_target_datatype_id here...the function needs
-//            //  to always locate the original datatype
-//            $datarecord_ids = self::getMatchingDatarecords($flattened_list, $inflated_list, $datatype->getId());
             $datarecord_ids = array_keys($datarecord_ids);
-
-
-//            $correct_dr_ids = array(
-//                // all 532 raman spectra
-//                140,150,155,156,165,167,175,176,179,204,
-//                218,222,234,236,243,249,263,273,276,281,
-//                282,283,290,291,294,
-//
-//                // all samples with those raman spectra
-//                98,100,102,103,105,107,109,111,113,115,
-//                116,118,119,120,123,124,125,126,129,131,
-//                133,137,139,
-//                // all references with those samples
-//                1,77,
-//
-//                // all minerals with those samples
-//                91,92,93,94,96,97,
-//                // all references with those minerals
-//                /*1,*/2,3,4,5,6,7,8,9,10,
-//                12,13,14,15,16,18,19,20,21,22,
-//                23,24,25,26,27,28,29,30,31,32,
-//                33,34,35,36,37,38,39,40,41,42,
-//                43,44,45,46,47,48,49,50,51,52,
-//                53,54,55,56,57,58,59,60,61,62,
-//                63,64,65,66,67,68,69,70,71,72,
-//                73,75,76,/*77,*/78,79,80,81,82,83,
-//                85,86,88,89,90
-//            );
-//
-//            $diff_1 = array_diff($correct_dr_ids, $datarecord_ids);
-//            sort($diff_1);
-//            $diff_2 = array_diff($datarecord_ids, $correct_dr_ids);
-//            sort($diff_2);
-
 
             // There's no correct method to sort this list, so might as well return immediately
             return $datarecord_ids;
@@ -2035,44 +1883,12 @@ class SearchAPIService
         // Otherwise, the user only wanted a list of the grandparent datarecords that matched the
         //  search...
         $grandparent_ids = array();
-//        if ( is_null($inverse_target_datatype_id) || $inverse_target_datatype_id === $datatype->getId() ) {
-            // ...since this is not an "inverse" search, then traversing the top-level of the inflated
-            //  list is all that's required
-//            if ( isset($inflated_list[$datatype->getId()]) ) {
-//                foreach ($inflated_list[$datatype->getId()] as $gp_id => $data) {
-//                    if ( ($flattened_list[$gp_id] & SearchAPIService::MATCHES_BOTH) === SearchAPIService::MATCHES_BOTH )
-//                        $grandparent_ids[] = $gp_id;
-//                    // NOTE: returns no results for IMA list when has general search and ignores tags, because $flattened_list only has MATCHES_GEN
-//                    // ...this isn't picked up by the tests, because the default tag insertion isn't usually overridden, and when it is it's not really tested with general search
-//                }
-//            }
-            if ( isset($flattened_list[$datatype->getId()]) ) {
-                foreach ($flattened_list[$datatype->getId()] as $dr_id => $val) {
-                    if ( ($val & SearchAPIService::MATCHES_BOTH) === SearchAPIService::MATCHES_BOTH )
-                        $grandparent_ids[] = $dr_id;
-                }
+        if ( isset($flattened_list[$datatype->getId()]) ) {
+            foreach ($flattened_list[$datatype->getId()] as $dr_id => $val) {
+                if ( ($val & SearchAPIService::MATCHES_BOTH) === SearchAPIService::MATCHES_BOTH )
+                    $grandparent_ids[] = $dr_id;
             }
-//        }
-//        else {
-//            // ...if it's an inverse search, though, then it's slightly different
-//
-//            // Still need to to traverse the top-level of the inflated list first...
-//            if ( isset($inflated_list[$inverse_target_datatype_id]) ) {
-//                foreach ($inflated_list[$inverse_target_datatype_id] as $gp_id => $data) {
-//                    if ( ($flattened_list[$gp_id] & SearchAPIService::MATCHES_BOTH) === SearchAPIService::MATCHES_BOTH )
-//                        $grandparent_ids[] = $gp_id;
-//                }
-//            }
-//
-//            // ...after which that list needs to get "converted" into a list of datarecords for the
-//            //  "correct" datatype.  Turns out the existing merge logic could not handle things when
-//            //  the "inverse" datatype was a descendant of the "correct" datatype...
-//            $working_dr_list = array();
-//            foreach ($grandparent_ids as $num => $gp_dr_id)
-//                $working_dr_list[$gp_dr_id] = 1;
-//            $correct_grandparent_ids = self::undoInverseSearch($inverse_target_datatype_id, $datatype->getId(), $flattened_list, $inflated_list, $working_dr_list);
-//            $grandparent_ids = array_keys($correct_grandparent_ids);
-//        }
+        }
 
 
         // ----------------------------------------

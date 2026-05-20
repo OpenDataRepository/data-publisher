@@ -747,7 +747,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(4, 37, 86),    // term is an exact match for 4 and 37, but only a subset of 86
                 false
             ],
-            'RRUFF Sample: contains the phrase "sample description", without non-public records' => [
+            'RRUFF Sample: sample description contains the phrase "sample description", without non-public records' => [
                 array(
                     'dt_id' => 3,
                     '36' => "\"sample description\""
@@ -755,7 +755,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(134,110,135),
                 false
             ],
-            'RRUFF Sample: does not contain the phrase "associated with", without non-public records' => [
+            'RRUFF Sample: sample description does not contain the phrase "associated with", without non-public records' => [
                 array(
                     'dt_id' => 3,
                     '36' => "!\"associated with\""
@@ -1252,7 +1252,7 @@ class SearchAPIServiceTest extends WebTestCase
             'IMA List: search for minerals with author == "downs" OR minerals without a reference' => [
                 array(
                     'dt_id' => 2,
-                    '1' => 'downs OR ""',   // TODO - ...if it can match the empty string, and has the physical empty string as a term, then negating the entire piece of criteria won't work
+                    '1' => 'downs OR ""',
                 ),
                 array(91,94,97,322),    // should return the three minerals referred to by "downs" and the only IMA mineral without a linked reference
                 true
@@ -2471,15 +2471,15 @@ class SearchAPIServiceTest extends WebTestCase
                     'dt_id' => 1,
                     'inverse' => 1,    // targetting RRUFF Reference should work
                 ),
-                range(1, 90),
+                range(1, 90),  // should have no effect
                 true
             ],
             'RRUFF Reference: inverse search towards IMA List' => [
                 array(
                     'dt_id' => 1,
-                    'inverse' => 2,    // targetting IMA List should still return all references
+                    'inverse' => 2,
                 ),
-                range(1, 90),
+                range(1, 90),    // targetting IMA List without any criteria should still return all references
                 true
             ],
             'RRUFF Sample: inverse search to itself with wavelength "514"' => [
@@ -2488,10 +2488,50 @@ class SearchAPIServiceTest extends WebTestCase
                     'inverse' => 3,  // This setup shouldn't happen technically
                     '41' => "514",
                 ),
-                array(103,107,111,124,133,139),
+                array(103,107,111,124,133,139),  // it should not change the result regardless
                 true
             ],
 
+            'RRUFF Reference: inverse search, mineral_aliases is blank' => [
+                array(
+                    'dt_id' => 1,
+                    'inverse' => 2,
+                    '19' => '""',
+                ),
+                array(
+                    // references of abelsonite (91)
+                    1,9,35,63,83,
+                    // references of amesite (93)
+                    12,14,19,25,56,57,62,75,89,
+                    // references of abellaite (95)
+                    11,17,74,84,87,
+                    // references of adelite (96)
+                    2,4,6,18,23,37,54,59,67,86,
+                    // references of anorthite (97)
+                    7,15,20,27,28,29,30,31,33,40,  // 29 is both aegirine and anorthite, so this prevents the use of set subtraction for ""
+                    44,45,46,47,48,49,51,52,53,58,
+                    60,64,66,69,71,76,77,79,81,82,
+                    85,90,
+                    // references of unknown (322)
+                ),
+                true
+            ],
+            'RRUFF Reference: inverse search, mineral_aliases is not blank' => [
+                array(
+                    'dt_id' => 1,
+                    'inverse' => 2,
+                    '19' => '!""',
+                ),
+                array(
+                    // references of bournonite (92)
+                    5,13,22,26,34,41,80,
+                    // references of aegirine (94)
+                    3,8,10,16,21,24,29,32,36,38,
+                    39,42,43,50,55,61,65,68,70,72,
+                    73,78,88,
+                ),
+                true
+            ],
             'RRUFF Reference: inverse search, references with the mineral_name "Bournonite"' => [
                 array(
                     'dt_id' => 1,

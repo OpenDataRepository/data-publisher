@@ -619,7 +619,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
             $end_result = array(
                 'dt_id' => $datafield->getDataType()->getId(),
                 'records' => $result['records'],
-                'guard' => $result['guard'],
+                'modify' => $result['modify'],
             );
         }
         else {
@@ -644,7 +644,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
 
             // Run the required searches
             $original_result = $converted_result = null;
-            $original_involves_empty_string = $converted_involves_empty_string = false;
+            $original_was_modified = $converted_was_modified = false;
             if ( $original_value !== '' ) {
                 $original_result = $this->search_query_service->searchTextOrNumberDatafield(
                     $datafield->getDataType()->getId(),
@@ -655,8 +655,8 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
                     false    // get the original value stored in this field
                 );
 
-                if ( $original_result['guard'] )
-                    $original_involves_empty_string = true;
+                if ( $original_result['modify'] > SearchQueryService::NO_MODIFICATION )
+                    $original_was_modified = true;
             }
 
             if ( $converted_value !== '' ) {
@@ -669,8 +669,8 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
                     true    // get the converted value stored in this field
                 );
 
-                if ( $original_result['guard'] )
-                    $converted_involves_empty_string = true;
+                if ( $original_result['modify'] > SearchQueryService::NO_MODIFICATION )
+                    $converted_was_modified = true;
             }
 
             // Need to combine the two results together
@@ -695,7 +695,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
             $end_result = array(
                 'dt_id' => $datafield->getDataType()->getId(),
                 'records' => $result['records'],
-                'guard' => $original_involves_empty_string | $converted_involves_empty_string,
+                'modify' => $original_was_modified | $converted_was_modified,  // TODO
             );
         }
 

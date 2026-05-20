@@ -27,6 +27,26 @@ class SearchQueryService
 {
 
     /**
+     * This service has been granted the ability to modify what it receives from SearchQueryService,
+     * but this is only required in specific situations...neither of which this query satisfies.
+     */
+    const NO_MODIFICATION = 0;
+
+    /**
+     * In most situations where the incoming query can match the empty string, there are two different
+     * methods of dealing with it...one method is to negate the given query so that whatever matches
+     * can be subtracted from the set of all records at a later point in time..
+     */
+    const NEGATED_QUERY = 1;
+
+    /**
+     * ...the other method for dealing with empty string queries is to require record transforms
+     * to also splice in target records that aren't related to source records.
+     */
+    const NEED_UNRELATED_RECORDS = 2;
+
+
+    /**
      * @var EntityManager
      */
     private $em;
@@ -1770,12 +1790,15 @@ class SearchQueryService
      * The array has the following structure:
      * <pre>
      * array(
-     *     'guard' => <true when the query can match the empty string, false otherwise>,
      *     'records' => array(
      *         <matching dr_id> => 1
      *     ),
+     *     'modify' => <flag>
      * )
      * </pre>
+     *
+     * The flag for the 'modify' key is one of {@link SearchQueryService::NO_MODIFICATION},
+     * {@link SearchQueryService::NEGATED_QUERY}, or {@link SearchQueryService::NEED_UNRELATED_RECORDS}
      *
      * @param int $datatype_id
      * @param int $datafield_id
@@ -1793,54 +1816,39 @@ class SearchQueryService
         $search_params = self::parseField($value, $typeclass, $doublequotes_force_exact_match, $search_converted);
         $search_params['params']['datafield_id'] = $datafield_id;
 
-        // Determine whether this query's search parameters contain an empty string...if so, may
-        //  have to to run an additional query because of how ODR is designed...
-        $involves_empty_string = false;
-        if ( self::isNullDrfPossible($search_params['str'], $search_params['params'], $search_converted) ) {
-            // ...but only when the query actually has a logical chance of returning results...
-            if ( self::canQueryReturnResults($search_params['str'], $search_params['params']) ) {
-//                $search_params['params']['datatype_id'] = $datatype_id;
-//                $query .= "\nUNION\n".$null_query;
-
-                // Need to inform callers that this query can matches the empty string
-                $involves_empty_string = true;
-            }
-        }
-
+        // Determine whether this query needs to be modified due to (partially) matching the empty
+        //  string...
+        $modification = self::doesQueryNeedModified($search_params, $search_converted);
 
         // ----------------------------------------
         // Define the base query for searching
         $query =
-//           'SELECT dr.id AS dr_id
-//            FROM odr_data_record AS dr
-//            JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
-//            JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
-//            WHERE e.data_field_id = :datafield_id AND ('.$search_params['str'].')
-//            AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL';
            'SELECT dr.id AS dr_id
             FROM odr_data_record AS dr
             JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
             JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
             WHERE e.data_field_id = :datafield_id AND ';
-        if ( $involves_empty_string )
+        if ( $modification === SearchQueryService::NEGATED_QUERY )
             $query .= 'NOT ';
         $query .=
            '('.$search_params['str'].')
             AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL';
 
-//        // Also define the query used when one of the search parameters is the empty string
-//        $null_query =
-//           'SELECT dr.id AS dr_id
-//            FROM odr_data_record AS dr
-//            LEFT JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id AND ((drf.data_field_id = '.$datafield_id.' AND drf.deletedAt IS NULL) OR drf.id IS NULL)
-//            LEFT JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
-//            WHERE dr.data_type_id = :datatype_id AND e.id IS NULL AND dr.deletedAt IS NULL';
-//        // This query won't pick up cases where the drf exists and the storage entity was deleted,
-//        //  but that shouldn't happen...if it does, most likely it's either a botched fieldtype
-//        //  migration, or a change to the contents of a storage entity didn't complete properly
-//
-//        if ( $involves_empty_string )
-//            $query .= "\nUNION\n".$null_query;
+        // Also define the query used when one of the search parameters is the empty string
+        $null_query =
+           'SELECT dr.id AS dr_id
+            FROM odr_data_record AS dr
+            LEFT JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id AND ((drf.data_field_id = '.$datafield_id.' AND drf.deletedAt IS NULL) OR drf.id IS NULL)
+            LEFT JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
+            WHERE dr.data_type_id = :datatype_id AND e.id IS NULL AND dr.deletedAt IS NULL';
+        // This query won't pick up cases where the drf exists and the storage entity was deleted,
+        //  but that shouldn't happen...if it does, most likely it's either a botched fieldtype
+        //  migration, or a change to the contents of a storage entity didn't complete properly
+
+        if ( $modification === SearchQueryService::NEED_UNRELATED_RECORDS ) {
+            $search_params['params']['datatype_id'] = $datatype_id;
+            $query .= "\nUNION\n".$null_query;
+        }
 
 
 //        // ----------------------------------------
@@ -1877,7 +1885,7 @@ class SearchQueryService
 
         return array(
             'records' => $datarecords,
-            'guard' => $involves_empty_string,
+            'modify' => $modification,
         );
     }
 
@@ -2044,6 +2052,53 @@ class SearchQueryService
             'guard' => $involves_empty_string,
             'records' => $datarecords,
         );
+    }
+
+
+    /**
+     * TODO
+     *
+     * @param array $search_params
+     * @param bool $search_converted
+     * @return int
+     */
+    private function doesQueryNeedModified($search_params, $search_converted)
+    {
+        // If the query could theoretically match the empty string...
+        if ( self::isNullDrfPossible($search_params['str'], $search_params['params'], $search_converted) ) {
+            //  ...then it needs to be checked for whether it could actually return any results...
+            if ( self::canQueryReturnResults($search_params['str'], $search_params['params']) ) {
+                // ...because if it can, then the query needs to be modified.
+
+                // The method of modification depends on whether there's a term involving the empty
+                //  string and a non-empty string simultaneously...
+                $has_empty_string = false;
+                $has_not_empty_string = false;
+                foreach ($search_params['params'] as $key => $value) {
+                    if ( $key === 'datafield_id' )
+                        continue;
+
+                    if ( $value === "" )
+                        $has_empty_string = true;
+                    else
+                        $has_not_empty_string = true;
+                }
+
+//                if ( $has_empty_string && $has_not_empty_string ) {
+                if ( $has_empty_string ) {  // TODO - believe i need it to work like this...otherwise mineral aliases -> references fails badly due to using set subtraction...
+                    // ...in this specific situation, the query should not be negated...doing so will
+                    //  cause the results to be un-mergeable
+                    return SearchQueryService::NEED_UNRELATED_RECORDS;
+                }
+
+                // If the query didn't match the previous specific situation, then it can be negated
+                //  without causing the merger any issues
+                return SearchQueryService::NEGATED_QUERY;
+            }
+        }
+
+        // If this point is reached, then the query should not be modified
+        return SearchQueryService::NO_MODIFICATION;
     }
 
 
