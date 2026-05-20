@@ -2248,8 +2248,6 @@ class DisplaytemplateController extends ODRCustomController
             $database_info_service = $this->container->get('odr.database_info_service');
             /** @var DatafieldInfoService $datafield_info_service */
             $datafield_info_service = $this->container->get('odr.datafield_info_service');
-            /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
             /** @var EntityMetaModifyService $entity_modify_service */
             $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $permissions_service */
@@ -2258,8 +2256,6 @@ class DisplaytemplateController extends ODRCustomController
             $sort_service = $this->container->get('odr.sort_service');
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
-            /** @var TrackedJobService $tracked_job_service */
-            $tracked_job_service = $this->container->get('odr.tracked_job_service');
             /** @var EngineInterface $templating */
             $templating = $this->get('templating');
 
@@ -2306,10 +2302,11 @@ class DisplaytemplateController extends ODRCustomController
             $force_slideout_reload = false;
             // May also need to force a reload of the datafield itself
             $reload_datafield = false;
-            // Only allowed to begin migrating data under specific situations
+
+            // Changing a fieldtype can require a mess of other stuff...
+            $changing_fieldtype = false;
+            // ...though it may not require an actual migration job
             $migrate_data = false;
-            // Migration to an image field requires a check for image size entities
-            $check_image_sizes = false;
 
 
             // ----------------------------------------
@@ -2407,18 +2404,14 @@ class DisplaytemplateController extends ODRCustomController
                 }
                 else if ($old_fieldtype_id !== $new_fieldtype_id) {
                     // ...otherwise, only need to do stuff if the fieldtype got changed
+                    $changing_fieldtype = true;
 
                     // Determine whether an in-progress background job would interfere with a
                     //  potential change of fieldtype
-                    $new_job_data = array(
-                        'job_type' => 'migrate',
-                        'target_entity' => $datafield,
-                    );
-                    $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
-                    if ( !is_null($conflicting_job) )
-                        throw new ODRConflictException('Unable to change the fieldtype of this Datafield since a background job is already in progress');
+                    self::checkBackgroundJobsForMigration($em, $datafield);
+                    // If no error is thrown, then background jobs shouldn't be an issue
 
-                    // Check whether the change in fieldtype requires a data migration
+                    // Check whether the change in fieldtype requires a migration job
                     $migrate_data = self::mustMigrateDatafield($old_fieldtype, $new_fieldtype);
 
                     // If the fieldtype got changed to/from Markdown, File, Image, Radio, or Tags...
@@ -2441,12 +2434,6 @@ class DisplaytemplateController extends ODRCustomController
                         case 'Tag':
                             $force_slideout_reload = true;
                             break;
-                    }
-
-                    if ( $new_fieldtype_typeclass === 'Image' ) {
-                        // If the fieldtype got changed to an Image, then need to verify the
-                        //  image_sizes entries exist
-                        $check_image_sizes = true;
                     }
 
                     // While not technically needed 100% of the time, it's easier if the datafield
@@ -2498,7 +2485,7 @@ class DisplaytemplateController extends ODRCustomController
                 // If the datafield is currently marked as "unique"...
                 if ( $submitted_data->getIsUnique() ) {
                     // ...ensure its fieldtype is allowed to be "unique"
-                    if ( !$new_fieldtype->getCanBeUnique() )
+                    if ( !$new_fieldtype->getCanBeUnique() )    // TODO - asdf;jlweksdf
                         $datafield_form->addError( new FormError("The \"".$new_fieldtype_typeclass."\" fieldtype can't be set to 'unique'") );
 
                     // ...if it has duplicate values, manually add an error to the Symfony form
@@ -2615,52 +2602,41 @@ class DisplaytemplateController extends ODRCustomController
                             $sort_service->sortTagsByName($user, $datafield);
                     }
 
-                    // If migrating to an image fieldtype, then ensure ImageSize entities exist for
-                    //  this datafield
-                    if ($check_image_sizes)
-                        $entity_create_service->createImageSizes($user, $datafield);
+                    // Changing fieldtype got considerably more problematic after template fields
+                    //  were allowed to change starting in early 2026...
+                    if ( $changing_fieldtype ) {
+                        self::cascadeFieldtypeChange($em, $user, $datafield, $new_fieldtype);
 
-                    // If migrating data, then begin the migration now
-                    if ($migrate_data)
-                        self::startDatafieldMigration($em, $user, $datafield, $old_fieldtype, $new_fieldtype);
-
-
-                    // NOTE: don't need to have stuff to deal with updating DatatypeSpecialField
-                    //  entries here, because the rest of ODR doesn't allow a datafield to change
-                    //  its fieldtype when it's being used as a sortfield
-
-
-                    // ----------------------------------------
-                    // Fire off an event notifying that the modification of the datafield is done
-                    // ...though this won't necessarily be true if the fieldtype is getting changed
-                    try {
-                        $event = new DatafieldModifiedEvent($datafield, $user);
-                        $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                        // If migrating data, then begin the migration now
+                        if ($migrate_data)
+                            self::startDatafieldMigration($em, $user, $datafield, $old_fieldtype, $new_fieldtype);
                     }
-                    catch (\Exception $e) {
-                        // ...don't want to rethrow the error since it'll interrupt everything after this
-                        //  event
-//                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
-//                            throw $e;
-                    }
+                    else {
+                        // If not changing the fieldtype, then there's only ever one datafield that
+                        //  got updated
+                        try {
+                            $event = new DatafieldModifiedEvent($datafield, $user);
+                            $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                        }
+                        catch (\Exception $e) {
+                            // ...don't want to rethrow the error since it'll interrupt everything after this
+                            //  event
+//                            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                                throw $e;
+                        }
 
-                    // Mark the datatype as updated
-                    try {
-                        $event = new DatatypeModifiedEvent($datatype, $user);
-                        $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
-
-                        // While this controller action can make changes that would require a rebuild
-                        //  of the cached datarecord entries, it doesn't need to be done here...
-                        //  if required, WorkerController::migrateAction() will handle it
+                        // Mark the datatype as updated
+                        try {
+                            $event = new DatatypeModifiedEvent($datatype, $user);
+                            $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                        }
+                        catch (\Exception $e) {
+                            // ...don't want to rethrow the error since it'll interrupt everything after this
+                            //  event
+//                            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                                throw $e;
+                        }
                     }
-                    catch (\Exception $e) {
-                        // ...don't want to rethrow the error since it'll interrupt everything after this
-                        //  event
-//                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
-//                            throw $e;
-                    }
-
-                    // Don't need to update cached datarecords or themes
 
 
                     // ----------------------------------------
@@ -2774,6 +2750,56 @@ class DisplaytemplateController extends ODRCustomController
 
 
     /**
+     * If migrating a datafield from one fieldtype to another is a possibility, then need to check
+     * whether a new background job would cause a conflict
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param DataFields $datafield
+     */
+    private function checkBackgroundJobsForMigration($em, $datafield)
+    {
+        /** @var TrackedJobService $tracked_job_service */
+        $tracked_job_service = $this->container->get('odr.tracked_job_service');
+
+        $df_mapping = array();
+        $datafield_id = $datafield->getId();
+        $df_mapping[$datafield_id] = $datafield;
+
+        $is_master_field = $datafield->getIsMasterField();
+        if ( $is_master_field ) {
+            // If this is a "template" datafield, then the migration is also going to require a job
+            //  for each derived datafield...
+            $query = $em->createQuery(
+               'SELECT df
+                FROM ODRAdminBundle:DataFields df
+                WHERE df.masterDataField = :df
+                AND df.deletedAt IS NULL'
+            )->setParameters( array('df' => $datafield->getId()) );
+            $results = $query->getResult();
+
+            foreach ($results as $df) {
+                $df_id = $df->getId();
+                $df_mapping[$df_id] = $df;
+            }
+        }
+        /** @var DataFields[] $df_mapping */
+
+        foreach ($df_mapping as $df_id => $df) {
+            $new_job_data = array(
+                'job_type' => 'migrate',
+                'target_entity' => $df,
+            );
+            $conflicting_job = $tracked_job_service->getConflictingBackgroundJob($new_job_data);
+            if ( !is_null($conflicting_job) )
+                throw new ODRConflictException('Unable to change the fieldtype of this Datafield since a background job is already in progress');
+        }
+
+        // If this point is reached, then there are no conflicting jobs
+        // Theoretically, any required migration jobs will be created before this condition is no
+        //  longer true...
+    }
+
+    /**
      * Returns whether a background job needs to be created to migrate data from one fieldtype to
      * another.
      *
@@ -2794,60 +2820,187 @@ class DisplaytemplateController extends ODRCustomController
         $new_fieldtype_typeclass = $new_fieldtype->getTypeClass();
         $new_fieldtype_typename = $new_fieldtype->getTypeName();
 
-        // Check whether the fieldtype got changed from something that could be migrated...
-        $migrate_data = true;
-        switch ($old_fieldtype_typeclass) {
-            case 'IntegerValue':
-            case 'LongText':
-            case 'LongVarchar':
-            case 'MediumVarchar':
-            case 'ShortVarchar':
-            case 'DecimalValue':
-            case 'DatetimeValue':    // ...can convert datetime to a text field
-                break;
 
-            default:
-                $migrate_data = false;
-                break;
-        }
+        // Changing a markdown field can never lose data, and never needs to update records
+        if ( $old_fieldtype_typeclass === 'Markdown' )
+            return false;
 
-        // ...to something that needs the migration proccess
-        switch ($new_fieldtype_typeclass) {
-            case 'IntegerValue':
-            case 'LongText':
-            case 'LongVarchar':
-            case 'MediumVarchar':
-            case 'ShortVarchar':
-            case 'DecimalValue':
-//            case 'DatetimeValue':    // ...can't really convert anything to a date though
-                break;
-
-            default:
-                $migrate_data = false;
-                break;
-        }
-
-        // Not allowed to convert DatetimeValues into anything other than text
-        if ( $old_fieldtype_typeclass === 'DatetimeValue'
-            && !($new_fieldtype_typeclass === 'ShortVarchar'
-                || $new_fieldtype_typeclass === 'MediumVarchar'
-                || $new_fieldtype_typeclass === 'LongVarchar'
-                || $new_fieldtype_typeclass === 'LongText'
-            )
+        // ...same when going between Multiple Select/Radio
+        if ( ($old_fieldtype_typename === 'Multiple Radio' || $old_fieldtype_typename === 'Multiple Select')
+            && ($new_fieldtype_typename === 'Multiple Radio' || $new_fieldtype_typename === 'Multiple Select')
         ) {
-            $migrate_data = false;
+            return false;
         }
-
-        // If going from Multiple radio/select to Single radio/select...then need to run
-        //  the migration process to ensure that at most one RadioSelection is selected
-        //  for each drf entry
-        if ( ($old_fieldtype_typename == 'Multiple Select' || $old_fieldtype_typename == 'Multiple Radio')
-            && ($new_fieldtype_typename == 'Single Select' || $new_fieldtype_typename == 'Single Radio')
+        // ...and when going between Single Select/Radio and any other Select/Radio
+        if ( ($old_fieldtype_typename === 'Single Radio' || $old_fieldtype_typename === 'Single Select')
+            && $new_fieldtype_typeclass === 'Radio'
         ) {
-            $migrate_data = true;
+            return false;
         }
 
-        return $migrate_data;
+
+        // The rest of the possible fieldtype changes either:
+        // 1) need to run a mysql query to transfer data into another table
+        // and/or
+        // 2) can cause loss of data...such as migrating long to short text, or anything to markdown
+        // Either outcome requires the use of a background job
+        return true;
+    }
+
+
+    /**
+     * Originally-ish, ODR didn't allow template/derived fields, unique/name/sort fields, or fields
+     * used by render plugings to change their fieldtypes...but as part of a series of updates in
+     * late 2025/early 2026, the first two sets of restrictions were lifted.
+     *
+     * Unfortunately, performing a fieldtype change for template fields requires modifying every
+     * field that is derived from the template field...it's a mess.
+     *
+     * @param \Doctrine\ORM\EntityManager $em
+     * @param ODRUser $user
+     * @param DataFields $datafield
+     * @param FieldType $new_fieldtype
+     * @return void
+     */
+    private function cascadeFieldtypeChange($em, $user, $datafield, $new_fieldtype)
+    {
+        // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+        //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+        /** @var EventDispatcherInterface $dispatcher */
+        $dispatcher = $this->get('event_dispatcher');
+
+        /** @var CacheService $cache_service */
+        $cache_service = $this->container->get('odr.cache_service');
+        /** @var EntityCreationService $entity_create_service */
+        $entity_create_service = $this->container->get('odr.entity_creation_service');
+        /** @var EntityMetaModifyService $entity_modify_service */
+        $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+
+        /** @var DataFields[] $df_mapping */
+        $df_mapping[ $datafield->getId() ] = $datafield;
+
+        $is_master_field = $datafield->getIsMasterField();
+        if ( $is_master_field ) {
+            // If this is a master datafield, then all of its derived datafields are going to change
+            //  their fieldtype to match...
+            $query = $em->createQuery(
+               'SELECT df
+                FROM ODRAdminBundle:DataFields df
+                WHERE df.masterDataField = :df
+                AND df.deletedAt IS NULL'
+            )->setParameters( array('df' => $datafield->getId()) );
+            $results = $query->getResult();
+
+            foreach ($results as $df) {
+                $df_id = $df->getId();
+                $df_mapping[$df_id] = $df;
+            }
+        }
+
+        // ----------------------------------------
+        // The first step is to change the fieldtype of all the derived datafields...
+        $need_flush = false;
+        foreach ($df_mapping as $df_id => $df) {
+            // ...but don't update the fieldtype of the original/master datafield a second time
+            if ( $df_id !== $datafield->getId() ) {
+                // EntityMetaModifyService will handle disabling other datafield properties that
+                //  don't match the new fieldtype
+                $props = array(
+                    'fieldType' => $new_fieldtype,
+                );
+                $entity_modify_service->updateDatafieldMeta($user, $df, $props, true);
+                $need_flush = true;
+            }
+        }
+        if ( $need_flush )
+            $em->flush();
+
+
+        // ----------------------------------------
+        // The second step is to perform any changes that aren't part of the datafieldMeta table...
+        $clear_datarecord_caches = array();
+        $need_flush = false;
+        foreach ($df_mapping as $df_id => $df) {
+            // Probably should refresh the hydrated entity here...
+            $em->refresh($df);
+
+            // If migrating to an image fieldtype, then need to ensure ImageSize entities exist for
+            //  each datafield being changed here...
+            if ( $new_fieldtype->getTypeClass() === 'Image' )
+                $entity_create_service->createImageSizes($user, $df);
+
+            // ...and should also demote them from being name/sort fields if they're now the wrong
+            //  fieldtype
+            $clear_datarecord_caches[$df_id] = false;
+            if ( !$new_fieldtype->getCanBeSortField() ) {
+                $query = $em->createQuery(
+                   'SELECT dtsf
+                    FROM ODRAdminBundle:DataTypeSpecialFields dtsf
+                    WHERE dtsf.dataField = :datafield
+                    AND dtsf.deletedAt IS NULL'
+                )->setParameters(array('datafield' => $df));
+                $results = $query->getResult();
+                /** @var DataTypeSpecialFields[] $results */
+
+                if ( count($results) > 0 ) {
+                    // If this field used to be a name/sort field...
+                    foreach ($results as $dtsf) {
+                        // ...then need to clear cache entries
+                        if ( $dtsf->getFieldPurpose() === DataTypeSpecialFields::NAME_FIELD ) {
+                            $clear_datarecord_caches[$df_id] = true;
+                            $cache_service->delete('datatype_'.$dtsf->getDataType()->getId().'_record_names');
+                        }
+                        if ( $dtsf->getFieldPurpose() === DataTypeSpecialFields::SORT_FIELD ) {
+                            $clear_datarecord_caches[$df_id] = true;
+                            $cache_service->delete('datatype_'.$dtsf->getDataType()->getId().'_record_order');
+                        }
+
+                        // ...and delete the field
+                        $em->remove($dtsf);
+                        $need_flush = true;
+                    }
+                }
+            }
+
+            // NOTE: ODR still prevents fieldtype changes when any of the derived fields are marked
+            //  as unique, and when the change would cause any of the derived fields to violate their
+            //  plugin constraints TODO
+
+            // Name/sort fields no longer block fieldtype changes because it's more likely that a
+            //  user has arbitrarily set a derived field as a name/sort field, and less likely that
+            //  removing them will cause a problem
+        }
+        if ( $need_flush )
+            $em->flush();
+
+
+        // ----------------------------------------
+        // The final step is to fire off events for each field that got modified
+        foreach ($df_mapping as $df_id => $df) {
+            // Each datafield gets an event...
+            try {
+                $event = new DatafieldModifiedEvent($datafield, $user);
+                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
+            // ...as does each datatype, also clearing the cached datarecord entries if required
+            try {
+                $event = new DatatypeModifiedEvent($df->getDataType(), $user, $clear_datarecord_caches[$df_id]);
+                $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+        }
     }
 
 
@@ -2871,67 +3024,77 @@ class DisplaytemplateController extends ODRCustomController
 
         $url = $this->generateUrl('odr_migrate_field', array(), UrlGeneratorInterface::ABSOLUTE_URL);
 
+        $df_list = array();
+        if ( !$datafield->getIsMasterField() ) {
+            // This is a "regular" datafield...there's nothing extra to do here
+            $df_list[ $datafield->getId() ] = $datafield;
+        }
 
         // ----------------------------------------
         if ( ($old_fieldtype->getTypeName() == 'Multiple Radio' || $old_fieldtype->getTypeName() == 'Multiple Select')
             && ($new_fieldtype->getTypeName() == 'Single Radio' || $new_fieldtype->getTypeName() == 'Single Select')
         ) {
-            // Converting from a multiple radio/select to a single radio/select requires php to
-            //  go through all datarecords and ensure at most one option is selected
-            $datatype = $datafield->getDataType();
-            $query = $em->createQuery(
-               'SELECT dr.id
-                FROM ODRAdminBundle:DataRecord AS dr
-                WHERE dr.dataType = :dataType AND dr.deletedAt IS NULL'
-            )->setParameters( array('dataType' => $datatype) );
-            $results = $query->getResult();
+            foreach ($df_list as $df_id => $df) {
+                // Converting from a multiple radio/select to a single radio/select requires php to
+                //  go through all datarecords and ensure at most one option is selected
+                $dt = $df->getDataType();
+                $query = $em->createQuery(
+                   'SELECT dr.id
+                    FROM ODRAdminBundle:DataRecord AS dr
+                    WHERE dr.dataType = :dataType AND dr.deletedAt IS NULL'
+                )->setParameters( array('dataType' => $dt) );
+                $results = $query->getResult();
 
-            if ( count($results) > 0 ) {
-                // Need to determine the top-level datatype this datafield belongs to, so other
-                //  background processes won't attempt to render any part of it and disrupt the migration
-                $top_level_datatype_id = $datatype->getGrandparent()->getId();
+                if ( count($results) > 0 ) {
+                    // Need to determine the top-level datatype this datafield belongs to, so other
+                    //  background processes won't attempt to render any part of it and disrupt the
+                    //  migration
+                    $top_level_datatype_id = $dt->getGrandparent()->getId();
 
-                // Get/create an entity to track the progress of this datafield migration
-                $job_type = 'migrate';
-                $target_entity = 'datafield_'.$datafield->getId();
-                $additional_data = array('description' => '', 'old_fieldtype' => $old_fieldtype->getTypeName(), 'new_fieldtype' => $new_fieldtype->getTypeName());
-                $restrictions = 'datatype_'.$top_level_datatype_id;
-                $total = count($results);
-                $reuse_existing = false;
+                    // Get/create an entity to track the progress of this datafield migration
+                    $job_type = 'migrate';
+                    $target_entity = 'datafield_'.$datafield->getId();
+                    $additional_data = array('description' => '', 'old_fieldtype' => $old_fieldtype->getTypeName(), 'new_fieldtype' => $new_fieldtype->getTypeName());
+                    $restrictions = 'datatype_'.$top_level_datatype_id;
+                    $total = count($results);
+                    $reuse_existing = false;
 
-                $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
-                $tracked_job_id = $tracked_job->getId();
+                    $tracked_job = parent::ODR_getTrackedJob($em, $user, $job_type, $target_entity, $additional_data, $restrictions, $total, $reuse_existing);
+                    $tracked_job_id = $tracked_job->getId();
 
 
-                // ----------------------------------------
-                // Create one beanstalk job per datarecord
-                foreach ($results as $num => $result) {
-                    $datarecord_id = $result['id'];
+                    // ----------------------------------------
+                    // Create one beanstalk job per datarecord
+                    foreach ($results as $num => $result) {
+                        $datarecord_id = $result['id'];
 
-                    // Insert the new job into the queue
-//                $priority = 1024;   // should be roughly default priority
-                    $payload = json_encode(
-                        array(
-                            "tracked_job_id" => $tracked_job_id,
-                            "user_id" => $user->getId(),
-                            "datarecord_id" => $datarecord_id,
-                            "datafield_id" => $datafield->getId(),
-                            "old_fieldtype_id" => $old_fieldtype->getId(),
-                            "new_fieldtype_id" => $new_fieldtype->getId(),
-//                        "scheduled_at" => $current_time->format('Y-m-d H:i:s'),
-                            "redis_prefix" => $redis_prefix,    // debug purposes only
-                            "url" => $url,
-                            "api_key" => $api_key,
-                        )
-                    );
+                        // Insert the new job into the queue
+//                        $priority = 1024;   // should be roughly default priority
+                        $payload = json_encode(
+                            array(
+                                "tracked_job_id" => $tracked_job_id,
+                                "user_id" => $user->getId(),
+                                "datarecord_id" => $datarecord_id,
+                                "datafield_id" => $datafield->getId(),
+                                "old_fieldtype_id" => $old_fieldtype->getId(),
+                                "new_fieldtype_id" => $new_fieldtype->getId(),
+//                                "scheduled_at" => $current_time->format('Y-m-d H:i:s'),
+                                "redis_prefix" => $redis_prefix,    // debug purposes only
+                                "url" => $url,
+                                "api_key" => $api_key,
+                            )
+                        );
 
-                    $pheanstalk->useTube('migrate_datafields')->put($payload);
+                        $pheanstalk->useTube('migrate_datafields')->put($payload);
+                    }
                 }
             }
         }
         else {
             // All other conversions are performed with a single background job
             $top_level_datatype_id = $datafield->getDataType()->getGrandparent()->getId();
+
+            // TODO - probably should have one job per derived datatype
 
             // NOTE - while technically running this should only do something when the datatype has
             //  records...there are a pair of maintenance UPDATEs in WorkerController that could
@@ -4220,6 +4383,7 @@ if ($debug)
                     }
                 }
 
+                // TODO - need to check here too? fffffffffffff
 
                 // Only want to save if something got changed...
                 if ( $old_fieldtype->getId() !== $new_fieldtype->getId()
