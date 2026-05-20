@@ -27,6 +27,11 @@ ODR\AdminBundle\Entity\ThemeElementMeta:
             nullable: false
             column: hide_border
             default: false
+        showWhenEmpty:
+            type: boolean
+            nullable: false
+            column: show_when_empty
+            default: false
 
         cssWidthMed:
             type: string

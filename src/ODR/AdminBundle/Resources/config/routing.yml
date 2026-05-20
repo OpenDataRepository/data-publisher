@@ -362,10 +362,14 @@ odr_design_theme_element_visibility:
     defaults: { _controller: ODRAdminBundle:Theme:themeelementvisibility }
     requirements:
         theme_element_id:  \d+
-
 odr_design_theme_element_border_visibility:
     path:  /design/themeelementbordervisibility/{theme_element_id}
     defaults: { _controller: ODRAdminBundle:Theme:themeelementbordervisibility }
+    requirements:
+        theme_element_id:  \d+
+odr_design_theme_element_show_when_empty:
+    path:  /design/themeelementshowwhenempty/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Theme:themeelementshowwhenempty }
     requirements:
         theme_element_id:  \d+
 

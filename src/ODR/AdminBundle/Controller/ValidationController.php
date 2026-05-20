@@ -876,6 +876,7 @@ class ValidationController extends ODRCustomController
                     $tem->setCssWidthXL('1-1');
                     $tem->setHidden(0);
                     $tem->setHideBorder(false);
+                    $tem->setShowWhenEmpty(false);
 
                     $tem->setCreatedBy($user);
                     $tem->setUpdatedBy($user);

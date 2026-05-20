@@ -2957,6 +2957,7 @@ class EntityMetaModifyService
             'hideBorder' => $old_meta_entry->getHideBorder(),
             'cssWidthMed' => $old_meta_entry->getCssWidthMed(),
             'cssWidthXL' => $old_meta_entry->getCssWidthXL(),
+            'showWhenEmpty' => $old_meta_entry->getShowWhenEmpty(),
         );
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
@@ -2996,6 +2997,8 @@ class EntityMetaModifyService
             $theme_element_meta->setHidden( $properties['hidden'] );
         if ( isset($properties['hideBorder']) )
             $theme_element_meta->setHideBorder( $properties['hideBorder'] );
+        if ( isset($properties['showWhenEmpty']) )
+            $theme_element_meta->setShowWhenEmpty( $properties['showWhenEmpty'] );
         if ( isset($properties['cssWidthMed']) )
             $theme_element_meta->setCssWidthMed( $properties['cssWidthMed'] );
         if ( isset($properties['cssWidthXL']) )
