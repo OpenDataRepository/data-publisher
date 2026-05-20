@@ -217,7 +217,7 @@ class DatabaseInfoService
 
         // Name/Sort fields are also separate from the primary query because the datatype could have
         //  more than one of either, and both of them have their own displayOrder
-        $special_fields = self::getSpecialFields($grandparent_datatype_id);
+        $special_fields = self::getNameSortFields($grandparent_datatype_id);
 
         // Might as well treat the StoredSearchKeys entry the same way
         $default_search_keys = self::getDefaultSearchKey($grandparent_datatype_id);
@@ -637,7 +637,7 @@ class DatabaseInfoService
      *
      * @return array
      */
-    private function getSpecialFields($grandparent_datatype_id)
+    private function getNameSortFields($grandparent_datatype_id)
     {
         $query = $this->em->createQuery(
            'SELECT dt.id AS dt_id, dtsf.field_purpose, dtsf.displayOrder, df.id AS df_id
@@ -1021,11 +1021,11 @@ class DatabaseInfoService
      *
      * NOTE: the list IS filtered by user permissions, unless the given permissions array is null.
      *
-     * @param int $grandparent_datatype_id
+     * @param DataType $datatype The datatype to find name/sort fields for
      * @param array|null $user_permissions {@link PermissionsManagementService::getUserPermissionsArray()}
      * @return array
      */
-    public function getSpecialDatafields($grandparent_datatype_id, $user_permissions = null)
+    public function getSpecialDatafields($datatype, $user_permissions = null)
     {
         // There might be situations can't do so if the given array is null
         $apply_permissions = true;
@@ -1062,9 +1062,11 @@ class DatabaseInfoService
         $current_namefields = array();
         $current_sortfields = array();
 
-        // All of the data can come from the cached datatype array
+        // All of the data can be found in the cached datatype array
+        $grandparent_datatype_id = $datatype->getGrandparent()->getId();
+        $datatype_id = $datatype->getId();
         $datatype_array = self::getDatatypeArray($grandparent_datatype_id);    // do want links
-        $dt = $datatype_array[$grandparent_datatype_id];
+        $dt = $datatype_array[$datatype_id];
 
         // ...going to need to also find their names from the cached datatype array
         foreach ($dt['nameFields'] as $display_order => $df_id)
@@ -1072,7 +1074,7 @@ class DatabaseInfoService
         foreach ($dt['sortFields'] as $display_order => $df_id)
             $current_sortfields[$df_id] = array('display_order' => $display_order, 'field_name' => '');
 
-        $datatypes_to_check = array($grandparent_datatype_id);
+        $datatypes_to_check = array($datatype_id);
         while ( !empty($datatypes_to_check) ) {
             $tmp = array();
 
