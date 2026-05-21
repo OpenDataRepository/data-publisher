@@ -30,7 +30,9 @@ class DataFields
     const NOT_SEARCHABLE = 0;
 
     /**
-     * Field is searchable by the user, and usable in sidebar layouts
+     * Field is searchable by the user, and usable in sidebar layouts.
+     * DO NOT COMPARE AGAINST THIS...ODR originally also used const values of 2 and 3 for searchable,
+     * so you must treat any non-zero as being searchable.
      */
     const SEARCHABLE = 1;
 

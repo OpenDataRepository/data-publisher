@@ -27,6 +27,12 @@ class DataTypeSpecialFields
      */
     const SORT_FIELD = 2;
 
+    /**
+     * Marks the datafield as the one used by ODROpenRepositorySearchBundle::searchpageAction() for
+     * 'immediate' search values.
+     */
+    const IMMEDIATE_SEARCH_FIELD = 3;
+
 
     /**
      * @var int

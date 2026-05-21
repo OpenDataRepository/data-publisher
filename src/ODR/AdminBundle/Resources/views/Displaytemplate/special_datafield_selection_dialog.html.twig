@@ -32,9 +32,16 @@
         };
         openODRRemodal(modal_options);
 
-        var url = '{{ path('odr_design_get_special_datafield_properties', { 'datatype_id': 0, 'type': '' }) }}';
-        url = url.substr(0, url.length-2);
-        url += datatype_id + '/' + type;
+        var url = '';
+        if (type == 'name' || type == 'sort') {
+            url = '{{ path('odr_design_get_special_datafield_properties', { 'datatype_id': 0, 'type': '' }) }}';
+            url = url.substr(0, url.length-2);
+            url += datatype_id + '/' + type;
+        }
+        else {
+            url = '{{ path('odr_design_get_immediate_search_datafield_properties', { 'datatype_id': 0 }) }}';
+            url += datatype_id;
+        }
 
         $.ajax({
             cache: false,

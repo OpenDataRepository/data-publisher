@@ -681,16 +681,22 @@ class ODREventSubscriber implements EventSubscriberInterface
 
             // Instead of firing off DatafieldModified events for every single datafield that
             //  might've been changed...locate all other datatypes that use this datatype's fields
-            //  as a sort field...
+            //  as name/sort fields...
             $query = $this->em->createQuery(
                'SELECT DISTINCT(l_dt.id) AS dt_id
                 FROM ODRAdminBundle:DataFields AS df
                 LEFT JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
                 LEFT JOIN ODRAdminBundle:DataType AS l_dt WITH dtsf.dataType = l_dt
-                WHERE df.dataType IN (:datatype_id)
+                WHERE df.dataType IN (:datatype_id) AND dtsf.field_purpose IN (:field_purposes)
                 AND df.deletedAt IS NULL AND dtsf.deletedAt IS NULL AND l_dt.deletedAt IS NULL'
             )->setParameters(
-                array( 'datatype_id' => array( $datatype->getId() ) )
+                array(
+                    'datatype_id' => array( $datatype->getId() ),
+                    'field_purposes' => array(
+                        DataTypeSpecialFields::NAME_FIELD,
+                        DataTypeSpecialFields::SORT_FIELD,
+                    )
+                )
             );
             $results = $query->getArrayResult();
 
@@ -1182,12 +1188,17 @@ class ODREventSubscriber implements EventSubscriberInterface
                 JOIN ODRAdminBundle:DataType dt WITH dtsf.dataType = dt
                 JOIN ODRAdminBundle:DataRecord dr WITH dr.dataType = dt
                 WHERE df.dataType = :descendant_datatype AND dr IN (:datarecord_ids)
+                AND dtsf.field_purpose IN (:field_purposes)
                 AND df.deletedAt IS NULL AND dtsf.deletedAt IS NULL
                 AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL'
             )->setParameters(
                 array(
                     'descendant_datatype' => $datatype->getId(),
-                    'datarecord_ids' => $datarecord_ids
+                    'datarecord_ids' => $datarecord_ids,
+                    'field_purposes' => array(
+                        DataTypeSpecialFields::NAME_FIELD,
+                        DataTypeSpecialFields::SORT_FIELD,
+                    )
                 )
             );
             $results = $query->getArrayResult();

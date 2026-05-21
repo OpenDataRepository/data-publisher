@@ -740,7 +740,7 @@ class EntityCreationService
      * @param ODRUser $user
      * @param DataType $datatype
      * @param DataFields $datafield
-     * @param int $field_purpose {@link DataTypeSpecialFields::NAME_FIELD}, {@link DataTypeSpecialFields::SORT_FIELD}
+     * @param int $field_purpose {@link DataTypeSpecialFields::NAME_FIELD}, {@link DataTypeSpecialFields::SORT_FIELD}, {@link DataTypeSpecialFields::IMMEDIATE_SEARCH_FIELD}
      * @param int $display_order
      * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
@@ -751,8 +751,12 @@ class EntityCreationService
     {
         // ----------------------------------------
         // Have some verification to do first...
-        if ( $field_purpose !== DataTypeSpecialFields::NAME_FIELD && $field_purpose !== DataTypeSpecialFields::SORT_FIELD )
+        if ( $field_purpose !== DataTypeSpecialFields::NAME_FIELD
+            && $field_purpose !== DataTypeSpecialFields::SORT_FIELD
+            && $field_purpose !== DataTypeSpecialFields::IMMEDIATE_SEARCH_FIELD
+        ) {
             throw new ODRBadRequestException('Invalid field_purpose for special Datatype field');
+        }
 
         if ( is_null($created) )
             $created = new \DateTime();

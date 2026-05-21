@@ -14,6 +14,7 @@
 namespace ODR\AdminBundle\Component\Service;
 
 // Entities
+use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 // Exceptions
@@ -217,7 +218,7 @@ class DatabaseInfoService
 
         // Name/Sort fields are also separate from the primary query because the datatype could have
         //  more than one of either, and both of them have their own displayOrder
-        $special_fields = self::getNameSortFields($grandparent_datatype_id);
+        $special_fields = self::getDatatypeSpecialFields($grandparent_datatype_id);
 
         // Might as well treat the StoredSearchKeys entry the same way
         $default_search_keys = self::getDefaultSearchKey($grandparent_datatype_id);
@@ -321,11 +322,14 @@ class DatabaseInfoService
             // Attach any name/sort fields for this datatype
             $datatype_data[$dt_num]['nameFields'] = array();
             $datatype_data[$dt_num]['sortFields'] = array();
+            $datatype_data[$dt_num]['immediateSearchField'] = array();
             if ( isset($special_fields[$dt_id]) ) {
                 if ( !empty($special_fields[$dt_id]['name']) )
                     $datatype_data[$dt_num]['nameFields'] = $special_fields[$dt_id]['name'];
                 if ( !empty($special_fields[$dt_id]['sort']) )
                     $datatype_data[$dt_num]['sortFields'] = $special_fields[$dt_id]['sort'];
+                if ( !empty($special_fields[$dt_id]['immediate_search']) )
+                    $datatype_data[$dt_num]['immediateSearchField'] = $special_fields[$dt_id]['immediate_search'];
             }
 
             // Store the default search key for this datatype if it has one
@@ -630,14 +634,15 @@ class DatabaseInfoService
 
 
     /**
-     * Due to datatypes potentially having multiple name/sort fields, both with their own displayOrder
-     * values, it's easier to get these in a separate query.
+     * Due to datatypes potentially having multiple name/sort fields (with their own displayOrder
+     * values), and possibly having overrides to the immediate search field...it's easier on mysql
+     * to get all of them as part of a separate query.
      *
      * @param int $grandparent_datatype_id
      *
      * @return array
      */
-    private function getNameSortFields($grandparent_datatype_id)
+    private function getDatatypeSpecialFields($grandparent_datatype_id)
     {
         $query = $this->em->createQuery(
            'SELECT dt.id AS dt_id, dtsf.field_purpose, dtsf.displayOrder, df.id AS df_id
@@ -665,6 +670,8 @@ class DatabaseInfoService
                     $special_fields[$dt_id]['name'][$display_order] = $df_id;
                 else if ( $field_purpose === DataTypeSpecialFields::SORT_FIELD )
                     $special_fields[$dt_id]['sort'][$display_order] = $df_id;
+                else if ( $field_purpose === DataTypeSpecialFields::IMMEDIATE_SEARCH_FIELD )
+                    $special_fields[$dt_id]['immediate_search'][$display_order] = $df_id;
             }
         }
 
@@ -1025,7 +1032,7 @@ class DatabaseInfoService
      * @param array|null $user_permissions {@link PermissionsManagementService::getUserPermissionsArray()}
      * @return array
      */
-    public function getSpecialDatafields($datatype, $user_permissions = null)
+    public function getNameSortDatafields($datatype, $user_permissions = null)
     {
         // There might be situations can't do so if the given array is null
         $apply_permissions = true;
@@ -1118,7 +1125,7 @@ class DatabaseInfoService
                             $current_sortfields[$df_id]['field_name'] = $df['dataFieldMeta']['fieldName'];
                     }
 
-                    // If this record has descendants...
+                    // If this datatype has descendants...
                     if ( isset($dt['descendants']) ) {
                         // ...then also need to go looking into linked descendants that only allow
                         //  a single record
@@ -1161,6 +1168,156 @@ class DatabaseInfoService
             'available_fields' => $available_datafields,
             'current_namefields' => $current_namefields,
             'current_sortfields' => $current_sortfields,
+        );
+        return $tmp;
+    }
+
+
+    /**
+     * Returns two arrays from the given datatype...one contains all datafields that can be used
+     * as immediate_search fields, and a second containing the current field.
+     *
+     * NOTE: the list IS filtered by user permissions, unless the given permissions array is null.
+     *
+     * @param DataType $datatype The datatype to find the field for
+     * @param array|null $user_permissions {@link PermissionsManagementService::getUserPermissionsArray()}
+     * @return array
+     */
+    public function getImmediateSearchDatafields($datatype, $user_permissions = null)
+    {
+        // There might be situations can't do so if the given array is null
+        $apply_permissions = true;
+        if ( is_null($user_permissions) )
+            $apply_permissions = false;
+
+        $datatype_permissions = $datafield_permissions = array();
+        if ( $apply_permissions && isset($user_permissions['datatypes']) )
+            $datatype_permissions = $user_permissions['datatypes'];
+        if ( $apply_permissions && isset($user_permissions['datafields']) )
+            $datafield_permissions = $user_permissions['datafields'];
+
+
+        // ----------------------------------------
+        // This special fields only allows specific fieldtypes...but have to define them manually
+        //  because there's no database flag for this purpose
+        $allowed_typenames = array(
+//            'Boolean' => 1,
+//            'File' => 1,
+//            'Image' => 1,
+            'Integer' => 1,
+            'Paragraph Text' => 1,
+            'Long Text' => 1,
+            'Medium Text' => 1,
+//            'Single Radio' => 1,
+            'Short Text' => 1,
+//            'DateTime' => 1,
+//            'Multiple Radio' => 1,
+//            'Single Select' => 1,
+//            'Multiple Select' => 1,
+            'Decimal' => 1,
+//            'Markdown' => 1,
+//            'Tags' => 1,
+//            'XYZ Data' => 1,
+        );
+
+        // Need to build two arrays of datafields
+        $available_datafields = array();
+        $current_datafields = array();
+
+        // All of the data can be found in the cached datatype array
+        $grandparent_datatype_id = $datatype->getGrandparent()->getId();
+        $datatype_id = $datatype->getId();
+        $datatype_array = self::getDatatypeArray($grandparent_datatype_id);    // do want links
+        $dt = $datatype_array[$datatype_id];
+
+        // ...going to need to also find their names from the cached datatype array
+        foreach ($dt['immediateSearchField'] as $display_order => $df_id)
+            $current_datafields[$df_id] = array('display_order' => $display_order, 'field_name' => '');
+
+        $datatypes_to_check = array($datatype_id);
+        while ( !empty($datatypes_to_check) ) {
+            $tmp = array();
+
+            foreach ($datatypes_to_check as $dt_id) {
+                $dt = $datatype_array[$dt_id];
+                $dt_name = $dt['dataTypeMeta']['shortName'];
+                $available_datafields[$dt_id] = array('datatype_name' => $dt_name, 'datafields' => array());
+
+                $can_view_datatype = false;
+                if ( isset($datatype_permissions[$dt_id]['dt_view']) )
+                    $can_view_datatype = true;
+
+                // If we're ignoring permissions, or the user can view the datatype, or the
+                //  datatype is already public...
+                if ( !$apply_permissions || $can_view_datatype
+                    || $dt['dataTypeMeta']['publicDate']->format('Y-m-d H:i:s') != '2200-01-01 00:00:00'
+                ) {
+                    // ...then check this datatype's fields
+                    foreach ($dt['dataFields'] as $df_id => $df) {
+                        // Determine whether the user can view the datafield or not
+                        $can_view_datafield = false;
+                        if ( isset($datafield_permissions[$df_id]['view']) )
+                            $can_view_datafield = true;
+
+                        // The field has to have the correct typeclass to even be considered...
+                        $df_meta = $df['dataFieldMeta'];
+                        $typename = $df_meta['fieldType']['typeName'];
+                        $searchable = $df_meta['searchable'];
+                        if ( isset($allowed_typenames[$typename]) && $searchable !== DataFields::NOT_SEARCHABLE ) {
+                            // ...but it also has to pass the modified permissions checks if those
+                            //  are being used
+                            if ( !$apply_permissions || $can_view_datafield
+                                || $df_meta['publicDate']->format('Y-m-d H:i:s') != '2200-01-01 00:00:00'
+                            ) {
+                                $available_datafields[$dt_id]['datafields'][$df_id] = $df_meta['fieldName'];
+                            }
+                        }
+
+                        // Also fill in the names for the current datafields while here
+                        if ( isset($current_datafields[$df_id]) )
+                            $current_datafields[$df_id]['field_name'] = $df_meta['fieldName'];
+                    }
+
+                    // If this datatype has descendants...
+                    if ( isset($dt['descendants']) ) {
+                        // ...then also need to go looking into them
+                        foreach ($dt['descendants'] as $descendant_dt_id => $data) {
+//                            if ( $data['is_link'] === 1 && $data['multiple_allowed'] === 0 )
+                                $tmp[] = $descendant_dt_id;
+                        }
+
+                        // Unlike naming/sorting, the immediate search field doesn't directly care
+                        //  about the actual values in the field...only whether they exist and are
+                        //  searchable or not
+                    }
+                }
+            }
+
+            // Reset for next loop
+            $datatypes_to_check = $tmp;
+        }
+
+        // Sort each set of available datafields by their name so they're easier to locate
+        foreach ($available_datafields as $dt_id => $dt_data) {
+            if ( !empty($dt_data['datafields']) ) {
+                $tmp = $dt_data['datafields'];
+                asort($tmp);
+                $available_datafields[$dt_id]['datafields'] = $tmp;
+            }
+        }
+        // Do the same for the datatypes
+        uasort($available_datafields, function($a, $b) {
+            return strcmp($a['datatype_name'], $b['datatype_name']);
+        });
+
+        // The currently selected datafields should be sorted by display order
+        uasort($current_datafields, function($a, $b) {
+            return $a['display_order'] <=> $b['display_order'];
+        });
+
+        $tmp = array(
+            'available_fields' => $available_datafields,
+            'current_fields' => $current_datafields,
         );
         return $tmp;
     }

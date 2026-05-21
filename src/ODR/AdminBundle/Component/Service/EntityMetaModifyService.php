@@ -1123,6 +1123,10 @@ class EntityMetaModifyService
      * Copies the contents of the given DatatypeSpecialFields entity into a new entity if something
      * was changed.
      *
+     * Technically this should only be used on fields for {@link DataTypeSpecialFields::NAME_FIELD}
+     * or {@link DataTypeSpecialFields::SORT_FIELD}...but it doesn't break anything if used on an
+     * {@link DataTypeSpecialFields::IMMEDIATE_SEARCH_FIELD}
+     *
      * @param ODRUser $user
      * @param DataTypeSpecialFields $dtsf
      * @param array $properties

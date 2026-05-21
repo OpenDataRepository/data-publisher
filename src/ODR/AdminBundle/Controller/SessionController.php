@@ -645,7 +645,7 @@ class SessionController extends ODRCustomController
 
 
             // Need to also ensure the form was submitted with valid datafields...
-            $tmp = $database_info_service->getSpecialDatafields($datatype, $user_permissions);  // filter with the user's permissions
+            $tmp = $database_info_service->getNameSortDatafields($datatype, $user_permissions);  // filter with the user's permissions
             $available_sortfields = $tmp['available_fields'];
 
             // Build a new set of sort criteria from the previously cleaned post data

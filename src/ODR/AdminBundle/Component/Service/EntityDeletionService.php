@@ -378,14 +378,19 @@ class EntityDeletionService
 
             // ----------------------------------------
             // Need to locate all other datatypes that are using this soon-to-be-deleted datafield
-            //  as their name/sort field...
+            //  as their name/sort/immediate_search field...
             $query = $this->em->createQuery(
                'SELECT dt
                 FROM ODRAdminBundle:DataTypeSpecialFields dtsf
                 LEFT JOIN ODRAdminBundle:DataType dt WITH dtsf.dataType = dt
                 WHERE dtsf.dataField = :datafield_id AND dtsf.dataType != :datatype_id
                 AND dtsf.deletedAt IS NULL'
-            )->setParameters( array('datafield_id' => $datafield->getId(), 'datatype_id' => $datatype->getId()) );
+            )->setParameters(
+                array(
+                    'datafield_id' => $datafield->getId(),
+                    'datatype_id' => $datatype->getId()
+                )
+            );
             $results = $query->getResult();
 
             // ...and delete any mention that this field was used for a special purpose
@@ -405,8 +410,8 @@ class EntityDeletionService
 
             /** @var DataType[] $results */
             foreach ($results as $dt) {
-                // Any datatypes this query finds had their name/sort fields changed, so they also need
-                //  to rebuild their cache entries
+                // Any datatypes this query finds had their name/sort fields changed, so they also
+                //  need to rebuild their cache entries
                 $this->cache_service->delete('datatype_'.$dt->getId().'_record_names');
                 $this->cache_service->delete('datatype_'.$dt->getId().'_record_order');
 
@@ -667,8 +672,8 @@ class EntityDeletionService
 //print '<pre>'.print_r($ancestor_datarecord_ids, true).'</pre>';  exit();
 
 
-            // If the datarecord contains any datafields that are being used as a sortfield for
-            //  other datatypes, then need to clear the default sort order for those datatypes
+            // If the datarecord contains any datafields that are being used as a name/sort field
+            //  for other datatypes, then need to clear extra cache entries for those datatypes
             $query = $this->em->createQuery(
                'SELECT DISTINCT(l_dt.id) AS dt_id
                 FROM ODRAdminBundle:DataRecord AS dr
@@ -676,11 +681,17 @@ class EntityDeletionService
                 LEFT JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
                 LEFT JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
                 LEFT JOIN ODRAdminBundle:DataType AS l_dt WITH dtsf.dataType = l_dt
-                WHERE dr.id IN (:datarecords_to_delete)
+                WHERE dr.id IN (:datarecords_to_delete) AND dtsf.field_purpose IN (:field_purposes)
                 AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL
                 AND dtsf.deletedAt IS NULL AND l_dt.deletedAt IS NULL'
             )->setParameters(
-                array( 'datarecords_to_delete' => $datarecords_to_delete )
+                array(
+                    'datarecords_to_delete' => $datarecords_to_delete,
+                    'field_purposes' => array(
+                        DataTypeSpecialFields::NAME_FIELD,
+                        DataTypeSpecialFields::SORT_FIELD,
+                    )
+                )
             );
             $results = $query->getArrayResult();
 
@@ -926,8 +937,8 @@ class EntityDeletionService
             foreach ($results as $result)
                 $datafields_to_delete[] = $result['df_id'];
 
-            // If any of the datafields being deleted are being used as a name/sortfield for other
-            //  datatypes, then need to clear two cache entries for those datatypes
+            // If any of the datafields being deleted are being used as a name/sort/immediate_search
+            //  field for other datatypes, then need to clear two cache entries for those datatypes
             $query = $this->em->createQuery(
                'SELECT dt
                 FROM ODRAdminBundle:DataFields AS df
