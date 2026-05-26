@@ -736,9 +736,21 @@ odr_record_save:
 odr_record_save_xyzdata:
     path:  /edit/save_xyzdata/{datarecord_id}/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Edit:updatexyzdata }
+    methods: [ POST ]
     requirements:
         datarecord_id:  \d+
         datafield_id_id:  \d+
+
+odr_direct_edit_file_start:
+    path: /edit/edit_file/start/{file_id}/{reload_entire_page}
+    defaults: { _controller: ODRAdminBundle:Edit:directeditfilestart }
+    requirements:
+        file_id: \d+
+        reload_entire_page: 0|1
+odr_direct_edit_file_save:
+    path: /edit/edit_file/save
+    defaults: { _controller: ODRAdminBundle:Edit:directeditfilesave }
+    methods: [ POST ]
 
 odr_record_public:
     path:  /edit/publicdatarecord/{datarecord_id}

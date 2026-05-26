@@ -2,6 +2,10 @@
 
 {% set datafield_meta = datafield.dataFieldMeta %}
 
+{% if reload_entire_page_on_direct_edit is not defined %}
+    {% set reload_entire_page_on_direct_edit = false %}
+{% endif %}
+
     {% for file in files %}
     <div id="File_{{ file.id }}" class="ODRFileDatafield_file pure-u-1">
         {% set file_meta = file.fileMeta %}
@@ -47,6 +51,12 @@
             <button class="pure-button ODRFileRenameButton ODRHidden" title="Save changes to filename">
                 <i class="fa fa-lg fa-save"></i>
             </button>
+            {% endif %}
+
+            {% if not datafield_meta.prevent_user_edits %}
+                {% if datafield_meta.editable_file_extensions|length > 0 and filename|matches_file_extensions(datafield_meta.editable_file_extensions) %}
+                <i class="fa fa-lg fa-list-alt {% if not reload_entire_page_on_direct_edit %}ODRFileEditTrigger{% else %}ODRFileEditTrigger_reloadpage{% endif %} Pointer" title="Edit File Contents"></i>&nbsp;
+                {% endif %}
             {% endif %}
 
             <a class="ODRFileDownload" title="{{ filename }}" rel="{{ file.id }}">{{ filename }}</a>

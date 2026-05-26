@@ -236,6 +236,7 @@ class EntityCreationService
         }
         $datafield_meta->setNewFilesArePublic(false);    // Newly uploaded files/images default to non-public
         $datafield_meta->setQualityStr('');
+        $datafield_meta->setEditableFileExtensions('');
 
         $datafield_meta->setCreated($created);
         $datafield_meta->setUpdated($created);

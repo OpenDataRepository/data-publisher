@@ -466,6 +466,7 @@ class ValidationController extends ODRCustomController
                     $dfm->setShortenFilename(false);
                     $dfm->setNewFilesArePublic(false);
                     $dfm->setQualityStr('');
+                    $dfm->setEditableFileExtensions('');
                     $dfm->setXyzDataColumnNames('');
 
 
