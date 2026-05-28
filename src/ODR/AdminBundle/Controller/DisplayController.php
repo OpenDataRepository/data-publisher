@@ -41,6 +41,7 @@ use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PaginationHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\StatisticsService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;

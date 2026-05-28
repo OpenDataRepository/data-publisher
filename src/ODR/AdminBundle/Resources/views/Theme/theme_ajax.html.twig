@@ -112,6 +112,12 @@
                                 </a>
                             </p>
                             <p>
+                                <a id="ODRDatatype_neverHideTE">
+                                    <i class="tooltip fa fa-eye ODRSNeverHideThemeElement"></i>
+                                    <span class="link-text"> Always Render Group Box</span>
+                                </a>
+                            </p>
+                            <p>
                                 <a id="ODRDatatype_useIcon">
                                     <i class="tooltip fa fa-file ODRToggleFilenameIconUse"></i>
                                     <span class="link-text"> Currently using Filename in Table Layouts</span>
@@ -411,6 +417,7 @@
         tools.add_te     = $("#ODRDatatype_addTE");
         tools.visible_te = $("#ODRDatatype_visibleTE");
         tools.border_te  = $("#ODRDatatype_visibleTEBorder");
+        tools.no_hide_te = $("#ODRDatatype_neverHideTE");
         tools.use_icon   = $("#ODRDatatype_useIcon");
         tools.render     = $("#ODRDatatype_renderPlugin");
         tools.delete_te  = $("#ODRDatatype_deleteTE");
@@ -428,15 +435,10 @@
         tools.add_te.find('.link-text').html('Add Group Box');
         tools.visible_te.find('.link-text').html('Group Box is Visible');
         tools.border_te.find('.link-text').html('Show Group Box Border');
+        tools.no_hide_te.find('.link-text').html('Always Render Group Box');
         tools.use_icon.find('.link-text').html('Currently using Filename in Table Layouts');
         tools.render.find('.link-text').html('Change Render Plugin Settings');
         tools.delete_te.find('.link-text').html('Delete Group Box');
-
-        // Reset tooltips
-        // tools.add_te.attr('title', 'Add Group Box');
-        // tools.visible_te.attr('title', 'Toggle Group Box Visibility');
-        // tools.border_te.attr('title', 'Toggle Group Box Border');
-        // tools.delete_te.attr('title', 'Delete Group Box');
     }
 
     /**
@@ -453,6 +455,7 @@
         tools.add_te     = $("#ODRDatatype_addTE");
         tools.visible_te = $("#ODRDatatype_visibleTE");
         tools.border_te  = $("#ODRDatatype_visibleTEBorder");
+        tools.no_hide_te = $("#ODRDatatype_neverHideTE");
         tools.use_icon   = $("#ODRDatatype_useIcon");
         tools.render     = $("#ODRDatatype_renderPlugin");
         tools.delete_te  = $("#ODRDatatype_deleteTE");
@@ -516,6 +519,7 @@
                 var child_is_link = te_props.get('child_is_link');
                 var has_childtype = te_props.get('has_childtype');
                 var has_datafields = te_props.get('has_datafields');
+                var show_when_empty = te_props.get('show_when_empty');
 
                 var theme_element = $("#ThemeElement_" + theme_element_id);
                 var theme_element_is_visible = true;
@@ -529,6 +533,10 @@
                 var theme_element_border_visible = true;
                 if ( $("#ThemeElement_" + theme_element_id + " > .ODRInnerBox").hasClass("ODRInnerBox_HideBorder") )
                     theme_element_border_visible = false;
+
+                var theme_element_always_visible = false;
+                if ( show_when_empty )
+                    theme_element_always_visible = true;
 
 
                 // ----------------------------------------
@@ -573,6 +581,25 @@
                         ODRTheme_ToggleThemeElementBorderVisibility(theme_element_id);
                     });
                 }
+
+                // ----------------------------------------
+                // Can always change whether the ThemeElement is displayed even when it's empty
+                tools.no_hide_te.removeClass('faded');
+
+                if (theme_element_always_visible) {
+                    tools.no_hide_te.find('i').addClass('ODRActiveIcon');
+                    tools.no_hide_te.find('.link-text').html('Show Group Box when empty');
+                    tools.no_hide_te.attr('title', 'This Group Box will always be visible even when it has no contents.');
+                }
+                else {
+                    // tools.no_hide_te.find('i').removeClass('ODRActiveIcon');
+                    tools.no_hide_te.find('.link-text').html('Hide Group Box when empty');
+                    tools.no_hide_te.attr('title', 'This Group Box will be hidden when it has no contents.  This is the default.');
+                }
+
+                tools.no_hide_te.unbind('click').click(function () {
+                    ODRTheme_ToggleThemeElementShowWhenEmpty(theme_element_id);
+                });
 
                 // ----------------------------------------
                 // "Currently using Icon in table layouts" makes no sense for a themeElement
@@ -1257,6 +1284,53 @@
 
                 // Toggle hidden status of themeElement's border
                 $("#ThemeElement_" + theme_element_id + " > .ODRInnerBox").toggleClass("ODRInnerBox_HideBorder");
+
+                // Re-render the tools section
+                ODRTheme_RenderToolSet(theme_element_id, 'theme_element');
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function (jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Toggles whether the given theme_element is displayed even when ODR thinks it's empty
+     *
+     * @param {number} theme_element_id
+     */
+    function ODRTheme_ToggleThemeElementShowWhenEmpty(theme_element_id) {
+
+        var url = '{{ path('odr_design_theme_element_show_when_empty', {'theme_element_id': 0} ) }}';
+        url = url.substring(0, (url.length - 1));
+        url += theme_element_id;
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function (data) {
+                notifySaved();
+
+                // update the theme element properties so the rest of ODR knows the setting
+                var te_props = theme_element_properties.get(theme_element_id);
+                te_props.set('show_when_empty', data.d.show_when_empty);
+                theme_element_properties.set(theme_element_id, te_props);
+                // console.log(theme_element_properties);
 
                 // Re-render the tools section
                 ODRTheme_RenderToolSet(theme_element_id, 'theme_element');

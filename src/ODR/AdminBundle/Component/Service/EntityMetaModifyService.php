@@ -321,6 +321,7 @@ class EntityMetaModifyService
             'shorten_filename' => $old_meta_entry->getShortenFilename(),
             'newFilesArePublic' => $old_meta_entry->getNewFilesArePublic(),
             'quality_str' => $old_meta_entry->getQualityStr(),
+            'editable_file_extensions' => $old_meta_entry->geteditableFileExtensions(),
             'children_per_row' => $old_meta_entry->getChildrenPerRow(),
             'radio_option_name_sort' => $old_meta_entry->getRadioOptionNameSort(),
             'radio_option_display_unselected' => $old_meta_entry->getRadioOptionDisplayUnselected(),
@@ -422,6 +423,9 @@ class EntityMetaModifyService
             $properties['newFilesArePublic'] = false;
             $properties['quality_str'] = '';
         }
+        if ($relevant_typeclass !== 'File') {
+            $properties['editable_file_extensions'] = '';
+        }
 
         // Clear properties related to radio options and tags if it's not one of those fieldtypes
         if ($relevant_typeclass !== 'Radio' && $relevant_typeclass !== 'Tag') {
@@ -517,6 +521,8 @@ class EntityMetaModifyService
             $new_datafield_meta->setShortenFilename( $properties['shorten_filename'] );
         if ( isset($properties['quality_str']) )
             $new_datafield_meta->setQualityStr( mb_scrub($properties['quality_str']) );
+        if ( isset($properties['editable_file_extensions']) )
+            $new_datafield_meta->setEditableFileExtensions( mb_scrub($properties['editable_file_extensions']) );
         if ( isset($properties['children_per_row']) )
             $new_datafield_meta->setChildrenPerRow( $properties['children_per_row'] );
         if ( isset($properties['radio_option_name_sort']) )
@@ -1122,6 +1128,10 @@ class EntityMetaModifyService
     /**
      * Copies the contents of the given DatatypeSpecialFields entity into a new entity if something
      * was changed.
+     *
+     * Technically this should only be used on fields for {@link DataTypeSpecialFields::NAME_FIELD}
+     * or {@link DataTypeSpecialFields::SORT_FIELD}...but it doesn't break anything if used on an
+     * {@link DataTypeSpecialFields::IMMEDIATE_SEARCH_FIELD}
      *
      * @param ODRUser $user
      * @param DataTypeSpecialFields $dtsf
@@ -2957,6 +2967,7 @@ class EntityMetaModifyService
             'hideBorder' => $old_meta_entry->getHideBorder(),
             'cssWidthMed' => $old_meta_entry->getCssWidthMed(),
             'cssWidthXL' => $old_meta_entry->getCssWidthXL(),
+            'showWhenEmpty' => $old_meta_entry->getShowWhenEmpty(),
         );
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
@@ -2996,6 +3007,8 @@ class EntityMetaModifyService
             $theme_element_meta->setHidden( $properties['hidden'] );
         if ( isset($properties['hideBorder']) )
             $theme_element_meta->setHideBorder( $properties['hideBorder'] );
+        if ( isset($properties['showWhenEmpty']) )
+            $theme_element_meta->setShowWhenEmpty( $properties['showWhenEmpty'] );
         if ( isset($properties['cssWidthMed']) )
             $theme_element_meta->setCssWidthMed( $properties['cssWidthMed'] );
         if ( isset($properties['cssWidthXL']) )

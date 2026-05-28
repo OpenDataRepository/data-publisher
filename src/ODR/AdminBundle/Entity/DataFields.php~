@@ -30,7 +30,9 @@ class DataFields
     const NOT_SEARCHABLE = 0;
 
     /**
-     * Field is searchable by the user, and usable in sidebar layouts
+     * Field is searchable by the user, and usable in sidebar layouts.
+     * DO NOT COMPARE AGAINST THIS...ODR originally also used const values of 2 and 3 for searchable,
+     * so you must treat any non-zero as being searchable.
      */
     const SEARCHABLE = 1;
 
@@ -943,6 +945,16 @@ class DataFields
     }
 
     /**
+     * Get editableFileExtensions.
+     *
+     * @return string
+     */
+    public function getEditableFileExtensions()
+    {
+        return $this->getDataFieldMeta()->getEditableFileExtensions();
+    }
+
+    /**
      * Get children_per_row
      *
      * @return integer
@@ -1094,5 +1106,22 @@ class DataFields
             }
         }
         return $sort_datatypes;
+    }
+
+    /**
+     * Get all datatypes that use this field as an 'immediate search' field.
+     * @return DataType[]
+     */
+    public function getImmediateSearchDatatypes()
+    {
+        $search_datatypes = array();
+        if ( !is_null($this->dataTypeSpecialFields) ) {
+            foreach ($this->dataTypeSpecialFields as $dtsf) {
+                /** @var DataTypeSpecialFields $dtsf */
+                if ( $dtsf->getFieldPurpose() === DataTypeSpecialFields::IMMEDIATE_SEARCH_FIELD )
+                    $search_datatypes[] = $dtsf->getDataType();
+            }
+        }
+        return $search_datatypes;
     }
 }

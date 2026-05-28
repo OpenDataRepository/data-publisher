@@ -466,6 +466,7 @@ class ValidationController extends ODRCustomController
                     $dfm->setShortenFilename(false);
                     $dfm->setNewFilesArePublic(false);
                     $dfm->setQualityStr('');
+                    $dfm->setEditableFileExtensions('');
                     $dfm->setXyzDataColumnNames('');
 
 
@@ -876,6 +877,7 @@ class ValidationController extends ODRCustomController
                     $tem->setCssWidthXL('1-1');
                     $tem->setHidden(0);
                     $tem->setHideBorder(false);
+                    $tem->setShowWhenEmpty(false);
 
                     $tem->setCreatedBy($user);
                     $tem->setUpdatedBy($user);
@@ -2696,9 +2698,14 @@ class ValidationController extends ODRCustomController
                 $descendant_id = $result['descendant_id'];
 
                 $dtsf_id = $result['dtsf_id'];
-                $field_purpose = 'name';
-                if ( $result['field_purpose'] === DataTypeSpecialFields::SORT_FIELD )
+                $field_purpose = null;
+                if ( $result['field_purpose'] === DataTypeSpecialFields::IMMEDIATE_SEARCH_FIELD )
+                    $field_purpose = 'search';
+                else if ( $result['field_purpose'] === DataTypeSpecialFields::NAME_FIELD )
+                    $field_purpose = 'name';
+                else if ( $result['field_purpose'] === DataTypeSpecialFields::SORT_FIELD )
                     $field_purpose = 'sort';
+
 
                 $df_id = $result['df_id'];
                 $df_name = $result['df_name'];
@@ -2729,13 +2736,22 @@ class ValidationController extends ODRCustomController
                     $is_link = $sub_results[0]['is_link'];
                     $multiple_allowed = $sub_results[0]['multiple_allowed'];
 
-                    if ($is_link == 0) {
-                        // Datatype B is a child of Datatype A
+                    if ( $is_link == 0 && $field_purpose !== 'search' ) {
+                        // Datatype B is a child of Datatype A...an ancestor can't use fields from
+                        //  its child as name/sort fields
                         $dtsf_entries_to_delete[] = $dtsf_id;
+
+                        // This restriction is ignored if the field is used for searching...there's
+                        //  no reason for it
                     }
-                    else if ($multiple_allowed == 1) {
-                        // Datatype A can link to multiple datarecords of Datatype B
+                    else if ( $multiple_allowed == 1 && $field_purpose !== 'search' ) {
+                        // Datatype A can link to multiple datarecords of Datatype B...there's no
+                        //  way for the ancestor to determine which of the multiple possible values
+                        //  it could use from the descendant
                         $dtsf_entries_to_delete[] = $dtsf_id;
+
+                        // This restriction is ignored if the field is used for searching...there's
+                        //  no reason for it
                     }
                     else {
                         print '<pre><b>Datatype '.$ancestor_id.' ("'.$ancestor_name.'") is allowed to use field '.$df_id.' ("'.$df_name.'"), belonging to Datatype '.$descendant_id.' ("'.$descendant_name.'"), as a '.$field_purpose.' field</b></pre>';

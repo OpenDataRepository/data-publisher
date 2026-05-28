@@ -44,6 +44,10 @@
 </div>
 {% endif %}
 
+<div id="file_direct_edit_dialog_wrapper">
+    {% include 'ODRAdminBundle:Edit:file_direct_edit_dialog.html.twig' %}
+</div>
+
 <div id="download_files_dialog_wrapper">
     {% include 'ODRAdminBundle:Default:file_download_dialog.html.twig' with {
         'initial_datarecord_id': initial_datarecord_id,
@@ -336,6 +340,20 @@ function initPage() {
                 }
             }
         });
+    });
+    $(".ODRFileEditTrigger").unbind('click').click(function() {
+        var file_div_id_pieces = $(this).parent().parent().attr('id').split(/_/);
+        var file_id = file_div_id_pieces[1];
+
+        // Open the dialog, with instructions to only reload the datafield if a change is saved
+        openFileDirectEditDialog(file_id, false);
+    });
+    $(".ODRFileEditTrigger_reloadpage").unbind('click').click(function() {
+        var file_div_id_pieces = $(this).parent().parent().attr('id').split(/_/);
+        var file_id = file_div_id_pieces[1];
+
+        // Open the dialog, with instructions to reload the entire page if a change is saved
+        openFileDirectEditDialog(file_id, true);
     });
 
     $(".ODRDeleteImage").unbind('click').click(function() {
@@ -1564,7 +1582,7 @@ function DeleteFile(file_id, callback, only_use_callback) {
                         var html =
                             '<div class="ODRFileDatafield_empty pure-u-1">\n' +
                             '    <span class="ODRFileSpacer_empty">&nbsp;</span>\n' +
-                            '    <a class="Cursor">No Files Uploaded</a>\n' +
+                            '    <span class="Cursor">No Files Uploaded</span>\n' +
                             '</div>';
                         $(anchor).append(html);
                     }

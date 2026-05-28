@@ -94,6 +94,8 @@ class PlugExtension extends \Twig_Extension
             new \Twig\TwigFilter('quality_json_decode', array($this, 'qualityJsonFilter')),
 
             new \Twig\TwigFilter('escape_namefield', array($this, 'nameFieldValueFilter')),
+
+            new \Twig\TwigFilter('matches_file_extensions', array($this, 'matchesFileExtensionsFilter')),
         );
     }
 
@@ -857,9 +859,12 @@ class PlugExtension extends \Twig_Extension
             if ( $theme_element['themeElementMeta']['hidden'] == 1 && !$edit_shows_all_fields )
                 return true;
 
+            // If the theme element is set to "show when empty", then return false
+            if ( $theme_element['themeElementMeta']['showWhenEmpty'] === true )
+                return false;
+
             // If the theme element has themeDatafield entries...
             if ( !empty($theme_element['themeDataFields']) ) {
-
                 // ...it is not considered empty if at least one of those datafields has not been filtered out, and is not hidden
                 foreach ($theme_element['themeDataFields'] as $num => $tdf) {
                     $df_id = $tdf['dataField']['id'];
@@ -1137,6 +1142,29 @@ class PlugExtension extends \Twig_Extension
         }
 
         return $str;
+    }
+
+
+    /**
+     * Returns whether the given filename matches any of the given file extentions
+     *
+     * @param string $filename
+     * @param string $valid_extensions A comma-separated list
+     * @return bool
+     */
+    public function matchesFileExtensionsFilter($filename, $valid_extensions)
+    {
+        if ( $filename === '' )
+            return false;
+        $filename_length = strlen($filename);
+
+        $valid_extensions = explode(',', $valid_extensions);
+        foreach ($valid_extensions as $ext) {
+            if ( strripos($filename, '.'.$ext) === $filename_length-strlen($ext)-1 )
+                return true;
+        }
+
+        return false;
     }
 
 

@@ -384,13 +384,23 @@ class ThemeElement
     }
 
     /**
-     * Get hide border
+     * Get hideBorder
      *
      * @return boolean
      */
     public function getHideBorder()
     {
         return $this->getThemeElementMeta()->getHideBorder();
+    }
+
+    /**
+     * Get hideBorder
+     *
+     * @return boolean
+     */
+    public function getShowWhenEmpty()
+    {
+        return $this->getThemeElementMeta()->getShowWhenEmpty();
     }
 
     /**

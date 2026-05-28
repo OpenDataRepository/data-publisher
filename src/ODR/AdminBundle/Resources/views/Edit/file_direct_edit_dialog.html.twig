@@ -2,26 +2,25 @@
 
 <script>
     /**
-     * Opens ODR's modal and loads a form to select/change name/sort fields for the requested datatype.
+     * Opens the dialog to permit direct editing of a (hopefully) text(ish) file.
      *
-     * @param {number} datatype_id
-     * @param {string} type
+     * @param {number} file_id
+     * @param {boolean} reload_entire_page
      */
-    function openSpecialFieldsSelectionDialog(datatype_id, type) {
+    function openFileDirectEditDialog(file_id, reload_entire_page) {
         /** @type {odr_remodal_options} modal_options */
         var modal_options = {
-            title: 'Special Datafield Selection Dialog',
-            loading: true,
+            title: 'File Editing',
             buttons: [
                 {
-                    id: 'ODRSpecialFields_save',
+                    id: 'ODRFileDirectEdit_save',
                     text: 'Save',
                     click_handler: function() {
-                        saveSpecialDatafieldSelectionDialog(datatype_id);
+                        saveFileDirectEditDialog(reload_entire_page);
                     }
                 },
                 {
-                    id: 'ODRSpecialFields_close',
+                    id: 'ODRFileDirectEdit_close',
                     secondary: true,
                     text: 'Cancel',
                     click_handler: function() {
@@ -32,16 +31,13 @@
         };
         openODRRemodal(modal_options);
 
-        var url = '';
-        if (type == 'name' || type == 'sort') {
-            url = '{{ path('odr_design_get_special_datafield_properties', { 'datatype_id': 0, 'type': '' }) }}';
-            url = url.substr(0, url.length-2);
-            url += datatype_id + '/' + type;
-        }
-        else {
-            url = '{{ path('odr_design_get_immediate_search_datafield_properties', { 'datatype_id': 0 }) }}';
-            url += datatype_id;
-        }
+        var url  = '{{ path('odr_direct_edit_file_start', {'file_id': 0, 'reload_entire_page': 0} ) }}';
+        url = url.substring(0,(url.length-3));
+        url += file_id + '/';
+        if ( !reload_entire_page )
+            url += '0';
+        else
+            url += '1';
 
         $.ajax({
             cache: false,
@@ -72,17 +68,17 @@
     }
 
     /**
-     * Saves a form to select/change the requested datatype's name/sort datafields.
+     * Saves the form for directly editing a file's contents.
      *
-     * @param {number} datatype_id
+     * @param {boolean} reload_entire_page
      */
-    function saveSpecialDatafieldSelectionDialog(datatype_id) {
+    function saveFileDirectEditDialog(reload_entire_page) {
 
-        var url = '{{ path('odr_design_save_special_datafield_properties', { 'datatype_id': 0 }) }}';
-        url = url.substr(0, url.length-1);
-        url += datatype_id;
+        var url = '{{ path('odr_direct_edit_file_save') }}';
+        var datarecord_id = $("#FileDataForm_dr_id").val();
+        var datafield_id = $("#FileDataForm_df_id").val();
 
-        var post_data = $("#ODRSpecialDatafieldSelectionForm").serialize();
+        var post_data = $("#ODRFileDirectEdit_form").serialize();
 
         // Show the loading blurb
         setODRRemodalLoadingText('Saving...');
@@ -98,7 +94,14 @@
                 // Don't need this open anymore
                 closeODRRemodal();
 
-                notifySaved();
+                if ( data.d.change_made == true ) {
+                    notifySaved();
+
+                    if (!reload_entire_page)
+                        ReloadEditDatafield(datarecord_id, datafield_id);
+                    else
+                        window.location.reload();
+                }
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Close the dialog so it's not in some half-initialized state

@@ -118,6 +118,11 @@ class DataFieldsMeta
     private $quality_str;
 
     /**
+     * @var string
+     */
+    private $editable_file_extensions;
+
+    /**
      * @var integer
      */
     private $children_per_row;
@@ -638,6 +643,30 @@ class DataFieldsMeta
     public function getQualityStr()
     {
         return $this->quality_str;
+    }
+
+    /**
+     * Set editableFileExtensions.
+     *
+     * @param string $editableFileExtensions
+     *
+     * @return DataFieldsMeta
+     */
+    public function setEditableFileExtensions($editableFileExtensions)
+    {
+        $this->editable_file_extensions = $editableFileExtensions;
+
+        return $this;
+    }
+
+    /**
+     * Get editableFileExtensions.
+     *
+     * @return string
+     */
+    public function getEditableFileExtensions()
+    {
+        return $this->editable_file_extensions;
     }
 
     /**

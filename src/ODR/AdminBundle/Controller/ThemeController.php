@@ -1347,6 +1347,7 @@ class ThemeController extends ODRCustomController
                     $properties = array(
                         'hidden' => $submitted_data->getHidden(),
                         'hideBorder' => $submitted_data->getHideBorder(),
+                        'showWhenEmpty' => $submitted_data->getShowWhenEmpty(),
                         'cssWidthMed' => $submitted_data->getCssWidthMed(),
                         'cssWidthXL' => $submitted_data->getCssWidthXL(),
                     );
@@ -1659,6 +1660,97 @@ class ThemeController extends ODRCustomController
         }
         catch (\Exception $e) {
             $source = 0x88462342;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Toggles whether a ThemeElement is displayed even when it's empty.  This is its own action
+     * because it's toggled with a UI element, instead of using Symfony's form system.
+     *
+     * @param integer $theme_element_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function themeelementshowwhenemptyAction($theme_element_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = array();
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->container->get('odr.theme_info_service');
+
+
+            /** @var ThemeElement $theme_element */
+            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            if ( is_null($theme_element) )
+                throw new ODRNotFoundException('ThemeElement');
+
+            $theme = $theme_element->getTheme();
+            if ( !is_null($theme->getDeletedAt()) )
+                throw new ODRNotFoundException('Theme');
+
+            $datatype = $theme->getDataType();
+            if ( !is_null($datatype->getDeletedAt()) )
+                throw new ODRNotFoundException('Datatype');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            // Throw an exception if the user isn't allowed to do this
+            self::canModifyTheme($user, $theme);
+            // --------------------
+
+            // Users need to be able to change the "hidden" property on a "master" theme
+            // Display/Edit/SearchResults/TextResults will respect this property, but most other
+            //  areas of ODR ignore it
+//            if ( $theme->getThemeType() === 'master' )
+//                throw new ODRBadRequestException("Unable to change hidden status of ThemeElements on a datatype's master theme");
+
+
+            // Toggle the 'showWhenEmpty' status of the specified theme_element
+            if ( $theme_element->getShowWhenEmpty() ) {
+                $properties = array(
+                    'showWhenEmpty' => false,
+                );
+                $entity_modify_service->updateThemeElementMeta($user, $theme_element, $properties);
+
+                $return['d']['show_when_empty'] = false;
+            }
+            else {
+                $properties = array(
+                    'showWhenEmpty' => true,
+                );
+                $entity_modify_service->updateThemeElementMeta($user, $theme_element, $properties);
+
+                $return['d']['show_when_empty'] = true;
+            }
+
+            // Update cached version of theme
+            $theme_info_service->updateThemeCacheEntry($theme, $user);
+        }
+        catch (\Exception $e) {
+            $source = 0xcf04b80c;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
