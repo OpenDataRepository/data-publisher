@@ -2508,13 +2508,16 @@ class SearchAPIServiceTest extends WebTestCase
                     // references of adelite (96)
                     2,4,6,18,23,37,54,59,67,86,
                     // references of anorthite (97)
-                    7,15,20,27,28,29,30,31,33,40,  // 29 is both aegirine and anorthite, so this prevents the use of set subtraction for ""
+                    7,15,20,27,28,/*29,*/30,31,33,40,  // 29 is both aegirine and anorthite
                     44,45,46,47,48,49,51,52,53,58,
                     60,64,66,69,71,76,77,79,81,82,
                     85,90,
                     // references of unknown (322)
                 ),
                 true
+
+                // due to the use of set subtraction, this query is "references without a mineral
+                //  that has an alias"...and therefore, 29 does not match because aegirine has an alias
             ],
             'RRUFF Reference: inverse search, mineral_aliases is not blank' => [
                 array(

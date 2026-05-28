@@ -1104,36 +1104,26 @@ class SearchAPIService
                             }
                         }
                     }
-                }
-            }
 
-            // If the search criteria involves the empty string...
-            if ($include_unrelated_records) {
-                // ...then need to also determine which records in the parent datatype do not have
-                //  child records of this datatype
+                    // If the search criteria involves the empty string...
+                    if ($include_unrelated_records) {
+                        // ...then need to also determine which records in the parent datatype do not have
+                        //  child records of this datatype
+                        $unrelated_target_records = $target_dr_list;
 
-                throw new ODRNotImplementedException('asdf');
-
-                // ...this gets an array where <parent_dr_id> => array(<child_dr_1> => '', <child_dr_2> => '',...)
-                $target_parent_to_child = $this->search_service->getCachedDatarecordList($target_dt_id, true, false);
-                foreach ($target_parent_to_child as $ancestor_dr_id => $descendant_dr_ids) {
-                    if ( $target_dr_list[$ancestor_dr_id] >= SearchAPIService::CANT_VIEW) {
-                        // If the user can't view this parent datarecord, then don't check any of
-                        //  its children
-                        continue;
-                    }
-
-                    foreach ($descendant_dr_ids as $descendant_dr_id => $str) {
-                        if ( isset($source_dr_list[$descendant_dr_id]) ) {
-                            // If the parent datarecord has a child record of the relevant datatype,
-                            //  then it's not wanted when the empty string is involved
-                            continue 2;
+                        foreach ($source_child_to_parent as $child_dr_id => $parent_dr_id) {
+                            if ( $source_dr_list[$child_dr_id] < SearchAPIService::CANT_VIEW ) {
+                                if ( isset($target_dr_list[$parent_dr_id])
+                                    && $target_dr_list[$parent_dr_id] < SearchAPIService::CANT_VIEW
+                                ) {
+                                    unset( $unrelated_target_records[$parent_dr_id] );
+                                }
+                            }
                         }
-                    }
 
-                    // If this point is reached, then the ancestor record does not have a descendant
-                    //  record belonging to $source_dt_id
-                    $transformed_records[$facet_num][$ancestor_dr_id] = 1;
+                        foreach ($unrelated_target_records as $ancestor_dr_id => $num)
+                            $transformed_records[$facet_num][$ancestor_dr_id] = 1;
+                    }
                 }
             }
         }

@@ -2084,8 +2084,8 @@ class SearchQueryService
                         $has_not_empty_string = true;
                 }
 
-//                if ( $has_empty_string && $has_not_empty_string ) {
-                if ( $has_empty_string ) {  // TODO - believe i need it to work like this...otherwise mineral aliases -> references fails badly due to using set subtraction...
+                if ( $has_empty_string && $has_not_empty_string ) {  // TODO - ...using this causes straight up set subtraction...appears to work once you realize what it's doing though
+//                if ( $has_empty_string ) {  // TODO - ...using this causes most empty string + multiple path interactions to fail badly due to union-ing results
                     // ...in this specific situation, the query should not be negated...doing so will
                     //  cause the results to be un-mergeable
                     return SearchQueryService::NEED_UNRELATED_RECORDS;
