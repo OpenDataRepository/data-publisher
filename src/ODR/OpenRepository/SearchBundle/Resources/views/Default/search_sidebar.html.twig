@@ -554,21 +554,39 @@
             var datafield_id_data = $(this).attr('id').split(/_/);
             var datafield_id = datafield_id_data[1];
 
-            var value = $(this).val();
+            var value = $(this).val().trim();
             var dropdown = $(this).parent().find("#datafield_" + datafield_id + "_ex");
-            if (value != '')
-                $(dropdown).prop('selectedIndex', '1').change();
-            else
+            var selected_index = $(dropdown).prop('selectedIndex');
+            if (value === '')
                 $(dropdown).prop('selectedIndex', '0').change();
+            else if (value === '""') {
+                if (selected_index != 2)
+                    $(dropdown).prop('selectedIndex', '2').change();
+            }
+            else {
+                if (selected_index != 1)
+                    $(dropdown).prop('selectedIndex', '1').change();
+            }
         });
         $(context).find(".ODRFileDatafieldExist").unbind('change').change(function () {
             var datafield_id_data = $(this).attr('id').split(/_/);
             var datafield_id = datafield_id_data[1];
 
-            var value = $(this).val();
             var input = $(this).parent().find("#datafield_" + datafield_id + "_fn");
-            if (value != 1)
+            var input_val = $(input).val();
+            var dropdown_value = $(this).val();
+
+            if (dropdown_value === '') {
                 $(input).val('');
+            }
+            else if (dropdown_value === "0") {
+                if ( !(input_val == '' || input_val == '""') )
+                    $(input).val('""');
+            }
+            else if (dropdown_value === "1") {
+                if (input_val == '' || input_val == '""')
+                    $(input).val('!""');
+            }
         });
 
         // Radio Tristate checkbox
