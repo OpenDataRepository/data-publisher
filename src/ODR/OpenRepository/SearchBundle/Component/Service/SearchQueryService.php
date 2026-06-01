@@ -1006,40 +1006,43 @@ class SearchQueryService
      * @param int $datatype_id
      * @param int $datafield_id
      * @param string $typeclass
-     * @param string $search_type
      * @param string $search_value
      *
      * @return array
      */
-    public function searchFileOrImageDatafield($datatype_id, $datafield_id, $typeclass, $search_type, $search_value)
+    public function searchFileOrImageDatafield($datatype_id, $datafield_id, $typeclass, $search_value)
     {
-        // Unfortunately, SearchService::searchFileOrImageDatafield() needs to know whether the
-        //  search involved the empty string or not
-        $involves_empty_string = false;
+//        // Unfortunately, SearchService::searchFileOrImageDatafield() needs to know whether the
+//        //  search involved the empty string or not
+//        $involves_empty_string = false;
 
         // ----------------------------------------
         // Figure out which type of query to use
         $conn = $this->em->getConnection();
-        $results = array();
+//        $results = array();
 
-        if ( $search_type === 'filename' ) {
+//        if ( $search_type === 'filename' ) {
             $search_params = self::parseField($search_value, $typeclass);
             $search_params['params']['datafield_id'] = $datafield_id;
 
-            // Determine whether this query's search parameters contain an empty string...if so, may
-            //  have to to run an additional query because of how ODR is designed...
-            if ( self::isNullDrfPossible($search_params['str'], $search_params['params']) ) {
-                // ...but only when the query actually has a logical chance of returning results...
-                if ( self::canQueryReturnResults($search_params['str'], $search_params['params']) ) {
-//                    $search_params['params']['datatype_id'] = $datatype_id;
-//                    $query .= "\nUNION\n".$null_query;
+//            // Determine whether this query's search parameters contain an empty string...if so, may
+//            //  have to to run an additional query because of how ODR is designed...
+//            if ( self::isNullDrfPossible($search_params['str'], $search_params['params']) ) {
+//                // ...but only when the query actually has a logical chance of returning results...
+//                if ( self::canQueryReturnResults($search_params['str'], $search_params['params']) ) {
+////                    $search_params['params']['datatype_id'] = $datatype_id;
+////                    $query .= "\nUNION\n".$null_query;
+//
+//                    // Need to let SearchService::searchFileOrImageDatafield() know they might have
+//                    //  to trigger the 'public_only' protections, since the query involves the empty
+//                    //  string
+//                    $involves_empty_string = true;
+//                }
+//            }
 
-                    // Need to let SearchService::searchFileOrImageDatafield() know they might have
-                    //  to trigger the 'public_only' protections, since the query involves the empty
-                    //  string
-                    $involves_empty_string = true;
-                }
-            }
+            // Determine whether this query needs to be modified due to (partially) matching the empty
+            //  string...
+            $modification = self::doesQueryNeedModified($search_params);
 
             // Define the base query for searching by filenames...
             $query =
@@ -1049,7 +1052,7 @@ class SearchQueryService
                 JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
                 JOIN '.$this->typeclass_map[$typeclass].'_meta AS e_m ON e_m.'.strtolower($typeclass).'_id = e.id
                 WHERE e.data_field_id = :datafield_id AND ';
-            if ( $involves_empty_string )
+            if ( $modification === SearchQueryService::NEGATED_QUERY )
                 $query .= 'NOT ';
             $query .=
                '('.$search_params['str'].')
@@ -1080,88 +1083,220 @@ class SearchQueryService
 //            }
 
             $results = $conn->fetchAll($query, $search_params['params']);
-        }
-        else if ( $search_type === 'public_status' ) {
-            // Setup params for either type of public search...
-            $search_params = array(
-                'str' => 'e.data_field_id = :datafield_id AND ',
-                'params' => array(
-                    'datafield_id' => $datafield_id,
-                    'public_date' => '2200-01-01 00:00:00'
-                )
-            );
-            if ( $search_value === 1 ) {
-                // search for public files/images
-                $search_params['str'] .= 'e_m.public_date != :public_date';
-            }
-            else {
-                // search for non-public files/images
-                $search_params['str'] .= 'e_m.public_date = :public_date';
-            }
-
-            $public_status_query =
-               'SELECT dr.id AS dr_id
-                FROM odr_data_record AS dr
-                JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
-                JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
-                JOIN '.$this->typeclass_map[$typeclass].'_meta AS e_m ON e_m.'.strtolower($typeclass).'_id = e.id
-                WHERE '.$search_params['str'].'
-                AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
-                AND e.deletedAt IS NULL AND e_m.deletedAt IS NULL';
-
-            // Don't need a null query...in order for a file to match a search on quality or public
-            //  status, it has to exist in the first place
-
-            $results = $conn->fetchAll($public_status_query, $search_params['params']);
-        }
-        else if ( $search_type === 'quality' ) {
-            // Don't need to modify the stuff for quality
-            $search_params = array(
-                'str' => 'e.data_field_id = :datafield_id AND e_m.quality = :quality',
-                'params' => array(
-                    'datafield_id' => $datafield_id,
-                    'quality' => $search_value
-                )
-            );
-
-            $quality_query =
-               'SELECT dr.id AS dr_id, e_m.public_date
-                FROM odr_data_record AS dr
-                JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
-                JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
-                JOIN '.$this->typeclass_map[$typeclass].'_meta AS e_m ON e_m.'.strtolower($typeclass).'_id = e.id
-                WHERE '.$search_params['str'].'
-                AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
-                AND e.deletedAt IS NULL AND e_m.deletedAt IS NULL';
-
-            // Don't need a null query...in order for a file to match a search on quality or public
-            //  status, it has to exist in the first place
-
-            $results = $conn->fetchAll($quality_query, $search_params['params']);
-        }
+//        }
+//        else if ( $search_type === 'public_status' ) {
+//            // Setup params for either type of public search...
+//            $search_params = array(
+//                'str' => 'e.data_field_id = :datafield_id AND ',
+//                'params' => array(
+//                    'datafield_id' => $datafield_id,
+//                    'public_date' => '2200-01-01 00:00:00'
+//                )
+//            );
+//            if ( $search_value === 1 ) {
+//                // search for public files/images
+//                $search_params['str'] .= 'e_m.public_date != :public_date';
+//            }
+//            else {
+//                // search for non-public files/images
+//                $search_params['str'] .= 'e_m.public_date = :public_date';
+//            }
+//
+//            $public_status_query =
+//               'SELECT dr.id AS dr_id
+//                FROM odr_data_record AS dr
+//                JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+//                JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
+//                JOIN '.$this->typeclass_map[$typeclass].'_meta AS e_m ON e_m.'.strtolower($typeclass).'_id = e.id
+//                WHERE '.$search_params['str'].'
+//                AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
+//                AND e.deletedAt IS NULL AND e_m.deletedAt IS NULL';
+//
+//            // Don't need a null query...in order for a file to match a search on quality or public
+//            //  status, it has to exist in the first place
+//
+//            $results = $conn->fetchAll($public_status_query, $search_params['params']);
+//        }
+//        else if ( $search_type === 'quality' ) {
+//            // Don't need to modify the stuff for quality
+//            $search_params = array(
+//                'str' => 'e.data_field_id = :datafield_id AND e_m.quality = :quality',
+//                'params' => array(
+//                    'datafield_id' => $datafield_id,
+//                    'quality' => $search_value
+//                )
+//            );
+//
+//            $quality_query =
+//               'SELECT dr.id AS dr_id, e_m.public_date
+//                FROM odr_data_record AS dr
+//                JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+//                JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
+//                JOIN '.$this->typeclass_map[$typeclass].'_meta AS e_m ON e_m.'.strtolower($typeclass).'_id = e.id
+//                WHERE '.$search_params['str'].'
+//                AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
+//                AND e.deletedAt IS NULL AND e_m.deletedAt IS NULL';
+//
+//            // Don't need a null query...in order for a file to match a search on quality or public
+//            //  status, it has to exist in the first place
+//
+//            $results = $conn->fetchAll($quality_query, $search_params['params']);
+//        }
 
 
         // ----------------------------------------
         // Convert the results into two arrays of datarecord ids
-        $public_datarecords = array();
+//        $public_datarecords = array();
         $all_datarecords = array();
-        if ( $search_type !== 'public_status' ) {
-            foreach ($results as $result) {
-                $all_datarecords[ $result['dr_id'] ] = 1;
-                if ( $result['public_date'] !== '2200-01-01 00:00:00' )
-                    $public_datarecords[ $result['dr_id'] ] = 1;
-            }
-        }
-        else {
-            // Makes no sense to store 'public_only' records when searching on public status
+//        if ( $search_type !== 'public_status' ) {
+//            foreach ($results as $result) {
+//                $all_datarecords[ $result['dr_id'] ] = 1;
+//                if ( $result['public_date'] !== '2200-01-01 00:00:00' )
+//                    $public_datarecords[ $result['dr_id'] ] = 1;
+//            }
+//        }
+//        else {
+//            // Makes no sense to store 'public_only' records when searching on public status
             foreach ($results as $result)
                 $all_datarecords[ $result['dr_id'] ] = 1;
-        }
+//        }
 
         return array(
-            'all_records' => $all_datarecords,
-            'public_only' => $public_datarecords,
-            'guard' => $involves_empty_string,
+//            'all_records' => $all_datarecords,
+//            'public_only' => $public_datarecords,
+            'records' => $all_datarecords,
+            'modify' => $modification,
+        );
+    }
+
+
+    /**
+     * Searches a file/image datafield for a filename and/or whether it has files or not, returning
+     * an array of datarecord ids that match the criteria.
+     *
+     * The array has the following structure:
+     * <pre>
+     * array(
+     *     'records' => array(
+     *         <matching dr_id> => 1
+     *     ),
+     * )
+     * </pre>
+     *
+     * @param int $datatype_id
+     * @param int $datafield_id
+     * @param string $typeclass
+     * @param string $search_value
+     *
+     * @return array
+     */
+    public function searchFileOrImageDatafield_publicstatus($datatype_id, $datafield_id, $typeclass, $search_value)
+    {
+        // Setup params for either type of public search...
+        $search_params = array(
+            'str' => 'e.data_field_id = :datafield_id AND ',
+            'params' => array(
+                'datafield_id' => $datafield_id,
+                'public_date' => '2200-01-01 00:00:00'
+            )
+        );
+        if ( $search_value === 1 ) {
+            // search for public files/images
+            $search_params['str'] .= 'e_m.public_date != :public_date';
+        }
+        else {
+            // search for non-public files/images
+            $search_params['str'] .= 'e_m.public_date = :public_date';
+        }
+
+        $public_status_query =
+           'SELECT dr.id AS dr_id
+            FROM odr_data_record AS dr
+            JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+            JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
+            JOIN '.$this->typeclass_map[$typeclass].'_meta AS e_m ON e_m.'.strtolower($typeclass).'_id = e.id
+            WHERE '.$search_params['str'].'
+            AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
+            AND e.deletedAt IS NULL AND e_m.deletedAt IS NULL';
+
+        // Don't need a null query...in order for a file to match a search on quality or public
+        //  status, it has to exist in the first place
+        $conn = $this->em->getConnection();
+        $results = $conn->fetchAll($public_status_query, $search_params['params']);
+
+
+        // ----------------------------------------
+        // Convert the results into an array
+        $all_datarecords = array();
+        foreach ($results as $result)
+            $all_datarecords[ $result['dr_id'] ] = 1;
+
+        return array(
+            'records' => $all_datarecords,
+        );
+    }
+
+
+    /**
+     * Searches a file/image datafield for a filename and/or whether it has files or not, returning
+     * an array of datarecord ids that match the criteria.
+     *
+     * The array has the following structure:
+     * <pre>
+     * array(
+     *     'records' => array(
+     *         <matching dr_id> => 1
+     *     ),
+     * )
+     * </pre>
+     *
+     * @param int $datatype_id
+     * @param int $datafield_id
+     * @param string $typeclass
+     * @param string $search_value
+     *
+     * @return array
+     */
+    public function searchFileOrImageDatafield_quality($datatype_id, $datafield_id, $typeclass, $search_value)
+    {
+        // Unfortunately, SearchService::searchFileOrImageDatafield() needs to know whether the
+        //  search involved the empty string or not
+        $involves_empty_string = false;
+
+        // ----------------------------------------
+        // Don't need to modify the stuff for quality
+        $search_params = array(
+            'str' => 'e.data_field_id = :datafield_id AND e_m.quality = :quality',
+            'params' => array(
+                'datafield_id' => $datafield_id,
+                'quality' => $search_value
+            )
+        );
+
+        $quality_query =
+           'SELECT dr.id AS dr_id, e_m.public_date
+            FROM odr_data_record AS dr
+            JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+            JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
+            JOIN '.$this->typeclass_map[$typeclass].'_meta AS e_m ON e_m.'.strtolower($typeclass).'_id = e.id
+            WHERE '.$search_params['str'].'
+            AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
+            AND e.deletedAt IS NULL AND e_m.deletedAt IS NULL';
+
+        // Don't need a null query...in order for a file to match a search on quality or public
+        //  status, it has to exist in the first place
+        $conn = $this->em->getConnection();
+        $results = $conn->fetchAll($quality_query, $search_params['params']);
+
+
+        // ----------------------------------------
+        // Convert the results into two arrays of datarecord ids
+        $all_datarecords = array();
+        foreach ($results as $result)
+            $all_datarecords[ $result['dr_id'] ] = 1;
+
+        return array(
+            'records' => $all_datarecords,
         );
     }
 
@@ -2062,7 +2197,7 @@ class SearchQueryService
      * @param bool $search_converted
      * @return int
      */
-    private function doesQueryNeedModified($search_params, $search_converted)
+    private function doesQueryNeedModified($search_params, $search_converted = false)
     {
         // If the query could theoretically match the empty string...
         if ( self::isNullDrfPossible($search_params['str'], $search_params['params'], $search_converted) ) {

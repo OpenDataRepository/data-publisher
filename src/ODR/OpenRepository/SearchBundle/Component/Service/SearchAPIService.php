@@ -1554,14 +1554,26 @@ class SearchAPIService
                         }
                         else if ($typeclass === 'File' || $typeclass === 'Image') {
                             // Searches on Files/Images are effectively interchangable
-                            $dr_list = $this->search_service->searchFileOrImageDatafield($entity, $search_term);    // There could be three different terms in there, actually
+                            if ( isset($search_term['filename']) ) {
+                                $dr_list = $this->search_service->searchFileOrImageDatafield($entity, $search_term);
 
-                            // If this search involved the empty string...
-                            $involves_empty_string = $dr_list['guard'];
-                            if ($involves_empty_string) {
-                                // ...then insert an entry into the criteria array so that the later
-                                //  call of self::mergeSearchResults() can properly compensate
-                                $criteria[$dt_id][$facet_num]['search_terms'][$key]['guard'] = true;
+                                // If this search involved the empty string...
+                                $query_modified = $dr_list['modify'];
+                                if ( $query_modified > SearchQueryService::NO_MODIFICATION ) {
+                                    // ...then insert an entry into the criteria array so that the later
+                                    //  call of self::mergeSearchResults() can properly compensate
+                                    $criteria[$dt_id][$facet_num]['search_terms'][$key]['modify'] = $query_modified;
+                                }
+                            }
+                            else if ( isset($search_term['public_status']) ) {
+                                $dr_list = $this->search_service->searchFileOrImageDatafield_publicstatus($entity, $search_term);
+
+                                // Public status can't be negated
+                            }
+                            else if ( isset($search_term['quality']) ) {
+                                $dr_list = $this->search_service->searchFileOrImageDatafield_quality($entity, $search_term);
+
+                                // quality can't be negated TODO?
                             }
                         }
                         else if ($typeclass === 'DatetimeValue') {
@@ -2569,6 +2581,17 @@ class SearchAPIService
                     else {
                         // User can't view/search this datafield
                         $removed_criteria = true;
+
+                        // If they're searching for public files...
+                        if ( $value == '1' ) {
+                            if ( !isset($search_params[$df_id]) ) {
+                                // ...and also not searching for a filename, then change the search
+                                //  key to search for records with files
+                                $filtered_search_params[$df_id] = '!""';
+                            }
+                        }
+
+                        // An attempt to search for non-public files should be completely ignored
                     }
 
                     // Don't need additional checks for Datetime of XYZData fields

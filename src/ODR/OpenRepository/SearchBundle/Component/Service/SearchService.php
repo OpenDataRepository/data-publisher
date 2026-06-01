@@ -896,16 +896,17 @@ class SearchService
      *     'records' => array(
      *         <matching dr_id> => 1
      *     ),
-     *     'guard' => <true when the query can match the empty string, false otherwise>,
+     *     'modify' => <one of the SearchQueryService modify flags>
      * )
      * </pre>
+     * {@see SearchQueryService::NO_MODIFICATION}, {@see SearchQueryService::NEGATED_QUERY}, {@see SearchQueryService::NEED_UNRELATED_RECORDS}
      *
      * @param DataFields $datafield
-     * @param array $search_terms
+     * @param array $search_term
      *
      * @return array
      */
-    public function searchFileOrImageDatafield($datafield, $search_terms)
+    public function searchFileOrImageDatafield($datafield, $search_term)
     {
         // ----------------------------------------
         // Don't continue if called on the wrong type of datafield
@@ -919,32 +920,188 @@ class SearchService
 
 
         // ----------------------------------------
-        // There are potentially four different entries in $search_terms to deal with...
-        $filename = $public_status = $quality = null;
-        // ...three of them are actual search terms
-        if ( isset($search_terms['filename']) && $search_terms['filename'] !== '' )
-            $filename = $search_terms['filename'];
-        if ( isset($search_terms['public_status']) )
-            $public_status = $search_terms['public_status'];
-        if ( isset($search_terms['quality']) )
-            $quality = intval($search_terms['quality']);
-        // ...and the fourth is used to ensure non-public files don't "leak" their existence to a
-        //  user without the permissions to view them
-        $public_only = false;
-        if ( isset($search_terms['public_only']) )
-            $public_only = true;
+        // See if this search result is already cached...
+        $cached_searches = $this->cache_service->get('cached_search_df_'.$datafield->getId());
+        if ( !$cached_searches )
+            $cached_searches = array();
 
-        if ( is_null($filename) && is_null($public_status) && is_null($quality) )
-            throw new ODRBadRequestException("The arguments to searchFileOrImageDatafield() can't all be null at the same time", 0xab627079);
+        $value = $search_term['filename'];
+        $filename_result = array();
+        if ( isset($cached_searches['filename'][$value]) ) {
+            // Does exist, load from cache
+            $filename_result = $cached_searches['filename'][$value];
+        }
+        else {
+            // Doesn't exist, so run the search again...
+            $filename_result = $this->search_query_service->searchFileOrImageDatafield(
+                $datafield->getDataType()->getId(),
+                $datafield->getId(),
+                $typeclass,
+                $value
+            );
+
+            // ...and store it for later
+            $cached_searches['filename'][$value] = $filename_result;
+        }
 
 
-        // Overwrite the search terms array, since these three searches are going to be independent
-        $search_terms = array(
-            'filename' => $filename,
-            'public_status' => $public_status,
-            'quality' => $quality,
+        // ----------------------------------------
+        // The tricky part is when the search requires both 'public_only' and also involved the
+        //  empty string...
+        if ( isset($search_term['public_only']) || $filename_result['modify'] > SearchQueryService::NO_MODIFICATION ) {
+            // ...because that means there's now a file-specific aspect of the problem...the results
+            //  need to not just contain records without files/images, they need to also contain
+            //  records that only have non-public files.
+
+            // Without the "extra" records, users can guess which records have non-public files/images.
+            // While they wouldn't be able to actually see or get at the non-public files/images, it's
+            //  still bad practice to "leak" the existence of non-public stuff...
+
+            // To perform this final step correctly, we need the list of records with non-public
+            //  files/images, and the list of records with public files/images...
+            if ( !isset($cached_searches['public_status'][0]) ) {
+                // Doesn't exist, so run the search again and store for later...
+                $cached_searches['public_status'][0] = $this->search_query_service->searchFileOrImageDatafield_publicstatus(
+                    $datafield->getDataType()->getId(),
+                    $datafield->getId(),
+                    $typeclass,
+                    0    // find non-public files/images
+                );
+            }
+            if ( !isset($cached_searches['public_status'][1]) ) {
+                // Doesn't exist, so run the search again and store for later...
+                $cached_searches['public_status'][1] = $this->search_query_service->searchFileOrImageDatafield_publicstatus(
+                    $datafield->getDataType()->getId(),
+                    $datafield->getId(),
+                    $typeclass,
+                    1    // find public files/images
+                );
+            }
+
+            // Now that the lists are guaranteed to exist, pull them from the cache entry
+            $nonpublic_file_drs = $cached_searches['public_status'][0]['records'];
+            $public_file_drs = $cached_searches['public_status'][1]['records'];
+
+            if ( isset($search_term['public_only']) ) {
+                // For every record that has at least one non-public file...
+                foreach ($nonpublic_file_drs as $dr_id => $num) {
+                    // ...if it does not also have a public file...
+                    if ( !isset($public_file_drs[$dr_id]) ) {
+                        // ...then remove it from the list of results
+                        unset( $filename_result['records'][$dr_id] );
+                    }
+                }
+            }
+            else if ( $filename_result['modify'] > SearchQueryService::NO_MODIFICATION ) {
+
+            }
+        }
+
+        // Save any new data in the cache
+        $this->cache_service->set('cached_search_df_'.$datafield->getId(), $cached_searches);
+
+        // ...then return it
+        $end_result = array(
+            'dt_id' => $datafield->getDataType()->getId(),
+            'records' => $filename_result['records'],
+            'modify' => $filename_result['modify'],
         );
-        $datarecord_lists = array();
+        return $end_result;
+    }
+
+
+    /**
+     * Searches the given file or image datafield by file/image public status.
+     *
+     * The array has the following structure:
+     * <pre>
+     * array(
+     *     'dt_id' => <dt_id>,
+     *     'records' => array(
+     *         <matching dr_id> => 1
+     *     )
+     * )
+     * </pre>
+     *
+     * @param DataFields $datafield
+     * @param array $search_term
+     *
+     * @return array
+     */
+    public function searchFileOrImageDatafield_publicstatus($datafield, $search_term)
+    {
+        // ----------------------------------------
+        // Don't continue if called on the wrong type of datafield
+        $allowed_typeclasses = array(
+            'File',
+            'Image',
+        );
+        $typeclass = $datafield->getFieldType()->getTypeClass();
+        if ( !in_array($typeclass, $allowed_typeclasses) )
+            throw new ODRBadRequestException('searchFileOrImageDatafield_publicstatus() called with '.$typeclass.' datafield', 0x4f3eff76);
+
+
+        // ----------------------------------------
+        // See if this search result is already cached...
+        $cached_searches = $this->cache_service->get('cached_search_df_'.$datafield->getId());
+//        if ( !$cached_searches )
+            $cached_searches = array();
+
+        $value = $search_term['public_status'];
+        if ( isset($cached_searches['public_status'][$value]) )
+            return $cached_searches['public_status'][$value];
+
+        // Doesn't exist, so run the search again...
+        $result = $this->search_query_service->searchFileOrImageDatafield_publicstatus(
+            $datafield->getDataType()->getId(),
+            $datafield->getId(),
+            $typeclass,
+            $value
+        );
+
+        $end_result = array(
+            'dt_id' => $datafield->getDataType()->getId(),
+            'records' => $result['records'],
+        );
+
+        // ...and recache the search result
+        $cached_searches['public_status'][$value] = $end_result;
+        $this->cache_service->set('cached_search_df_'.$datafield->getId(), $cached_searches);
+
+        // ...then return it
+        return $end_result;
+    }
+
+
+    /**
+     * Searches the given file or image datafield by file/image quality.
+     *
+     * The array has the following structure:
+     * <pre>
+     * array(
+     *     'dt_id' => <dt_id>,
+     *     'records' => array(
+     *         <matching dr_id> => 1
+     *     )
+     * )
+     * </pre>
+     *
+     * @param DataFields $datafield
+     * @param array $search_term
+     *
+     * @return array
+     */
+    public function searchFileOrImageDatafield_quality($datafield, $search_term)
+    {
+        // ----------------------------------------
+        // Don't continue if called on the wrong type of datafield
+        $allowed_typeclasses = array(
+            'File',
+            'Image',
+        );
+        $typeclass = $datafield->getFieldType()->getTypeClass();
+        if ( !in_array($typeclass, $allowed_typeclasses) )
+            throw new ODRBadRequestException('searchFileOrImageDatafield() called with '.$typeclass.' datafield', 0x37cf2e37);
 
 
         // ----------------------------------------
@@ -953,106 +1110,25 @@ class SearchService
         if ( !$cached_searches )
             $cached_searches = array();
 
-        $involves_empty_string = false;
-        foreach ($search_terms as $key => $value) {
-            // For each of the three possible searches...
-            if ( !is_null($value) ) {
-                // ...if the search has a term defined, then check whether it's already cached
-                if ( !isset($cached_searches[$key][$value]) ) {
-                    // Doesn't exist, so run the search again...
-                    $result = $this->search_query_service->searchFileOrImageDatafield(
-                        $datafield->getDataType()->getId(),
-                        $datafield->getId(),
-                        $typeclass,
-                        $key,
-                        $value
-                    );
+        $value = $search_term['quality'];
+        if ( isset($cached_searches['quality'][$value]) )
+            return $cached_searches['quality'][$value];
 
-                    // Store for later...
-                    $cached_searches[$key][$value] = $result;
-                }
-
-                // Now that it's guaranteed to exist, pull it back out of the cache entry
-                if ( !$public_only || $key === 'public_status' )
-                    $datarecord_lists[$key] = $cached_searches[$key][$value]['all_records'];
-                else
-                    $datarecord_lists[$key] = $cached_searches[$key][$value]['public_only'];
-
-                if ( $key === 'filename' )
-                    $involves_empty_string = $cached_searches[$key][$value]['guard'];
-            }
-        }
-
-
-        // ----------------------------------------
-        // Need to merge the results of the queries together...
-        $result = null;
-
-        // ...the tricky part is when the search requires both 'public_only' and also involved the
-        //  empty string...
-        if ( $public_only && $involves_empty_string ) {
-            // ...because that means there's now a file-specific aspect of the problem...the results
-            //  need to not just contain records without files/images, they need to also contain
-            //  records that only have non-public files.  Without the "extra" records, the user can
-            //  can guess which records have non-public files/images...while they wouldn't be able
-            //  to see or get them anyways, it's still bad practice to "leak" the existence of
-            //  non-public stuff...
-
-            // To perform this final step correctly, we need the list of records with non-public
-            //  files/images, and the list of records with public files/images...
-            if ( !isset($cached_searches['public_status'][0]) ) {
-                // Doesn't exist, so run the search again and store for later...
-                $cached_searches['public_status'][0] = $this->search_query_service->searchFileOrImageDatafield(
-                    $datafield->getDataType()->getId(),
-                    $datafield->getId(),
-                    $typeclass,
-                    'public_status',
-                    0    // find non-public files/images
-                );
-            }
-            if ( !isset($cached_searches['public_status'][1]) ) {
-                // Doesn't exist, so run the search again and store for later...
-                $cached_searches['public_status'][1] = $this->search_query_service->searchFileOrImageDatafield(
-                    $datafield->getDataType()->getId(),
-                    $datafield->getId(),
-                    $typeclass,
-                    'public_status',
-                    1    // find public files/images
-                );
-            }
-
-            // Now that the lists are guaranteed to exist, pull them from the cache entry
-            $nonpublic_file_drs = $cached_searches['public_status'][0]['all_records'];
-            $public_file_drs = $cached_searches['public_status'][1]['all_records'];
-
-            // For every record that has at least one non-public file...
-            foreach ($nonpublic_file_drs as $dr_id => $num) {
-                // ...if it does not also have a public file...
-                if ( !isset($public_file_drs[$dr_id]) ) {
-                    // ...then add it to the list of results
-                    $datarecord_lists['filename'][$dr_id] = 1;    // TODO - is this still correct?  probably not...
-                }
-            }
-
-            // NOTE: this only works because the final merge is done by AND
-        }
-
-        // Now that the 'public_only' term has been dealt with, the remaining results can get merged
-        // TODO - always merging by AND...should it merge by OR in some situations?
-        foreach ($datarecord_lists as $key => $dr_list) {
-            if ( is_null($result) )
-                $result = $dr_list;
-            else
-                $result = array_intersect_key($result, $dr_list);    // TODO - is this still correct?  probably not...
-        }
+        // Doesn't exist, so run the search again...
+        $result = $this->search_query_service->searchFileOrImageDatafield_quality(
+            $datafield->getDataType()->getId(),
+            $datafield->getId(),
+            $typeclass,
+            $value
+        );
 
         $end_result = array(
             'dt_id' => $datafield->getDataType()->getId(),
-            'records' => $result,
-            'guard' => $involves_empty_string,
+            'records' => $result['records'],
         );
 
         // ...and recache the search result
+        $cached_searches['quality'][$value] = $end_result;
         $this->cache_service->set('cached_search_df_'.$datafield->getId(), $cached_searches);
 
         // ...then return it
@@ -1243,7 +1319,6 @@ class SearchService
      *     'records' => array(
      *         <matching dr_id> => 1
      *     ),
-     *     'guard' => <true when any of the search trems could match the empty string, false otherwise>,
      * )
      * </pre>
      *
@@ -1404,7 +1479,6 @@ class SearchService
      *     'records' => array(
      *         <matching dr_id> => 1
      *     ),
-     *     'guard' => <true when any of the search trems could match the empty string, false otherwise>,
      * )
      * </pre>
      *
@@ -1491,9 +1565,10 @@ class SearchService
      *     'records' => array(
      *         <matching dr_id> => 1
      *     ),
-     *     'guard' => <true when the query can match the empty string, false otherwise>,
+     *     'modify' => <one of the SearchQueryService modify flags>
      * )
      * </pre>
+     * {@see SearchQueryService::NO_MODIFICATION},{@see SearchQueryService::NEGATED_QUERY},{@see SearchQueryService::NEED_UNRELATED_RECORDS}
      *
      * @param DataFields $datafield
      * @param string $value
@@ -1563,9 +1638,10 @@ class SearchService
      *     'records' => array(
      *         <matching dr_id> => 1
      *     ),
-     *     'guard' => true
+     *     'modify' => <one of the SearchQueryService modify flags>
      * )
      * </pre>
+     * {@see SearchQueryService::NO_MODIFICATION},{@see SearchQueryService::NEGATED_QUERY},{@see SearchQueryService::NEED_UNRELATED_RECORDS}
      *
      * The difference between this function and {@link self::searchTextOrNumberDatafield()} is that
      * negated search terms are silently ignored...e.g. a search for "!Gold" instead returns the

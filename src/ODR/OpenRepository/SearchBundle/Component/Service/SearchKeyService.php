@@ -1914,15 +1914,15 @@ class SearchKeyService
                         $can_view_file = true;
 
                     // If they can't view non-public files/images, then silently force their search
-                    //  to only work on public files/images while ignoring non-public files/images
+                    //  to only return public files/images
                     if ( $value !== '' && !$can_view_file )
                         $criteria[$dt_id][$adv_facet_num]['search_terms'][$df_id]['public_only'] = 1;
 
-                    // NOTE: this enables slightly different search logic in the backend.  While users
+                    // NOTE: this triggers slightly different search logic in the backend.  While users
                     //  wouldn't be able to actually see non-public files, they would be able to use
                     //  the results to deduce which records have non-public files without this change
                     //  in logic.  Simply using the existing 'public_status' flag won't handle this.
-                    // @see SearchService::searchFileOrImageDatafield()
+                    // @see SearchQueryService::searchFileOrImageDatafield()
                 }
                 else if ($typeclass === 'Radio' || $typeclass === 'Tag') {
                     // Since these fieldtypes can have multiple selected options/tags per search,

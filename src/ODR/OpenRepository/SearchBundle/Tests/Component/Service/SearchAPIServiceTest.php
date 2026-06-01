@@ -521,7 +521,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(305,306,307,308,309,310,311,312,313,315,317,320,321),
                 true
             ],
-            'Graph Test: records with files, without non-public records' => [
+            'Graph Test: records with files, ignoring non-public stuff' => [
                 array(
                     'dt_id' => 9,
                     '59' => '!""',
@@ -537,7 +537,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(318,319),
                 true
             ],
-            'Graph Test: records without files, without non-public records' => [
+            'Graph Test: records without files, ignoring non-public stuff' => [
                 array(
                     'dt_id' => 9,
                     '59' => '""',
@@ -570,7 +570,7 @@ class SearchAPIServiceTest extends WebTestCase
                 array(305,306,308,317,318,319,321),
                 true
             ],
-            'Graph Test: no files OR csv, without non-public records' => [
+            'Graph Test: no files OR csv, ignoring non-public stuff' => [
                 array(
                     'dt_id' => 9,
                     '59' => '"" OR csv',
@@ -578,13 +578,38 @@ class SearchAPIServiceTest extends WebTestCase
                 array(305,306,308,317,318,320),  // 319 is non-public, but does include 320 or 321 because they don't know about the file
                 false
             ],
-            'Graph Test: no files OR txt, without non-public records' => [
+            'Graph Test: no files OR txt, ignoring non-public stuff' => [
                 array(
                     'dt_id' => 9,
                     '59' => '"" OR txt',
                 ),
                 array(307,310,311,312,313,315,318,320,321),
                 false
+            ],
+
+            'Graph Test: public files' => [
+                array(
+                    'dt_id' => 9,
+                    '59_pub' => '1',
+                ),
+                array(305,306,307,308,309,310,311,312,313,315,317,321),
+                true
+            ],
+            'Graph Test: public files, ignoring non-public stuff' => [
+                array(
+                    'dt_id' => 9,
+                    '59_pub' => '1',
+                ),
+                array(305,306,307,308,309,310,311,312,313,315,317,321),
+                false
+            ],
+            'Graph Test: non-public files' => [
+                array(
+                    'dt_id' => 9,
+                    '59_pub' => '0',
+                ),
+                array(320,321),
+                true
             ],
 
             'IMA List: records with dates' => [
@@ -3251,7 +3276,13 @@ class SearchAPIServiceTest extends WebTestCase
                     'dt_id' => 3,
                     '45' => '78'  // raman spectra processed filename
                 ),
-                array(/*98,*/100,102,103,105,/*106,*/107,109,111,113,115,116,118,119,120,123,124,125,126,/*128,*/129,131,133,137,139),  // these three do not have 'excellent' quality
+//                array(/*98,*/100,102,103,105,/*106,*/107,109,111,113,115,116,118,119,120,123,124,125,126,/*128,*/129,131,133,137,139),  // these three do not have 'excellent' quality
+                array(
+                    98,  // this one has both 785 and excellent quality, though not in the same raman record...
+                    100,102,103,105,/*106,*/107,109,111,113,115,  // the other two do not have 'excellent' quality
+                    116,118,119,120,123,124,125,126,/*128,*/129,
+                    131,133,137,139
+                ),
                 true,
             ],
             'RRUFF Sample: filename override default v1' => [
