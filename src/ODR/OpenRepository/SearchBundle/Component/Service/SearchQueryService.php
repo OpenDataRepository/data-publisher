@@ -1891,26 +1891,6 @@ class SearchQueryService
             $query .= "\nUNION\n".$null_query;
         }
 
-
-//        // ----------------------------------------
-//        // Determine whether this query's search parameters contain an empty string...if so, may
-//        //  have to to run an additional query because of how ODR is designed...
-//        $involves_empty_string = false;
-//        if ( self::isNullDrfPossible($search_params['str'], $search_params['params'], $search_converted) ) {
-//            // ...but only when the query actually has a logical chance of returning results...
-//            if ( self::canQueryReturnResults($search_params['str'], $search_params['params']) ) {
-//                $search_params['params']['datatype_id'] = $datatype_id;
-//                $query .= "\nUNION\n".$null_query;
-//
-//                // Need to inform callers that this query can matches the empty string
-//                // This is important because if this search is on a descendant datatype, then the
-//                //  ancestor datatype needs to take records without descendants and merge_by_OR with
-//                //  the descendant datatype's records that match the query
-//                $involves_empty_string = true;
-//            }
-//        }
-
-
         // ----------------------------------------
         // ODR used to try to typehint the parameters to try to get inequalities to work better,
         //  but that doesn't actually work...the only typehint available converts the value to an
@@ -2097,7 +2077,8 @@ class SearchQueryService
 
 
     /**
-     * TODO
+     * After converting the search system to do set subtraction, the null query checks for this
+     * service needed to be reworked...
      *
      * @param array $search_params
      * @param bool $search_converted
@@ -2125,8 +2106,8 @@ class SearchQueryService
                         $has_not_empty_string = true;
                 }
 
-                if ( $has_empty_string && $has_not_empty_string ) {  // TODO - ...using this causes straight up set subtraction...appears to work once you realize what it's doing though
-//                if ( $has_empty_string ) {  // TODO - ...using this causes most empty string + multiple path interactions to fail badly due to union-ing results
+                if ( $has_empty_string && $has_not_empty_string ) {  // NOTE: this effectively triggers set subtraction
+//                if ( $has_empty_string ) {  // NOTE: this causes most empty string + "multiple path" interactions to fail horribly
                     // ...in this specific situation, the query should not be negated...doing so will
                     //  cause the results to be un-mergeable
                     return SearchQueryService::NEED_UNRELATED_RECORDS;
@@ -3013,7 +2994,7 @@ class SearchQueryService
     public function getParentDatarecords_new($datatype_id)
     {
         $query =
-            'SELECT dr.id AS dr_id, parent.id AS parent_id
+           'SELECT dr.id AS dr_id, parent.id AS parent_id
             FROM odr_data_record AS dr
             JOIN odr_data_record AS parent ON dr.parent_id = parent.id
             JOIN odr_data_record AS grandparent ON dr.grandparent_id = grandparent.id
@@ -3052,7 +3033,7 @@ class SearchQueryService
     public function getChildDatarecords_new($datatype_id)
     {
         $query =
-            'SELECT dr.id AS dr_id, parent.id AS parent_id
+           'SELECT dr.id AS child_dr_id, parent.id AS parent_dr_id
             FROM odr_data_record AS parent
             JOIN odr_data_record AS grandparent ON parent.grandparent_id = grandparent.id
             LEFT JOIN odr_data_record AS dr ON dr.parent_id = parent.id
@@ -3065,14 +3046,14 @@ class SearchQueryService
         // Parent datarecords could have multiple children, but may also not have any
         $datarecords = array();
         foreach ($results as $result) {
-            $dr_id = $result['dr_id'];
-            $parent_id = $result['parent_id'];
+            $child_dr_id = $result['child_dr_id'];
+            $parent_dr_id = $result['parent_dr_id'];
 
-            if ( !isset($datarecords[$parent_id]) )
-                $datarecords[$parent_id] = array();
+            if ( !isset($datarecords[$parent_dr_id]) )
+                $datarecords[$parent_dr_id] = array();
             // Want to capture parents without child records, so can't put this check in the query
-            if ($dr_id !== $parent_id)
-                $datarecords[$parent_id][$dr_id] = '';
+            if ($child_dr_id !== $parent_dr_id)
+                $datarecords[$parent_dr_id][$child_dr_id] = '';
         }
 
         return $datarecords;
@@ -3099,7 +3080,7 @@ class SearchQueryService
     public function getLinkedParentDatarecords_new($datatype_id)
     {
         $query =
-            'SELECT descendant.id AS descendant_id, ancestor.id AS ancestor_id
+           'SELECT descendant.id AS descendant_id, ancestor.id AS ancestor_id
             FROM odr_data_record AS descendant
             LEFT JOIN odr_linked_data_tree AS ldt ON (ldt.descendant_id = descendant.id AND ldt.deletedAt IS NULL)
             LEFT JOIN odr_data_record AS ancestor ON (ldt.ancestor_id = ancestor.id AND ancestor.deletedAt IS NULL)
@@ -3146,7 +3127,7 @@ class SearchQueryService
     public function getLinkedChildDatarecords_new($datatype_id)
     {
         $query =
-            'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
+           'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
             FROM odr_data_record AS ancestor
             LEFT JOIN odr_linked_data_tree AS ldt ON (ldt.ancestor_id = ancestor.id AND ldt.deletedAt IS NULL)
             LEFT JOIN odr_data_record AS descendant ON (ldt.descendant_id = descendant.id AND descendant.deletedAt IS NULL)

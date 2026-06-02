@@ -28,7 +28,7 @@ class SearchAPIServiceTest extends WebTestCase
      * @covers \ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService::performSearch
      * @dataProvider provideSearchParams
      */
-    public function testperformSearch_new($search_params, $expected_grandparent_ids, $search_as_super_admin)
+    public function testperformSearch($search_params, $expected_grandparent_ids, $search_as_super_admin)
     {
         exec('redis-cli flushall');
         $client = static::createClient();
@@ -43,7 +43,7 @@ class SearchAPIServiceTest extends WebTestCase
         // Convert each array of search params into a search key, then run the search
         $search_key = $search_key_service->encodeSearchKey($search_params);
 //        fwrite(STDERR, 'Search Key: '.$search_key."\n");
-        $grandparent_datarecord_list = $search_api_service->performSearch_new(
+        $grandparent_datarecord_list = $search_api_service->performSearch(
             null,         // don't want to hydrate Datatypes here, so this is null
             $search_key,
             array(),      // search testing is with either zero permissions, or super-admin permissions
@@ -75,7 +75,7 @@ class SearchAPIServiceTest extends WebTestCase
         // Convert each array of search params into a search key, then run the search
         $search_key = $search_key_service->encodeSearchKey($search_params);
 //        fwrite(STDERR, 'Search Key: '.$search_key."\n");
-        $complete_datarecord_list = $search_api_service->performSearch_new(
+        $complete_datarecord_list = $search_api_service->performSearch(
             null,         // don't want to hydrate Datatypes here, so this is null
             $search_key,
             array(),      // search testing is with either zero permissions, or super-admin permissions
@@ -107,7 +107,7 @@ class SearchAPIServiceTest extends WebTestCase
         // Convert each array of search params into a search key, then run the search
         $search_key = $search_key_service->encodeSearchKey($search_params);
 //        fwrite(STDERR, 'Search Key: '.$search_key."\n");
-        $grandparent_datarecord_list = $search_api_service->performSearch_new(
+        $grandparent_datarecord_list = $search_api_service->performSearch(
             null,         // don't want to hydrate Datatypes here, so this is null
             $search_key,
             array(),      // search testing is with either zero permissions, or super-admin permissions
@@ -139,7 +139,7 @@ class SearchAPIServiceTest extends WebTestCase
         // Convert each array of search params into a search key, then run the search
         $search_key = $search_key_service->encodeSearchKey($search_params);
 //        fwrite(STDERR, 'Search Key: '.$search_key."\n");
-        $grandparent_datarecord_list = $search_api_service->performSearch_new(
+        $grandparent_datarecord_list = $search_api_service->performSearch(
             null,         // don't want to hydrate Datatypes here, so this is null
             $search_key,
             array(),      // search testing is with either zero permissions, or super-admin permissions
@@ -171,7 +171,7 @@ class SearchAPIServiceTest extends WebTestCase
         // Convert each array of search params into a search key, then run the search
         $search_key = $search_key_service->encodeSearchKey($search_params);
 //        fwrite(STDERR, 'Search Key: '.$search_key."\n");
-        $grandparent_datarecord_list = $search_api_service->performSearch_new(
+        $grandparent_datarecord_list = $search_api_service->performSearch(
             null,         // don't want to hydrate Datatypes here, so this is null
             $search_key,
             array(),      // search testing is with either zero permissions, or super-admin permissions
@@ -215,7 +215,7 @@ class SearchAPIServiceTest extends WebTestCase
         }
 
         // Run the search
-        $grandparent_datarecord_list = $search_api_service->performSearch_new(
+        $grandparent_datarecord_list = $search_api_service->performSearch(
             null,              // don't want to hydrate Datatypes here, so this is null
             $search_key,
             array(),           // search testing is with either zero permissions, or super-admin permissions
@@ -276,7 +276,7 @@ class SearchAPIServiceTest extends WebTestCase
         $merged_search_key = $search_key_service->mergeSearchKeys($given_search_key, $default_search_key);
 
 //        fwrite(STDERR, 'Search Key: '.$search_key."\n");
-        $grandparent_datarecord_list = $search_api_service->performSearch_new(
+        $grandparent_datarecord_list = $search_api_service->performSearch(
             null,     // don't want to hydrate Datatypes here, so this is null
             $merged_search_key,
             array(),  // search testing is with either zero permissions, or super-admin permissions
@@ -306,7 +306,7 @@ class SearchAPIServiceTest extends WebTestCase
         $search_api_service = $client->getContainer()->get('odr.search_api_service');
 
  //        fwrite(STDERR, 'Search Key: '.$search_key."\n");
-        $grandparent_datarecord_list = $search_api_service->performSearch_new(
+        $grandparent_datarecord_list = $search_api_service->performSearch(
             null,     // don't want to hydrate Datatypes here, so this is null
             $search_key,
             array(),  // search testing is with either zero permissions, or super-admin permissions

@@ -846,7 +846,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
     private function clearCachedDatarecords($datafield)
     {
         $grandparent_datatype_id = $datafield->getDataType()->getGrandparent()->getId();
-        $dr_list = $this->search_service->getCachedSearchDatarecordList($grandparent_datatype_id);
+        $dr_list = $this->search_service->getCachedDatarecordList($grandparent_datatype_id);
         foreach ($dr_list as $dr_id => $parent_dr_id) {
             $this->cache_service->delete('cached_datarecord_'.$dr_id);
             $this->cache_service->delete('cached_table_data_'.$dr_id);

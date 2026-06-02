@@ -1892,7 +1892,7 @@ class SearchAPIServiceNoConflict
                 $is_linked_type = false;
 
             // Attempt to load this datatype's datarecords and their parents from the cache...
-            $list = $this->search_service->getCachedSearchDatarecordList($dt_id, $is_linked_type);
+            $list = $this->search_service->getCachedDatarecordList($dt_id, false, $is_linked_type);
 
 
             // Storing the datarecord ids in the flattened list is easy...

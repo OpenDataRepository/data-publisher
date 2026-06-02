@@ -491,7 +491,7 @@ class WorkerController extends ODRCustomController
                 /** @var SearchService $search_service */
                 $search_service = $this->container->get('odr.search_service');
 
-                $dr_list = $search_service->getCachedSearchDatarecordList($datatype->getGrandparent()->getId());
+                $dr_list = $search_service->getCachedDatarecordList($datatype->getGrandparent()->getId());
                 foreach ($dr_list as $dr_id => $parent_dr_id) {
                     $cache_service->delete('cached_datarecord_'.$dr_id);
                     $cache_service->delete('cached_table_data_'.$dr_id);
@@ -1903,11 +1903,13 @@ $ret .= '  Set current to '.$count."\n";
             // ----------------------------------------
             // ----------------------------------------
 
-            $params = array(
-                'dt_id' => 9,
-                '59' => '"" OR csv',
-            );
-            $search_as_super_admin = false;
+//            $params = array(
+//                'dt_id' => 9,
+//                '59' => '"" OR csv',
+//            );
+//            $search_as_super_admin = false;
+
+            // TODO - need additional "complete datarecord list" testing, probably
 
             // ----------------------------------------
             if ($search_key === '')

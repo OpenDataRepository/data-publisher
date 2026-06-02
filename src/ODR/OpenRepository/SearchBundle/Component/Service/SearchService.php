@@ -124,7 +124,7 @@ class SearchService
         $end_result = null;
 
         // This should already be cached from earlier in the search routine
-        $datarecord_list = self::getCachedSearchDatarecordList($datafield->getDataType()->getId());
+        $datarecord_list = self::getCachedDatarecordList($datafield->getDataType()->getId());
 
         // Probably not strictly necessary, but keep parent datarecord ids out of the query function
         foreach ($datarecord_list as $dr_id => $parent_id)
@@ -396,7 +396,7 @@ class SearchService
         $end_result = null;
 
         // This should already be cached from earlier in the search routine
-        $datarecord_list = self::getCachedSearchDatarecordList($datafield->getDataType()->getId());
+        $datarecord_list = self::getCachedDatarecordList($datafield->getDataType()->getId());
 
         // Probably not strictly necessary, but keep parent datarecord ids out of the query function
         foreach ($datarecord_list as $dr_id => $parent_id)
@@ -1845,7 +1845,7 @@ class SearchService
         // Otherwise, going to need to run the search again...
 
         // This should already be cached from earlier in the search routine
-        $datarecord_list = self::getCachedSearchDatarecordList($datafield->getDataType()->getId());
+        $datarecord_list = self::getCachedDatarecordList($datafield->getDataType()->getId());
 
         // Probably not strictly necessary, but keep parent datarecord ids out of the query function
         foreach ($datarecord_list as $dr_id => $parent_id)
@@ -1989,7 +1989,7 @@ class SearchService
 
             if ( !isset($cached_searches[$key]) ) {
                 // This should already be cached from earlier in the search routine
-                $datarecord_list = self::getCachedSearchDatarecordList($datafield->getDataType()->getId());
+                $datarecord_list = self::getCachedDatarecordList($datafield->getDataType()->getId());
 
                 $result = $this->search_query_service->searchForEmptyDatetimeDatafield(
                     $datafield->getId(),
@@ -2513,109 +2513,7 @@ class SearchService
 
 
     /**
-     * TODO - rename this?
-     * TODO - hunt down everywhere that queries the database for a datarecord list and replace with this function?
-     *
-     * Building/modifying the two search arrays requires knowledge of all datarecords of a given
-     * datatype, and their parent datarecords (or ancestors if this is a linked datatype).
-     *
-     * The "local datarecord" is always the key of the array.  The value is either an integer or
-     * an array...when an integer, then it's the parent of the "local datarecord" (which could be
-     * itself when it's already a top-level datarecord)...when an array, then the keys of the array
-     * are all datarecords of any datatype that link to the "local datarecord".
-     *
-     * @param int $datatype_id
-     * @param bool $search_as_linked_datatype If true, then the returned array will only contain
-     *                                        datarecords of this datatype that have been linked to
-     *                                        If false, then the returned array will contain all
-     *                                        datarecords of this datatype
-     *
-     * @return array
-     */
-    public function getCachedSearchDatarecordList($datatype_id, $search_as_linked_datatype = false)
-    {
-        // In order to properly build the search arrays, all child/linked datarecords with some
-        //  connection to the datatype being searched on need to be located...
-        $list = array();
-
-        if (!$search_as_linked_datatype) {
-            // The given $datatype_id is either the target datatype being searched on, or some other
-            //  datatype that isn't top-level
-            $list = $this->cache_service->get('cached_search_dt_'.$datatype_id.'_dr_parents');
-            if (!$list) {
-                $list = $this->search_query_service->getParentDatarecords($datatype_id);
-                $this->cache_service->set('cached_search_dt_'.$datatype_id.'_dr_parents', $list);
-            }
-        }
-        else {
-            // The datatype being searched on (irrelevant to this function) somehow links to the
-            //  target datatype...since a datarecord could be linked to from multiple ancestor
-            //  datarecords (instead of having a single "ancestor" in the case of a child datarecord),
-            //  the returned array has a different structure
-            $list = $this->cache_service->get('cached_search_dt_'.$datatype_id.'_linked_dr_parents');
-            if (!$list) {
-                $list = $this->search_query_service->getLinkedParentDatarecords($datatype_id);
-                $this->cache_service->set('cached_search_dt_'.$datatype_id.'_linked_dr_parents', $list);
-            }
-
-            // NOTE: this array entry goes from descendant to ancestor
-        }
-
-        return $list;
-    }
-
-
-    /**
-     * Works on a similar idea to {@link getCachedSearchDatarecordList()}, but the links from
-     * "ancestor" -> "descendant" are inverted.
-     *
-     * This is currently unused, because {@link SearchAPIService::mergeSearchResults()} had some
-     * very hidden bugs when merging stuff across a bunch of datatype relations.
-     *
-     * TODO - is this also a candidate for hunting down instances where datarecord loading happens?
-     *
-     * @param integer $datatype_id
-     * @param bool $is_linked_type
-     * @return array
-     */
-    public function getInverseSearchDatarecordList($datatype_id, $is_linked_type)
-    {
-        // In order to properly build the "inverse" search arrays, child/linked datarecords with
-        //  some connection to the datatype being searched on need to be located...
-        $list = array();
-
-        if ( $is_linked_type ) {
-            // The datatype being searched on (irrelevant to this function) somehow links to the
-            //  target datatype...since this is an "inverse" search, then the methodology employed
-            //  by getCachedSearchDatarecordList() needs to be inverted
-            $list = $this->cache_service->get('cached_search_dt_'.$datatype_id.'_linked_dr_children');
-            if (!$list) {
-                $list = $this->search_query_service->getLinkedChildDatarecords($datatype_id);
-                $this->cache_service->set('cached_search_dt_'.$datatype_id.'_linked_dr_children', $list);
-            }
-
-            // NOTE: this array entry goes from ancestor to descendant
-        }
-        else {
-            // The given $datatype_id is either the target datatype being searched on, or some other
-            //  datatype that isn't top-level...an "inverse" search handles child datatypes the same
-            //  way a "regular" search does
-            $list = $this->cache_service->get('cached_search_dt_'.$datatype_id.'_dr_parents');
-            if (!$list) {
-                $list = $this->search_query_service->getParentDatarecords($datatype_id);
-                $this->cache_service->set('cached_search_dt_'.$datatype_id.'_dr_parents', $list);
-            }
-        }
-
-        return $list;
-    }
-
-
-    /**
      * Returns one of four different arrays of related records, depending on the two boolean flags.
-     *
-     * This is combined from getCachedSearchDatarecordList() and getInverseSearchDatarecordList()...
-     * despite being the one to name them in the first place, they always managed to confuse me.
      *
      * @param int $datatype_id
      * @param bool $datatype_is_ancestor If true, the values of the array will be descendants to $datatype_id
@@ -2668,7 +2566,7 @@ class SearchService
     /**
      * Returns a cached list of the uuids of all datarecords of the given datatype.
      *
-     * This exists because {@link SearchService::getCachedSearchDatarecordList()} is also convenient
+     * This exists because {@link SearchService::getCachedDatarecordList()} is also convenient
      * for quickly getting a list of datarecord ids for a given datatype...but sometimes uuids are
      * wanted instead.
      *
