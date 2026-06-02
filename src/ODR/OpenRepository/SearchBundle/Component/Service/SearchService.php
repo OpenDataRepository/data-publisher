@@ -948,6 +948,8 @@ class SearchService
         // ----------------------------------------
         // The tricky part is when the search requires both 'public_only' and also involved the
         //  empty string...
+        $nonpublic_file_drs = array();
+        $public_file_drs = array();
         if ( isset($search_term['public_only']) || $filename_result['modify'] > SearchQueryService::NO_MODIFICATION ) {
             // ...because that means there's now a file-specific aspect of the problem...the results
             //  need to not just contain records without files/images, they need to also contain
@@ -981,19 +983,46 @@ class SearchService
             // Now that the lists are guaranteed to exist, pull them from the cache entry
             $nonpublic_file_drs = $cached_searches['public_status'][0]['records'];
             $public_file_drs = $cached_searches['public_status'][1]['records'];
+        }
 
-            if ( isset($search_term['public_only']) ) {
-                // For every record that has at least one non-public file...
-                foreach ($nonpublic_file_drs as $dr_id => $num) {
-                    // ...if it does not also have a public file...
-                    if ( !isset($public_file_drs[$dr_id]) ) {
-                        // ...then remove it from the list of results
+
+        // The results should always start with the matching public files...
+        $matching_records = array();
+        if ( !empty($filename_result['records']['public']) ) {
+            foreach ($filename_result['records']['public'] as $dr_id => $num)
+                $matching_records[$dr_id] = $num;
+        }
+
+        if ( isset($search_term['public_only']) ) {
+            // ...but there needs to be modifications done when the user isn't allowed to know about
+            //  the non-public files.
+
+            // For every record that has at least one non-public file...
+            foreach ($nonpublic_file_drs as $dr_id => $num) {
+                // ...if it does not also have a public file...
+                if ( !isset($public_file_drs[$dr_id]) ) {
+
+                    if ( $filename_result['modify'] === SearchQueryService::NEGATED_QUERY ) {
+                        // ...then remove it from the list of results in this case
                         unset( $filename_result['records'][$dr_id] );
                     }
+                    else if ( $filename_result['modify'] === SearchQueryService::NEED_UNRELATED_RECORDS ) {
+                        // ...then add it to the list of results in this case
+                        $matching_records[$dr_id] = 1;
+                    }
+//                    else {  // NOTE: this breaks stuff
+//                        // ...then add it to the list of results
+//                        $matching_records[$dr_id] = 1;
+//                    }
+
                 }
             }
-            else if ( $filename_result['modify'] > SearchQueryService::NO_MODIFICATION ) {
-
+        }
+        else {
+            // If the user can see the non-public files, then add them to the result as well
+            if ( !empty($filename_result['records']['non_public']) ) {
+                foreach ($filename_result['records']['non_public'] as $dr_id => $num)
+                    $matching_records[$dr_id] = $num;
             }
         }
 
@@ -1003,7 +1032,7 @@ class SearchService
         // ...then return it
         $end_result = array(
             'dt_id' => $datafield->getDataType()->getId(),
-            'records' => $filename_result['records'],
+            'records' => $matching_records,
             'modify' => $filename_result['modify'],
         );
         return $end_result;

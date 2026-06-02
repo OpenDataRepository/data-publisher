@@ -518,7 +518,15 @@ class SearchAPIServiceTest extends WebTestCase
                     'dt_id' => 9,
                     '59' => '!""',
                 ),
-                array(305,306,307,308,309,310,311,312,313,315,317,320,321),
+                array(
+                    305,306,308,317,  // records with public csv files
+                    307,310,311,312,313,315,  // records with public txt files
+                    309,  // records with dat files
+//                    318,  // public record, no file
+//                    319,  // non-public record, no file
+                    320,  // public record, non-public txt file
+                    321,  // public record, non-public csv file, public txt file
+                ),
                 true
             ],
             'Graph Test: records with files, ignoring non-public stuff' => [
@@ -526,7 +534,15 @@ class SearchAPIServiceTest extends WebTestCase
                     'dt_id' => 9,
                     '59' => '!""',
                 ),
-                array(305,306,307,308,309,310,311,312,313,315,317,321),  // 320 has a non-public file they shouldn't know about
+                array(
+                    305,306,308,317,  // records with public csv files
+                    307,310,311,312,313,315,  // records with public txt files
+                    309,  // records with dat files
+//                    318,  // public record, no file
+//                    319,  // non-public record, no file
+//                    320,  // public record, non-public txt file
+                    321,  // public record, non-public csv file, public txt file
+                ),
                 false
             ],
             'Graph Test: records without files' => [
@@ -534,7 +550,15 @@ class SearchAPIServiceTest extends WebTestCase
                     'dt_id' => 9,
                     '59' => '""',
                 ),
-                array(318,319),
+                array(
+//                    305,306,308,317,  // records with public csv files
+//                    307,310,311,312,313,315,  // records with public txt files
+//                    309,  // records with dat files
+                    318,  // public record, no file
+                    319,  // non-public record, no file
+//                    320,  // public record, non-public txt file
+//                    321,  // public record, non-public csv file, public txt file
+                ),
                 true
             ],
             'Graph Test: records without files, ignoring non-public stuff' => [
@@ -542,7 +566,15 @@ class SearchAPIServiceTest extends WebTestCase
                     'dt_id' => 9,
                     '59' => '""',
                 ),
-                array(318,320),  // 319 is non-public, and 320 has a non-public file they shouldn't know about
+                array(
+//                    305,306,308,317,  // records with public csv files
+//                    307,310,311,312,313,315,  // records with public txt files
+//                    309,  // records with dat files
+                    318,  // public record, no file
+//                    319,  // non-public record, no file
+                    320,  // public record, non-public txt file...but they shouldn't know about this
+//                    321,  // public record, non-public csv file, public txt file
+                ),
                 false
             ],
 
@@ -551,7 +583,15 @@ class SearchAPIServiceTest extends WebTestCase
                     'dt_id' => 9,
                     '59' => 'csv',
                 ),
-                array(305,306,308,317,321),
+                array(
+                    305,306,308,317,  // records with public csv files
+//                    307,310,311,312,313,315,  // records with public txt files
+//                    309,  // records with dat files
+//                    318,  // public record, no file
+//                    319,  // non-public record, no file
+//                    320,  // public record, non-public txt file
+                    321,  // public record, non-public csv file, public txt file
+                ),
                 true
             ],
             'Graph Test: no files AND "csv"' => [
@@ -567,7 +607,15 @@ class SearchAPIServiceTest extends WebTestCase
                     'dt_id' => 9,
                     '59' => '"" OR csv',
                 ),
-                array(305,306,308,317,318,319,321),
+                array(
+                    305,306,308,317,  // records with public csv files
+//                    307,310,311,312,313,315,  // records with public txt files
+//                    309,  // records with dat files
+                    318,  // public record, no file
+                    319,  // non-public record, no file
+//                    320,  // public record, non-public txt file
+                    321,  // public record, non-public csv file, public txt file
+                ),
                 true
             ],
             'Graph Test: no files OR csv, ignoring non-public stuff' => [
@@ -575,7 +623,15 @@ class SearchAPIServiceTest extends WebTestCase
                     'dt_id' => 9,
                     '59' => '"" OR csv',
                 ),
-                array(305,306,308,317,318,320),  // 319 is non-public, but does include 320 or 321 because they don't know about the file
+                array(
+                    305,306,308,317,  // records with public csv files
+//                    307,310,311,312,313,315,  // records with public txt files
+//                    309,  // records with dat files
+                    318,  // public record, no file
+//                    319,  // non-public record, no file...doesn't match because they can't see the record
+                    320,  // public record, non-public txt file...does match because they can't see the file
+//                    321,  // public record, non-public csv file, public txt file...doesn't match because of the public file
+                ),
                 false
             ],
             'Graph Test: no files OR txt, ignoring non-public stuff' => [
@@ -583,7 +639,15 @@ class SearchAPIServiceTest extends WebTestCase
                     'dt_id' => 9,
                     '59' => '"" OR txt',
                 ),
-                array(307,310,311,312,313,315,318,320,321),
+                array(
+//                    305,306,308,317,  // records with public csv files
+                    307,310,311,312,313,315,  // records with public txt files
+//                    309,  // records with dat files
+                    318,  // public record, no file
+//                    319,  // non-public record, no file...doesn't match because they can't see the record
+                    320,  // public record, non-public txt file...does match because they can't see the file
+                    321,  // public record, non-public csv file, public txt file...does match
+                ),
                 false
             ],
 

@@ -1907,13 +1907,7 @@ $ret .= '  Set current to '.$count."\n";
                 'dt_id' => 9,
                 '59' => '"" OR csv',
             );
-
-            $params = array(
-                'dt_id' => 3,
-                '45_qual' => '3',  // unlike most other tests, filename should co-exist with file quality (and public status)
-                '45' => '78',  // raman spectra processed filename
-            );
-//            $search_as_super_admin = false;
+            $search_as_super_admin = false;
 
             // ----------------------------------------
             if ($search_key === '')
