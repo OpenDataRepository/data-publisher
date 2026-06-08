@@ -1224,7 +1224,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
     /**
      * @inheritDoc
      */
-    public function searchOverriddenField($mineral_name_df, $search_term, $render_plugin_fields, $render_plugin_options)
+    public function searchOverriddenField($mineral_name_df, $search_term, $render_plugin_fields, $render_plugin_options, $use_set_logic)
     {
         // This currently should only be called with the "Mineral Name" field...any search term should
         //  simultaneously be used on the contents of the "Mineral Aliases" and "Mineral ASCII Name"
@@ -1239,7 +1239,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
         $mineral_ascii_name_search_results = array('records' => array());
 
         $search_value = $search_term['value'];
-        $mineral_name_search_results = $this->search_service->searchTextOrNumberDatafield($mineral_name_df, $search_value);
+        $mineral_name_search_results = $this->search_service->searchTextOrNumberDatafield($mineral_name_df, $search_value, $use_set_logic);
         $query_modified = $mineral_name_search_results['modify'];
 
         if ( $search_value !== "\"\"" ) {
@@ -1247,11 +1247,11 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
             //  not searching on the empty string
             /** @var DataFields $mineral_aliases_df */
             $mineral_aliases_df = $this->em->getRepository('ODRAdminBundle:DataFields')->find($mineral_aliases_df_id);
-            $mineral_aliases_search_results = $this->search_service->searchTextOrNumberDatafield($mineral_aliases_df, $search_value);
+            $mineral_aliases_search_results = $this->search_service->searchTextOrNumberDatafield($mineral_aliases_df, $search_value, $use_set_logic);
 
             /** @var DataFields $mineral_ascii_name_df */
             $mineral_ascii_name_df = $this->em->getRepository('ODRAdminBundle:DataFields')->find($mineral_ascii_name_df_id);
-            $mineral_ascii_name_search_results = $this->search_service->searchTextOrNumberDatafield($mineral_ascii_name_df, $search_value);
+            $mineral_ascii_name_search_results = $this->search_service->searchTextOrNumberDatafield($mineral_ascii_name_df, $search_value, $use_set_logic);
         }
 
 

@@ -1141,9 +1141,15 @@ class SearchKeyService
         $default_merge_type = 'AND';
         $adv_facet_num = 0;
 
-        foreach ($search_params as $key => $value) {
+        // Need to keep track of whether this is active or not...if it is, then that changes the
+        //  facet numbering for advanced search
+        $use_set_logic = false;
+        if ( isset($search_params['set']) && intval($search_params['set']) == 1 )
+            $use_set_logic = true;
 
-            if ( $key === 'dt_id' || $key === 'inverse' || $key === 'ignore' ) {
+
+        foreach ($search_params as $key => $value) {
+            if ( $key === 'dt_id' || $key === 'inverse' || $key === 'ignore' || $key === 'set' ) {
                 // Don't want to do anything with these keys
                 continue;
             }
@@ -1276,9 +1282,9 @@ class SearchKeyService
                     }
                 }
 
-                // Every search except for the general search merges by AND, and so they can all
-                //  go into the same facet...will label it 0 for convenience
-                $adv_facet_num += 1;
+                // If using set logic, each piece of criteria receives its own facet
+                if ($use_set_logic)
+                    $adv_facet_num += 1;
                 if ( !isset($criteria[$dt_id][$adv_facet_num]) ) {
                     $criteria[$dt_id][$adv_facet_num] = array(
                         'facet_type' => 'single',
@@ -1388,7 +1394,9 @@ class SearchKeyService
             else {
                 $pieces = explode('_', $key);
 
-                $adv_facet_num += 1;
+                // If using set logic, each piece of criteria receives its own facet
+                if ($use_set_logic)
+                    $adv_facet_num += 1;
 
                 if ( is_numeric($pieces[0]) && count($pieces) === 2 ) {
                     // This is a DatetimeValue or the public_status/quality for a File/Image field

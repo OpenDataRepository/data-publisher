@@ -1012,10 +1012,11 @@ class SearchQueryService
      * @param int $datafield_id
      * @param string $typeclass
      * @param string $search_value
+     * @param bool $use_set_logic
      *
      * @return array
      */
-    public function searchFileOrImageDatafield($datatype_id, $datafield_id, $typeclass, $search_value)
+    public function searchFileOrImageDatafield($datatype_id, $datafield_id, $typeclass, $search_value, $use_set_logic = false)
     {
         // ----------------------------------------
         // Convert the given value into an array of parameters
@@ -1024,7 +1025,7 @@ class SearchQueryService
 
         // Determine whether this query needs to be modified due to (partially) matching the empty
         //  string...
-        $modification = self::doesQueryNeedModified($search_params);
+        $modification = self::doesQueryNeedModified($search_params, $use_set_logic);
 
         // Define the base query for searching by filenames...
         $query =
@@ -1845,12 +1846,13 @@ class SearchQueryService
      * @param int $datafield_id
      * @param string $typeclass
      * @param string $value
+     * @param bool $use_set_logic
      * @param bool $doublequotes_force_exact_match {@link SearchQueryService::parseField()}
      * @param bool $search_converted If true, then run the search against 'converted_value' instead of 'value'
      *
      * @return array
      */
-    public function searchTextOrNumberDatafield($datatype_id, $datafield_id, $typeclass, $value, $doublequotes_force_exact_match = false, $search_converted = false)
+    public function searchTextOrNumberDatafield($datatype_id, $datafield_id, $typeclass, $value, $use_set_logic = false, $doublequotes_force_exact_match = false, $search_converted = false)
     {
         // ----------------------------------------
         // Convert the given value into an array of parameters
@@ -1859,7 +1861,7 @@ class SearchQueryService
 
         // Determine whether this query needs to be modified due to (partially) matching the empty
         //  string...
-        $modification = self::doesQueryNeedModified($search_params, $search_converted);
+        $modification = self::doesQueryNeedModified($search_params, $use_set_logic, $search_converted);
 
         // ----------------------------------------
         // Define the base query for searching
@@ -1869,7 +1871,7 @@ class SearchQueryService
             JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
             JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
             WHERE e.data_field_id = :datafield_id AND ';
-        if ( $modification === SearchQueryService::NEGATED_QUERY )
+        if ( $use_set_logic && $modification === SearchQueryService::NEGATED_QUERY )
             $query .= 'NOT ';
         $query .=
            '('.$search_params['str'].')
@@ -1886,10 +1888,12 @@ class SearchQueryService
         //  but that shouldn't happen...if it does, most likely it's either a botched fieldtype
         //  migration, or a change to the contents of a storage entity didn't complete properly
 
-        if ( $modification === SearchQueryService::NEED_UNRELATED_RECORDS ) {
-            $search_params['params']['datatype_id'] = $datatype_id;
-            $query .= "\nUNION\n".$null_query;
-        }
+//        if ( $use_set_logic ) {
+            if ( $modification === SearchQueryService::NEED_UNRELATED_RECORDS ) {
+                $search_params['params']['datatype_id'] = $datatype_id;
+                $query .= "\nUNION\n".$null_query;
+            }
+//        }
 
         // ----------------------------------------
         // ODR used to try to typehint the parameters to try to get inequalities to work better,
@@ -2081,10 +2085,11 @@ class SearchQueryService
      * service needed to be reworked...
      *
      * @param array $search_params
+     * @param bool $use_set_logic
      * @param bool $search_converted
      * @return int
      */
-    private function doesQueryNeedModified($search_params, $search_converted = false)
+    private function doesQueryNeedModified($search_params, $use_set_logic = false, $search_converted = false)
     {
         // If the query could theoretically match the empty string...
         if ( self::isNullDrfPossible($search_params['str'], $search_params['params'], $search_converted) ) {
@@ -2092,30 +2097,37 @@ class SearchQueryService
             if ( self::canQueryReturnResults($search_params['str'], $search_params['params']) ) {
                 // ...because if it can, then the query needs to be modified.
 
-                // The method of modification depends on whether there's a term involving the empty
-                //  string and a non-empty string simultaneously...
-                $has_empty_string = false;
-                $has_not_empty_string = false;
-                foreach ($search_params['params'] as $key => $value) {
-                    if ( $key === 'datafield_id' )
-                        continue;
-
-                    if ( $value === "" )
-                        $has_empty_string = true;
-                    else
-                        $has_not_empty_string = true;
-                }
-
-                if ( $has_empty_string && $has_not_empty_string ) {  // NOTE: this effectively triggers set subtraction
-//                if ( $has_empty_string ) {  // NOTE: this causes most empty string + "multiple path" interactions to fail horribly
-                    // ...in this specific situation, the query should not be negated...doing so will
-                    //  cause the results to be un-mergeable
+                if ( !$use_set_logic ) {
+                    // If not using set logic, then this flag should always activate at this point
                     return SearchQueryService::NEED_UNRELATED_RECORDS;
                 }
+                else {
+                    // The method of modification depends on whether there's a term involving the empty
+                    //  string and a non-empty string simultaneously...
+                    $has_empty_string = false;
+                    $has_not_empty_string = false;
+                    foreach ($search_params['params'] as $key => $value) {
+                        if ( $key === 'datafield_id' )
+                            continue;
 
-                // If the query didn't match the previous specific situation, then it can be negated
-                //  without causing the merger any issues
-                return SearchQueryService::NEGATED_QUERY;
+                        if ( $value === "" )
+                            $has_empty_string = true;
+                        else
+                            $has_not_empty_string = true;
+                    }
+
+
+                    if ( $has_empty_string && $has_not_empty_string ) {  // NOTE: this effectively triggers set subtraction
+//                    if ( $has_empty_string ) {  // NOTE: this causes most empty string + "multiple path" interactions to fail horribly
+                            // ...in this specific situation, the query should not be negated...doing so will
+                            //  cause the results to be un-mergeable
+                            return SearchQueryService::NEED_UNRELATED_RECORDS;
+                    }
+
+                    // If the query didn't match the previous specific situation, then it can be negated
+                    //  without causing the merger any issues
+                    return SearchQueryService::NEGATED_QUERY;
+                }
             }
         }
 

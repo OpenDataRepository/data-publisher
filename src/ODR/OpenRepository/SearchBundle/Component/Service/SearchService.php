@@ -903,10 +903,11 @@ class SearchService
      *
      * @param DataFields $datafield
      * @param array $search_term
+     * @param bool $use_set_logic
      *
      * @return array
      */
-    public function searchFileOrImageDatafield($datafield, $search_term)
+    public function searchFileOrImageDatafield($datafield, $search_term, $use_set_logic = false)
     {
         // ----------------------------------------
         // Don't continue if called on the wrong type of datafield
@@ -926,22 +927,35 @@ class SearchService
             $cached_searches = array();
 
         $value = $search_term['filename'];
-        $filename_result = array();
-        if ( isset($cached_searches['filename'][$value]) ) {
-            // Does exist, load from cache
-            $filename_result = $cached_searches['filename'][$value];
+        $filename_result = null;
+        if ( !$use_set_logic ) {
+            if ( isset($cached_searches['filename'][$value]) ) {
+                // Does exist, load from cache
+                $filename_result = $cached_searches['filename'][$value];
+            }
         }
         else {
+            if ( isset($cached_searches['set']['filename'][$value]) ) {
+                // Does exist, load from cache
+                $filename_result = $cached_searches['set']['filename'][$value];
+            }
+        }
+
+        if ( is_null($filename_result) ) {
             // Doesn't exist, so run the search again...
             $filename_result = $this->search_query_service->searchFileOrImageDatafield(
                 $datafield->getDataType()->getId(),
                 $datafield->getId(),
                 $typeclass,
-                $value
+                $value,
+                $use_set_logic
             );
 
             // ...and store it for later
-            $cached_searches['filename'][$value] = $filename_result;
+            if ( !$use_set_logic )
+                $cached_searches['filename'][$value] = $filename_result;
+            else
+                $cached_searches['set']['filename'][$value] = $filename_result;
         }
 
 
@@ -1073,7 +1087,7 @@ class SearchService
         // ----------------------------------------
         // See if this search result is already cached...
         $cached_searches = $this->cache_service->get('cached_search_df_'.$datafield->getId());
-//        if ( !$cached_searches )
+        if ( !$cached_searches )
             $cached_searches = array();
 
         $value = $search_term['public_status'];
@@ -1601,10 +1615,11 @@ class SearchService
      *
      * @param DataFields $datafield
      * @param string $value
+     * @param bool $use_set_logic
      *
      * @return array
      */
-    public function searchTextOrNumberDatafield($datafield, $value)
+    public function searchTextOrNumberDatafield($datafield, $value, $use_set_logic = false)
     {
         // ----------------------------------------
         // Don't continue if called on the wrong type of datafield
@@ -1629,8 +1644,14 @@ class SearchService
 
         // Since MYSQL's collation is case-insensitive, the php caching should treat it the same
         $cache_key = mb_strtolower($value);
-        if ( isset($cached_searches[$cache_key]) )
-            return $cached_searches[$cache_key];
+        if ( !$use_set_logic ) {
+            if ( isset($cached_searches[$cache_key]) )
+                return $cached_searches[$cache_key];
+        }
+        else {
+            if ( isset($cached_searches['set'][$cache_key]) )
+                return $cached_searches['set'][$cache_key];
+        }
 
 
         // ----------------------------------------
@@ -1639,7 +1660,8 @@ class SearchService
             $datafield->getDataType()->getId(),
             $datafield->getId(),
             $typeclass,
-            $value
+            $value,
+            $use_set_logic
         );
 
         $end_result = array(
@@ -1649,7 +1671,10 @@ class SearchService
         );
 
         // ...then recache the search result
-        $cached_searches[$cache_key] = $end_result;
+        if ( !$use_set_logic )
+            $cached_searches[$cache_key] = $end_result;
+        else
+            $cached_searches['set'][$cache_key] = $end_result;
         $this->cache_service->set('cached_search_df_'.$datafield->getId(), $cached_searches);
 
         // ...then return it
@@ -1683,10 +1708,11 @@ class SearchService
      *
      * @param DataFields $datafield
      * @param string $value
+     * @param bool $use_set_logic
      *
      * @return array
      */
-    public function searchTextOrNumberDatafieldGeneral($datafield, $value)
+    public function searchTextOrNumberDatafieldGeneral($datafield, $value, $use_set_logic = false)
     {
         // ----------------------------------------
         // Don't continue if called on the wrong type of datafield
@@ -1733,7 +1759,8 @@ class SearchService
             $datafield->getDataType()->getId(),
             $datafield->getId(),
             $typeclass,
-            $cache_key
+            $cache_key,
+            false    // due to the query manipulation, setting this to true wouldn't do anything
         );
 
         $end_result = array(

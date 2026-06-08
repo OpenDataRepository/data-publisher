@@ -384,7 +384,7 @@ class SearchAPIService
         $removed_criteria = false;
         foreach ($search_params as $key => $value) {
             if ( $key === 'dt_id' || $key === 'gen' || $key === 'gen_lim'
-                || $key === 'inverse' || $key === 'ignore' || $key === 'merge'
+                || $key === 'inverse' || $key === 'ignore' || $key === 'merge' || $key === 'set'
             ) {
                 // Don't need to filter/change these values
                 $filtered_search_params[$key] = $value;
@@ -1353,6 +1353,9 @@ class SearchAPIService
             $datatype = $this->em->getRepository('ODRAdminBundle:DataType')->find( $search_params['dt_id'] );
         }
 
+        // Not going to check whether it's a child datatype...ODR would prefer it's a top-level
+        //  datatype, but the search system doesn't really care one way or another
+
 
         // ----------------------------------------
         // Originally...ODR took the search keys it received, checked whether it contained anything
@@ -1362,6 +1365,22 @@ class SearchAPIService
         //  that wants to actually use the search key has to filter it prior to decoding it...
         $filtered_search_key = self::filterSearchKeyForUser($datatype->getId(), $search_key, $user_permissions, $search_as_super_admin, $ignore_searchable);
         $search_params = $this->search_key_service->decodeSearchKey($filtered_search_key);
+
+        // It turns out that once you start transforming sets of records across a one-to-many
+        //  relationship, there are effectively two different methods of doing it.
+        // The first way is to "resolve now"...all criteria in a datatype gets evaluated to create
+        //  a single list of records, which is then transformed as needed.  This has the advantage
+        //  of explicitly identifying descendant records for MassEdit/CSVExport...but causes negation
+        //  to behave a little wonky.
+        //  e.g. Abelsonite matches both "reference author: downs" and "reference author: !downs"
+        //  because it has references that match either criteria
+        // The second way is to "resolve later"...each criteria for a datatype effectively creates
+        //  its own list of records, and all those records get transformed into the top-level
+        //  datatype...and then merged together.  This more or less inverts the "resolve now"
+        //  advantages/disadvantages.
+        $use_set_logic = false;
+        if ( isset($search_params['set']) && intval($search_params['set']) == 1 )
+            $use_set_logic = true;
 
         // Extract the inverse target datatype, if it exists
         $inverse_target_datatype_id = null;
@@ -1436,22 +1455,6 @@ class SearchAPIService
                 $facet_type = $facet['facet_type'];
                 $merge_type = $facet['merge_type'];
                 $search_terms = $facet['search_terms'];
-
-                // TODO - commenting out this entire thing does seem to be required
-                // ...and also keep track of the matches for each facet within this datatype individually
-//                if ( $dt_id !== 'general' ) {
-//                    $facet_dr_list[$dt_id][$facet_num] = null;
-//                }
-//                else {
-//                    // General seach might need to negate the resulting datarecord lists, so they
-//                    //  need to be stored individually too
-//                    foreach ($search_terms as $search_term) {
-//                        $facet_dt_id = $search_term['datatype_id'];
-//                        if ( !isset($facet_dr_list['general'][$facet_num][$facet_dt_id]) )
-//                            $facet_dr_list['general'][$facet_num][$facet_dt_id] = null;
-//                    }
-//                }
-
                 if ( empty($search_terms) )
                     continue;
 
@@ -1495,7 +1498,7 @@ class SearchAPIService
                         }
 
                         // The plugin will return the same format that the regular searches do
-                        $dr_list = $rp->searchOverriddenField($entity, $search_term, $rpf_list, $rpo);
+                        $dr_list = $rp->searchOverriddenField($entity, $search_term, $rpf_list, $rpo, $use_set_logic);
 
                         // If this search involved the empty string...
                         $query_modified = $dr_list['modify'];
@@ -1550,9 +1553,10 @@ class SearchAPIService
                             $dr_list = $this->search_service->searchTagDatafield($entity, $search_term['selections']);
                         }
                         else if ($typeclass === 'File' || $typeclass === 'Image') {
+                            $dr_list = null;
                             // Searches on Files/Images are effectively interchangable
                             if ( isset($search_term['filename']) ) {
-                                $dr_list = $this->search_service->searchFileOrImageDatafield($entity, $search_term);
+                                $dr_list = $this->search_service->searchFileOrImageDatafield($entity, $search_term, $use_set_logic);
 
                                 // If this search involved the empty string...
                                 $query_modified = $dr_list['modify'];
@@ -1562,15 +1566,29 @@ class SearchAPIService
                                     $criteria[$dt_id][$facet_num]['search_terms'][$key]['modify'] = $query_modified;
                                 }
                             }
-                            else if ( isset($search_term['public_status']) ) {
-                                $dr_list = $this->search_service->searchFileOrImageDatafield_publicstatus($entity, $search_term);
+                            if ( isset($search_term['public_status']) ) {
+                                $dr_list_public_status = $this->search_service->searchFileOrImageDatafield_publicstatus($entity, $search_term);
 
                                 // Public status can't be negated
+
+                                // If not using set logic, then this list needs to be merged with
+                                //  any other search term for this field
+                                if ( is_null($dr_list) )
+                                    $dr_list = $dr_list_public_status;
+                                else
+                                    $dr_list['records'] = array_intersect_key($dr_list['records'], $dr_list_public_status['records']);
                             }
-                            else if ( isset($search_term['quality']) ) {
-                                $dr_list = $this->search_service->searchFileOrImageDatafield_quality($entity, $search_term);
+                            if ( isset($search_term['quality']) ) {
+                                $dr_list_quality = $this->search_service->searchFileOrImageDatafield_quality($entity, $search_term);
 
                                 // quality can't be negated TODO?
+
+                                // If not using set logic, then this list needs to be merged with
+                                //  any other search term for this field
+                                if ( is_null($dr_list) )
+                                    $dr_list = $dr_list_quality;
+                                else
+                                    $dr_list['records'] = array_intersect_key($dr_list['records'], $dr_list_quality['records']);
                             }
                         }
                         else if ($typeclass === 'DatetimeValue') {
@@ -1629,7 +1647,7 @@ class SearchAPIService
                         }
                         else if ($facet_type === 'general') {
                             // Short/Medium/LongVarchar, Paragraph Text, and Integer/DecimalValue
-                            $dr_list = $this->search_service->searchTextOrNumberDatafieldGeneral($entity, $search_term['value']);
+                            $dr_list = $this->search_service->searchTextOrNumberDatafieldGeneral($entity, $search_term['value'], $use_set_logic);
 
                             // Don't care whether SearchService::searchTextOrNumberDatafieldGeneral()
                             //  modified the query or not at this point...it's being kept track of
@@ -1637,7 +1655,7 @@ class SearchAPIService
                         }
                         else {
                             // Short/Medium/LongVarchar, Paragraph Text, and Integer/DecimalValue
-                            $dr_list = $this->search_service->searchTextOrNumberDatafield($entity, $search_term['value']);
+                            $dr_list = $this->search_service->searchTextOrNumberDatafield($entity, $search_term['value'], $use_set_logic);
 
                             // If this search involved the empty string...
                             $query_modified = $dr_list['modify'];
@@ -1657,16 +1675,12 @@ class SearchAPIService
                     if ( $dt_id === 'general' ) {
                         // ...a general search needs to separate the datarecord lists by datatype,
                         //  because they can't get negated properly if they're all smashed together
-//                        if ( is_null($facet_dr_list[$dt_id][$facet_num][$facet_dt_id]) )
-//                            $facet_dr_list[$dt_id][$facet_num][$facet_dt_id] = array();
                         if ( !isset($facet_dr_list[$facet_dt_id]['general']) )
                             $facet_dr_list[$facet_dt_id]['general'] = array();
                         if ( !isset($facet_dr_list[$facet_dt_id]['general'][$facet_num]) )
                             $facet_dr_list[$facet_dt_id]['general'][$facet_num] = array();
 
                         // General search always merges by OR when inside a facet
-//                        foreach ($dr_list['records'] as $dr_id => $num)
-//                            $facet_dr_list[$dt_id][$facet_num][$facet_dt_id][$dr_id] = $num;
                         foreach ($dr_list['records'] as $dr_id => $num)
                             $facet_dr_list[$facet_dt_id]['general'][$facet_num][$dr_id] = $num;
                     }
@@ -1678,29 +1692,6 @@ class SearchAPIService
                         if ( !isset($facet_dr_list[$facet_dt_id]['advanced'][$facet_num]) )
                             $facet_dr_list[$facet_dt_id]['advanced'][$facet_num] = null;  // NOTE: this is so merging by AND can distinguish between "no records yet" and "no records match"
 
-//                        // ...a search directly on a datafield already has the datatype info
-//                        if ($merge_type === 'OR') {
-//                            if ( is_null($facet_dr_list[$dt_id][$facet_num]) )
-//                                $facet_dr_list[$dt_id][$facet_num] = array();
-//
-//                            // When merging by 'OR', every datarecord returned by the SearchService
-//                            //  functions ends up matching
-//                            foreach ($dr_list['records'] as $dr_id => $num)
-//                                $facet_dr_list[$dt_id][$facet_num][$dr_id] = $num;
-//                        }
-//                        else {
-//                            // When merging by 'AND'...if this is the first (or only) facet of criteria...
-//                            if ( is_null($facet_dr_list[$dt_id][$facet_num]) ) {
-//                                // ...use the datarecord list returned by the first SearchService call
-//                                $facet_dr_list[$dt_id][$facet_num] = $dr_list['records'];
-//                            }
-//                            else {
-//                                // ...otherwise, intersect the list returned by the search with the
-//                                //  currently stored list
-//                                $facet_dr_list[$dt_id][$facet_num] = array_intersect_key($facet_dr_list[$dt_id][$facet_num], $dr_list['records']);
-//                            }
-//                        }
-
                         // Advanced searches are a combination of records across all fields in the
                         //  datatype...
                         if ( is_null($facet_dr_list[$dt_id]['advanced'][$facet_num]) ) {
@@ -1709,8 +1700,6 @@ class SearchAPIService
                             $facet_dr_list[$dt_id]['advanced'][$facet_num] = $dr_list['records'];
                         }
                         else {
-                            throw new ODRNotImplementedException('uiop');
-
                             // ...if this isn't the first set of records, then what to do depends on
                             //  the type of merge being performed...
                             if ( $merge_type === 'OR' ) {
@@ -1723,6 +1712,8 @@ class SearchAPIService
                                 //  currently stored list
                                 $facet_dr_list[$facet_dt_id]['advanced'][$facet_num] = array_intersect_key($facet_dr_list[$facet_dt_id]['advanced'][$facet_num], $dr_list['records']);
                             }
+
+                            // NOTE: when using the 'set' logic, this won't really ever be entered
                         }
                     }
                 }
@@ -1781,7 +1772,6 @@ class SearchAPIService
             //  as the datafield criteria was being evaluated, this next set of merges have to follow
             //  a different, more complicated set of rules...
 
-            //
             // TODO - this doesn't feel complete at all
             $merge_types = array();
             if ( isset($criteria['general']['merge_type']) )
@@ -1806,46 +1796,7 @@ class SearchAPIService
                             $modified_facets['general'][$facet_num] = SearchQueryService::NEGATED_QUERY;
                     }
                     else {
-//                        // TODO - need a way for this to get passed up and/or blocked if needed
-//                        $modified_facets['advanced'][$facet_num] = null;
-//
-//                        // Advanced search is not easy
-//                        if ( !empty($facet_list) ) {
-//                            // TODO
-//                            $modified_facets['advanced'][$facet_num] = SearchQueryService::NO_MODIFICATION;
-//
-////                            foreach ($facet_list as $facet_num => $facet_data) {
-//                                $dt_merge_flag = $facet['merge_type'];
-//                                $can_match_empty_string = $cant_match_empty_string = null;
-//
-//                                // Need to check all advanced search facets for the datatype
-//                                foreach ($facet['search_terms'] as $df_id => $df_data) {
-//                                    if ( isset($df_data['modify']) )
-//                                        $can_match_empty_string = true;
-//                                    else
-//                                        $cant_match_empty_string = true;
-//                                }
-//
-//                                if ( !is_null($can_match_empty_string) ) {
-//                                    // guard can only be true if at least one piece of criteria could
-//                                    //  feasibly match the empty string
-//                                    if ( is_null($cant_match_empty_string) ) {
-//                                        // ...if no other piece of criteria requires a non-empty string,
-//                                        //  then the ancestor needs to locate records that aren't
-//                                        //  related to the descendant
-//                                        $modified_facets['advanced'][$facet_num] = SearchQueryService::NEED_UNRELATED_RECORDS;
-//                                    }
-//                                    else {
-//                                        // ...if another piece of criteria does require a non-empty string,
-//                                        //  it depends on the merge type...!a OR b could still match
-//                                        //  the empty string, while !a AND b can't
-//                                        if ( $dt_merge_flag === 'OR' )
-//                                            $modified_facets['advanced'][$facet_num] = SearchQueryService::NEED_UNRELATED_RECORDS;
-//                                    }
-//                                }
-////                            }
-//                        }
-
+                        // Advanced search requires each individial facet get checked
                         if ( !empty($facet) ) {
                             foreach ($facet['search_terms'] as $df_id => $df_data) {
                                 if ( isset($df_data['modify']) )
@@ -1859,7 +1810,7 @@ class SearchAPIService
             // Actually perform the mess of opertaions to convert arbitrary sets of datarecord lists
             //  in $facet_dr_list into a set of datarecords of the top-level datatype, and simultaneously
             //  update $flattened_list so that it contains a final list of records
-            self::performMerge($graph, $counts, $datatype->getId(), $datatypes_with_criteria, $merge_types, $facet_dr_list, $flattened_list, $modified_facets);
+            self::performMerge($graph, $counts, $datatype->getId(), $datatypes_with_criteria, $merge_types, $facet_dr_list, $flattened_list, $modified_facets, $use_set_logic);
         }
 
 
@@ -1973,7 +1924,7 @@ class SearchAPIService
         $dr_list = array();
         if ($return_as_list) {
             $str =
-                'SELECT dr.id AS dr_id, dr.unique_id AS dr_uuid
+               'SELECT dr.id AS dr_id, dr.unique_id AS dr_uuid
                 FROM ODRAdminBundle:DataRecord AS dr
                 LEFT JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
                 WHERE dr.id IN (:datatype_ids)
@@ -3217,8 +3168,9 @@ class SearchAPIService
      * @param array $facet_dr_list
      * @param array &$flattened_list {@see self::getSearchArrays()}
      * @param array $modified_facets
+     * @param bool $use_set_logic TODO
      */
-    public function performMerge($graph, $counts, $top_level_datatype_id, &$datatypes_with_criteria, $merge_types, $facet_dr_list, &$flattened_list, $modified_facets)
+    public function performMerge($graph, $counts, $top_level_datatype_id, &$datatypes_with_criteria, $merge_types, $facet_dr_list, &$flattened_list, $modified_facets, $use_set_logic)
     {
         // Unfortunately, there's a difference in merging depending on whether there are multiple
         //  paths to reach a datatype or not
@@ -3305,6 +3257,9 @@ class SearchAPIService
             foreach ($multiple as $multipath_dt_id => $merges) {
                 // Need to handle each facet individually
                 foreach ($facet_dr_list[$multipath_dt_id]['advanced'] as $facet_num => $dr_list) {
+                    if ( strpos($facet_num, '*') !== false )
+                        continue;
+
                     // The order of the individual paths doesn't matter
                     foreach ($merges as $postfix => $merge_order) {
                         // ...but the order of the datatypes does
@@ -3354,80 +3309,103 @@ class SearchAPIService
                 }
             }
 
-            // NOTE: this was an earlier version of merging "multiple paths" searches together...
-            //  it doesn't really work when trying to use set subtraction
-            $merged_dr_lists = array();
-//            if ( !isset($facet_dr_list[$top_level_datatype_id]['advanced']) )
-//                $facet_dr_list[$top_level_datatype_id]['advanced'] = array();
-//
-//            foreach ($facet_dr_list[$top_level_datatype_id]['advanced'] as $facet_num => $dr_list) {
-//                if ( !is_null($dr_list) && strpos($facet_num, '*') !== false && strpos($facet_num, '_') !== false ) {
-//                    $pieces = explode('_',$facet_num);
-//                    $relevant_dt_id = $pieces[0];
-//                    if ( !isset($merged_dr_lists[$relevant_dt_id]) )
-//                        $merged_dr_lists[$relevant_dt_id] = array();
-//
-//                    foreach ($dr_list as $dr_id => $num)
-//                        $merged_dr_lists[$relevant_dt_id][$dr_id] = $num;
-//                }
-//            }
-//
-//            // Each of the separate paths can now get merged by into a single list of records
-//            $merged_dr_list = null;
-//            foreach ($merged_dr_lists as $dt_id => $dr_list) {
-//                if ( is_null($merged_dr_list) ) {
-//                    // ...no existing datarecord list yet, so just use the first one
-//                    $merged_dr_list = $dr_list;
-//                }
-//                else {
-//                    if ( $merge_types['advanced'] === 'OR' ) {
-//                        foreach ($dr_list as $dr_id => $num)
-//                            $merged_dr_list[$dr_id] = $num;
-//                    }
-//                    else {
-//                        // ...otherwise, merge by AND
-//                        $merged_dr_list = array_intersect_key($merged_dr_list, $dr_list);
-//                    }
-//                }
-//            }
-//
-//            // The resulting list of records needs to get merged by AND with any existing advanced
-//            //  criteria...
-//            if ( !is_null($merged_dr_list) ) {
-//                if ( !isset($facet_dr_list[$top_level_datatype_id]['advanced'][0]) ) {
-//                    // ...no existing criteria, so just use this list
-//                    $facet_dr_list[$top_level_datatype_id]['advanced'][0] = $merged_dr_list;
-//                }
-//                else {
-//                    if ( $merge_types['advanced'] === 'OR' ) {
-//                        foreach ($merged_dr_list as $dr_id => $num)
-//                            $facet_dr_list[$top_level_datatype_id]['advanced'][0][$dr_id] = $num;
-//                    }
-//                    else {
-//                        // ...otherwise, merge by AND
-//                        $facet_dr_list[$top_level_datatype_id]['advanced'][0] = array_intersect_key($facet_dr_list[$top_level_datatype_id]['advanced'][0], $merged_dr_list);
-//                    }
-//                }
-//            }
+            if ( !$use_set_logic ) {
+                // When not using set logic, the various lists of datarecords should get merged
+                //  earlier than when using set logic
+                $merged_dr_lists = array();
+                if ( !isset($facet_dr_list[$top_level_datatype_id]['advanced']) )
+                    $facet_dr_list[$top_level_datatype_id]['advanced'] = array();
 
-            // The results of each "path" need to get merged together
-            foreach ($facet_dr_list as $dt_id => $facet_list) {
-                if ( isset($facet_list['advanced']) ) {
-                    foreach ($facet_list['advanced'] as $facet_key => $dr_list) {
-                        if ( !is_null($dr_list) && strpos($facet_key, '*') !== false ) {
-                            $pieces = explode('*', $facet_key);
-                            $facet_num = $pieces[1];
-                            if ( !isset($facet_dr_list[$dt_id]['advanced'][$facet_num]) )
-                                $facet_dr_list[$dt_id]['advanced'][$facet_num] = array();
+                foreach ($facet_dr_list[$top_level_datatype_id]['advanced'] as $facet_num => $dr_list) {
+                    if ( !is_null($dr_list) && strpos($facet_num, '*') !== false && strpos($facet_num, '_') !== false ) {
+                        // $facet_num should currently be <postfix>*0...but get the part after the
+                        //  '*' character just in case it's different
+                        $pieces = explode('*', $facet_num);
+                        $facet_id = $pieces[1];
 
-                            // NOTE: need to always merge by OR at this point
-//                            if ( isset($modified_facets['advanced'][$facet_num]) || $merge_types['advanced'] === 'OR' ) {
+                        // Need to use the first datatype in the postfix to organize the lists of
+                        //  datarecords
+                        $pieces = explode('_', $pieces[0]);
+                        $relevant_dt_id = $pieces[0];
+                        if ( !isset($merged_dr_lists[$relevant_dt_id]) ) {
+                            $merged_dr_lists[$relevant_dt_id] = $dr_list;
+                        }
+                        else {
+                            // This needs to merge by OR, unless the query could match the empty
+                            //  string...
+                            $use_and = false;
+                            if ( isset($modified_facets['advanced'][$facet_id]) && $modified_facets['advanced'][$facet_id] > SearchQueryService::NO_MODIFICATION )
+                                $use_and = !$use_and;
+
+                            if ( !$use_and ) {
                                 foreach ($dr_list as $dr_id => $num)
-                                    $facet_dr_list[$dt_id]['advanced'][$facet_num][$dr_id] = $num;
-//                            }
-//                            else if ( $merge_types['advanced'] === 'AND' ) {
-//                                $facet_dr_list[$dt_id]['advanced'][$facet_num] = array_intersect_key($facet_dr_list[$dt_id]['advanced'][$facet_num], $dr_list);
-//                            }
+                                    $merged_dr_lists[$relevant_dt_id][$dr_id] = $num;
+                            }
+                            else {
+                                $merged_dr_lists[$relevant_dt_id] = array_intersect_key($merged_dr_lists[$relevant_dt_id], $dr_list);
+                            }
+                        }
+                    }
+                }
+
+                // Each of the separate paths can now get merged by into a single list of records
+                $merged_dr_list = null;
+                foreach ($merged_dr_lists as $relevant_dt_id => $dr_list) {
+                    if ( is_null($merged_dr_list) ) {
+                        // ...no existing datarecord list yet, so just use the first one
+                        $merged_dr_list = $dr_list;
+                    }
+                    else {
+                        if ( $merge_types['advanced'] === 'OR') {
+                            foreach ($dr_list as $dr_id => $num)
+                                $merged_dr_list[$dr_id] = $num;
+                        }
+                        else {
+                            // ...otherwise, merge by AND
+                            $merged_dr_list = array_intersect_key($merged_dr_list, $dr_list);
+                        }
+                    }
+                }
+
+                // The resulting list of records needs to get merged by AND with any existing advanced
+                //  criteria...
+                if ( !is_null($merged_dr_list) ) {
+                    if ( !isset($facet_dr_list[$top_level_datatype_id]['advanced'][0]) ) {
+                        // ...no existing criteria, so just use this list
+                        $facet_dr_list[$top_level_datatype_id]['advanced'][0] = $merged_dr_list;
+                    }
+                    else {
+                        if ( $merge_types['advanced'] === 'OR' ) {
+                            foreach ($merged_dr_list as $dr_id => $num)
+                                $facet_dr_list[$top_level_datatype_id]['advanced'][0][$dr_id] = $num;
+                        }
+                        else {
+                            // ...otherwise, merge by AND
+                            $facet_dr_list[$top_level_datatype_id]['advanced'][0] = array_intersect_key($facet_dr_list[$top_level_datatype_id]['advanced'][0], $merged_dr_list);
+                        }
+                    }
+                }
+            }
+            else {
+                // When using set logic, merging at this point is simpler...
+                foreach ($facet_dr_list as $dt_id => $facet_list) {
+                    if ( isset($facet_list['advanced']) ) {
+                        foreach ($facet_list['advanced'] as $facet_key => $dr_list) {
+                            if ( !is_null($dr_list) && strpos($facet_key, '*') !== false ) {
+                                $pieces = explode('*', $facet_key);
+                                $facet_num = $pieces[1];
+                                if ( !isset($facet_dr_list[$dt_id]['advanced'][$facet_num]) )
+                                    $facet_dr_list[$dt_id]['advanced'][$facet_num] = array();
+
+                                // NOTE: need to always merge by OR at this point
+//                                if ( isset($modified_facets['advanced'][$facet_num]) || $merge_types['advanced'] === 'OR' ) {
+                                    foreach ($dr_list as $dr_id => $num)
+                                        $facet_dr_list[$dt_id]['advanced'][$facet_num][$dr_id] = $num;
+//                                }
+//                                else if ( $merge_types['advanced'] === 'AND' ) {
+//                                    $facet_dr_list[$dt_id]['advanced'][$facet_num] = array_intersect_key($facet_dr_list[$dt_id]['advanced'][$facet_num], $dr_list);
+//                                }
+                            }
                         }
                     }
                 }

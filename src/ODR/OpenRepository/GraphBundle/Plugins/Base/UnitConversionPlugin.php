@@ -570,7 +570,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
     /**
      * @inheritDoc
      */
-    public function searchOverriddenField($datafield, $search_term, $render_plugin_fields, $render_plugin_options)
+    public function searchOverriddenField($datafield, $search_term, $render_plugin_fields, $render_plugin_options, $use_set_logic)
     {
         // ----------------------------------------
         // Don't continue if somehow called on the wrong type of datafield
@@ -592,8 +592,14 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
         // Since MYSQL's collation is case-insensitive, the php caching should treat it the same
         $value = $search_term['value'];
         $cache_key = mb_strtolower($value);
-        if ( isset($cached_searches[$cache_key]) )
-            return $cached_searches[$cache_key];
+        if ( !$use_set_logic ) {
+            if ( isset($cached_searches[$cache_key]) )
+                return $cached_searches[$cache_key];
+        }
+        else {
+            if ( isset($cached_searches['set'][$cache_key]) )
+                return $cached_searches['set'][$cache_key];
+        }
 
 
         // ----------------------------------------
@@ -612,6 +618,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
                 $datafield->getId(),
                 $typeclass,
                 $value,
+                $use_set_logic,
                 false,    // don't change doublequote handling
                 $search_converted    // get whichever value the user wants by default
             );
@@ -651,6 +658,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
                     $datafield->getId(),
                     $typeclass,
                     $original_value,
+                    $use_set_logic,
                     false,    // don't change doublequote handling
                     false    // get the original value stored in this field
                 );
@@ -665,6 +673,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
                     $datafield->getId(),
                     $typeclass,
                     $converted_value,
+                    $use_set_logic,
                     false,    // don't change doublequote handling
                     true    // get the converted value stored in this field
                 );
@@ -702,7 +711,10 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
 
         // ----------------------------------------
         // Recache the search result...
-        $cached_searches[$cache_key] = $end_result;
+        if ( !$use_set_logic )
+            $cached_searches[$cache_key] = $end_result;
+        else
+            $cached_searches['set'][$cache_key] = $end_result;
         $this->cache_service->set('cached_search_df_'.$datafield->getId(), $cached_searches);
 
         // ...then return it

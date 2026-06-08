@@ -158,7 +158,7 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
     /**
      * @inheritDoc
      */
-    public function searchOverriddenField($datafield, $search_term, $render_plugin_fields, $render_plugin_options)
+    public function searchOverriddenField($datafield, $search_term, $render_plugin_fields, $render_plugin_options, $use_set_logic)
     {
         // ----------------------------------------
         // Don't continue if called on the wrong type of datafield

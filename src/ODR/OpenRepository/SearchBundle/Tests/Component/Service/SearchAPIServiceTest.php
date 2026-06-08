@@ -1408,53 +1408,6 @@ class SearchAPIServiceTest extends WebTestCase
             ],
 
             // ----------------------------------------
-            // IMPORTANT: while you might expect these next two tests to behave similarly to
-            //  the two that are were run on the IMA List, you would be sorely mistaken.
-/*
-            // ODR quasi-intentionally obsfucates searching in situations in which there are multiple
-            // "paths" to reach a descendant...
-            // e.g. "Samples" links to "Mineral", "Mineral" links to "References", "Samples" also links to "References"
-            // ...the search sidebar UI would need to be modified to display a hierarchy and inform
-            //  the user why it's different, and SearchAPIService::getSearchArrays() would have to
-            //  create/store two copies of the "Reference" records, SearchAPIService::mergeSearchResults()
-            //  would have to differentiate which copy of the records matched the search query, and
-            //  the merging would also have to differentiate between the different sets of records
-            //  ...that's obviously a serious pain in the ass to code, and that's before you have to
-            //  explain to a user who isn't *expecting* such a drastic distinction why they have to
-            //  jump through hoops instead of having it just work.
-            'RRUFF Sample: reference author == ""' => [
-                // Without the ability to differentiate between which "path" you want, this is
-                //  actually asking for the rruff samples which aren't linked to a reference, or
-                //  for the rruff samples linked to a mineral that aren't linked to a reference
-
-                // This clearly isn't something that's terribly useful to know, but this is the price
-                //  paid for allowing queries like '"RRUFF Sample: reference author == "downs"' to
-                //  return results from both "paths" so the query works as *expected*.  Whee.
-                array(
-                    'dt_id' => 3,
-                    '1' => '""',
-                ),
-                array_merge(
-                    array_diff(
-                        range(98,139),  // the rruff samples range from 98 to 139...
-                        array(107,126)  // ...but 107 and 126 won't match the query since they're the only ones with references of their own
-                                        // NOTE: 126 is a Bournonite sample, but has a ref from Abelsonite specifically to make an inverse search test work
-                    ),
-                    array(323)         // ...also need the rruff sample 323, since it links to the mineral 322 which has no references
-                ),
-                true
-            ],
-            'RRUFF Sample: search for samples where minerals with author == "downs" AND minerals without a reference' => [
-                array(
-                    'dt_id' => 3,
-                    '1' => 'downs AND ""',
-                ),
-                array(),    // should return nothing because it's impossible to match
-                true
-            ],
-*/
-
-            // ----------------------------------------
             // searches for a single doublequote should be handled differently than paired quotes
             'RRUFF Sample: sample_descriptions containing "\"", without non-public records' => [
                 array(
@@ -2597,7 +2550,36 @@ class SearchAPIServiceTest extends WebTestCase
                     // references of adelite (96)
                     2,4,6,18,23,37,54,59,67,86,
                     // references of anorthite (97)
-                    7,15,20,27,28,/*29,*/30,31,33,40,  // 29 is both aegirine and anorthite
+                    7,15,20,27,28,29,30,31,33,40,  // 29 is both aegirine (94) and anorthite (97)
+                    44,45,46,47,48,49,51,52,53,58,
+                    60,64,66,69,71,76,77,79,81,82,
+                    85,90,
+                    // references of unknown (322)
+                ),
+                true
+
+                // due to not using set subtraction, this query is "references with minerals that
+                //  don't have an alias...and therefore, 29 does match because anorthite does not
+                //  have an alias
+            ],
+            'RRUFF Reference: inverse search, mineral_aliases is blank, using set logic' => [
+                array(
+                    'dt_id' => 1,
+                    'inverse' => 2,
+                    '19' => '""',
+                    'set' => 1,
+                ),
+                array(
+                    // references of abelsonite (91)
+                    1,9,35,63,83,
+                    // references of amesite (93)
+                    12,14,19,25,56,57,62,75,89,
+                    // references of abellaite (95)
+                    11,17,74,84,87,
+                    // references of adelite (96)
+                    2,4,6,18,23,37,54,59,67,86,
+                    // references of anorthite (97)
+                    7,15,20,27,28,/*29,*/30,31,33,40,  // 29 is both aegirine (94) and anorthite (97)
                     44,45,46,47,48,49,51,52,53,58,
                     60,64,66,69,71,76,77,79,81,82,
                     85,90,
@@ -3335,6 +3317,25 @@ class SearchAPIServiceTest extends WebTestCase
                 array(  // given
                     'dt_id' => 3,
                     '45_qual' => '3'  // unlike most other tests, filename should co-exist with file quality (and public status)
+                ),
+                array(  // default
+                    'dt_id' => 3,
+                    '45' => '78'  // raman spectra processed filename
+                ),
+//                array(/*98,*/100,102,103,105,/*106,*/107,109,111,113,115,116,118,119,120,123,124,125,126,/*128,*/129,131,133,137,139),  // these three do not have 'excellent' quality
+                array(
+                    /*98,*/  // this one has both 785 and excellent quality, though not in the same raman record...
+                    100,102,103,105,/*106,*/107,109,111,113,115,  // the other two do not have 'excellent' quality
+                    116,118,119,120,123,124,125,126,/*128,*/129,
+                    131,133,137,139
+                ),
+                true,
+            ],
+            'RRUFF Sample: default filename + quality, with set logic' => [
+                array(  // given
+                    'dt_id' => 3,
+                    '45_qual' => '3',  // unlike most other tests, filename should co-exist with file quality (and public status)
+                    'set' => 1,
                 ),
                 array(  // default
                     'dt_id' => 3,
