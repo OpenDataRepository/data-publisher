@@ -3728,6 +3728,17 @@ class EditController extends ODRCustomController
                 );
             }
 
+            // ----------------------------------------
+            // Determine the user's preferred theme. Resolved here (before
+            // the header render) so it can be passed into edit_header and
+            // forwarded to search_header, which needs theme.themeMeta to
+            // gate the "Modify Search" button the same way
+            // pagination_header.html.twig does.
+//            $theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'edit');    // NOTE: apparently differentiating between 'display' and 'edit' is...'confusing'
+            $theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'display');
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+
             $redirect_path = $router->generate('odr_record_edit', array('datarecord_id' => 0));
             $record_header_html = $templating->render(
                 'ODRAdminBundle:Edit:edit_header.html.twig',
@@ -3737,6 +3748,7 @@ class EditController extends ODRCustomController
 
                     'datarecord' => $datarecord,
                     'datatype' => $datatype,
+                    'theme' => $theme,
 
                     'is_top_level' => $is_top_level,
                     'odr_tab_id' => $odr_tab_id,
@@ -3754,14 +3766,6 @@ class EditController extends ODRCustomController
                     'redirect_path' => $redirect_path,
                 )
             );
-
-
-            // ----------------------------------------
-            // Determine the user's preferred theme
-//            $theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'edit');    // NOTE: apparently differentiating between 'display' and 'edit' is...'confusing'
-            $theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'display');
-            /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
 
             // Render the edit page for this datarecord
             $page_html = $odr_render_service->getEditHTML($user, $datarecord, $merged_search_key, $search_theme_id, $theme, $edit_shows_all_fields);
