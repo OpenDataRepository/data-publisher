@@ -38,7 +38,7 @@ class SearchAPIService
     // When determining whether a datarecord actually matches a search, it can be in a handful of
     //  different states...
 
-     /**
+    /**
      * The user is not allowed to view this record...this is completely different from a record that
      * doesn't match the search.  The presence (or lack thereof) of child/linked datarecords that
      * the user can't view MUST NOT affect whether the parent datarecord in question matches the
@@ -572,7 +572,7 @@ class SearchAPIService
      *                       an array(<dt_id> => <# of paths>,...)
      * @return void
      */
-    public function buildSearchDependencyGraph($datatree_array, $related_datatypes, $ignored_prefixes, $current_datatype_id, $current_prefix, &$graph, &$counts)
+    private function buildSearchDependencyGraph($datatree_array, $related_datatypes, $ignored_prefixes, $current_datatype_id, $current_prefix, &$graph, &$counts)
     {
         // Need to perform a bit of setup on the first entry...
         if ( empty($graph) )
@@ -675,7 +675,7 @@ class SearchAPIService
      * @param int $current_datatype_id The datatype to rebase $graph from
      * @return array An array to replace the $counts computed by buildSearchDependencyGraph()
      */
-    public function invertSearchDependencyGraph(&$graph, $original_counts, $current_datatype_id)
+    private function invertSearchDependencyGraph(&$graph, $original_counts, $current_datatype_id)
     {
         // ----------------------------------------
         // Easier to do this iteratively because $graph is unstacked
@@ -1251,7 +1251,7 @@ class SearchAPIService
      *
      * @return array
      */
-    public function getFlattenedList($permissions_array)
+    private function getFlattenedList($permissions_array)
     {
         // ----------------------------------------
         // Intentionally not caching the results of this function for two reasons
@@ -2537,7 +2537,7 @@ class SearchAPIService
 
             // If this is the datatype being searched on (or one of the datatypes directly derived
             //  from the template being searched on), then $is_linked_type needs to be false, so
-            //  getCachedSearchDatarecordList() will return all datarecords...otherwise, it'll only
+            //  getCachedDatarecordList() will return all datarecords...otherwise, it'll only
             //  return those that are linked to from somewhere (which is usually desired when
             //  searching a linked datatype)
             if ( isset($top_level_datatype_ids[$dt_id]) )
@@ -3170,7 +3170,7 @@ class SearchAPIService
      * @param array $modified_facets
      * @param bool $use_set_logic TODO
      */
-    public function performMerge($graph, $counts, $top_level_datatype_id, &$datatypes_with_criteria, $merge_types, $facet_dr_list, &$flattened_list, $modified_facets, $use_set_logic)
+    private function performMerge($graph, $counts, $top_level_datatype_id, &$datatypes_with_criteria, $merge_types, $facet_dr_list, &$flattened_list, $modified_facets, $use_set_logic)
     {
         // Unfortunately, there's a difference in merging depending on whether there are multiple
         //  paths to reach a datatype or not
@@ -3770,7 +3770,7 @@ class SearchAPIService
      *                                         without children or ancestors without descendants
      * @return array The datarecord ids are keys
      */
-    public function transformRecordsFromCriteria($datatree_array, $facet_dr_list, $flattened_list, $source_dt_id, $target_dt_id, $facet_type, $facet_num_src = null, $include_unrelated_records = false)
+    private function transformRecordsFromCriteria($datatree_array, $facet_dr_list, $flattened_list, $source_dt_id, $target_dt_id, $facet_type, $facet_num_src = null, $include_unrelated_records = false)
     {
         // In order to pull off the transform, you need to determine how the records are related to
         //  each other.  ODR has four different possible relations, and there are cache entries for

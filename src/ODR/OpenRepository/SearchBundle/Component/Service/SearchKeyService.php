@@ -1518,7 +1518,10 @@ class SearchKeyService
                     else if ( $pieces[1] === 'x' || $pieces[1] === 'y' || $pieces[1] === 'z' ) {
                         // This is a simple XYZData search...which is ironically more complicated
                         //  here, because the other type of XYZData search has already compressed
-                        //  its entire set of parameters into a single string for a single field
+                        //  its entire set of parameters into a single string for the field
+
+                        // If set logic is being used, the facet num needs to match the previous
+                        //  bits of criteria for this field
                         $curr_facet_num = $adv_facet_num;
                         foreach ($criteria[$dt_id] as $tmp_facet_num => $facet_data) {
                             foreach ($facet_data['search_terms'] as $tmp_df_id => $tmp_df_data) {
@@ -1534,9 +1537,8 @@ class SearchKeyService
                             );
                         }
 
-                        // ...I'm not going to risk screwing up compressing the criteria into a
-                        //  format that the other search understands, so searching this XYZData
-                        //  field gets its own search logic
+                        // Because the "simple" and the "advanced" XYZData searches work slightly
+                        //  differently, they do not share the same criteria structure
                         if ( $pieces[1] === 'x' )
                             $criteria[$dt_id][$curr_facet_num]['search_terms'][$df_id]['x'] = $value;
                         else if ( $pieces[1] === 'y' )
@@ -1625,9 +1627,9 @@ class SearchKeyService
 
 
         // ----------------------------------------
-        // Determine which datatypes have datafields that are being searched on...any datarecord of
-        //  that datatype must be marked as "needs to match", so that the latter parts of the search
-        //  process can correctly exclude records that don't match
+        // Determine which datatypes have datafields that are being searched on, and which type of
+        //  search is involved with those fields...this affects how the results are merged together
+        //  later on
         $affected_datatypes = array();
         $datatypes_with_criteria = array();
         foreach ($criteria as $key => $facet_list) {
@@ -1670,7 +1672,6 @@ class SearchKeyService
         else
             $all_datatypes = $this->datatree_info_service->getAssociatedDatatypes($inverse_target_datatype_id, true);
         $criteria['all_datatypes'] = $all_datatypes;
-//        $criteria['all_datatypes'] = array_flip($all_datatypes);
 
         return $criteria;
     }

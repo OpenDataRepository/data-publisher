@@ -1885,7 +1885,7 @@ class SearchAPIServiceNoConflict
 
             // If this is the datatype being searched on (or one of the datatypes directly derived
             //  from the template being searched on), then $is_linked_type needs to be false, so
-            //  getCachedSearchDatarecordList() will return all datarecords...otherwise, it'll only
+            //  getCachedDatarecordList() will return all datarecords...otherwise, it'll only
             //  return those that are linked to from somewhere (which is usually desired for when
             //  searching a linked datatype)
             if ( isset($top_level_datatype_ids[$dt_id]) )

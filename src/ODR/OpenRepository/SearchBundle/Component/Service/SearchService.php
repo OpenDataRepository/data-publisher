@@ -2571,15 +2571,15 @@ class SearchService
             // ...but if it doesn't exist, then have to (slowly) rebuild it
             if ($datatype_is_ancestor) {
                 if ($descendants_are_links)
-                    $list = $this->search_query_service->getLinkedChildDatarecords_new($datatype_id);
+                    $list = $this->search_query_service->getLinkedChildDatarecords($datatype_id);
                 else
-                    $list = $this->search_query_service->getChildDatarecords_new($datatype_id);
+                    $list = $this->search_query_service->getChildDatarecords($datatype_id);
             }
             else {
                 if ($descendants_are_links)
-                    $list = $this->search_query_service->getLinkedParentDatarecords_new($datatype_id);
+                    $list = $this->search_query_service->getLinkedParentDatarecords($datatype_id);
                 else
-                    $list = $this->search_query_service->getParentDatarecords_new($datatype_id);
+                    $list = $this->search_query_service->getParentDatarecords($datatype_id);
             }
 
             // Save the list in the correct cache entry

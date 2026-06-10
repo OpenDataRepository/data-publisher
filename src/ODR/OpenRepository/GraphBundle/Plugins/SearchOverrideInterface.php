@@ -61,6 +61,17 @@ interface SearchOverrideInterface
      * Searches the specified datafield for the specified value, returning an array of datarecord
      * ids that match the search.
      *
+     * The array has the following structure:
+     * <pre>
+     * array(
+     *     'dt_id' => <dt_id>,
+     *     'records' => array(
+     *         <matching dr_id> => 1
+     *     ),
+     *     'modify' => <one of the SearchQueryService modify flags>
+     * )
+     * </pre>
+     *
      * @param DataFields $datafield
      * @param array $search_term
      * @param array $render_plugin_fields
