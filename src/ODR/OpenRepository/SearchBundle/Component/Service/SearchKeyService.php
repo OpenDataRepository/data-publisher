@@ -188,7 +188,15 @@ class SearchKeyService
             // ...if it doesn't, then that's an error
             throw new ODRException('Invalid JSON', 400, 0x6e1c96a1);
         }
-        else if ( isset($array['uuid']) ) {
+
+        // IMPORTANT: Blank entries can't be filtered out here...they're needed to override default
+        //  search parameters
+//        foreach ($array as $key => $value) {
+//            if ( $value === "" )
+//                unset( $array[$key] );
+//        }
+
+        if ( isset($array['uuid']) ) {
             // If the search params have the 'uuid' entry, then it points to an "oversize" search key
             $uuid = $array['uuid'];
 
@@ -576,18 +584,18 @@ class SearchKeyService
     private function tokenizeGeneralSearch($value)
     {
         /**
-         * So general search is technically a shorthand...a general search for "Gold" needs
-         * to find all records where at least one of the searchable fields contains "Gold"
+         * So general search is technically a shorthand...a general search for "Gold" needs to find
+         * all records where at least one of the searchable fields contains "Gold"
          * e.g. (field_1 = Gold OR field_2 = Gold OR field_3 = Gold OR ...)
          *
-         * However, a general search for "Gold AND Quartz" needs to find all records where
-         * at least one of the searchable fields contains "Gold", AND at least one field
-         * IN THE SAME RECORD contains "Quartz"  e.g.
+         * However, a general search for "Gold AND Quartz" needs to find all records where at least
+         * one of the searchable fields contains "Gold", AND at least one field in the same top-level
+         * record contains "Quartz"  e.g.
          * (field_1 = "Gold" OR field_2 = "Gold" ...) AND (field_1 = "Quartz" OR field_2 = "Quartz" ...)
          *
-         * The above query is already fully simplified, and CAN NOT be simplified further.
-         * Attempting to distribute the search terms creates an exponentional increase in
-         * the amount of work that searching has to do to return the correct result.
+         * The above query is already fully simplified, and CAN NOT be simplified further.  Attempting
+         * to distribute the search terms creates an exponentional increase in the amount of work
+         * that searching has to do to return the correct result.
          *
          *
          * Furthermore, searches involving negation such as "!Gold" also require special handling...
@@ -605,9 +613,9 @@ class SearchKeyService
         $tokens = self::tokenize($value);
 
         /**
-         * The existing implementation of general search can't deal with search queries that
-         * combine both OR and AND...I'm not entirely sure there's even a viable generic methodology
-         * to handle that.  Furthermore, due to ODR's lack of grouping operators, you would be stuck
+         * The existing implementation of general search can't deal with search queries that combine
+         * both OR and AND...I'm not entirely sure there's even a viable generic methodology to
+         * handle that.  Furthermore, due to ODR's lack of grouping operators, you would be stuck
          * writing ambiguous queries like "Gold OR Silver AND Quartz".
          *
          * Fortunately, if the user is putting in stuff that the previous parser thinks has both
@@ -684,7 +692,7 @@ class SearchKeyService
             }
         }
 
-        // Going to need the datatype array and hte list of searchable datafields to verify the
+        // Going to need the datatype array and the list of searchable datafields to verify the
         //  given parameters...
         $grandparent_datatype_id = $this->datatree_info_service->getGrandparentDatatypeId($datatype_id);
         $datatype_array = $searchable_datafields = array();
@@ -1054,7 +1062,7 @@ class SearchKeyService
      *     ),
      *     ['general'] => array(    // This only exists when a general search term is defined
      *         'merge_type' = '<AND>' or '<OR>'
-     *         0 => array(
+     *         <facet_num> => array(
      *             'facet_type' => 'general',
      *             'merge_type' = 'OR',
      *             ['negated'] => true    // optional entry, triggers dealing with negations later on
@@ -1068,11 +1076,11 @@ class SearchKeyService
      *                 ...
      *             )
      *         ),
-     *         [1] => array(...),    // Additional facets only exist when general search has multiple tokens
+     *         [<facet_num>] => array(...),    // Additional facets only exist when general search has multiple tokens
      *         ...
      *     ),
      *     <datatype_A_id> => array(    // These exists even when no search terms are entered...
-     *         0 => array(              // ...but the facets don't exist without a search term
+     *         [<facet_num>] => array(  // ...but the facets don't exist without a search term
      *             'facet_type' => 'single',
      *             'merge_type' = 'AND',
      *             'search_terms' => array(
@@ -1131,10 +1139,17 @@ class SearchKeyService
         // It's easier to understand the searching when it works by ensuring results match everything
         //  in the sidebar, but sometimes this needs to be changed...
         $default_merge_type = 'AND';
+        $adv_facet_num = 0;
+
+        // Need to keep track of whether this is active or not...if it is, then that changes the
+        //  facet numbering for advanced search
+        $use_set_logic = false;
+        if ( isset($search_params['set']) && intval($search_params['set']) == 1 )
+            $use_set_logic = true;
+
 
         foreach ($search_params as $key => $value) {
-
-            if ( $key === 'dt_id' || $key === 'inverse' || $key === 'ignore' ) {
+            if ( $key === 'dt_id' || $key === 'inverse' || $key === 'ignore' || $key === 'set' ) {
                 // Don't want to do anything with these keys
                 continue;
             }
@@ -1169,8 +1184,8 @@ class SearchKeyService
                 }
                 else {
                     // ...otherwise, there are multiple tokens...e.g. "Gold OR Quartz"
-                    // Because self::tokenizeGeneralSearch() would've thrown an error if ANDs and ORs
-                    //  were mixed, we can just use the second entry in the array
+                    // Because of self::tokenizeGeneralSearch(), there's no possibility of running
+                    //  into both ORs and ANDs, so just look up the second entry in the array
                     if ( $tokens[1] === '||' )
                         $criteria['general']['merge_type'] = 'OR';
                     else
@@ -1267,10 +1282,11 @@ class SearchKeyService
                     }
                 }
 
-                // Every search except for the general search merges by AND, and so they can all
-                //  go into the same facet...will label it 0 for convenience
-                if ( !isset($criteria[$dt_id][0]) ) {
-                    $criteria[$dt_id][0] = array(
+                // If using set logic, each piece of criteria receives its own facet
+                if ($use_set_logic)
+                    $adv_facet_num += 1;
+                if ( !isset($criteria[$dt_id][$adv_facet_num]) ) {
+                    $criteria[$dt_id][$adv_facet_num] = array(
                         'facet_type' => 'single',
                         'merge_type' => $default_merge_type,
                         'search_terms' => array()
@@ -1279,8 +1295,8 @@ class SearchKeyService
 
                 if ($typeclass === 'File' || $typeclass === 'Image') {
                     // Create an entry in the criteria array for this datafield...
-                    if ( $value !== '' && !isset($criteria[$dt_id][0]['search_terms'][$df_id]) ) {
-                        $criteria[$dt_id][0]['search_terms'][$df_id] = array(
+                    if ( $value !== '' && !isset($criteria[$dt_id][$adv_facet_num]['search_terms'][$df_id]) ) {
+                        $criteria[$dt_id][$adv_facet_num]['search_terms'][$df_id] = array(
                             'entity_type' => 'datafield',
                             'entity_id' => $df_id,
                             'datatype_id' => $dt_id,
@@ -1289,7 +1305,7 @@ class SearchKeyService
 
                     // Now that the array is guaranteed to exist, search on the filename
                     if ( $value !== '' )
-                        $criteria[$dt_id][0]['search_terms'][$df_id]['filename'] = $value;
+                        $criteria[$dt_id][$adv_facet_num]['search_terms'][$df_id]['filename'] = $value;
 
                     // Need to determine if the user can view non-public files/images...
                     $can_view_file = false;
@@ -1302,15 +1318,15 @@ class SearchKeyService
                         $can_view_file = true;
 
                     // If they can't view non-public files/images, then silently force their search
-                    //  to only work on public files/images while ignoring non-public files/images
+                    //  to only return public files/images
                     if ( $value !== '' && !$can_view_file )
-                        $criteria[$dt_id][0]['search_terms'][$df_id]['public_only'] = 1;
+                        $criteria[$dt_id][$adv_facet_num]['search_terms'][$df_id]['public_only'] = 1;
 
-                    // NOTE: this enables slightly different search logic in the backend.  While users
+                    // NOTE: this triggers slightly different search logic in the backend.  While users
                     //  wouldn't be able to actually see non-public files, they would be able to use
                     //  the results to deduce which records have non-public files without this change
                     //  in logic.  Simply using the existing 'public_status' flag won't handle this.
-                    // @see SearchService::searchFileOrImageDatafield()
+                    // @see SearchQueryService::searchFileOrImageDatafield()
                 }
                 else if ($typeclass === 'Radio' || $typeclass === 'Tag') {
                     // Since these fieldtypes can have multiple selected options/tags per search,
@@ -1352,7 +1368,7 @@ class SearchKeyService
                     // If the user is searching on some set of tags/radio options...
                     if ( !empty($selections) ) {
                         // ...then create an entry in the criteria array for this datafield
-                        $criteria[$dt_id][0]['search_terms'][$df_id] = array(
+                        $criteria[$dt_id][$adv_facet_num]['search_terms'][$df_id] = array(
                             'selections' => $selections,
                             'entity_type' => 'datafield',
                             'entity_id' => $df_id,
@@ -1366,7 +1382,7 @@ class SearchKeyService
                     // If the user specified a value to search on...
                     if ( $value !== '' ) {
                         // ...then create an entry in the criteria array for this datafield
-                        $criteria[$dt_id][0]['search_terms'][$df_id] = array(
+                        $criteria[$dt_id][$adv_facet_num]['search_terms'][$df_id] = array(
                             'value' => $value,
                             'entity_type' => 'datafield',
                             'entity_id' => $df_id,
@@ -1377,6 +1393,10 @@ class SearchKeyService
             }
             else {
                 $pieces = explode('_', $key);
+
+                // If using set logic, each piece of criteria receives its own facet
+                if ($use_set_logic)
+                    $adv_facet_num += 1;
 
                 if ( is_numeric($pieces[0]) && count($pieces) === 2 ) {
                     // This is a DatetimeValue or the public_status/quality for a File/Image field
@@ -1390,8 +1410,8 @@ class SearchKeyService
 
                     // Every search except for the general search currently merges by AND, and so
                     //  they can all go into the same facet...will label it 0 for convenience
-                    if ( !isset($criteria[$dt_id][0]) ) {
-                        $criteria[$dt_id][0] = array(
+                    if ( !isset($criteria[$dt_id][$adv_facet_num]) ) {
+                        $criteria[$dt_id][$adv_facet_num] = array(
                             'facet_type' => 'single',
                             'merge_type' => $default_merge_type,
                             'search_terms' => array()
@@ -1400,8 +1420,8 @@ class SearchKeyService
 
                     if ($pieces[1] === 'pub' || $pieces[1] === 'qual') {
                         // This is a File/Image field
-                        if ( $value !== '' && !isset($criteria[$dt_id][0]['search_terms'][$df_id]) ) {
-                            $criteria[$dt_id][0]['search_terms'][$df_id] = array(
+                        if ( $value !== '' && !isset($criteria[$dt_id][$adv_facet_num]['search_terms'][$df_id]) ) {
+                            $criteria[$dt_id][$adv_facet_num]['search_terms'][$df_id] = array(
                                 'entity_type' => 'datafield',
                                 'entity_id' => $df_id,
                                 'datatype_id' => $dt_id,
@@ -1423,22 +1443,22 @@ class SearchKeyService
                                 // public status for a File/Image
                                 if ( $can_view_file ) {
                                     // If the user can view non-public files, then use their choice
-                                    $criteria[$dt_id][0]['search_terms'][$df_id]['public_status'] = intval($value);
+                                    $criteria[$dt_id][$adv_facet_num]['search_terms'][$df_id]['public_status'] = intval($value);
                                 }
                                 else {
                                     // ...otherwise, ignore the public_status search and force public
                                     //  files/images only
-                                    $criteria[$dt_id][0]['search_terms'][$df_id]['public_only'] = 1;
+                                    $criteria[$dt_id][$adv_facet_num]['search_terms'][$df_id]['public_only'] = 1;
                                 }
                             }
                             else {
                                 // quality for a File/Image
-                                $criteria[$dt_id][0]['search_terms'][$df_id]['quality'] = intval($value);
+                                $criteria[$dt_id][$adv_facet_num]['search_terms'][$df_id]['quality'] = intval($value);
 
                                 // If they can't view non-public files/images, then silently force their
                                 //  search to only check public files/images
                                 if ( !$can_view_file )
-                                    $criteria[$dt_id][0]['search_terms'][$df_id]['public_only'] = 1;
+                                    $criteria[$dt_id][$adv_facet_num]['search_terms'][$df_id]['public_only'] = 1;
 
                                 // NOTE: this is to prevent users without permissions from being able
                                 //  to figure out which records match a filename/presence/absence search
@@ -1449,8 +1469,8 @@ class SearchKeyService
                     }
                     else if ($pieces[1] === 's' || $pieces[1] === 'e') {
                         // This is a DatetimeValue field
-                        if ( $value !== '' && !isset($criteria[$dt_id][0]['search_terms'][$df_id]) ) {
-                            $criteria[$dt_id][0]['search_terms'][$df_id] = array(
+                        if ( $value !== '' && !isset($criteria[$dt_id][$adv_facet_num]['search_terms'][$df_id]) ) {
+                            $criteria[$dt_id][$adv_facet_num]['search_terms'][$df_id] = array(
                                 'before' => null,
                                 'after' => null,
                                 'entity_type' => 'datafield',
@@ -1462,7 +1482,7 @@ class SearchKeyService
                         if ( $value !== '' ) {
                             if ($pieces[1] === 's') {
                                 // start date for a DatetimeValue, aka "after this date"
-                                $criteria[$dt_id][0]['search_terms'][$df_id]['after'] = new \DateTime($value);
+                                $criteria[$dt_id][$adv_facet_num]['search_terms'][$df_id]['after'] = new \DateTime($value);
                             }
                             else {
                                 // end date for a DatetimeValue, aka "before this date"
@@ -1491,31 +1511,40 @@ class SearchKeyService
 //                                $date_end->add(new \DateInterval('P1D'));
                                 }
 
-                                $criteria[$dt_id][0]['search_terms'][$df_id]['before'] = $date_end;
+                                $criteria[$dt_id][$adv_facet_num]['search_terms'][$df_id]['before'] = $date_end;
                             }
                         }
                     }
                     else if ( $pieces[1] === 'x' || $pieces[1] === 'y' || $pieces[1] === 'z' ) {
                         // This is a simple XYZData search...which is ironically more complicated
                         //  here, because the other type of XYZData search has already compressed
-                        //  its entire set of parameters into a single string for a single field
-                        if ( !isset($criteria[$dt_id][0]['search_terms'][$df_id]) ) {
-                            $criteria[$dt_id][0]['search_terms'][$df_id] = array(
+                        //  its entire set of parameters into a single string for the field
+
+                        // If set logic is being used, the facet num needs to match the previous
+                        //  bits of criteria for this field
+                        $curr_facet_num = $adv_facet_num;
+                        foreach ($criteria[$dt_id] as $tmp_facet_num => $facet_data) {
+                            foreach ($facet_data['search_terms'] as $tmp_df_id => $tmp_df_data) {
+                                if ( $df_id == $tmp_df_id )
+                                    $curr_facet_num = $tmp_facet_num;
+                            }
+                        }
+                        if ( !isset($criteria[$dt_id][$curr_facet_num]['search_terms'][$df_id]) ) {
+                            $criteria[$dt_id][$curr_facet_num]['search_terms'][$df_id] = array(
                                 'entity_type' => 'datafield',
                                 'entity_id' => $df_id,
                                 'datatype_id' => $dt_id,
                             );
                         }
 
-                        // ...I'm not going to risk screwing up compressing the criteria into a
-                        //  format that the other search understands, so searching this XYZData
-                        //  field gets its own search logic
+                        // Because the "simple" and the "advanced" XYZData searches work slightly
+                        //  differently, they do not share the same criteria structure
                         if ( $pieces[1] === 'x' )
-                            $criteria[$dt_id][0]['search_terms'][$df_id]['x'] = $value;
+                            $criteria[$dt_id][$curr_facet_num]['search_terms'][$df_id]['x'] = $value;
                         else if ( $pieces[1] === 'y' )
-                            $criteria[$dt_id][0]['search_terms'][$df_id]['y'] = $value;
+                            $criteria[$dt_id][$curr_facet_num]['search_terms'][$df_id]['y'] = $value;
                         else if ( $pieces[1] === 'z' )
-                            $criteria[$dt_id][0]['search_terms'][$df_id]['z'] = $value;
+                            $criteria[$dt_id][$curr_facet_num]['search_terms'][$df_id]['z'] = $value;
                     }
                 }
                 else {
@@ -1524,8 +1553,8 @@ class SearchKeyService
 
                     // Every search except for the general search currently merges by AND, and so
                     //  they can all go into the same facet...will label it 0 for convenience
-                    if ( !isset($criteria[$dt_id][0]) ) {
-                        $criteria[$dt_id][0] = array(
+                    if ( !isset($criteria[$dt_id][$adv_facet_num]) ) {
+                        $criteria[$dt_id][$adv_facet_num] = array(
                             'facet_type' => 'single',
                             'merge_type' => $default_merge_type,
                             'search_terms' => array()
@@ -1534,7 +1563,7 @@ class SearchKeyService
 
                     if ($pieces[2] === 'pub') {
                         // publicStatus
-                        $criteria[$dt_id][0]['search_terms']['publicStatus'] = array(
+                        $criteria[$dt_id][$adv_facet_num]['search_terms']['publicStatus'] = array(
                             'value' => $value,
                             'entity_type' => 'datatype',
                             'entity_id' => $dt_id,
@@ -1550,7 +1579,7 @@ class SearchKeyService
                         if ($pieces[3] === 'by') {
                             // createdBy or modifiedBy
                             $type .= 'By';
-                            $criteria[$dt_id][0]['search_terms'][$type] = array(
+                            $criteria[$dt_id][$adv_facet_num]['search_terms'][$type] = array(
                                 'user' => intval($value),
                                 'entity_type' => 'datatype',
                                 'entity_id' => $dt_id,
@@ -1558,8 +1587,8 @@ class SearchKeyService
                             );
                         }
                         else {
-                            if ( !isset($criteria[$dt_id][0]['search_terms'][$type]) ) {
-                                $criteria[$dt_id][0]['search_terms'][$type] = array(
+                            if ( !isset($criteria[$dt_id][$adv_facet_num]['search_terms'][$type]) ) {
+                                $criteria[$dt_id][$adv_facet_num]['search_terms'][$type] = array(
                                     'before' => null,
                                     'after' => null,
                                     'entity_type' => 'datatype',
@@ -1570,7 +1599,7 @@ class SearchKeyService
 
                             if ($pieces[3] === 's') {
                                 // start date, aka "after this date"
-                                $criteria[$dt_id][0]['search_terms'][$type]['after'] = new \DateTime($value);
+                                $criteria[$dt_id][$adv_facet_num]['search_terms'][$type]['after'] = new \DateTime($value);
                             }
                             else {
                                 $date_end = new \DateTime($value);
@@ -1588,7 +1617,7 @@ class SearchKeyService
                                 }
 
                                 // end date, aka "before this date"
-                                $criteria[$dt_id][0]['search_terms'][$type]['before'] = $date_end;
+                                $criteria[$dt_id][$adv_facet_num]['search_terms'][$type]['before'] = $date_end;
                             }
                         }
                     }
@@ -1598,34 +1627,51 @@ class SearchKeyService
 
 
         // ----------------------------------------
-        // Determine which datatypes have datafields that are being searched on...any datarecord of
-        //  that datatype must be marked as "needs to match", so that the latter parts of the search
-        //  process can correctly exclude records that don't match
+        // Determine which datatypes have datafields that are being searched on, and which type of
+        //  search is involved with those fields...this affects how the results are merged together
+        //  later on
         $affected_datatypes = array();
+        $datatypes_with_criteria = array();
         foreach ($criteria as $key => $facet_list) {
-            if ( !is_numeric($key) )
-                continue;
-
-            foreach ($facet_list as $facet_num => $facet) {
-                // Currently, all criteria except for general search are merged by AND
-//                if ( $facet['merge_type'] === 'AND' ) {
-                    foreach ($facet['search_terms'] as $key => $params) {
-                        $dt_id = $params['datatype_id'];
-                        $affected_datatypes[$dt_id] = 1;
+            if ( $key === 'general' ) {
+                foreach ($facet_list as $facet_num => $facet) {
+                    if ($facet_num === 'merge_type')
+                        continue;
+                    foreach ($facet['search_terms'] as $df_id => $df_data) {
+                        $dt_id = $df_data['datatype_id'];
+                        if ( !isset($datatypes_with_criteria[$dt_id]) )
+                            $datatypes_with_criteria[$dt_id] = SearchAPIService::MATCHES_GEN;
+                        else
+                            $datatypes_with_criteria[$dt_id] |= SearchAPIService::MATCHES_GEN;
                     }
-//                }
+                }
+            }
+            else if ( is_numeric($key) ) {
+                foreach ($facet_list as $facet_num => $facet) {
+                    foreach ($facet['search_terms'] as $df_id => $df_data) {
+                        $dt_id = $df_data['datatype_id'];
+                        $affected_datatypes[$dt_id] = 1;
+
+                        if ( !isset($datatypes_with_criteria[$dt_id]) )
+                            $datatypes_with_criteria[$dt_id] = SearchAPIService::MATCHES_ADV;
+                        else
+                            $datatypes_with_criteria[$dt_id] |= SearchAPIService::MATCHES_ADV;
+                    }
+                }
             }
         }
         $affected_datatypes = array_keys($affected_datatypes);
         $criteria['affected_datatypes'] = $affected_datatypes;
-
+        $criteria['datatypes_with_criteria'] = $datatypes_with_criteria;
         $criteria['default_merge_type'] = $default_merge_type;
 
         // Also going to need a list of all datatypes this search could run on, for later hydration
+        $all_datatypes = array();
         if ( is_null($inverse_target_datatype_id) )
-            $criteria['all_datatypes'] = $this->datatree_info_service->getAssociatedDatatypes($datatype_id, true);
+            $all_datatypes = $this->datatree_info_service->getAssociatedDatatypes($datatype_id, true);
         else
-            $criteria['all_datatypes'] = $this->datatree_info_service->getAssociatedDatatypes($inverse_target_datatype_id, true);
+            $all_datatypes = $this->datatree_info_service->getAssociatedDatatypes($inverse_target_datatype_id, true);
+        $criteria['all_datatypes'] = $all_datatypes;
 
         return $criteria;
     }

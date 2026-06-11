@@ -106,6 +106,7 @@ class CSVExportExpressWorkerCommand extends ContainerAwareCommand
                     $output->writeln( print_r($parameters, true) );
                     throw new ODRBadRequestException();
                 }
+//                $logger->debug( 'CSVExportExpressWorkerCommand: '.print_r($parameters, true) );
 
                 $output->writeln('-- attempting to process tracked_job: '.$parameters['tracked_job_id'].', job_order: '.$parameters['job_order']);
 

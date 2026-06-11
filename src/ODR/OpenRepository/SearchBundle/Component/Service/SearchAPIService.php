@@ -238,6 +238,7 @@ class SearchAPIService
 
 
     /**
+     * @deprecated
      * This function fulfills a purpose similar to {@link self::getSearchableDatafieldsForUser()}...
      * both a "regular" search and a "template" search need to know which datafields the user is allowed
      * to view...but a "template" search may easily involve hundreds of datatypes that are derived
@@ -336,8 +337,8 @@ class SearchAPIService
      * Returns a search key that has been filtered to only contain what the user can see.
      *
      * ODR originally forcibly redirected the user to this filtered search key if it was different
-     * than what they originally attempted to access, but it was screwing up Wordpress.  So instead,
-     * everywhere in ODR that uses a search key has to filter it first...
+     * than what they originally attempted to access, but that redirect was screwing up Wordpress.
+     * So instead, everywhere in ODR that uses a search key has to filter it first...
      *
      * @param int $datatype_id Testing is easier if this is an int
      * @param string $search_key
@@ -383,7 +384,7 @@ class SearchAPIService
         $removed_criteria = false;
         foreach ($search_params as $key => $value) {
             if ( $key === 'dt_id' || $key === 'gen' || $key === 'gen_lim'
-                || $key === 'inverse' || $key === 'ignore' || $key === 'merge'
+                || $key === 'inverse' || $key === 'ignore' || $key === 'merge' || $key === 'set'
             ) {
                 // Don't need to filter/change these values
                 $filtered_search_params[$key] = $value;
@@ -469,6 +470,17 @@ class SearchAPIService
                     else {
                         // User can't view/search this datafield
                         $removed_criteria = true;
+
+                        // If they're searching for public files...
+                        if ( $value == '1' ) {
+                            if ( !isset($search_params[$df_id]) ) {
+                                // ...and also not searching for a filename, then change the search
+                                //  key to search for records with files
+                                $filtered_search_params[$df_id] = '!""';
+                            }
+                        }
+
+                        // An attempt to search for non-public files should be completely ignored
                     }
 
                     // Don't need additional checks for Datetime of XYZData fields
@@ -499,6 +511,10 @@ class SearchAPIService
                             }
                         }
                     }
+                    else {
+                        // User can't view/search this datatype
+                        $removed_criteria = true;  // TODO - add test for this if possible
+                    }
                 }
             }
         }
@@ -515,6 +531,789 @@ class SearchAPIService
 
         // Otherwise, no criteria got removed...return the originally provided search key
         return $search_key;
+    }
+
+
+    /**
+     * On the surface, building a dependency graph between datatypes in ODR sounds simple...ODR's
+     * concepts of "ancestor"/"descendant" datatypes/records create the prerequisite relationships
+     * between databases, and even prevents cycles between datatypes that would require a programmer
+     * to untangle.
+     *
+     * The information built by this function is effectively a duplicate of what could be acquired
+     * via a traversal from "ancestor" to "descendant" in ODR...but this specific format makes it
+     * possible to use {@see self::invertSearchDependencyGraph()} if the search wants to go in a
+     * different direction...
+     *
+     * Surprisingly enough, datatypes that are theoretically related but can't be rendered together
+     * actually have a different set of rules underpinning their relationship...
+     *
+     * The primary return is in the $graph variable:
+     * <pre>
+     * <ancestor_dt_id> => array(
+     *     [<child_dt_id>] => 0,
+     *     ...
+     *     [<linked_dt_id>] => 1,
+     *     ...
+     * ),
+     * [<ancestor_dt_id>] => array(...)
+     * </pre>
+     *
+     * @param array $datatree_array {@see DatatreeInfoService::getDatatreeArray()}
+     * @param array $related_datatypes Generally a flipped version of the deep return from
+     *                                 {@see DatatreeInfoService::getAssociatedDatatypes()}, but
+     *                                 with datatypes the user can't view already removed from it
+     * @param array $ignored_prefixes Instructs the function to ignore specific paths to datatypes
+     * @param int $current_datatype_id The datatype to find descendants for
+     * @param string $current_prefix This should be an empty string when initially called
+     * @param array &$graph This should be an empty array when initially called...the result is
+     *                      an array(<ancestor_dt_id> => array(<descendant_dt_ids>,...),...)
+     * @param array &$counts This should be an empty array when initially called...the result is
+     *                       an array(<dt_id> => <# of paths>,...)
+     * @return void
+     */
+    public function buildSearchDependencyGraph($datatree_array, $related_datatypes, $ignored_prefixes, $current_datatype_id, $current_prefix, &$graph, &$counts)
+    {
+        // Need to perform a bit of setup on the first entry...
+        if ( empty($graph) )
+            $counts = array($current_datatype_id => 1);
+        if ( $current_prefix === '' )
+            $current_prefix = strval($current_datatype_id);
+
+        $datatypes_to_check = array();
+
+        // Check the entire list of childtypes...
+        foreach ($datatree_array['descendant_of'] as $descendant_dt_id => $ancestor_dt_id) {
+            // ...if this childtype is related to the impending search, and hasn't been encountered
+            //  before...
+            if ( isset($related_datatypes[$descendant_dt_id])
+                && isset($related_datatypes[$ancestor_dt_id])
+                && !isset($graph[$ancestor_dt_id][$descendant_dt_id])
+                && $current_datatype_id === $ancestor_dt_id
+            ) {
+                $new_prefix = $current_prefix.'_'.$descendant_dt_id;
+                if ( !isset($ignored_prefixes[$new_prefix]) ) {
+                    // ...then create an entry in the dependency graph for it
+                    $graph[$current_datatype_id][$descendant_dt_id] = 0;
+
+                    // Need to keep track of how many times a childtype is encountered
+                    if ( !isset($counts[$descendant_dt_id]) ) {
+                        // ...if this is the first time it was encountered, then need to also locate
+                        //  its descendants
+                        $datatypes_to_check[$descendant_dt_id] = 1;
+                        $counts[$descendant_dt_id] = 0;
+                    }
+                    $counts[$descendant_dt_id]++;
+                }
+            }
+        }
+
+        // Check the entire list of linked types...
+        foreach ($datatree_array['linked_from'] as $descendant_dt_id => $ancestor_dt_ids) {
+            foreach ($ancestor_dt_ids as $ancestor_dt_id) {
+                // ...if this linked descendant is related to the impending search, and hasn't been
+                //  encountered before...
+                if ( isset($related_datatypes[$descendant_dt_id])
+                    && isset($related_datatypes[$ancestor_dt_id])
+                    && !isset($graph[$ancestor_dt_id][$descendant_dt_id])
+                    && $current_datatype_id === $ancestor_dt_id
+                ) {
+                    $new_prefix = $current_prefix.'_'.$descendant_dt_id;
+                    if ( !isset($ignored_prefixes[$new_prefix]) ) {
+                        // ...then create an entry in the dependency graph for it
+                        $graph[$current_datatype_id][$descendant_dt_id] = 1;
+
+                        // Need to keep track of how many times a childtype is encountered
+                        if ( !isset($counts[$descendant_dt_id]) ) {
+                            // ...if this is the first time it was encountered, then need to also
+                            //  locate its descendants
+                            $datatypes_to_check[$descendant_dt_id] = 1;
+                            $counts[$descendant_dt_id] = 0;
+                        }
+                        $counts[$descendant_dt_id]++;
+                    }
+                }
+            }
+        }
+
+        // If there are any child/linked descendants found as a result of this iteration...
+        if ( !empty($datatypes_to_check) ) {
+            foreach ($datatypes_to_check as $dt_id => $num) {
+                // ...then assuming the user doesn't want to "ignore" said descendant...
+                $new_prefix = $current_prefix.'_'.$dt_id;
+                if ( !isset($ignored_prefixes[$new_prefix]) )
+                    // ...continue recursively locating descendants
+                    self::buildSearchDependencyGraph($datatree_array, $related_datatypes, $ignored_prefixes, $dt_id, $new_prefix, $graph, $counts);
+            }
+        }
+    }
+
+
+    /**
+     * This function takes the result of {@link self::buildSearchDependencyGraph()}, and then performs
+     * a series of relationship inversions so that a linked descendant datatype can instead be
+     * considered the top-level datatype. The main trick is to avoid creating duplicates and/or cycles
+     * while performing this inversion...those are impossible to untangle without programmer
+     * intuition/intervention.
+     *
+     * Unfortunately, the lurking danger here is that the relationships between ancestors and linked
+     * descendants reachable by "multiple paths" can change with this inversion.  If there's the
+     * setup {A -> R, A -> AB -> R}, with R being a linked type and AB being a child of A...then that
+     * semantically implies {(A with matching AB) AND (A with matching R OR A with any AB with matching R)}.
+     * The naive inversion...{R -> A, R -> AB -> A}...semantically implies that R depends on AB, but
+     * this is also the opposite of the original setup where AB only could have R.
+     *
+     * As a side note, original attempt at "inverse" searching was effectively too conservative
+     * with its traversal of the graph, and would really only traverse back up to the original
+     * top-level datatype...ignoring and/or being completely unaware of any other descendants the
+     * original top-level datatype had.
+     *
+     * NOTE: unlike {@see self::buildSearchDependencyGraph()}, the values of $graph have NO meaning
+     *
+     * @param array $graph {@see self::buildSearchDependencyGraph()}
+     * @param array $original_counts {@see self::buildSearchDependencyGraph()}
+     * @param int $current_datatype_id The datatype to rebase $graph from
+     * @return array An array to replace the $counts computed by buildSearchDependencyGraph()
+     */
+    public function invertSearchDependencyGraph(&$graph, $original_counts, $current_datatype_id)
+    {
+        // ----------------------------------------
+        // Easier to do this iteratively because $graph is unstacked
+        $datatypes_to_check = array($current_datatype_id => 1);
+
+        while ( !empty($datatypes_to_check) ) {
+            $tmp = array();
+
+            // Because $graph is unstacked, we can check every single datatype in it...
+            foreach ($datatypes_to_check as $dt_id => $num) {
+                // ...with the goal of locating all entries where the datatype to check is a
+                //  descendant
+                foreach ($graph as $ancestor_dt_id => $descendant_dt_ids) {
+                    // Verify that there is an ancestor -> descendant connection, and that it wasn't
+                    //  created by this function
+                    if ( isset($graph[$ancestor_dt_id][$dt_id]) && $graph[$ancestor_dt_id][$dt_id] < 2 ) {
+                        // Create a new entry in the graph for this reversed descendant -> ancestor
+                        //  connection
+                        if ( !isset($graph[$dt_id]) )
+                            $graph[$dt_id] = array();
+                        // Set the value to 1 to prevent this function from thinking it needs to
+                        //  continue "following the path" from it
+                        $graph[$dt_id][$ancestor_dt_id] = 2;
+
+                        // No longer want or need the ancestor -> descendant connection
+                        unset( $graph[$ancestor_dt_id][$dt_id] );
+                        if ( empty($graph[$ancestor_dt_id]) )
+                            unset( $graph[$ancestor_dt_id] );
+
+                        // Check whether the this (currently ancestor) datatype was a descendant
+                        //  of anything else...and therefore, whether those connections need inverting
+                        $tmp[$ancestor_dt_id] = 1;
+                    }
+                }
+            }
+
+            // Reset for the next loop
+            $datatypes_to_check = $tmp;
+        }
+
+        // The $counts array that got filled out when creating the original dependency graph is no
+        //  longer valid
+        $counts = array($current_datatype_id => 1);
+        foreach ($graph as $ancestor_dt_id => $descendant_dt_ids) {
+            if ( empty($descendant_dt_ids) ) {
+                unset( $graph[$ancestor_dt_id] );
+            }
+            else {
+                foreach ($descendant_dt_ids as $dt_id => $num) {
+                    // Just need to count how many times each "descendant" appears in the new graph
+                    if ( !isset($counts[$dt_id]) )
+                        $counts[$dt_id] = 0;
+                    $counts[$dt_id]++;
+                }
+            }
+        }
+
+        return $counts;
+    }
+
+
+    /**
+     * Extracts all datafield/datatype entities listed in $criteria, and returns them as hydrated
+     * objects in an array.
+     *
+     * @param array $criteria
+     *
+     * @return array
+     */
+    public function hydrateCriteria($criteria)
+    {
+        // ----------------------------------------
+        // Searching is *just* different enough between datatypes and templates to be a pain...
+        $search_type = $criteria['search_type'];
+        unset( $criteria['search_type'] );
+
+        // Want to find all datafield entities listed in the criteria array
+        $datafield_ids = array();
+        foreach ($criteria as $dt_id => $facet_list) {
+            // Only look for datafields inside facet lists
+            if ( !is_numeric($dt_id) && $dt_id !== 'general' )
+                continue;
+
+            foreach ($facet_list as $facet_num => $facet) {
+                // Only bother with facets that have search data
+                if ( isset($facet['search_terms']) ) {
+                    foreach ($facet['search_terms'] as $key => $search_params) {
+                        // Extract the entity from the criteria array
+                        $entity_type = $search_params['entity_type'];
+                        $entity_id = $search_params['entity_id'];
+
+                        if ($entity_type === 'datafield')
+                            $datafield_ids[$entity_id] = 1;
+                    }
+                }
+            }
+        }
+        $datafield_ids = array_keys($datafield_ids);
+
+
+        // ----------------------------------------
+        // Need to hydrate all of the datafields/datatypes so the search functions work
+        $datafields = array();
+        $render_plugins = array();
+        if ( !empty($datafield_ids) ) {
+            $datafields = self::hydrateDatafields($search_type, $datafield_ids);
+            $render_plugins = self::hydrateRenderPlugins($search_type, $datafield_ids);
+        }
+
+
+        // Because of permissions, need to hydrate all datatypes...
+        $datatypes = array();
+        if ( $search_type === 'datatype' )
+            $datatypes = self::hydrateDatatypes($search_type, $criteria['all_datatypes']);
+        else
+            $datatypes = self::hydrateDatatypes($search_type, $criteria['all_templates']);
+
+
+        // ----------------------------------------
+        // Return the hydrated arrays
+        return array(
+            'datafield' => $datafields,
+            'renderPlugin' => $render_plugins,
+            'datatype' => $datatypes,
+        );
+    }
+
+
+    /**
+     * The hydration requirements are slightly different between "regular" searches and "template"
+     * searches...
+     *
+     * TODO - is hydration actually required?
+     *
+     * @param string $search_type
+     * @param int[] $datafield_ids
+     *
+     * @return DataFields[]
+     */
+    private function hydrateDatafields($search_type, $datafield_ids)
+    {
+        $datafields = array();
+
+        if ($search_type === 'datatype') {
+            // For a regular search, need to hydrate all datafields being searched on
+            $params = array(
+                'datafield_ids' => $datafield_ids
+            );
+
+            $query = $this->em->createQuery(
+                'SELECT df
+                FROM ODRAdminBundle:DataFields AS df
+                JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
+                WHERE df.id IN (:datafield_ids)
+                AND df.deletedAt IS NULL AND dt.deletedAt IS NULL'
+            )->setParameters($params);
+            $results = $query->getResult();
+
+            /** @var DataFields[] $results */
+            foreach ($results as $df)
+                $datafields[ $df->getId() ] = $df;
+        }
+        else {
+            // For a template search, only want to hydrate the master template fields...otherwise
+            //  we would have to hydrate every single datafield that uses the searched template
+            //  fields as their master datafields.
+            // Not really a good idea, especially since the actual searching functions can just
+            //  have the database queries return a datafield id for permissions purposes
+            $params = array(
+                'field_uuids' => $datafield_ids
+            );
+
+            $query = $this->em->createQuery(
+                'SELECT df
+                FROM ODRAdminBundle:DataFields AS df
+                JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
+                WHERE df.fieldUuid IN (:field_uuids) AND df.is_master_field = 1
+                AND df.deletedAt IS NULL AND dt.deletedAt IS NULL'
+            )->setParameters($params);
+            $results = $query->getResult();
+
+            /** @var DataFields[] $results */
+            foreach ($results as $df)
+                $datafields[ $df->getFieldUuid() ] = $df;
+        }
+
+        return $datafields;
+    }
+
+
+    /**
+     * Loads render plugins that affect search results prior to use.
+     *
+     * @param string $search_type
+     * @param array $datafield_ids
+     *
+     * @return array
+     */
+    private function hydrateRenderPlugins($search_type, $datafield_ids)
+    {
+        $render_plugins = array();
+
+        if ( $search_type === 'datatype' ) {
+            // For a regular search, need to hydrate all datafields being searched on
+            $params = array(
+                'datafield_ids' => $datafield_ids,
+                'override_search' => true
+            );
+
+            // Because both datafield and datatype plugins can use search_override, it's easier if
+            //  two dql queries are used. The first determines whether the datafields being searched
+            //  on belong to a plugin that (possibly) wants to override searching...
+            $query = $this->em->createQuery(
+                'SELECT df.id AS df_id, rp.id AS rp_id, rpi.id AS rpi_id, rp.pluginClassName AS plugin_classname, rpf.fieldName
+                FROM ODRAdminBundle:RenderPlugin AS rp
+                JOIN ODRAdminBundle:RenderPluginInstance AS rpi WITH rpi.renderPlugin = rp
+                JOIN ODRAdminBundle:RenderPluginMap AS rpm WITH rpm.renderPluginInstance = rpi
+                JOIN ODRAdminBundle:RenderPluginFields AS rpf WITH rpm.renderPluginFields = rpf
+                JOIN ODRAdminBundle:DataFields AS df WITH rpm.dataField = df
+                WHERE rp.overrideSearch = :override_search AND rp.active = 1 AND df.id IN (:datafield_ids)
+                AND rp.deletedAt IS NULL AND rpi.deletedAt IS NULL AND rpm.deletedAt IS NULL
+                AND rpf.deletedAt IS NULL AND df.deletedAt IS NULL'
+            )->setParameters($params);
+            $results = $query->getArrayResult();
+
+            // Only want to load each render plugin once...
+            $render_plugins_cache = array();
+            $render_plugins_overrides = array();
+            foreach ($results as $result) {
+                $rp_id = $result['rp_id'];
+                $plugin_classname = $result['plugin_classname'];
+                $rpi_id = $result['rpi_id'];
+
+                if ( !isset($render_plugins_cache[$plugin_classname]) ) {
+                    /** @var SearchOverrideInterface $plugin */
+                    $plugin = $this->container->get($plugin_classname);
+                    $render_plugins_cache[$plugin_classname] = array('id' => $rp_id, 'plugin' => $plugin);
+                }
+
+                // Also need to organize these datafields by the render plugin instance that they're
+                //  attached to
+                if ( !isset($render_plugins_overrides[$plugin_classname]) )
+                    $render_plugins_overrides[$plugin_classname] = array();
+                if ( !isset($render_plugins_overrides[$plugin_classname][$rpi_id]) )
+                    $render_plugins_overrides[$plugin_classname][$rpi_id] = array();
+
+                $rpf_name = $result['fieldName'];
+                $df_id = $result['df_id'];
+                $render_plugins_overrides[$plugin_classname][$rpi_id][$rpf_name] = $df_id;
+
+                // NOTE: $render_plugins_overrides could have more fields than the plugin actually
+                //  wants to override
+            }
+
+            // Now that the fields have been grouped, determine whether the render plugin wants to
+            //  override the search routine for each set of fields
+            foreach ($render_plugins_cache as $plugin_classname => $plugin_data) {
+                $plugin = $plugin_data['plugin'];
+
+                // ...I don't think it's strictly necessary to check each render plugin instance, but
+                //  maybe it will be in the future.  Dunno.
+                foreach ($render_plugins_overrides[$plugin_classname] as $rpi_id => $df_list) {
+                    $ret = $plugin->getSearchOverrideFields($df_list);
+
+                    if ( !empty($ret) ) {
+                        // ...the plugin wants to override at least one field
+                        foreach ($ret as $rpf_name => $df_id) {
+                            // It's easier on SearchAPIService if each datafield gets a reference to
+                            //  the plugin (and eventually to the plugin's options)
+                            $render_plugins[$df_id] = array(
+                                'renderPlugin' => $plugin_data,
+                            );
+                        }
+                    }
+                    else {
+                        // ...the plugin doesn't want to override any fields
+                        unset( $render_plugins_overrides[$plugin_classname][$rpi_id] );
+                    }
+                }
+            }
+
+            // If a plugin wants to override searching for a field...
+            $render_plugin_instance_ids = array();
+            foreach ($render_plugins_overrides as $plugin_classname => $rpi_list) {
+                // ...then we need to also load the related set of options for each render plugin
+                //  instance
+                foreach ($rpi_list as $rpi_id => $df_list)
+                    $render_plugin_instance_ids[] = $rpi_id;
+            }
+
+            $render_plugin_options = array();
+            $render_plugin_fields = array();    // NOTE: different than $render_plugin_fields
+            if ( !empty($render_plugin_instance_ids) ) {
+                $query = $this->em->createQuery(
+                    'SELECT rpi.id AS rpi_id, rpom.value AS rpom_value, rpod.name AS rpod_name
+                    FROM ODRAdminBundle:RenderPluginInstance rpi
+                    LEFT JOIN ODRAdminBundle:RenderPluginOptionsMap AS rpom WITH rpom.renderPluginInstance = rpi
+                    LEFT JOIN ODRAdminBundle:RenderPluginOptionsDef AS rpod WITH rpom.renderPluginOptionsDef = rpod
+                    WHERE rpi.id IN (:render_plugin_instance_ids)
+                    AND rpi.deletedAt IS NULL AND rpom.deletedAt IS NULL AND rpod.deletedAt IS NULL'
+                )->setParameters( array('render_plugin_instance_ids' => $render_plugin_instance_ids) );
+                $results = $query->getArrayResult();
+
+                foreach ($results as $result) {
+                    $rpi_id = $result['rpi_id'];
+                    $option_name = $result['rpod_name'];
+                    $option_value = $result['rpom_value'];
+
+                    if ( !is_null($option_name) ) {
+                        if ( !isset($render_plugin_options[$rpi_id]) )
+                            $render_plugin_options[$rpi_id] = array();
+                        $render_plugin_options[$rpi_id][$option_name] = $option_value;
+                    }
+                }
+
+                // When overriding datatype plugins, it's useful to have the renderPluginField list...
+                $query = $this->em->createQuery(
+                    'SELECT rpi.id AS rpi_id, rpm_df.id AS df_id, rpf.fieldName AS rpf_name
+                    FROM ODRAdminBundle:RenderPluginInstance AS rpi
+                    LEFT JOIN ODRAdminBundle:RenderPluginMap AS rpm WITH rpm.renderPluginInstance = rpi
+                    LEFT JOIN ODRAdminBundle:RenderPluginFields AS rpf WITH rpm.renderPluginFields = rpf
+                    LEFT JOIN ODRAdminBundle:DataFields AS rpm_df WITH rpm.dataField = rpm_df
+                    WHERE rpi.id IN (:render_plugin_instance_ids)
+                    AND rpi.deletedAt IS NULL AND rpm.deletedAt IS NULL
+                    AND rpf.deletedAt IS NULL AND rpm_df.deletedAt IS NULL'
+                )->setParameters( array('render_plugin_instance_ids' => $render_plugin_instance_ids) );
+                $results = $query->getArrayResult();
+
+                foreach ($results as $result) {
+                    $rpi_id = $result['rpi_id'];
+                    $df_id = $result['df_id'];
+                    $rpf_name = $result['rpf_name'];
+
+                    if ( !isset($render_plugin_fields[$rpi_id]) )
+                        $render_plugin_fields[$rpi_id] = array();
+                    $render_plugin_fields[$rpi_id][$rpf_name] = $df_id;
+                }
+            }
+
+            // Need to map any existing render plugin options to each datafield they're related to
+            foreach ($render_plugins_overrides as $plugin_classname => $rpi_list) {
+                $plugin = $render_plugins_cache[$plugin_classname]['plugin'];
+
+                foreach ($rpi_list as $rpi_id => $df_list) {
+                    foreach ($df_list as $rpf_name => $df_id) {
+                        // Since $render_plugins_overrides could refer to more fields than the plugin
+                        //  actually wants to override...
+                        if ( isset($render_plugins[$df_id]) ) {
+                            // ...only continue processing on entries that already exist
+
+                            // Easier to replace the existing array entry for this datafield...
+                            $render_plugins[$df_id] = array(
+                                'renderPlugin' => $plugin,
+                                'renderPluginOptions' => array()
+                            );
+                            // ...and attach any render plugin options if they exist
+                            if ( isset($render_plugin_options[$rpi_id]) )
+                                $render_plugins[$df_id]['renderPluginOptions'] = $render_plugin_options[$rpi_id];
+                            // ...same for the render plugin field list
+                            if ( isset($render_plugin_fields[$rpi_id]) )
+                                $render_plugins[$df_id]['renderPluginFields'] = $render_plugin_fields[$rpi_id];
+                        }
+                    }
+                }
+            }
+        }
+        else {
+            throw new ODRNotImplementedException('unable to run search plugins across templates...');
+        }
+
+        return $render_plugins;
+    }
+
+
+    /**
+     * The hydration requirements are slightly different between "regular" searches and "template"
+     * searches...
+     *
+     * TODO - is hydration actually required?
+     *
+     * @param string $search_type
+     * @param int[]|string $datatype_ids
+     *
+     * @return DataType[]
+     */
+    private function hydrateDatatypes($search_type, $datatype_ids)
+    {
+        $results = array();
+        if ($search_type === 'datatype') {
+            // For a regular search, need to hydrate all datatypes that could be searched on
+            // Otherwise, we can't deal with permissions properly
+            $params = array(
+                'datatype_ids' => $datatype_ids
+            );
+
+            $query = $this->em->createQuery(
+                'SELECT dt
+                FROM ODRAdminBundle:DataType AS dt
+                WHERE dt.id IN (:datatype_ids)
+                AND dt.deletedAt IS NULL'
+            )->setParameters($params);
+            $results = $query->getResult();
+        }
+        else {
+            // For a template search, we still need to hydrate all the non-template datatypes that
+            //  are being searched on...otherwise, we can't deal with permissions properly
+            $params = array(
+                'template_uuids' => $datatype_ids
+            );
+
+            $query = $this->em->createQuery(
+                'SELECT dt
+                FROM ODRAdminBundle:DataType AS mdt
+                JOIN ODRAdminBundle:DataType AS dt WITH dt.masterDataType = mdt
+                JOIN ODRAdminBundle:DataType AS gp WITH dt.grandparent = gp
+                WHERE mdt.unique_id IN (:template_uuids)
+                AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL AND gp.deletedAt IS NULL'
+            )->setParameters($params);
+            $results = $query->getResult();
+        }
+
+        /** @var DataType[] $results */
+        $datatypes = array();
+        foreach ($results as $dt)
+            $datatypes[ $dt->getId() ] = $dt;
+
+        return $datatypes;
+    }
+
+
+    /**
+     * It's easier for {@link self::performSearch()} when {@link self::getSearchArrays()} returns
+     * arrays that already contain the user's permissions and which datatypes are being searched on...
+     * this utility function gathers that required info in a single spot.
+     *
+     * @param DataType[] $hydrated_datatypes
+     * @param int[] $affected_datatypes {@link SearchKeyService::convertSearchKeyToCriteria()}
+     * @param array $user_permissions The permissions of the user doing the search, or an empty
+     *                                array when not logged in
+     * @param bool $search_as_super_admin If true, don't filter anything by permissions
+     *
+     * @return array
+     */
+    public function getSearchPermissionsArray($hydrated_datatypes, $affected_datatypes, $user_permissions, $search_as_super_admin = false)
+    {
+        // Going to need to filter based on the user's permissions
+        $datatype_permissions = array();
+        if ( isset($user_permissions['datatypes']) )
+            $datatype_permissions = $user_permissions['datatypes'];
+
+        $search_permissions = array();
+        foreach ($hydrated_datatypes as $dt_id => $dt) {
+            // User needs to be able to view the datatype in order for them to search on it...
+            $can_view_datatype = false;
+            if ($search_as_super_admin)
+                $can_view_datatype = true;
+            else if ( isset($datatype_permissions[$dt_id]['dt_view']) )
+                $can_view_datatype = true;
+            else if ($dt->isPublic())
+                $can_view_datatype = true;
+
+
+            if ( !$can_view_datatype ) {
+                // If the user can't view this datatype, then there's no point checking other
+                //  permissions or gathering various lists of datarecords
+                $search_permissions[$dt_id] = array(
+                    'can_view_datatype' => $can_view_datatype
+                );
+            }
+            else {
+                // If user can't view non-public datarecords, then need to get a list of them so
+                //  they can be properly excluded from the search results
+                $can_view_datarecord = false;
+                if ($search_as_super_admin)
+                    $can_view_datarecord = true;
+                else if ( isset($datatype_permissions[$dt_id]['dr_view']) )
+                    $can_view_datarecord = true;
+
+
+                $non_public_datarecords = array();
+                if (!$can_view_datarecord) {
+                    $ret = $this->search_service->searchPublicStatus($dt, false);
+                    $non_public_datarecords = $ret['records'];
+                }
+
+                $search_permissions[$dt_id] = array(
+                    'datatype' => $dt,
+                    'can_view_datatype' => $can_view_datatype,
+                    'can_view_datarecord' => $can_view_datarecord,
+                    'non_public_datarecords' => $non_public_datarecords,
+                );
+
+                // Also, store whether this datatype is being searched on
+                if (in_array($dt_id, $affected_datatypes))
+                    $search_permissions[$dt_id]['affected'] = true;
+                else
+                    $search_permissions[$dt_id]['affected'] = false;
+            }
+        }
+
+        return $search_permissions;
+    }
+
+
+    /**
+     * ODR can end up in situations with complicated database structures that are rather nighmarish
+     * to search...to use a real-world examples:
+     * <pre>
+     * AMCSD (or RRUFF Samples)
+     * |- RRUFF References (link)
+     * |- IMA Mineral List (link)
+     *     |- RRUFF References (link)
+     *     |- Status Notes (child)
+     *         |- RRUFF References (link)
+     *      |- Reference A (child)
+     *          |- RRUFF References (link)
+     *      |- Reference B (child)
+     *          |- RRUFF References (link)
+     * </pre>
+     *
+     * In the case of RRUFF Samples, the user typically doesn't care which RRUFF Reference link
+     * matches...but in the case of AMCSD, they very much do care, and usually don't want to involve
+     * any descendants of the IMA Mineral List.  Until they do want to run that search.  =')
+     *
+     * Fortunately, because of the rules ODR follows when permitting links, each of them can be
+     * uniquely identified by a "prefix".  This permits {@link self::getSearchArrays()} to "selectively
+     * ignore" parts of the various arrays it would otherwise build...that lack of info ends up
+     * causing {@link self::mergeSearchResults()} to behave as if those links don't exist.
+     *
+     * Due to differences in storing the prefixes and actually using them, it's easier to use a
+     * function as an in-between.
+     *
+     * @param array $search_params
+     * @param DataType $datatype
+     *
+     * @return array
+     */
+    public function getIgnoredPrefixes($search_params, $datatype)
+    {
+        $ignored_prefixes = array();
+
+        if ( isset($search_params['ignore']) ) {
+            // If this key is set, then use its contents
+            $ignored_prefixes = array_flip($search_params['ignore']);
+        }
+        else {
+            // Otherwise, fall back to whatever the default is for this datatype
+            $ignored_prefixes = array();    // TODO
+        }
+
+        return $ignored_prefixes;
+    }
+
+
+    /**
+     * Returns a "flattened" list of all records that could end up matching the search, which is
+     * primarily utilized so the rest of the searching doesn't have to deal with recursion when
+     * computing search results.  The array has the structure:
+     * <pre>
+     * array(
+     *     <datatype_id> => array(
+     *         <datarecord_id> => <num>,
+     *         ...
+     *     ),
+     *     ...
+     * )
+     * </pre>
+     *
+     * The number is some combination of bitflags...this function only initializes the array with
+     * {@link SearchAPIService::CANT_VIEW} and {@link SearchAPIService::DOESNT_MATTER}
+     *
+     * If $complete_datarecord_list is provided, then the datarecord ids contained within are set to
+     * {@link SearchAPIService::MATCHES_BOTH}.  This is currently used by CSVExportHelperService,
+     * because the complete datarecord list returned by {@link SearchAPIService::performSearch()}
+     * almost always needs to be broken up as part of forcing it into beanstalk for CSVExport.
+     *
+     * @param array $permissions_array {@link self::getSearchPermissionsArray()}
+     * @param array $complete_datarecord_list Should generally be empty
+     *
+     * @return array
+     */
+    public function getFlattenedList($permissions_array, $complete_datarecord_list = array())
+    {
+        // ----------------------------------------
+        // Intentionally not caching the results of this function for two reasons
+        // 1) these arrays need to be initialized based on the search being run, and the
+        //     permissions of the user running the search
+        // 2) these arrays contain ids of datarecords across all datatypes related to the datatype
+        //     being searched on...determining when to clear this entry, especially when linked
+        //     datatypes are involved, would be nightmarish
+
+        $flattened_list = array();
+        foreach ($permissions_array as $dt_id => $permissions) {
+            // Ensure that the user is allowed to view this datatype before doing anything with it
+            if ( !$permissions['can_view_datatype'] )
+                continue;
+
+            // Attempt to load this datatype's datarecords and their parents from the cache...
+            $list = $this->search_service->getCachedDatarecordList($dt_id);
+
+
+            // ----------------------------------------
+            // Each datarecord in the flattened list needs to start out with one of three values...
+            if ( !isset($flattened_list[$dt_id]) )
+                $flattened_list[$dt_id] = array();
+
+            // - CANT_VIEW: this user can't see this datarecord, so it needs to be ignored
+            // - MUST_MATCH: this datarecord has a datafield that's part of "advanced" search...
+            //               ...it must end up matching the search to be included in the results
+            // - DOESNT_MATTER: this datarecord is not part of an "advanced" search, so it will
+            //                   have no effect on the final search result
+            foreach ($list as $dr_id => $value) {
+                if ( isset($permissions['non_public_datarecords'][$dr_id]) )
+                    $flattened_list[$dt_id][$dr_id] = SearchAPIService::CANT_VIEW;
+//                else if ( $permissions['affected'] === true )
+//                    $flattened_list[$dt_id][$dr_id] = SearchAPIService::MUST_MATCH;  // NOTE: can't fill this in here
+                else if ( !empty($complete_datarecord_list) ) {
+                    // NOTE: used by/for CSVExport
+                    if ( isset($complete_datarecord_list[$dr_id]) )
+                        $flattened_list[$dt_id][$dr_id] = SearchAPIService::MATCHES_BOTH;
+                    else
+                        $flattened_list[$dt_id][$dr_id] = SearchAPIService::MUST_MATCH;
+                }
+                else
+                    $flattened_list[$dt_id][$dr_id] = SearchAPIService::DOESNT_MATTER;  // TODO - rename?
+            }
+        }
+
+        // ----------------------------------------
+//        // Sort the flattened list for easier debugging
+//        foreach ($flattened_list as $dt_id => $dr_list) {
+//            $tmp = $dr_list;
+//            ksort($tmp);
+//            $flattened_list[$dt_id] = $tmp;
+//        }
+
+        // ...and then return the end result
+        return $flattened_list;
     }
 
 
@@ -567,6 +1366,9 @@ class SearchAPIService
             $datatype = $this->em->getRepository('ODRAdminBundle:DataType')->find( $search_params['dt_id'] );
         }
 
+        // Not going to check whether it's a child datatype...ODR would prefer it's a top-level
+        //  datatype, but the search system doesn't really care one way or another
+
 
         // ----------------------------------------
         // Originally...ODR took the search keys it received, checked whether it contained anything
@@ -576,6 +1378,22 @@ class SearchAPIService
         //  that wants to actually use the search key has to filter it prior to decoding it...
         $filtered_search_key = self::filterSearchKeyForUser($datatype->getId(), $search_key, $user_permissions, $search_as_super_admin, $ignore_searchable);
         $search_params = $this->search_key_service->decodeSearchKey($filtered_search_key);
+
+        // It turns out that once you start transforming sets of records across a one-to-many
+        //  relationship, there are effectively two different methods of doing it.
+        // The first way is to "resolve now"...all criteria in a datatype gets evaluated to create
+        //  a single list of records, which is then transformed as needed.  This has the advantage
+        //  of explicitly identifying descendant records for MassEdit/CSVExport...but causes negation
+        //  to behave a little wonky.
+        //  e.g. Abelsonite matches both "reference author: downs" and "reference author: !downs"
+        //  because it has references that match either criteria
+        // The second way is to "resolve later"...each criteria for a datatype effectively creates
+        //  its own list of records, and all those records get transformed into the top-level
+        //  datatype...and then merged together.  This more or less inverts the "resolve now"
+        //  advantages/disadvantages.
+        $use_set_logic = false;
+        if ( isset($search_params['set']) && intval($search_params['set']) == 1 )
+            $use_set_logic = true;
 
         // Extract the inverse target datatype, if it exists
         $inverse_target_datatype_id = null;
@@ -603,19 +1421,17 @@ class SearchAPIService
         // Need to grab hydrated versions of the datafields/datatypes being searched on
         $hydrated_entities = self::hydrateCriteria($criteria);
 
-        // Each datatype being searched on (or the datatype of a datafield being search on) needs
-        //  to have its records be initialized to MUST_MATCH before the results of each facet search
-        //  are merged together into the final array
+        // The process of building the criteria also created a number of other useful utility arrays
         $affected_datatypes = $criteria['affected_datatypes'];
-        unset( $criteria['affected_datatypes'] );
-
-        // Also don't want the list of all datatypes anymore either
-        unset( $criteria['all_datatypes'] );
-        // ...or what type of search this is
-        unset( $criteria['search_type'] );
-
-        // Don't want this while running the actual search queries
+        $datatypes_with_criteria = $criteria['datatypes_with_criteria'];
+        $all_datatypes = $criteria['all_datatypes'];
         $default_merge_type = $criteria['default_merge_type'];
+
+        // No longer want any of these keys in the criteria array
+        unset( $criteria['search_type'] );
+        unset( $criteria['affected_datatypes'] );
+        unset( $criteria['datatypes_with_criteria'] );
+        unset( $criteria['all_datatypes'] );
         unset( $criteria['default_merge_type'] );
 
 
@@ -624,21 +1440,13 @@ class SearchAPIService
         $search_permissions = self::getSearchPermissionsArray($hydrated_entities['datatype'], $affected_datatypes, $user_permissions, $search_as_super_admin);
 
         // Determine whether the search should completely ignore any descendants
-        $ignored_prefixes = self::getIgnoredPrefixes($search_params, $datatype);
+        $ignored_prefixes = self::getIgnoredPrefixes($search_params, $datatype);  // TODO - ...i forget why the second parameter was in here
 
         // Going to need three arrays so mergeSearchResults() can correctly determine which records
         //  end up matching the search...if running a "regular" search, then they need to be based
         //  off the datatype being searched.  If an "inverse" search, then they need to instead be
         //  based off that targeted datatype...doing so greatly simplies logic later on
-        $search_arrays = array();
-        if ( is_null($inverse_target_datatype_id) )
-            $search_arrays = self::getSearchArrays($datatype->getId(), $search_permissions, $ignored_prefixes);
-        else
-            $search_arrays = self::getSearchArrays($inverse_target_datatype_id, $search_permissions, $ignored_prefixes);
-        $flattened_list = $search_arrays['flattened'];
-        $inflated_list = $search_arrays['inflated'];
-        $datatype_dr_lists = $search_arrays['datatype_dr_lists'];
-        $search_datatree = $search_arrays['search_datatree'];
+        $flattened_list = self::getFlattenedList($search_permissions);
 
         // An "empty" search run with no criteria needs to return all top-level datarecord ids
         $return_all_results = true;
@@ -648,7 +1456,8 @@ class SearchAPIService
         $facet_dr_list = array();
         foreach ($criteria as $dt_id => $facet_list) {
             // Need to keep track of the matches for each datatype individually...
-            $facet_dr_list[$dt_id] = array();
+            if ( $dt_id !== 'general' )
+                $facet_dr_list[$dt_id] = array();
 
             foreach ($facet_list as $facet_num => $facet) {
                 // Skip the top-level merge flag for general search
@@ -658,21 +1467,8 @@ class SearchAPIService
                 $facet_type = $facet['facet_type'];
                 $merge_type = $facet['merge_type'];
                 $search_terms = $facet['search_terms'];
-
-                // ...and also keep track of the matches for each facet within this datatype individually
-                if ( $dt_id !== 'general' ) {
-                    $facet_dr_list[$dt_id][$facet_num] = null;
-                }
-                else {
-                    // General seach might need to negate the resulting datarecord lists, so they
-                    //  need to be stored individually too
-                    foreach ($search_terms as $search_term) {
-                        $facet_dt_id = $search_term['datatype_id'];
-                        if ( !isset($facet_dr_list['general'][$facet_num][$facet_dt_id]) )
-                            $facet_dr_list['general'][$facet_num][$facet_dt_id] = null;
-                    }
-                }
-
+                if ( empty($search_terms) )
+                    continue;
 
                 // For each search term within this facet...
                 foreach ($search_terms as $key => $search_term) {
@@ -714,14 +1510,14 @@ class SearchAPIService
                         }
 
                         // The plugin will return the same format that the regular searches do
-                        $dr_list = $rp->searchOverriddenField($entity, $search_term, $rpf_list, $rpo);
+                        $dr_list = $rp->searchOverriddenField($entity, $search_term, $rpf_list, $rpo, $use_set_logic);
 
                         // If this search involved the empty string...
-                        $involves_empty_string = $dr_list['guard'];
-                        if ($involves_empty_string) {
+                        $query_modified = $dr_list['modify'];
+                        if ( $query_modified > SearchQueryService::NO_MODIFICATION ) {
                             // ...then insert an entry into the criteria array so that the later
                             //  call of self::mergeSearchResults() can properly compensate
-                            $criteria[$dt_id][$facet_num]['search_terms'][$key]['guard'] = true;
+                            $criteria[$dt_id][$facet_num]['search_terms'][$key]['modify'] = $query_modified;
                         }
                     }
                     else {
@@ -769,15 +1565,42 @@ class SearchAPIService
                             $dr_list = $this->search_service->searchTagDatafield($entity, $search_term['selections']);
                         }
                         else if ($typeclass === 'File' || $typeclass === 'Image') {
+                            $dr_list = null;
                             // Searches on Files/Images are effectively interchangable
-                            $dr_list = $this->search_service->searchFileOrImageDatafield($entity, $search_term);    // There could be three different terms in there, actually
+                            if ( isset($search_term['filename']) ) {
+                                $dr_list = $this->search_service->searchFileOrImageDatafield($entity, $search_term, $use_set_logic);
 
-                            // If this search involved the empty string...
-                            $involves_empty_string = $dr_list['guard'];
-                            if ($involves_empty_string) {
-                                // ...then insert an entry into the criteria array so that the later
-                                //  call of self::mergeSearchResults() can properly compensate
-                                $criteria[$dt_id][$facet_num]['search_terms'][$key]['guard'] = true;
+                                // If this search involved the empty string...
+                                $query_modified = $dr_list['modify'];
+                                if ( $query_modified > SearchQueryService::NO_MODIFICATION ) {
+                                    // ...then insert an entry into the criteria array so that the later
+                                    //  call of self::mergeSearchResults() can properly compensate
+                                    $criteria[$dt_id][$facet_num]['search_terms'][$key]['modify'] = $query_modified;
+                                }
+                            }
+                            if ( isset($search_term['public_status']) ) {
+                                $dr_list_public_status = $this->search_service->searchFileOrImageDatafield_publicstatus($entity, $search_term);
+
+                                // Public status can't be negated
+
+                                // If not using set logic, then this list needs to be merged with
+                                //  any other search term for this field
+                                if ( is_null($dr_list) )
+                                    $dr_list = $dr_list_public_status;
+                                else
+                                    $dr_list['records'] = array_intersect_key($dr_list['records'], $dr_list_public_status['records']);
+                            }
+                            if ( isset($search_term['quality']) ) {
+                                $dr_list_quality = $this->search_service->searchFileOrImageDatafield_quality($entity, $search_term);
+
+                                // quality can't be negated TODO?
+
+                                // If not using set logic, then this list needs to be merged with
+                                //  any other search term for this field
+                                if ( is_null($dr_list) )
+                                    $dr_list = $dr_list_quality;
+                                else
+                                    $dr_list['records'] = array_intersect_key($dr_list['records'], $dr_list_quality['records']);
                             }
                         }
                         else if ($typeclass === 'DatetimeValue') {
@@ -836,21 +1659,22 @@ class SearchAPIService
                         }
                         else if ($facet_type === 'general') {
                             // Short/Medium/LongVarchar, Paragraph Text, and Integer/DecimalValue
-                            $dr_list = $this->search_service->searchTextOrNumberDatafieldGeneral($entity, $search_term['value']);
+                            $dr_list = $this->search_service->searchTextOrNumberDatafieldGeneral($entity, $search_term['value'], $use_set_logic);
 
-                            // Don't need to do anything with 'guard' here...the methods required
-                            //  to deal with negation in general search terms supersede it
+                            // Don't care whether SearchService::searchTextOrNumberDatafieldGeneral()
+                            //  modified the query or not at this point...it's being kept track of
+                            //  elsewhere
                         }
                         else {
                             // Short/Medium/LongVarchar, Paragraph Text, and Integer/DecimalValue
-                            $dr_list = $this->search_service->searchTextOrNumberDatafield($entity, $search_term['value']);
+                            $dr_list = $this->search_service->searchTextOrNumberDatafield($entity, $search_term['value'], $use_set_logic);
 
                             // If this search involved the empty string...
-                            $involves_empty_string = $dr_list['guard'];
-                            if ($involves_empty_string) {
+                            $query_modified = $dr_list['modify'];
+                            if ( $query_modified > SearchQueryService::NO_MODIFICATION ) {
                                 // ...then insert an entry into the criteria array so that the later
                                 //  call of self::mergeSearchResults() can properly compensate
-                                $criteria[$dt_id][$facet_num]['search_terms'][$key]['guard'] = true;
+                                $criteria[$dt_id][$facet_num]['search_terms'][$key]['modify'] = $query_modified;
                             }
                         }
                     }
@@ -858,45 +1682,87 @@ class SearchAPIService
 
                     // ----------------------------------------
                     // Need to merge this result with the existing matches for this facet...
+                    $facet_dt_id = $search_term['datatype_id'];
+
                     if ( $dt_id === 'general' ) {
                         // ...a general search needs to separate the datarecord lists by datatype,
                         //  because they can't get negated properly if they're all smashed together
-                        $facet_dt_id = $search_term['datatype_id'];
+                        if ( !isset($facet_dr_list[$facet_dt_id]['general']) )
+                            $facet_dr_list[$facet_dt_id]['general'] = array();
+                        if ( !isset($facet_dr_list[$facet_dt_id]['general'][$facet_num]) )
+                            $facet_dr_list[$facet_dt_id]['general'][$facet_num] = array();
 
-                        if ( is_null($facet_dr_list[$dt_id][$facet_num][$facet_dt_id]) )
-                            $facet_dr_list[$dt_id][$facet_num][$facet_dt_id] = array();
-
-                        // Every datarecord returned by the SearchService functions ends up matching
-                        //  at this point in time...
+                        // General search always merges by OR when inside a facet
                         foreach ($dr_list['records'] as $dr_id => $num)
-                            $facet_dr_list[$dt_id][$facet_num][$facet_dt_id][$dr_id] = $num;
+                            $facet_dr_list[$facet_dt_id]['general'][$facet_num][$dr_id] = $num;
                     }
                     else {
-                        // ...a search directly on a datafield already has the datatype info
-                        if ($merge_type === 'OR') {
-                            if ( is_null($facet_dr_list[$dt_id][$facet_num]) )
-                                $facet_dr_list[$dt_id][$facet_num] = array();
+                        // ...an advanced search should be able to smash all the datarecord lists for
+                        //  a datatype together, because the user can't mix ANDs/ORs between datafields
+                        if ( !isset($facet_dr_list[$facet_dt_id]['advanced']) )
+                            $facet_dr_list[$facet_dt_id]['advanced'] = array();
+                        if ( !isset($facet_dr_list[$facet_dt_id]['advanced'][$facet_num]) )
+                            $facet_dr_list[$facet_dt_id]['advanced'][$facet_num] = null;  // NOTE: this is so merging by AND can distinguish between "no records yet" and "no records match"
 
-                            // When merging by 'OR', every datarecord returned by the SearchService
-                            //  functions ends up matching
-                            foreach ($dr_list['records'] as $dr_id => $num)
-                                $facet_dr_list[$dt_id][$facet_num][$dr_id] = $num;
+                        // Advanced searches are a combination of records across all fields in the
+                        //  datatype...
+                        if ( is_null($facet_dr_list[$dt_id]['advanced'][$facet_num]) ) {
+                            // ...if this is the first set of records for this facet, then don't need
+                            //  to merge with anything
+                            $facet_dr_list[$dt_id]['advanced'][$facet_num] = $dr_list['records'];
                         }
                         else {
-                            // When merging by 'AND'...if this is the first (or only) facet of criteria...
-                            if ( is_null($facet_dr_list[$dt_id][$facet_num]) ) {
-                                // ...use the datarecord list returned by the first SearchService call
-                                $facet_dr_list[$dt_id][$facet_num] = $dr_list['records'];
+                            // ...if this isn't the first set of records, then what to do depends on
+                            //  the type of merge being performed...
+                            if ( $merge_type === 'OR' ) {
+                                // ...union the subsequent sets of records with the first
+                                foreach ($dr_list['records'] as $dr_id => $num)
+                                    $facet_dr_list[$facet_dt_id]['advanced'][$facet_num][$dr_id] = $num;
                             }
                             else {
                                 // ...otherwise, intersect the list returned by the search with the
                                 //  currently stored list
-                                $facet_dr_list[$dt_id][$facet_num] = array_intersect_key($facet_dr_list[$dt_id][$facet_num], $dr_list['records']);
+                                $facet_dr_list[$facet_dt_id]['advanced'][$facet_num] = array_intersect_key($facet_dr_list[$facet_dt_id]['advanced'][$facet_num], $dr_list['records']);
                             }
+
+                            // NOTE: when using the 'set' logic, this won't really ever be entered
                         }
                     }
                 }
             }
+        }
+
+
+        // ----------------------------------------
+        // At this point, all the individual search queries have been run and there's usually some
+        //  sort of datarecord set(s) in $facet_dr_list.  There are generally three situations the
+        //  search system could be in at this point:
+        // 1) no criteria provided for a regular search
+        // 2) criteria provided for a regular search
+        // 3) MassEdit/CSVExport wants a "complete" list of matching records
+        $graph = $counts = array();
+        $datatree_array = null;
+
+        // The first situation is simple...
+        if ( !$return_all_results || $return_complete_list ) {
+            // ...but in order to complete the other two situations, the search system needs to
+            //  figure out a graph from "ancestor" to "descendant" so the actual merging/collation
+            //  can be handled correctly
+            if ( is_null($datatree_array) )
+                $datatree_array = $this->datatree_info_service->getDatatreeArray();
+
+            // The initial graph needs to mirror how ODR's rendering systems sees the datatypes...
+            $all_datatypes = array_flip($all_datatypes);
+            if ( is_null($inverse_target_datatype_id) )
+                self::buildSearchDependencyGraph($datatree_array, $all_datatypes, $ignored_prefixes, $datatype->getId(), '', $graph, $counts);
+            else
+                self::buildSearchDependencyGraph($datatree_array, $all_datatypes, $ignored_prefixes, $inverse_target_datatype_id, '', $graph, $counts);
+
+            // ...but that graph needs to be "inverted" if the user wants the final set of results
+            //  to belong to a datatype that isn't considered to be the ancestor by the rendering
+            //  system
+            if ( !is_null($inverse_target_datatype_id) && $datatype->getId() !== $inverse_target_datatype_id )
+                $counts = self::invertSearchDependencyGraph($graph, $counts, $datatype->getId());
         }
 
 
@@ -905,100 +1771,72 @@ class SearchAPIService
         if ( $return_all_results ) {
             // When no search criteria is specified, then every datarecord that the user can see
             //  needs to be marked as "matching" the search
-            foreach ($flattened_list as $dr_id => $num) {
-                if ( !($num & SearchAPIService::CANT_VIEW) )
-                    $flattened_list[$dr_id] |= SearchAPIService::MATCHES_BOTH;
+            foreach ($flattened_list as $dt_id => $dr_list) {
+                foreach ($dr_list as $dr_id => $num) {
+                    if ( !($num & SearchAPIService::CANT_VIEW) )
+                        $flattened_list[$dt_id][$dr_id] |= SearchAPIService::MATCHES_BOTH;
+                }
             }
         }
         else {
-            // Need this value back in there for merging
-            $criteria['default_merge_type'] = $default_merge_type;
+            // If search criteria was specified, then ODR typically has to merge lists of datarecords
+            //  together to get a final result...unlike the merging by AND/OR that was done earlier
+            //  as the datafield criteria was being evaluated, this next set of merges have to follow
+            //  a different, more complicated set of rules...
 
-            // Determine whether a 'general' search was executed...
-            $was_general_seach = false;
-            if ( isset($facet_dr_list['general']) ) {
-                // ...the existence of this facet means a general search was run
-                $was_general_seach = true;
-                $general_search_facet_list = $facet_dr_list['general'];
+            // TODO - this doesn't feel complete at all
+            $merge_types = array();
+            if ( isset($criteria['general']['merge_type']) )
+                $merge_types['general'] = $criteria['general']['merge_type'];
+            if ( isset($criteria[$datatype->getId()][0]['merge_type']) )  // TODO - i don't think this means anything anymore
+                $merge_types['advanced'] = $criteria[$datatype->getId()][0]['merge_type'];
 
-                // There are two more operations that need to be performed on this list before it
-                //  gets passed to self::mergeSearchResults()...
-                foreach ($criteria['general'] as $key => $value) {
-                    if ( $key === 'merge_type' )
-                        continue;
+            if ( !isset($merge_types['advanced']) )
+                $merge_types['advanced'] = $default_merge_type;
 
-                    // The first step is to deal with any negated queries...
-                    if ( isset($value['negated']) ) {
-                        // This particular token is negated...
-                        $old_dr_list = $general_search_facet_list[$key];
-                        // ...but at the moment all datarecord lists of results for this token are
-                        //  for the un-negated query
 
-                        foreach ($old_dr_list as $dt_id => $dr_list) {
-                            // In order to negate, we need the full list of datarecords for this
-                            //  datatype so we can subtract the "un-negated" results from them
-                            $own_dr_list = $datatype_dr_lists[$dt_id];
-
-                            $new_dr_list = array();
-                            foreach ($own_dr_list as $dr_id => $num) {
-                                if ( !isset($dr_list[$dr_id]) )
-                                    $new_dr_list[$dr_id] = $num;
+            // Rather than pass the full $criteria array to performMerge(), it makes more sense to
+            //  extract the facets which are negated/guarded beforehand
+            $modified_facets = array('general' => array(), 'advanced' => array());
+            foreach ($criteria as $dt_id => $facet_list) {
+                foreach ($facet_list as $facet_num => $facet) {
+                    if ( $dt_id === 'general' ) {
+                        // General search is easy to deal with
+                        if ( $facet_num === 'merge_type' )
+                            continue;
+                        if ( isset($facet['negated']) )
+                            $modified_facets['general'][$facet_num] = SearchQueryService::NEGATED_QUERY;
+                    }
+                    else {
+                        // Advanced search requires each individial facet get checked
+                        if ( !empty($facet) ) {
+                            foreach ($facet['search_terms'] as $df_id => $df_data) {
+                                if ( isset($df_data['modify']) )
+                                    $modified_facets['advanced'][$facet_num] = $df_data['modify'];
                             }
-
-                            // The resulting "negated list" of datarecords needs to replace the
-                            //  previous list
-                            $general_search_facet_list[$key][$dt_id] = $new_dr_list;
                         }
                     }
-
-                    // The second step is to then combine the lists for each datatype into a single
-                    //  list...
-                    $old_dr_list = $general_search_facet_list[$key];
-
-                    $new_dr_list = array();
-                    foreach ($old_dr_list as $dt_id => $dr_list) {
-                        foreach ($dr_list as $dr_id => $num)
-                            $new_dr_list[$dr_id] = $num;
-                    }
-
-                    // ...and once that new list is stored in $facet_dr_list, the merging process
-                    //  can do its job properly
-                    $facet_dr_list['general'][$key] = $new_dr_list;
                 }
             }
 
-            // Determine whether an 'advanced' search was executed...
-            $was_advanced_search = false;
-            foreach ($facet_dr_list as $key => $facet_list) {
-                if ( is_numeric($key) && !empty($facet_list) ) {
-                    // ...the existence of a numeric key means an advanced search was run
-                    $was_advanced_search = true;
-                    break;
-                }
-            }
-
-            // ...if both types of searches were executed, then the merging algorithm needs to
-            //  separately track which type of search each record matched (they could match both too)
-            $differentiate_search_types = $was_general_seach && $was_advanced_search;
-            if ( is_null($inverse_target_datatype_id) ) {
-                self::expandEmptyStringGuard($criteria, $search_datatree[$datatype->getId()], $datatype->getId());
-                self::mergeSearchResults($criteria, true, $datatype->getId(), $search_datatree[$datatype->getId()], $facet_dr_list, $flattened_list, $differentiate_search_types);
-            }
-            else {
-                self::expandEmptyStringGuard($criteria, $search_datatree[$inverse_target_datatype_id], $inverse_target_datatype_id);
-                self::mergeSearchResults($criteria, true, $inverse_target_datatype_id, $search_datatree[$inverse_target_datatype_id], $facet_dr_list, $flattened_list, $differentiate_search_types);
-            }
+            // Actually perform the mess of opertaions to convert arbitrary sets of datarecord lists
+            //  in $facet_dr_list into a set of datarecords of the top-level datatype, and simultaneously
+            //  update $flattened_list so that it contains a final list of records
+            self::performMerge($graph, $counts, $datatype->getId(), $datatypes_with_criteria, $merge_types, $facet_dr_list, $flattened_list, $modified_facets, $use_set_logic);
         }
 
 
         // ----------------------------------------
-        // If the user needs a list of datarecords that includes child/linked descendants...
+        // If the user needs a list of datarecords that includes child/linked descendants for the
+        //  purposes of MassEdit/CSVExport...
         if ( $return_complete_list ) {
-            // ...then traverse $inflated_list to get the final set of datarecords that match the search
-            // NOTE: intentionally no check for $inverse_target_datatype_id here...the function needs
-            //  to always locate the original datatype
-            $datarecord_ids = self::getMatchingDatarecords($flattened_list, $inflated_list, $datatype->getId());
+            // ...then that requires (a potentially large number of) transforms to get all matching
+            //  descendants of the matching records of the requested datatype...
+            if ( is_null($datatree_array) )
+                $datatree_array = $this->datatree_info_service->getDatatreeArray();
+            $datarecord_ids = self::getCompleteDatarecordList($datatree_array, $graph, $flattened_list, $datatype->getId());
             $datarecord_ids = array_keys($datarecord_ids);
+//            sort($datarecord_ids);
 
             // There's no correct method to sort this list, so might as well return immediately
             return $datarecord_ids;
@@ -1008,35 +1846,11 @@ class SearchAPIService
         // Otherwise, the user only wanted a list of the grandparent datarecords that matched the
         //  search...
         $grandparent_ids = array();
-        if ( is_null($inverse_target_datatype_id) || $inverse_target_datatype_id === $datatype->getId() ) {
-            // ...since this is not an "inverse" search, then traversing the top-level of the inflated
-            //  list is all that's required
-            if ( isset($inflated_list[$datatype->getId()]) ) {
-                foreach ($inflated_list[$datatype->getId()] as $gp_id => $data) {
-                    if ( ($flattened_list[$gp_id] & SearchAPIService::MATCHES_BOTH) === SearchAPIService::MATCHES_BOTH )
-                        $grandparent_ids[] = $gp_id;
-                }
+        if ( isset($flattened_list[$datatype->getId()]) ) {
+            foreach ($flattened_list[$datatype->getId()] as $dr_id => $val) {
+                if ( ($val & SearchAPIService::MATCHES_BOTH) === SearchAPIService::MATCHES_BOTH )
+                    $grandparent_ids[] = $dr_id;
             }
-        }
-        else {
-            // ...if it's an inverse search, though, then it's slightly different
-
-            // Still need to to traverse the top-level of the inflated list first...
-            if ( isset($inflated_list[$inverse_target_datatype_id]) ) {
-                foreach ($inflated_list[$inverse_target_datatype_id] as $gp_id => $data) {
-                    if ( ($flattened_list[$gp_id] & SearchAPIService::MATCHES_BOTH) === SearchAPIService::MATCHES_BOTH )
-                        $grandparent_ids[] = $gp_id;
-                }
-            }
-
-            // ...after which that list needs to get "converted" into a list of datarecords for the
-            //  "correct" datatype.  Turns out the existing merge logic could not handle things when
-            //  the "inverse" datatype was a descendant of the "correct" datatype...
-            $working_dr_list = array();
-            foreach ($grandparent_ids as $num => $gp_dr_id)
-                $working_dr_list[$gp_dr_id] = 1;
-            $correct_grandparent_ids = self::undoInverseSearch($inverse_target_datatype_id, $datatype->getId(), $flattened_list, $inflated_list, $working_dr_list);
-            $grandparent_ids = array_keys($correct_grandparent_ids);
         }
 
 
@@ -1235,375 +2049,7 @@ class SearchAPIService
 
 
     /**
-     * Extracts all datafield/datatype entities listed in $criteria, and returns them as hydrated
-     * objects in an array.
-     *
-     * @param array $criteria
-     *
-     * @return array
-     */
-    public function hydrateCriteria($criteria)
-    {
-        // ----------------------------------------
-        // Searching is *just* different enough between datatypes and templates to be a pain...
-        $search_type = $criteria['search_type'];
-        unset( $criteria['search_type'] );
-
-        // Want to find all datafield entities listed in the criteria array
-        $datafield_ids = array();
-        foreach ($criteria as $dt_id => $facet_list) {
-            // Only look for datafields inside facet lists
-            if ( !is_numeric($dt_id) && $dt_id !== 'general' )
-                continue;
-
-            foreach ($facet_list as $facet_num => $facet) {
-                // Only bother with facets that have search data
-                if ( isset($facet['search_terms']) ) {
-                    foreach ($facet['search_terms'] as $key => $search_params) {
-                        // Extract the entity from the criteria array
-                        $entity_type = $search_params['entity_type'];
-                        $entity_id = $search_params['entity_id'];
-
-                        if ($entity_type === 'datafield')
-                            $datafield_ids[$entity_id] = 1;
-                    }
-                }
-            }
-        }
-        $datafield_ids = array_keys($datafield_ids);
-
-
-        // ----------------------------------------
-        // Need to hydrate all of the datafields/datatypes so the search functions work
-        $datafields = array();
-        $render_plugins = array();
-        if ( !empty($datafield_ids) ) {
-            $datafields = self::hydrateDatafields($search_type, $datafield_ids);
-            $render_plugins = self::hydrateRenderPlugins($search_type, $datafield_ids);
-        }
-
-
-        // Because of permissions, need to hydrate all datatypes...
-        $datatypes = array();
-        if ( $search_type === 'datatype' )
-            $datatypes = self::hydrateDatatypes($search_type, $criteria['all_datatypes']);
-        else
-            $datatypes = self::hydrateDatatypes($search_type, $criteria['all_templates']);
-
-
-        // ----------------------------------------
-        // Return the hydrated arrays
-        return array(
-            'datafield' => $datafields,
-            'renderPlugin' => $render_plugins,
-            'datatype' => $datatypes,
-        );
-    }
-
-
-    /**
-     * The hydration requirements are slightly different between "regular" searches and "template"
-     * searches...
-     *
-     * TODO - is hydration actually required?
-     *
-     * @param string $search_type
-     * @param int[] $datafield_ids
-     *
-     * @return DataFields[]
-     */
-    private function hydrateDatafields($search_type, $datafield_ids)
-    {
-        $datafields = array();
-
-        if ($search_type === 'datatype') {
-            // For a regular search, need to hydrate all datafields being searched on
-            $params = array(
-                'datafield_ids' => $datafield_ids
-            );
-
-            $query = $this->em->createQuery(
-               'SELECT df
-                FROM ODRAdminBundle:DataFields AS df
-                JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
-                WHERE df.id IN (:datafield_ids)
-                AND df.deletedAt IS NULL AND dt.deletedAt IS NULL'
-            )->setParameters($params);
-            $results = $query->getResult();
-
-            /** @var DataFields[] $results */
-            foreach ($results as $df)
-                $datafields[ $df->getId() ] = $df;
-        }
-        else {
-            // For a template search, only want to hydrate the master template fields...otherwise
-            //  we would have to hydrate every single datafield that uses the searched template
-            //  fields as their master datafields.
-            // Not really a good idea, especially since the actual searching functions can just
-            //  have the database queries return a datafield id for permissions purposes
-            $params = array(
-                'field_uuids' => $datafield_ids
-            );
-
-            $query = $this->em->createQuery(
-               'SELECT df
-                FROM ODRAdminBundle:DataFields AS df
-                JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
-                WHERE df.fieldUuid IN (:field_uuids) AND df.is_master_field = 1
-                AND df.deletedAt IS NULL AND dt.deletedAt IS NULL'
-            )->setParameters($params);
-            $results = $query->getResult();
-
-            /** @var DataFields[] $results */
-            foreach ($results as $df)
-                $datafields[ $df->getFieldUuid() ] = $df;
-        }
-
-        return $datafields;
-    }
-
-
-    /**
-     * Loads render plugins that affect search results prior to use.
-     *
-     * @param string $search_type
-     * @param array $datafield_ids
-     *
-     * @return array
-     */
-    private function hydrateRenderPlugins($search_type, $datafield_ids)
-    {
-        $render_plugins = array();
-
-        if ( $search_type === 'datatype' ) {
-            // For a regular search, need to hydrate all datafields being searched on
-            $params = array(
-                'datafield_ids' => $datafield_ids,
-                'override_search' => true
-            );
-
-            // Because both datafield and datatype plugins can use search_override, it's easier if
-            //  two dql queries are used. The first determines whether the datafields being searched
-            //  on belong to a plugin that (possibly) wants to override searching...
-            $query = $this->em->createQuery(
-               'SELECT df.id AS df_id, rp.id AS rp_id, rpi.id AS rpi_id, rp.pluginClassName AS plugin_classname, rpf.fieldName
-                FROM ODRAdminBundle:RenderPlugin AS rp
-                JOIN ODRAdminBundle:RenderPluginInstance AS rpi WITH rpi.renderPlugin = rp
-                JOIN ODRAdminBundle:RenderPluginMap AS rpm WITH rpm.renderPluginInstance = rpi
-                JOIN ODRAdminBundle:RenderPluginFields AS rpf WITH rpm.renderPluginFields = rpf
-                JOIN ODRAdminBundle:DataFields AS df WITH rpm.dataField = df
-                WHERE rp.overrideSearch = :override_search AND rp.active = 1 AND df.id IN (:datafield_ids)
-                AND rp.deletedAt IS NULL AND rpi.deletedAt IS NULL AND rpm.deletedAt IS NULL
-                AND rpf.deletedAt IS NULL AND df.deletedAt IS NULL'
-            )->setParameters($params);
-            $results = $query->getArrayResult();
-
-            // Only want to load each render plugin once...
-            $render_plugins_cache = array();
-            $render_plugins_overrides = array();
-            foreach ($results as $result) {
-                $rp_id = $result['rp_id'];
-                $plugin_classname = $result['plugin_classname'];
-                $rpi_id = $result['rpi_id'];
-
-                if ( !isset($render_plugins_cache[$plugin_classname]) ) {
-                    /** @var SearchOverrideInterface $plugin */
-                    $plugin = $this->container->get($plugin_classname);
-                    $render_plugins_cache[$plugin_classname] = array('id' => $rp_id, 'plugin' => $plugin);
-                }
-
-                // Also need to organize these datafields by the render plugin instance that they're
-                //  attached to
-                if ( !isset($render_plugins_overrides[$plugin_classname]) )
-                    $render_plugins_overrides[$plugin_classname] = array();
-                if ( !isset($render_plugins_overrides[$plugin_classname][$rpi_id]) )
-                    $render_plugins_overrides[$plugin_classname][$rpi_id] = array();
-
-                $rpf_name = $result['fieldName'];
-                $df_id = $result['df_id'];
-                $render_plugins_overrides[$plugin_classname][$rpi_id][$rpf_name] = $df_id;
-
-                // NOTE: $render_plugins_overrides could have more fields than the plugin actually
-                //  wants to override
-            }
-
-            // Now that the fields have been grouped, determine whether the render plugin wants to
-            //  override the search routine for each set of fields
-            foreach ($render_plugins_cache as $plugin_classname => $plugin_data) {
-                $plugin = $plugin_data['plugin'];
-
-                // ...I don't think it's strictly necessary to check each render plugin instance, but
-                //  maybe it will be in the future.  Dunno.
-                foreach ($render_plugins_overrides[$plugin_classname] as $rpi_id => $df_list) {
-                    $ret = $plugin->getSearchOverrideFields($df_list);
-
-                    if ( !empty($ret) ) {
-                        // ...the plugin wants to override at least one field
-                        foreach ($ret as $rpf_name => $df_id) {
-                            // It's easier on SearchAPIService if each datafield gets a reference to
-                            //  the plugin (and eventually to the plugin's options)
-                            $render_plugins[$df_id] = array(
-                                'renderPlugin' => $plugin_data,
-                            );
-                        }
-                    }
-                    else {
-                        // ...the plugin doesn't want to override any fields
-                        unset( $render_plugins_overrides[$plugin_classname][$rpi_id] );
-                    }
-                }
-            }
-
-            // If a plugin wants to override searching for a field...
-            $render_plugin_instance_ids = array();
-            foreach ($render_plugins_overrides as $plugin_classname => $rpi_list) {
-                // ...then we need to also load the related set of options for each render plugin
-                //  instance
-                foreach ($rpi_list as $rpi_id => $df_list)
-                    $render_plugin_instance_ids[] = $rpi_id;
-            }
-
-            $render_plugin_options = array();
-            $render_plugin_fields = array();    // NOTE: different than $render_plugin_fields
-            if ( !empty($render_plugin_instance_ids) ) {
-                $query = $this->em->createQuery(
-                   'SELECT rpi.id AS rpi_id, rpom.value AS rpom_value, rpod.name AS rpod_name
-                    FROM ODRAdminBundle:RenderPluginInstance rpi
-                    LEFT JOIN ODRAdminBundle:RenderPluginOptionsMap AS rpom WITH rpom.renderPluginInstance = rpi
-                    LEFT JOIN ODRAdminBundle:RenderPluginOptionsDef AS rpod WITH rpom.renderPluginOptionsDef = rpod
-                    WHERE rpi.id IN (:render_plugin_instance_ids)
-                    AND rpi.deletedAt IS NULL AND rpom.deletedAt IS NULL AND rpod.deletedAt IS NULL'
-                )->setParameters( array('render_plugin_instance_ids' => $render_plugin_instance_ids) );
-                $results = $query->getArrayResult();
-
-                foreach ($results as $result) {
-                    $rpi_id = $result['rpi_id'];
-                    $option_name = $result['rpod_name'];
-                    $option_value = $result['rpom_value'];
-
-                    if ( !is_null($option_name) ) {
-                        if ( !isset($render_plugin_options[$rpi_id]) )
-                            $render_plugin_options[$rpi_id] = array();
-                        $render_plugin_options[$rpi_id][$option_name] = $option_value;
-                    }
-                }
-
-                // When overriding datatype plugins, it's useful to have the renderPluginField list...
-                $query = $this->em->createQuery(
-                   'SELECT rpi.id AS rpi_id, rpm_df.id AS df_id, rpf.fieldName AS rpf_name
-                    FROM ODRAdminBundle:RenderPluginInstance AS rpi
-                    LEFT JOIN ODRAdminBundle:RenderPluginMap AS rpm WITH rpm.renderPluginInstance = rpi
-                    LEFT JOIN ODRAdminBundle:RenderPluginFields AS rpf WITH rpm.renderPluginFields = rpf
-                    LEFT JOIN ODRAdminBundle:DataFields AS rpm_df WITH rpm.dataField = rpm_df
-                    WHERE rpi.id IN (:render_plugin_instance_ids)
-                    AND rpi.deletedAt IS NULL AND rpm.deletedAt IS NULL
-                    AND rpf.deletedAt IS NULL AND rpm_df.deletedAt IS NULL'
-                )->setParameters( array('render_plugin_instance_ids' => $render_plugin_instance_ids) );
-                $results = $query->getArrayResult();
-
-                foreach ($results as $result) {
-                    $rpi_id = $result['rpi_id'];
-                    $df_id = $result['df_id'];
-                    $rpf_name = $result['rpf_name'];
-
-                    if ( !isset($render_plugin_fields[$rpi_id]) )
-                        $render_plugin_fields[$rpi_id] = array();
-                    $render_plugin_fields[$rpi_id][$rpf_name] = $df_id;
-                }
-            }
-
-            // Need to map any existing render plugin options to each datafield they're related to
-            foreach ($render_plugins_overrides as $plugin_classname => $rpi_list) {
-                $plugin = $render_plugins_cache[$plugin_classname]['plugin'];
-
-                foreach ($rpi_list as $rpi_id => $df_list) {
-                    foreach ($df_list as $rpf_name => $df_id) {
-                        // Since $render_plugins_overrides could refer to more fields than the plugin
-                        //  actually wants to override...
-                        if ( isset($render_plugins[$df_id]) ) {
-                            // ...only continue processing on entries that already exist
-
-                            // Easier to replace the existing array entry for this datafield...
-                            $render_plugins[$df_id] = array(
-                                'renderPlugin' => $plugin,
-                                'renderPluginOptions' => array()
-                            );
-                            // ...and attach any render plugin options if they exist
-                            if ( isset($render_plugin_options[$rpi_id]) )
-                                $render_plugins[$df_id]['renderPluginOptions'] = $render_plugin_options[$rpi_id];
-                            // ...same for the render plugin field list
-                            if ( isset($render_plugin_fields[$rpi_id]) )
-                                $render_plugins[$df_id]['renderPluginFields'] = $render_plugin_fields[$rpi_id];
-                        }
-                    }
-                }
-            }
-        }
-        else {
-            throw new ODRNotImplementedException('unable to run search plugins across templates...');
-        }
-
-        return $render_plugins;
-    }
-
-
-    /**
-     * The hydration requirements are slightly different between "regular" searches and "template"
-     * searches...
-     *
-     * TODO - is hydration actually required?
-     *
-     * @param string $search_type
-     * @param int[]|string $datatype_ids
-     *
-     * @return DataType[]
-     */
-    private function hydrateDatatypes($search_type, $datatype_ids)
-    {
-        $results = array();
-        if ($search_type === 'datatype') {
-            // For a regular search, need to hydrate all datatypes that could be searched on
-            // Otherwise, we can't deal with permissions properly
-            $params = array(
-                'datatype_ids' => $datatype_ids
-            );
-
-            $query = $this->em->createQuery(
-               'SELECT dt
-                FROM ODRAdminBundle:DataType AS dt
-                WHERE dt.id IN (:datatype_ids)
-                AND dt.deletedAt IS NULL'
-            )->setParameters($params);
-            $results = $query->getResult();
-        }
-        else {
-            // For a template search, we still need to hydrate all the non-template datatypes that
-            //  are being searched on...otherwise, we can't deal with permissions properly
-            $params = array(
-                'template_uuids' => $datatype_ids
-            );
-
-            $query = $this->em->createQuery(
-               'SELECT dt
-                FROM ODRAdminBundle:DataType AS mdt
-                JOIN ODRAdminBundle:DataType AS dt WITH dt.masterDataType = mdt
-                JOIN ODRAdminBundle:DataType AS gp WITH dt.grandparent = gp
-                WHERE mdt.unique_id IN (:template_uuids)
-                AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL AND gp.deletedAt IS NULL'
-            )->setParameters($params);
-            $results = $query->getResult();
-        }
-
-        /** @var DataType[] $results */
-        $datatypes = array();
-        foreach ($results as $dt)
-            $datatypes[ $dt->getId() ] = $dt;
-
-        return $datatypes;
-    }
-
-
-    /**
+     * @deprecated
      * Runs a cross-template search specified by the given $search_key.  The end result is filtered
      * based on the user's permissions.
      *
@@ -1886,9 +2332,9 @@ class SearchAPIService
         }
         else {
             // Determine whether a 'general' search was executed...
-            $was_general_seach = false;
+            $was_general_search = false;
             if ( isset($facet_dr_list['general']) )
-                $was_general_seach = true;
+                $was_general_search = true;
 
             // Determine whether an 'advanced' search was executed...
             $was_advanced_search = false;
@@ -1902,7 +2348,7 @@ class SearchAPIService
 
             // ...if both types of searches were executed, then the merging algorithm needs to keep
             //  track of which type of search each record matched
-            $differentiate_search_types = $was_general_seach && $was_advanced_search;
+            $differentiate_search_types = $was_general_search && $was_advanced_search;
             self::mergeSearchResults($criteria, true, $template_datatype->getId(), $search_datatree[$template_datatype->getId()], $facet_dr_list, $flattened_list, $differentiate_search_types);
         }
 
@@ -1951,6 +2397,7 @@ class SearchAPIService
 
 
     /**
+     * @deprecated
      * {@link APIController::getfieldstatsAction()} needs to return a count of how many datarecords
      * have a specific radio option or tag selected across all instances of a template datafield.
      * This function filters the raw search results by the user's permissions before the APIController
@@ -1996,130 +2443,7 @@ class SearchAPIService
 
 
     /**
-     * It's easier for {@link self::performSearch()} when {@link self::getSearchArrays()} returns
-     * arrays that already contain the user's permissions and which datatypes are being searched on...
-     * this utility function gathers that required info in a single spot.
-     *
-     * @param DataType[] $hydrated_datatypes
-     * @param int[] $affected_datatypes {@link SearchKeyService::convertSearchKeyToCriteria()}
-     * @param array $user_permissions The permissions of the user doing the search, or an empty
-     *                                array when not logged in
-     * @param bool $search_as_super_admin If true, don't filter anything by permissions
-     *
-     * @return array
-     */
-    public function getSearchPermissionsArray($hydrated_datatypes, $affected_datatypes, $user_permissions, $search_as_super_admin = false)
-    {
-        // Going to need to filter based on the user's permissions
-        $datatype_permissions = array();
-        if ( isset($user_permissions['datatypes']) )
-            $datatype_permissions = $user_permissions['datatypes'];
-
-        $search_permissions = array();
-        foreach ($hydrated_datatypes as $dt_id => $dt) {
-            // User needs to be able to view the datatype in order for them to search on it...
-            $can_view_datatype = false;
-            if ($search_as_super_admin)
-                $can_view_datatype = true;
-            else if ( isset($datatype_permissions[$dt_id]['dt_view']) )
-                $can_view_datatype = true;
-            else if ($dt->isPublic())
-                $can_view_datatype = true;
-
-
-            if ( !$can_view_datatype ) {
-                // If the user can't view this datatype, then there's no point checking other
-                //  permissions or gathering various lists of datarecords
-                $search_permissions[$dt_id] = array(
-                    'can_view_datatype' => $can_view_datatype
-                );
-            }
-            else {
-                // If user can't view non-public datarecords, then need to get a list of them so
-                //  they can be properly excluded from the search results
-                $can_view_datarecord = false;
-                if ($search_as_super_admin)
-                    $can_view_datarecord = true;
-                else if ( isset($datatype_permissions[$dt_id]['dr_view']) )
-                    $can_view_datarecord = true;
-
-
-                $non_public_datarecords = array();
-                if (!$can_view_datarecord) {
-                    $ret = $this->search_service->searchPublicStatus($dt, false);
-                    $non_public_datarecords = $ret['records'];
-                }
-
-                $search_permissions[$dt_id] = array(
-                    'datatype' => $dt,
-                    'can_view_datatype' => $can_view_datatype,
-                    'can_view_datarecord' => $can_view_datarecord,
-                    'non_public_datarecords' => $non_public_datarecords,
-                );
-
-                // Also, store whether this datatype is being searched on
-                if (in_array($dt_id, $affected_datatypes))
-                    $search_permissions[$dt_id]['affected'] = true;
-                else
-                    $search_permissions[$dt_id]['affected'] = false;
-            }
-        }
-
-        return $search_permissions;
-    }
-
-
-    /**
-     * ODR can end up in situations with complicated database structures that are rather nighmarish
-     * to search...to use a real-world examples:
-     * <pre>
-     * AMCSD (or RRUFF Samples)
-     * |- RRUFF References (link)
-     * |- IMA Mineral List (link)
-     *     |- RRUFF References (link)
-     *     |- Status Notes (child)
-     *         |- RRUFF References (link)
-     *      |- Reference A (child)
-     *          |- RRUFF References (link)
-     *      |- Reference B (child)
-     *          |- RRUFF References (link)
-     * </pre>
-     *
-     * In the case of RRUFF Samples, the user typically doesn't care which RRUFF Reference link
-     * matches...but in the case of AMCSD, they very much do care, and usually don't want to involve
-     * any descendants of the IMA Mineral List.  Until they do want to run that search.  =')
-     *
-     * Fortunately, because of the rules ODR follows when permitting links, each of them can be
-     * uniquely identified by a "prefix".  This permits {@link self::getSearchArrays()} to "selectively
-     * ignore" parts of the various arrays it would otherwise build...that lack of info ends up
-     * causing {@link self::mergeSearchResults()} to behave as if those links don't exist.
-     *
-     * Due to differences in storing the prefixes and actually using them, it's easier to use a
-     * function as an in-between.
-     *
-     * @param array $search_params
-     * @param DataType $datatype
-     *
-     * @return array
-     */
-    private function getIgnoredPrefixes($search_params, $datatype)
-    {
-        $ignored_prefixes = array();
-
-        if ( isset($search_params['ignore']) ) {
-            // If this key is set, then use its contents
-            $ignored_prefixes = array_flip($search_params['ignore']);
-        }
-        else {
-            // Otherwise, fall back to whatever the default is for this datatype
-            $ignored_prefixes = array();    // TODO
-        }
-
-        return $ignored_prefixes;
-    }
-
-
-    /**
+     * @deprecated
      * Returns four arrays that are required for determining which datarecords match a search.
      * Technically a search run on a top-level datatype doesn't need all this, but any search that
      * involves a child/linked datatype does.
@@ -2195,6 +2519,7 @@ class SearchAPIService
 
 
     /**
+     * @deprecated
      * This is split off from {@link self::getSearchArrays()} for readability reasons.
      *
      * @param array $datatype_dr_lists
@@ -2225,14 +2550,14 @@ class SearchAPIService
 
             // If this is the datatype being searched on (or one of the datatypes directly derived
             //  from the template being searched on), then $is_linked_type needs to be false, so
-            //  getCachedSearchDatarecordList() will return all datarecords...otherwise, it'll only
+            //  getCachedDatarecordList() will return all datarecords...otherwise, it'll only
             //  return those that are linked to from somewhere (which is usually desired when
             //  searching a linked datatype)
             if ( isset($top_level_datatype_ids[$dt_id]) )
                 $is_linked_type = false;
 
             // Attempt to load this datatype's datarecords and their parents from the cache...
-            $list = $this->search_service->getCachedSearchDatarecordList($dt_id, $is_linked_type);
+            $list = $this->search_service->getCachedDatarecordList($dt_id, false, $is_linked_type);
 
 
             // ----------------------------------------
@@ -2297,6 +2622,7 @@ class SearchAPIService
 
 
     /**
+     * @deprecated
      * Recursively builds an array of the following form for {@link self::mergeSearchResults()} to use:
      * <pre>
      * <datatype_id> => array(
@@ -2308,7 +2634,7 @@ class SearchAPIService
      * ...where the array structure is recursively repeated inside 'children' or 'links', depending
      *  on whether the descendant is a child or a linked datatype.
      *
-     * The <datarecord_list> stores whatever {@link SearchService::getCachedSearchDatarecordList()}
+     * The <datarecord_list> stores whatever {@link SearchService::getCachedDatarecordList()}
      *  returns for the current datatype.
      *
      * @param array $ignored_prefixes {@link self::getIgnoredPrefixes()}
@@ -2345,7 +2671,7 @@ class SearchAPIService
 
 
             // Need to store all datarecords of this datatype...
-            $tmp[$dt_id]['dr_list'] = $this->search_service->getCachedSearchDatarecordList($dt_id, $is_linked_type);
+            $tmp[$dt_id]['dr_list'] = $this->search_service->getCachedDatarecordList($dt_id, false, $is_linked_type);
 
             // Always want any children of the top-level datatype...
             $children = array();
@@ -2377,6 +2703,7 @@ class SearchAPIService
 
 
     /**
+     * @deprecated
      * Turns the originally flattened $descendants_of_datarecord array into a recursive tree
      *  structure of the form...
      * <pre>
@@ -2462,6 +2789,7 @@ class SearchAPIService
 
 
     /**
+     * @deprecated
      * The "template" analog of {@link self::getSearchArrays()} does mostly the same thing, but it
      * doesn't attempt to get the list of records from cached data...instead, it uses a handful of
      * specific queries to load all records that the user is allowed to see, with as little overhead
@@ -2755,6 +3083,7 @@ class SearchAPIService
 
 
     /**
+     * @deprecated
      * Recursively builds an array of the following form for {@link self::mergeSearchResults()} to
      * use for a template search:
      * <pre>
@@ -2837,88 +3166,878 @@ class SearchAPIService
 
 
     /**
-     * When trying to find the empty string in a child/linked descendant, there's another irritating
-     * wrinkle in the problem that's caused by ODR.  If we assume that A links to B and B links to C,
-     * and we search for an empty string on C...then that effectively needs to match three sets:
-     * <pre>
-     *  1) records in A that have descendants of B that have descendants of C that are empty
-     *  2) records in A that have descendants of B that don't have descendants of C
-     *  3) records in A that don't have descendants of B
-     * </pre>
+     * There's basically three parts to searches in ODR...the first is to convert incoming requests
+     * into "criteria", the second is to get lists of datarecords that match the "criteria", and
+     * the third is to somehow "merge" them together to get a final set of matching records.  The
+     * third part is by far the most difficult.
      *
-     * ODR should (theoretically) already handle the first two conditions, but there needs to be an
-     * extra push for it to realize the third condition.  The easiest way of handling this seems to
-     * be to "transfer" the marker for the descendant into a new facet for the ancestor, which will
-     * allow {@link self::mergeSearchResults()} to activate the blocks of code to transfer the
-     * "ancestors_without_descendants" records...
-     *
-     * @param array $criteria {@link self::hydrateCriteria()}
-     * @param array $search_datatree {@link self::buildSearchDatatree()}
-     * @param integer $current_datatype_id
-     * @return bool
+     * @param array $graph {@see self::buildSearchDependencyGraph()}
+     * @param array $counts {@see self::buildSearchDependencyGraph()}
+     * @param int $top_level_datatype_id The datatype the search will be returning records for. This
+     *                                   is guaranteed to be a top-level datatype, but it might be
+     *                                   a descendant from the perspective of the rendering system
+     * @param array &$datatypes_with_criteria
+     * @param array $merge_types
+     * @param array $facet_dr_list
+     * @param array &$flattened_list {@see self::getSearchArrays()}
+     * @param array $modified_facets
+     * @param bool $use_set_logic TODO
      */
-    private function expandEmptyStringGuard(&$criteria, $search_datatree, $current_datatype_id)
+    private function performMerge($graph, $counts, $top_level_datatype_id, &$datatypes_with_criteria, $merge_types, $facet_dr_list, &$flattened_list, $modified_facets, $use_set_logic)
     {
-        $ret = false;
-        if ( !empty($criteria[$current_datatype_id]) ) {
-            foreach ($criteria[$current_datatype_id] as $num => $facet) {
-                foreach ($facet['search_terms'] as $df_id => $df_data) {
-                    // If this datatype was involved with a search for the empty string...
-                    if ( isset($df_data['guard']) && $df_data['guard'] === true ) {
-                        // ...then ensure its ancestor also thinks it was involved...
-                        $ret = true;
-                        // ...by creating a fake criteria facet
-                        $criteria[$current_datatype_id][99999] = array(
-                            'search_terms' => array(
-                                0 => array(
-                                    'guard' => true
-                                )
-                            )
-                        );
+        // Unfortunately, there's a difference in merging depending on whether there are multiple
+        //  paths to reach a datatype or not
+        $single = array();
+        $multiple = array();
+        // ...and also a difference in how "general" searches are merged
+        $general = array();
+        // Can reduce the duplicates in the $single array by keeping track of visited datatypes
+        $visited = array();
+        // TODO - certain inverse configurations can create a lot of duplicates in $multiple too...
+
+        // ...but all of them can be determined during the same depth-first traversal of $graph
+        self::determineMergeOrder($datatypes_with_criteria, $top_level_datatype_id, strval($top_level_datatype_id), $graph, $counts, $single, $multiple, $general, $visited);
+
+        // ----------------------------------------
+        // The previous depth-first traversal also updated $datatypes_with_criteria so that the
+        //  "ancestors" (from the point of view of the current possibly-inverted search) believe they
+        //  have criteria when their "descendants" do.
+        // This allows $flattened_list to get updated with datatypes that must match the criteria
+        //  (but aren't being directly searched on) prior to actually merging anything
+        foreach ($flattened_list as $dt_id => $dr_list) {
+            if ( isset($datatypes_with_criteria[$dt_id]) && (($datatypes_with_criteria[$dt_id] & SearchAPIService::MATCHES_ADV) === SearchAPIService::MATCHES_ADV) ) {
+                foreach ($dr_list as $dr_id => $num)
+                    $flattened_list[$dt_id][$dr_id] |= SearchAPIService::MUST_MATCH;
+            }
+        }
+
+
+        // ----------------------------------------
+        // Probably going to need this
+        $datatree_array = $this->datatree_info_service->getDatatreeArray();
+
+        // The datatypes with only a "single" path to reach them should get merged first...
+        if ( !empty($single) ) {
+            // Order matters here
+            for ($i = 0; $i < count($single); $i++) {
+                // There's only ever going to be one source/target dt pair per array entry
+                //  in $single, but don't know what they are
+                foreach ($single[$i] as $source_dt_id => $target_dt_id) {
+                    // Apparently this can be empty sometimes
+                    if ( !isset($facet_dr_list[$source_dt_id]['advanced']) )
+                        continue;
+
+                    foreach ($facet_dr_list[$source_dt_id]['advanced'] as $facet_num => $dr_list) {
+                        // Need to know whether to include target records that are not related to
+                        //  source records
+                        $include_unrelated_records = false;
+                        if ( isset($modified_facets['advanced'][$facet_num])
+                            && $modified_facets['advanced'][$facet_num] === SearchQueryService::NEED_UNRELATED_RECORDS
+                        ) {
+                            $include_unrelated_records = true;
+                        }
+
+                        // Transform the set of descendant records into a set of ancestor records
+                        $ret = self::transformRecordsFromCriteria($datatree_array, $facet_dr_list, $flattened_list, $source_dt_id, $target_dt_id, 'advanced', $facet_num, $include_unrelated_records);
+
+                        // If any results were returned...
+                        if ( isset($ret[$facet_num]) ) {
+                            // ...then the results are always with any existing records in the ancestor's
+                            //  facet list
+                            if ( !isset($facet_dr_list[$target_dt_id]['advanced'][$facet_num]) ) {
+                                // ...no datarecords for this facet yet, so just use the returned list
+                                $facet_dr_list[$target_dt_id]['advanced'][$facet_num] = $ret[$facet_num];
+                            }
+                            else {
+                                if ( $merge_types['advanced'] === 'OR' ) {
+                                    foreach ($ret[$facet_num] as $dr_id => $num)
+                                        $facet_dr_list[$target_dt_id]['advanced'][$facet_num][$dr_id] = $num;
+                                }
+                                else {
+                                    // ...otherwise, merge by AND
+                                    $facet_dr_list[$target_dt_id]['advanced'][$facet_num] = array_intersect_key($facet_dr_list[$target_dt_id]['advanced'][$facet_num], $ret[$facet_num]);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // ...because that reduces the amount of records to process when dealing with datatypes
+        //  that have "multiple" paths
+        if ( !empty($multiple) ) {
+            // Each datatype with "multiple" paths has its own entry in here
+            foreach ($multiple as $multipath_dt_id => $merges) {
+                // Need to handle each facet individually
+                foreach ($facet_dr_list[$multipath_dt_id]['advanced'] as $facet_num => $dr_list) {
+                    if ( strpos($facet_num, '*') !== false )
+                        continue;
+
+                    // The order of the individual paths doesn't matter
+                    foreach ($merges as $postfix => $merge_order) {
+                        // ...but the order of the datatypes does
+                        for ($i = 0; $i < count($merge_order)-1; $i++) {
+                            $source_dt_id = $merge_order[$i];
+                            $target_dt_id = $merge_order[$i+1];
+
+                            // Because each path needs to get merged together at the end, they
+                            //  need to temporarily be stored in separate facets
+                            $facet_num_target = $postfix.'*'.$facet_num;
+                            // ...but the initial read depends on whether this is the first
+                            //  step in the chain or not
+                            $facet_num_src = $postfix.'*'.$facet_num;
+                            if ($i === 0)
+                                $facet_num_src = $facet_num;
+
+                            // Need to know whether to include target records that are not related to
+                            //  source records
+                            $include_unrelated_records = false;
+                            if ( isset($modified_facets['advanced'][$facet_num])
+                                && $modified_facets['advanced'][$facet_num] === SearchQueryService::NEED_UNRELATED_RECORDS
+                            ) {
+                                $include_unrelated_records = true;
+                            }
+
+                            // Transform the set of descendant records into a set of ancestor records
+                            $ret = self::transformRecordsFromCriteria($datatree_array, $facet_dr_list, $flattened_list, $source_dt_id, $target_dt_id, 'advanced', $facet_num_src, $include_unrelated_records);
+
+                            // When doing these merges, the initial set of results are stored separately
+                            //  from each other
+                            if ( !isset($facet_dr_list[$target_dt_id]['advanced'][$facet_num_target]) ) {
+                                $facet_dr_list[$target_dt_id]['advanced'][$facet_num_target] = array();
+
+                                foreach ($ret as $ret_facet_num => $ret_dr_list) {
+//                                  if ($facet_num === $facet_num_target) {  // NOTE: this seems like it should work, but doesn't
+                                    foreach ($ret_dr_list as $dr_id => $num)
+                                        $facet_dr_list[$target_dt_id]['advanced'][$facet_num_target][$dr_id] = $num;
+//                                  }
+                                }
+                            }
+                            else {
+                                throw new ODRException('...apparently merging $multiple does require that other $facet_dr_list logic branch?');
+//                              $facet_dr_list[$target_dt_id]['advanced'][$facet_num_target] = array_intersect_key($facet_dr_list[$target_dt_id][$facet_num_target], $ret);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if ( !$use_set_logic ) {
+                // When not using set logic, the various lists of datarecords should get merged
+                //  earlier than when using set logic
+                $merged_dr_lists = array();
+                if ( !isset($facet_dr_list[$top_level_datatype_id]['advanced']) )
+                    $facet_dr_list[$top_level_datatype_id]['advanced'] = array();
+
+                foreach ($facet_dr_list[$top_level_datatype_id]['advanced'] as $facet_num => $dr_list) {
+                    if ( !is_null($dr_list) && strpos($facet_num, '*') !== false && strpos($facet_num, '_') !== false ) {
+                        // $facet_num should currently be <postfix>*0...but get the part after the
+                        //  '*' character just in case it's different
+                        $pieces = explode('*', $facet_num);
+                        $facet_id = $pieces[1];
+
+                        // Need to use the first datatype in the postfix to organize the lists of
+                        //  datarecords
+                        $pieces = explode('_', $pieces[0]);
+                        $relevant_dt_id = $pieces[0];
+                        if ( !isset($merged_dr_lists[$relevant_dt_id]) ) {
+                            $merged_dr_lists[$relevant_dt_id] = $dr_list;
+                        }
+                        else {
+                            // This needs to merge by OR, unless the query could match the empty
+                            //  string...
+                            $use_and = false;
+                            if ( isset($modified_facets['advanced'][$facet_id]) && $modified_facets['advanced'][$facet_id] > SearchQueryService::NO_MODIFICATION )
+                                $use_and = !$use_and;
+
+                            if ( !$use_and ) {
+                                foreach ($dr_list as $dr_id => $num)
+                                    $merged_dr_lists[$relevant_dt_id][$dr_id] = $num;
+                            }
+                            else {
+                                $merged_dr_lists[$relevant_dt_id] = array_intersect_key($merged_dr_lists[$relevant_dt_id], $dr_list);
+                            }
+                        }
+                    }
+                }
+
+                // Each of the separate paths can now get merged by into a single list of records
+                $merged_dr_list = null;
+                foreach ($merged_dr_lists as $relevant_dt_id => $dr_list) {
+                    if ( is_null($merged_dr_list) ) {
+                        // ...no existing datarecord list yet, so just use the first one
+                        $merged_dr_list = $dr_list;
+                    }
+                    else {
+                        if ( $merge_types['advanced'] === 'OR') {
+                            foreach ($dr_list as $dr_id => $num)
+                                $merged_dr_list[$dr_id] = $num;
+                        }
+                        else {
+                            // ...otherwise, merge by AND
+                            $merged_dr_list = array_intersect_key($merged_dr_list, $dr_list);
+                        }
+                    }
+                }
+
+                // The resulting list of records needs to get merged by AND with any existing advanced
+                //  criteria...
+                if ( !is_null($merged_dr_list) ) {
+                    if ( !isset($facet_dr_list[$top_level_datatype_id]['advanced'][0]) ) {
+                        // ...no existing criteria, so just use this list
+                        $facet_dr_list[$top_level_datatype_id]['advanced'][0] = $merged_dr_list;
+                    }
+                    else {
+                        if ( $merge_types['advanced'] === 'OR' ) {
+                            foreach ($merged_dr_list as $dr_id => $num)
+                                $facet_dr_list[$top_level_datatype_id]['advanced'][0][$dr_id] = $num;
+                        }
+                        else {
+                            // ...otherwise, merge by AND
+                            $facet_dr_list[$top_level_datatype_id]['advanced'][0] = array_intersect_key($facet_dr_list[$top_level_datatype_id]['advanced'][0], $merged_dr_list);
+                        }
+                    }
+                }
+            }
+            else {
+                // When using set logic, merging at this point is simpler...
+                foreach ($facet_dr_list as $dt_id => $facet_list) {
+                    if ( isset($facet_list['advanced']) ) {
+                        foreach ($facet_list['advanced'] as $facet_key => $dr_list) {
+                            if ( !is_null($dr_list) && strpos($facet_key, '*') !== false ) {
+                                $pieces = explode('*', $facet_key);
+                                $facet_num = $pieces[1];
+                                if ( !isset($facet_dr_list[$dt_id]['advanced'][$facet_num]) )
+                                    $facet_dr_list[$dt_id]['advanced'][$facet_num] = array();
+
+                                // NOTE: need to always merge by OR at this point
+//                                if ( isset($modified_facets['advanced'][$facet_num]) || $merge_types['advanced'] === 'OR' ) {
+                                    foreach ($dr_list as $dr_id => $num)
+                                        $facet_dr_list[$dt_id]['advanced'][$facet_num][$dr_id] = $num;
+//                                }
+//                                else if ( $merge_types['advanced'] === 'AND' ) {
+//                                    $facet_dr_list[$dt_id]['advanced'][$facet_num] = array_intersect_key($facet_dr_list[$dt_id]['advanced'][$facet_num], $dr_list);
+//                                }
+                            }
+                        }
                     }
                 }
             }
         }
 
-        // Check this datatype's child descendants...
-        foreach ($search_datatree['children'] as $child_dt_id => $child_search_datatree) {
-            $ret = self::expandEmptyStringGuard($criteria, $child_search_datatree, $child_dt_id);
 
-            // ...if they had a descendant which was involved with the empty string...
-            if ($ret) {
-                // ...then create a fake criteria facet for this datatype
-                $criteria[$current_datatype_id][99999] = array(
-                    'search_terms' => array(
-                        0 => array(
-                            'guard' => true
-                        )
-                    )
-                );
+        // ----------------------------------------
+        // General search works slightly differently than the advanced searches...
+        if ( !empty($general) ) {
+            // Order matters here
+            for ($i = 0; $i < count($general); $i++) {
+                // There's only ever going to be one source/target dt pair per array entry
+                //  in $general, but don't know what they are
+                foreach ($general[$i] as $source_dt_id => $target_dt_id) {
+                    // Do NOT need to deal with the possibility of a negated facet here...general
+                    //  search is split apart and handled in such a way that any negated criteria
+                    //  must be handled later
+
+                    // Transform the set of descendant records into a set of ancestor records
+                    $ret = self::transformRecordsFromCriteria($datatree_array, $facet_dr_list, $flattened_list, $source_dt_id, $target_dt_id, 'general'/*, $guard*/);
+
+                    // $ret could have multiple facets in there, one for each 'token' of the general
+                    //  search...they can't get merged together into one list of records until the
+                    //  top-level datatype is reached
+                    if ( !isset($facet_dr_list[$target_dt_id]['general']) )
+                        $facet_dr_list[$target_dt_id]['general'] = array();
+
+                    foreach ($ret as $facet_num => $dr_list) {
+                        // ...however, the list of records for each individual "token" should get
+                        //  merged by OR with any existing records for the same "token" in the
+                        //  ancestor's list of records
+                        if ( !isset($facet_dr_list[$target_dt_id]['general']) )
+                            $facet_dr_list[$target_dt_id]['general'][$facet_num] = $dr_list;
+                        else {
+                            foreach ($dr_list as $dr_id => $num)
+                                $facet_dr_list[$target_dt_id]['general'][$facet_num][$dr_id] = $num;
+                        }
+                    }
+                }
             }
         }
 
-        // Check this datatype's linked descendants...
-        foreach ($search_datatree['links'] as $linked_dt_id => $child_search_datatree) {
-            $ret = self::expandEmptyStringGuard($criteria, $child_search_datatree, $linked_dt_id);
 
-            // ...if they had a descendant which was involved with the empty string...
-            if ($ret) {
-                // ...then create a fake criteria facet for this datatype
-                $criteria[$current_datatype_id][99999] = array(
-                    'search_terms' => array(
-                        0 => array(
-                            'guard' => true
-                        )
-                    )
-                );
+        // ----------------------------------------
+        // At this point, all sets of datarecord lists from the criteria have been successfully
+        // transformed into lists of records of $top_level_datatype_id.
+
+        // ----------------------------------------
+        // There's still the issue of negated general search criteria to deal with, however...
+        //  ...performing this requires lists of all datarecords in a datatype
+        $full_dr_lists = array();
+        if ( !empty($modified_facets['general']) ) {
+            foreach ($modified_facets['general'] as $modified_facet_num => $modification) {
+                // If the general search had at least one negated facet...
+                foreach ($facet_dr_list as $dt_id => $facet_list) {
+                    if ( isset($facet_list['general'][$modified_facet_num]) ) {
+                        // ...then there should be a datarecord list for this facet in this datatype
+                        // Get the list of records for this datatype
+                        if ( !isset($full_dr_lists[$dt_id]) )
+                            $full_dr_lists[$dt_id] = $this->search_service->getCachedDatarecordList($dt_id);
+                        $tmp = $full_dr_lists[$dt_id];
+
+                        // ...and then subtract the records that matched the "un-negated" search from it
+                        foreach ($facet_list['general'][$modified_facet_num] as $dr_id => $num)
+                            unset( $tmp[$dr_id] );
+
+                        // Want to completely replace the existing list of records for this facet
+                        $facet_dr_list[$dt_id]['general'][$modified_facet_num] = $tmp;
+                    }
+                }
+            }
+        }
+        if ( !empty($modified_facets['advanced']) ) {
+            foreach ($modified_facets['advanced'] as $modified_facet_num => $modification) {
+                // If the advanced search had at least one negated facet...
+                if ( $modification === SearchQueryService::NEGATED_QUERY ) {
+                    foreach ($facet_dr_list as $dt_id => $facet_list) {
+                        if ( isset($facet_list['advanced'][$modified_facet_num]) ) {
+                            // ...then there should be a datarecord list for this facet in this datatype
+                            // Get the list of records for this datatype
+                            if ( !isset($full_dr_lists[$dt_id]) )
+                                $full_dr_lists[$dt_id] = $this->search_service->getCachedDatarecordList($dt_id);
+                            $tmp = $full_dr_lists[$dt_id];
+
+                            // ...and then subtract the records that matched the "un-negated" search from it
+                            foreach ($facet_list['advanced'][$modified_facet_num] as $dr_id => $num) {
+                                unset( $tmp[$dr_id] );
+                                // NOTE: this doesn't seem to be a good idea
+//                                $flattened_list[$dt_id][$dr_id] |= SearchAPIService::NEGATED_MATCH;
+                            }
+
+                            // Want to completely replace the existing list of records for this facet
+                            $facet_dr_list[$dt_id]['advanced'][$modified_facet_num] = $tmp;
+                        }
+                    }
+                }
             }
         }
 
-        return $ret;
+
+        // ----------------------------------------
+        // At this point, the lists of records for 'general' searches in $facet_dr_list need to get
+        //  compressed together to generate a final match for their respective datatypes
+        if ( !empty($facet_dr_list[$top_level_datatype_id]['general']) ) {
+            // Ensure the base facet exists...it should already, but I don't want shennanigans
+            if ( !isset($facet_dr_list[$top_level_datatype_id]['general'][0]) )
+                $facet_dr_list[$top_level_datatype_id]['general'][0] = array();
+
+            // Each facet beyond the first needs to get merged back into the base facet
+            foreach ($facet_dr_list[$top_level_datatype_id]['general'] as $facet_num => $dr_list) {
+                if ( $facet_num === 0 )
+                    continue;
+
+                if ( $merge_types['general'] === 'AND' ) {
+                    $facet_dr_list[$top_level_datatype_id]['general'][0] = array_intersect_key($facet_dr_list[$top_level_datatype_id]['general'][0], $dr_list);
+                }
+                else {  // merge_type === 'OR'
+                    foreach ($dr_list as $dr_id => $num)
+                        $facet_dr_list[$top_level_datatype_id]['general'][0][$dr_id] = $num;
+                }
+
+                // Getting rid of it helps with debugging....
+                unset( $facet_dr_list[$top_level_datatype_id]['general'][$facet_num] );
+            }
+        }
+
+        // IMPORTANT: this is required if and only if advanced search gets changed to resolve "later"
+        //  instead of "now"
+        if ( !empty($facet_dr_list[$top_level_datatype_id]['advanced']) ) {
+            // Ensure the base facet exists...
+            if ( !isset($facet_dr_list[$top_level_datatype_id]['advanced'][0]) )
+                $facet_dr_list[$top_level_datatype_id]['advanced'][0] = null;
+
+            // Each facet beyond the first needs to get merged back into the base facet
+            foreach ($facet_dr_list[$top_level_datatype_id]['advanced'] as $facet_num => $dr_list) {
+                if ( $facet_num === 0 || !is_numeric($facet_num) )
+                    continue;
+
+                if ( is_null($facet_dr_list[$top_level_datatype_id]['advanced'][0]) ) {
+                    $facet_dr_list[$top_level_datatype_id]['advanced'][0] = $dr_list;
+                }
+                else {
+                    if ( $merge_types['advanced'] === 'AND' ) {
+                        $facet_dr_list[$top_level_datatype_id]['advanced'][0] = array_intersect_key($facet_dr_list[$top_level_datatype_id]['advanced'][0], $dr_list);
+                    }
+                    else {  // merge_type === 'OR'
+                        foreach ($dr_list as $dr_id => $num)
+                            $facet_dr_list[$top_level_datatype_id]['advanced'][0][$dr_id] = $num;
+                    }
+                }
+
+                // Getting rid of it helps with debugging....
+                unset( $facet_dr_list[$top_level_datatype_id]['advanced'][$facet_num] );
+            }
+        }
+
+        // The penultimate step is to merge the general/advanced facets together into a single list,
+        //  for just the top-level datatype
+        $advanced_dr_list = null;
+        if ( isset($facet_dr_list[$top_level_datatype_id]['advanced'][0]) )
+            $advanced_dr_list = $facet_dr_list[$top_level_datatype_id]['advanced'][0];
+
+        $general_dr_list = null;
+        if ( isset($facet_dr_list[$top_level_datatype_id]['general'][0]) )
+            $general_dr_list = $facet_dr_list[$top_level_datatype_id]['general'][0];
+
+        // Replace the datarecord list of the top-level datatype with the final list of matching
+        //  records
+        if ( is_null($advanced_dr_list) && is_null($general_dr_list) )
+            $facet_dr_list[$top_level_datatype_id]['advanced'][0] = array();
+        else if ( is_null($advanced_dr_list) && !is_null($general_dr_list) )
+            $facet_dr_list[$top_level_datatype_id]['advanced'][0] = $general_dr_list;
+        else if ( !is_null($advanced_dr_list) && is_null($general_dr_list) )
+            $facet_dr_list[$top_level_datatype_id]['advanced'][0] = $advanced_dr_list;
+        else
+            $facet_dr_list[$top_level_datatype_id]['advanced'][0] = array_intersect_key($advanced_dr_list, $general_dr_list);
+
+
+        // ----------------------------------------
+        // The final step is to update the flag in $flattened list for each of the advanced
+        //  facets
+        foreach ($facet_dr_list as $dt_id => $facets) {
+            // IMPORTANT: this is effectively a kludge caused by advanced search resolving "now" and
+            //  by the 'multiple' paths merging their results back into the advanced search facets
+            //  much earlier in the function
+            if ( isset($facets['advanced'][0]) ) {
+                foreach ($facets['advanced'][0] as $dr_id => $num) {
+                    if ( isset($flattened_list[$dt_id][$dr_id]) && $flattened_list[$dt_id][$dr_id] < SearchAPIService::CANT_VIEW )
+                        $flattened_list[$dt_id][$dr_id] |= SearchAPIService::MATCHES_BOTH;
+                }
+            }
+            else if ( isset($facets['advanced']) ) {
+                $tmp_dr_list = null;
+                foreach ($facets['advanced'] as $facet_num => $dr_list) {
+                    if ( is_null($tmp_dr_list) )
+                        $tmp_dr_list = $dr_list;
+                    else if ( $merge_types['advanced'] === 'AND' )
+                        $tmp_dr_list = array_intersect_key($tmp_dr_list, $dr_list);
+                    else if ( $merge_types['advanced'] === 'OR' )
+                        foreach ($dr_list as $dr_id => $num)
+                            $tmp_dr_list[$dr_id] = $num;
+                }
+                if ( !is_null($tmp_dr_list) ) {
+                    foreach ($tmp_dr_list as $dr_id => $num) {
+                        if ( isset($flattened_list[$dt_id][$dr_id]) && $flattened_list[$dt_id][$dr_id] < SearchAPIService::CANT_VIEW )
+                            $flattened_list[$dt_id][$dr_id] |= SearchAPIService::MATCHES_BOTH;
+                    }
+                }
+            }
+        }
     }
 
 
     /**
+     * The primary problem with allowing arbitrary merge directions is that there still needs to be
+     * a guarantee that criteria from descendants "makes it" to the top-level datatype. The catch is
+     * that the order depends on whether there are "multiple paths" from the top-level datatype to
+     * any given descendant...
+     *
+     * Datatypes with only a "single" path only require a chain of merge orders...a depth-first
+     * traversal guarantees that all descendants get merged into their ancestors, before their
+     * ancestors get merged into their ancestors, and so on.
+     *
+     * "Multiple" paths, however...e.g. R when {A -> R -> X, A -> AB -> R -> X, A -> AC -> R -> X}
+     * ...in order for the final set of search results to be accurate, these merges need to be
+     * handled differently.  Generally speaking, criteria from these datatypes needs to take every
+     * possible path to the top-level datatype, and then get merged together by OR, and only then
+     * get ANDed with criteria from the "single" paths.
+     *
+     * So for the above example, assuming that each of the five mentioned datatypes have criteria,
+     * the ~optimal~ path is to merge [AB -> A, AC -> A, X -> R] in any order and save the results,
+     * then perform [R -> A, R -> AB -> A, R -> AC -> A] and save the result, then finally merge both
+     * sets of A together.
+     *
+     * @param array &$datatypes_with_criteria
+     * @param int $current_datatype_id
+     * @param string $current_postfix
+     * @param array $graph
+     * @param array $counts
+     * @param array &$single
+     * @param array &$multiple
+     * @param array &$general
+     * @param array &$visited
+     * @return int bitmask...0 if no criteria, 1 if general search criteria, 2 if adv search criteria
+     */
+    private function determineMergeOrder(&$datatypes_with_criteria, $current_datatype_id, $current_postfix, $graph, $counts, &$single, &$multiple, &$general, &$visited)
+    {
+        // If this is entered, then the current datatype has child/linked descendants
+        $current_has_criteria = 0;
+        if ( isset($datatypes_with_criteria[$current_datatype_id]) )
+            $current_has_criteria = $datatypes_with_criteria[$current_datatype_id];
+
+        // If the current datatype has no child/linked descendants, then just return immediately
+        if ( !isset($graph[$current_datatype_id]) )
+            return $current_has_criteria;
+
+        if ( !isset($datatypes_with_criteria[$current_datatype_id]) )
+            $datatypes_with_criteria[$current_datatype_id] = $current_has_criteria;
+
+        foreach ($graph[$current_datatype_id] as $descendant_dt_id => $num) {
+            // Going to need this if there are multiple paths to reach a descendant
+            $new_postfix = $descendant_dt_id.'_'.$current_postfix;
+
+            $descendant_has_criteria = false;
+            if ( !isset($graph[$descendant_dt_id]) ) {
+                // This descendant has no descendants of its own...save a recursive step
+                $descendant_has_criteria = 0;
+                if ( isset($datatypes_with_criteria[$descendant_dt_id]) )
+                    $descendant_has_criteria = $datatypes_with_criteria[$descendant_dt_id];
+            }
+            // NOTE: the following WILL NOT WORK...breaks generated paths for $multiple with the set:
+            // {ML -> R, ML -> SN -> R, ML -> RA -> R, ML -> RB -> R, S -> R, S -> ML -> ...} when
+            // the graph is inverted so that R is top-level
+//            else if ( isset($visited[$descendant_dt_id]) ) {
+//                $descendant_has_criteria = $visited[$descendant_dt_id];
+//            }
+            else {
+                // Need to continue recursion to get this descendant's descendants
+                $descendant_has_criteria = self::determineMergeOrder($datatypes_with_criteria, $descendant_dt_id, $new_postfix, $graph, $counts, $single, $multiple, $general, $visited);
+//                $visited[$descendant_dt_id] = $descendant_has_criteria;
+            }
+
+            if ($descendant_has_criteria !== false)
+                $datatypes_with_criteria[$current_datatype_id] |= $descendant_has_criteria;
+
+            // Only care about the descendant if it has criteria...
+            if ( $descendant_has_criteria > 0 ) {
+                // Because general search is a very long chain of ORs, its merges don't need to
+                //  consider the possibility of "multiple paths"...but the order is still relevant
+                if ( ($descendant_has_criteria & SearchAPIService::MATCHES_GEN) === SearchAPIService::MATCHES_GEN ) {
+//                    if ( !isset($visited[$new_postfix]) ) {  // NOTE: this also WILL NOT WORK
+                    $general[] = array($descendant_dt_id => $current_datatype_id);
+//                        $visited[$new_postfix] = $descendant_has_criteria;
+//                    }
+
+                    // Because the descendant has criteria, the current datatype also has criteria
+                    $current_has_criteria |= $descendant_has_criteria;
+                }
+
+                // Advanced search, on the other hand, is generally a long chain of ANDs, which means
+                //  descendants that can be reached by "multiple paths" will screw this up...
+                if ( ($descendant_has_criteria & SearchAPIService::MATCHES_ADV) === SearchAPIService::MATCHES_ADV ) {
+                    if ( $counts[$descendant_dt_id] === 1 ) {
+                        // ...if there's only has one "path" to reach the top-level datatype, then
+                        //  store the merge order directly
+                        if ( !isset($visited[$descendant_dt_id]) ) {
+                            // ...but only if this path hasn't been stored before
+                            $visited[$descendant_dt_id] = $descendant_has_criteria;
+                            $single[] = array($descendant_dt_id => $current_datatype_id);
+
+                            // NOTE: this seems to work, unlike the earlier $visited stuff in this function
+                        }
+
+                        // Because the descendant has criteria, the current datatype also has criteria
+                        $current_has_criteria |= $descendant_has_criteria;
+                    }
+                    else {
+                        // ...if there's more than one "path", then we need to eventually collect
+                        //  merge orders for all possible "paths" to this datatype
+                        if ( !isset($multiple[$descendant_dt_id]) )
+                            $multiple[$descendant_dt_id] = array();
+                        $multiple[$descendant_dt_id][$new_postfix] = array();
+
+                        $tmp = explode('_', $new_postfix);
+                        foreach ($tmp as $dt_id)
+                            $multiple[$descendant_dt_id][$new_postfix][] = intval($dt_id);
+
+                        // Criteria from these datatypes should not be directly merged into their ancestors
+                    }
+                }
+            }
+        }
+
+        return $current_has_criteria;
+    }
+
+
+    /**
+     * Converts the datarecord list stored in $source_dt_id's criteria into a datarecord list of
+     * $target_dt_id.
+     *
+     * This is the "smallest step" in the merging process...where arbitrary criteria for (nearly)
+     * arbitrary datatypes get turned into a set of records for a (somehow related) top-level
+     * datatype for searching purposes.  As such, it doesn't really know or care about the details
+     * of how the source/target datatypes are related...just that they are.
+     *
+     * This place needs to deal with non-public records as part of the transformation...non-public
+     * source records can't result in target records, and non-public target records also can't be
+     * allowed to be returned.
+     *
+     * @param array $datatree_array {@see DatatreeInfoService::getDatatreeArray()}
+     * @param array $facet_dr_list TODO
+     * @param array $flattened_list {@see self::getSearchArrays()}
+     * @param int $source_dt_id The datatype id of the given set of records
+     * @param int $target_dt_id The id of the datatype the records should be transformed into
+     * @param int $facet_type 'advanced' or 'general'
+     * @param int $facet_num_src If provided, then the transform only looks at records from that
+     *                           specific facet.  General search transforms should not use this.
+     * @param bool $include_unrelated_records If true, then this triggers inclusion of target records
+     *                                         that are not related to source records e.g. parents
+     *                                         without children or ancestors without descendants
+     * @return array The datarecord ids are keys
+     */
+    private function transformRecordsFromCriteria($datatree_array, $facet_dr_list, $flattened_list, $source_dt_id, $target_dt_id, $facet_type, $facet_num_src = null, $include_unrelated_records = false)
+    {
+        // In order to pull off the transform, you need to determine how the records are related to
+        //  each other.  ODR has four different possible relations, and there are cache entries for
+        //  ODR to use to expedite this...
+        $source_is_child_descendant = $source_is_link_descendant = false;
+        $target_is_child_descendant = $target_is_link_descendant = false;
+
+        if ( isset($datatree_array['descendant_of'][$source_dt_id])
+            && $datatree_array['descendant_of'][$source_dt_id] === $target_dt_id
+        ) {
+            $source_is_child_descendant = true;
+        }
+        else if ( isset($datatree_array['descendant_of'][$target_dt_id])
+            && $datatree_array['descendant_of'][$target_dt_id] === $source_dt_id
+        ) {
+            $target_is_child_descendant = true;
+        }
+        else if ( isset($datatree_array['linked_from'][$source_dt_id])
+            && in_array($target_dt_id, $datatree_array['linked_from'][$source_dt_id])
+        ) {
+            $source_is_link_descendant = true;
+        }
+        else if ( isset($datatree_array['linked_from'][$target_dt_id])
+            && in_array($source_dt_id, $datatree_array['linked_from'][$target_dt_id])
+        ) {
+            $target_is_link_descendant = true;
+        }
+
+        // One of these has to be true to continue
+        if ( !($source_is_child_descendant || $target_is_child_descendant || $source_is_link_descendant || $target_is_link_descendant) )
+            throw new ODRBadRequestException('SearchAPIService::transformRecordsFromCriteria()  source dt '.$source_dt_id.' is not directly related to target dt '.$target_dt_id);
+
+
+        // ----------------------------------------
+        // Most of the cache entries have extra datarecords that aren't relevant to the search
+        $source_dr_list = $flattened_list[$source_dt_id];
+        $target_dr_list = $flattened_list[$target_dt_id];
+
+        // The actual transformation depends on the structure of the cache entries...
+        $transformed_records = array();
+        if ($source_is_child_descendant) {
+            // ...this gets an array where <child_dr_id> => <parent_record_id>
+            $source_child_to_parent = $this->search_service->getCachedDatarecordList($source_dt_id, false, false);
+            // The child records belong to $source_dt_id, and the parent records belong to $target_dt_id
+
+            // For this transformation, need to take the child records...
+            if ( isset($facet_dr_list[$source_dt_id][$facet_type]) ) {
+                foreach ($facet_dr_list[$source_dt_id][$facet_type] as $facet_num => $dr_list) {
+                    if ( !is_null($facet_num_src) && $facet_num !== $facet_num_src )
+                        continue;
+                    if ( !isset($transformed_records[$facet_num]) )
+                        $transformed_records[$facet_num] = array();
+
+                    foreach ($dr_list as $source_dr_id => $num) {
+                        if ( isset($source_child_to_parent[$source_dr_id])
+                            && $source_dr_list[$source_dr_id] < SearchAPIService::CANT_VIEW
+                        ) {
+                            // If the user can view the child record, then get its parent...
+                            $parent_dr_id = $source_child_to_parent[$source_dr_id];
+                            // ...and if the user can view the parent...
+                            if ( $target_dr_list[$parent_dr_id] < SearchAPIService::CANT_VIEW ) {
+                                // ...then save the parent record id
+                                $transformed_records[$facet_num][$parent_dr_id] = 1;
+                            }
+                        }
+                    }
+
+                    // If the search criteria involves the empty string...
+                    if ($include_unrelated_records) {
+                        // ...then need to also determine which records in the parent datatype do not have
+                        //  child records of this datatype
+                        $unrelated_target_records = $target_dr_list;
+
+                        foreach ($source_child_to_parent as $child_dr_id => $parent_dr_id) {
+                            if ( $source_dr_list[$child_dr_id] < SearchAPIService::CANT_VIEW ) {
+                                if ( isset($target_dr_list[$parent_dr_id])
+                                    && $target_dr_list[$parent_dr_id] < SearchAPIService::CANT_VIEW
+                                ) {
+                                    unset( $unrelated_target_records[$parent_dr_id] );
+                                }
+                            }
+                        }
+
+                        foreach ($unrelated_target_records as $ancestor_dr_id => $num)
+                            $transformed_records[$facet_num][$ancestor_dr_id] = 1;
+                    }
+                }
+            }
+        }
+        else if ($target_is_child_descendant) {
+            // ...this gets an array where <parent_dr_id> => array(<child_dr_1> => '', <child_dr_2> => '',...)
+            $source_parent_to_child = $this->search_service->getCachedDatarecordList($source_dt_id, true, false);
+            // The parent records belong to $source_dt_id, but the child records don't necessarily
+            //  belong to $target_dt_id...
+
+            // For this transformation, need to take the matching parent records...
+            if ( isset($facet_dr_list[$source_dt_id][$facet_type]) ) {
+                foreach ($facet_dr_list[$source_dt_id][$facet_type] as $facet_num => $dr_list) {
+                    if ( !is_null($facet_num_src) && $facet_num !== $facet_num_src )
+                        continue;
+                    if ( !isset($transformed_records[$facet_num]) )
+                        $transformed_records[$facet_num] = array();
+
+                    foreach ($dr_list as $source_dr_id => $num) {
+                        if ( !empty($source_parent_to_child[$source_dr_id])
+                            && $source_dr_list[$source_dr_id] < SearchAPIService::CANT_VIEW
+                        ) {
+                            // ...if the parent record has child records, and the user can view the
+                            //  parent record...
+                            foreach ($source_parent_to_child[$source_dr_id] as $descendant_dr_id => $str) {
+                                // ...then determine which child records belong to the target datatype...
+                                if ( isset($target_dr_list[$descendant_dr_id])
+                                    && $target_dr_list[$descendant_dr_id] < SearchAPIService::CANT_VIEW
+                                ) {
+                                    // ...and if the user can also view the child record, then save it
+                                    $transformed_records[$facet_num][$descendant_dr_id] = 1;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Unlike the rest of these transformations, there's nothing to be done here when the
+            //  empty string is involved...can't have child records without a parent record
+        }
+        else if ($source_is_link_descendant) {
+            // ...this gets an array where <descendant_dr_id> => array(<ancestor_dr_1> => '', <ancestor_dr_2> => '', ...)
+            $source_linked_to_by = $this->search_service->getCachedDatarecordList($source_dt_id, false, true);
+            // The descendant belongs to $source_dt_id, but the ancestor records don't necessarily
+            //  belong to $target_dt_id...
+
+            // For this transformation, need to take the descendant records...
+            if ( isset($facet_dr_list[$source_dt_id][$facet_type]) ) {
+                foreach ($facet_dr_list[$source_dt_id][$facet_type] as $facet_num => $dr_list) {
+                    if ( !is_null($facet_num_src) && $facet_num !== $facet_num_src )
+                        continue;
+                    if ( !isset($transformed_records[$facet_num]) )
+                        $transformed_records[$facet_num] = array();
+
+                    foreach ($dr_list as $source_dr_id => $num) {
+                        if ( !empty($source_linked_to_by[$source_dr_id])
+                            && $source_dr_list[$source_dr_id] < SearchAPIService::CANT_VIEW
+                        ) {
+                            // If the user can view the descendant record, then check its linked
+                            //  ancestors...
+                            foreach ($source_linked_to_by[$source_dr_id] as $ancestor_dr_id => $str) {
+                                if ( isset($target_dr_list[$ancestor_dr_id])
+                                    && $target_dr_list[$ancestor_dr_id] < SearchAPIService::CANT_VIEW
+                                ) {
+                                    // ...if the user can view the ancestor record and it also belongs
+                                    //  to the correct datatype, then save it
+                                    $transformed_records[$facet_num][$ancestor_dr_id] = 1;
+                                }
+                            }
+                        }
+                    }
+
+                    // If the search criteria requires unrelated records from the target...
+                    if ($include_unrelated_records) {
+                        // ...then need to also determine which records in the ancestor datatype do
+                        //  not have descendant records of this datatype
+                        $unrelated_target_records = $target_dr_list;
+
+                        foreach ($source_linked_to_by as $source_dr_id => $ancestor_dr_list) {
+                            if ( !empty($ancestor_dr_list)
+                                && $source_dr_list[$source_dr_id] < SearchAPIService::CANT_VIEW
+                            ) {
+                                foreach ($ancestor_dr_list as $ancestor_dr_id => $str) {
+                                    if ( isset($target_dr_list[$ancestor_dr_id])
+                                        && $target_dr_list[$ancestor_dr_id] < SearchAPIService::CANT_VIEW
+                                    ) {
+                                        unset( $unrelated_target_records[$ancestor_dr_id] );
+                                    }
+                                }
+                            }
+                        }
+
+                        foreach ($unrelated_target_records as $ancestor_dr_id => $num)
+                            $transformed_records[$facet_num][$ancestor_dr_id] = 1;
+                    }
+                }
+            }
+        }
+        else if ($target_is_link_descendant) {
+            // ...this gets an array where <ancestor_dr_id> => array(<descendant_dr_1> => '', <descendant_dr_2> => '', ...)
+            $source_links_to = $this->search_service->getCachedDatarecordList($source_dt_id, true, true);
+
+            // The ancestor belongs to $source_dt_id, but the descendant records don't necessarily
+            //  belong to $target_dt_id...so for each matching ancestor record...
+            if ( isset($facet_dr_list[$source_dt_id][$facet_type]) ) {
+                foreach ($facet_dr_list[$source_dt_id][$facet_type] as $facet_num => $dr_list) {
+                    if ( !is_null($facet_num_src) && $facet_num !== $facet_num_src )
+                        continue;
+                    if ( !isset($transformed_records[$facet_num]) )
+                        $transformed_records[$facet_num] = array();
+
+                    foreach ($dr_list as $source_dr_id => $num) {
+                        // ...if it has descendants...
+                        if ( !empty($source_links_to[$source_dr_id])
+                            && $source_dr_list[$source_dr_id] < SearchAPIService::CANT_VIEW
+                        ) {
+                            // ...and the user can view it, then locate which of its linked descendants
+                            //  belong to the target datatype...
+                            foreach ($source_links_to[$source_dr_id] as $descendant_dr_id => $str) {
+                                if ( isset($target_dr_list[$descendant_dr_id])
+                                    && $target_dr_list[$descendant_dr_id] < SearchAPIService::CANT_VIEW
+                                ) {
+                                    // ...and save the descendant record if the user can view it
+                                    $transformed_records[$facet_num][$descendant_dr_id] = 1;
+                                }
+                            }
+                        }
+                    }
+
+                    // If the search criteria involves the empty string...
+                    if ($include_unrelated_records) {
+                        // ...then need to also determine which records in the descendant datatype are not
+                        //  linked to by the ancestor datatype
+                        $unrelated_target_records = $target_dr_list;
+
+                        foreach ($source_links_to as $source_dr_id => $ancestor_dr_list) {
+                            if ( !empty($ancestor_dr_list)
+                                && $source_dr_list[$source_dr_id] < SearchAPIService::CANT_VIEW
+                            ) {
+                                foreach ($ancestor_dr_list as $ancestor_dr_id => $str) {
+                                    if ( isset($target_dr_list[$ancestor_dr_id])
+                                        && $target_dr_list[$ancestor_dr_id] < SearchAPIService::CANT_VIEW
+                                    ) {
+                                        unset( $unrelated_target_records[$ancestor_dr_id] );
+                                    }
+                                }
+                            }
+                        }
+
+                        foreach ($unrelated_target_records as $ancestor_dr_id => $num)
+                            $transformed_records[$facet_num][$ancestor_dr_id] = 1;
+                    }
+                }
+            }
+        }
+
+        // Debugging is easier if the records are sorted here...
+//        foreach ($transformed_records as $num => $dr_list) {
+//            $tmp = $dr_list;
+//            ksort($tmp);
+//            $transformed_records[$num] = $tmp;
+//        }
+        return $transformed_records;
+    }
+
+
+    /**
+     * @deprecated
      * The primary difficulty with searching in ODR is that the datarecords/datatypes are all
      * effectively "in the same bucket"...there's no viable method to get useful table joins when
      * the backend database is content-agnostic, and when there can be an arbitrarily deep tree of
@@ -2937,7 +4056,7 @@ class SearchAPIService
      * into a long chain of AND statements...but a "general" search is technically a shorthand for a
      * lot of individual searches that need their results combined using both OR and AND statements,
      * and therefore requires noticeably different logic for it to return the correct results.
-     * {@link SearchKeyService::convertSearchKeyToCriteria()} for what a "general" search actually is
+     * {@link SearchKeyService::tokenizeGeneralSearch()} for what a "general" search actually is
      *
      *
      * The majority of the that logic is in this function...using $search_datatree as a guide, the
@@ -3398,6 +4517,7 @@ class SearchAPIService
 
 
     /**
+     * @deprecated
      * Recursively cross-references the tree structure of $inflated_list with the values stored in
      * $flattened_list to determine all datarecords (top-level and descendants) that ended up
      * matching the search.
@@ -3449,6 +4569,7 @@ class SearchAPIService
 
 
     /**
+     * @deprecated
      * Recursively cross-references the tree structure of $inflated_list with the values stored in
      * $flattened_list to determine all datarecords (top-level and descendants) that ended up
      * matching the search.
@@ -3505,119 +4626,261 @@ class SearchAPIService
 
 
     /**
-     * ODR's search system is effectively designed to take advantage of the hierarchy imposed by
-     * rendering requirements...to go from ancestor to descendant.  For a time, it appeared as if it
-     * was possible to "invert" the arrays without breaking the rest of the search system...but it
-     * eventually became clear that {@link self::mergeSearchResults()} refused to even consider
-     * merging results from far-flung descendants in that setup.
+     * The search system usually just returns the grandparent datarecord ids...but when running
+     * MassEdit or CSVExport, the search system needs to instead return a list that also contains child
+     * records that matched the search.  This is non-negotiable, because the search might not match
+     * all the descendant records...e.g. samples with 532nm raman spectra...and this makes a
+     * difference if you want to MassEdit the raman spectra...
      *
-     * Specifically...an inverse search from "IMA list" that was targeting "RRUFF Sample" completely
-     * ignored any results from other linked descendants of "RRUFF Sample"...
-     * <pre>
-     * RRUFF Sample
-     * |- RRUFF References
-     * |- IMA List
-     *     |- RRUFF References
-     * |- Raman Sample
-     *     |- Raman Spectra
-     * </pre>
-     *
-     * Rather than attempt to debug why that function didn't work for an extreme edge case, it seemed
-     * a better idea to modify "inverse" searching so the search is started from the target...the
-     * search system works just fine when it's not "inverse", and it should logically be possible to
-     * convert results from the "target" datatype into the "desired" datatype instead.
-     *
-     * @param integer $current_datatype_id
-     * @param integer $desired_datatype_id The target datatype for "undoing" the inverse search
-     * @param array $flattened_list {@link self::getSearchArrays()}
-     * @param array $inflated_list Some subset of the inflated array from {@link self::getSearchArrays()}
-     * @param array $working_dr_list The keys are datarecord ids
-     * @return array The keys are datarecord ids
+     * @param array $datatree_array {@see DatatreeInfoService::getDatatreeArray()}
+     * @param array $graph {@see self::buildSearchDependencyGraph()}
+     * @param array $flattened_list {@see self::getSearchArrays()}
+     * @param int $top_level_datatype_id
+     * @return array The keys of the array are the datarecord ids
      */
-    private function undoInverseSearch($current_datatype_id, $desired_datatype_id, $flattened_list, $inflated_list, $working_dr_list)
+    public function getCompleteDatarecordList($datatree_array, $graph, $flattened_list, $top_level_datatype_id)
     {
-        // Couple safety checks first...
-        if ( empty($working_dr_list) )
-            return array();
-        if ( empty($inflated_list[$current_datatype_id]) )
-            return array();
+        // Need to juggle a couple lists of datarecords...first is the complete list of records that
+        //  match the search...
+        $complete_datarecord_list = array();
+        // ...second is the list of datarecords from this top-level datatype that match the search
+        $matching_top_level_dr_list = array();
 
-        $matching_dr_list = array();
+        // $flattened_list is already separated by datatype
+        foreach ($flattened_list[$top_level_datatype_id] as $dr_id => $val) {
+            // If this top-level datarecord "ended up" "matching the search", then it'll have a
+            //  value of (0b0-11) in $flattened_list...
+            if ( ($val & SearchAPIService::MATCHES_BOTH) === SearchAPIService::MATCHES_BOTH ) {
+                $matching_top_level_dr_list[$dr_id] = 1;
+                $complete_datarecord_list[$dr_id] = 1;
+            }
+        }
 
-        // Going to work off the provided (subset of the) inflated list...
-        $tmp_dr_list = $inflated_list[$current_datatype_id];
-        foreach ($working_dr_list as $working_dr_id => $num) {
-            // Looping through $working_dr_list, because it's hopefully smaller...
-            if ( isset($tmp_dr_list[$working_dr_id]) ) {
-                if ( !is_array($tmp_dr_list[$working_dr_id]) ) {
-                    // If this value isn't an array, then it's a "leaf" datatype
+        // If the top-level datatype has any descendants...
+        if ( !empty($graph[$top_level_datatype_id]) ) {
+            // ...then going to need to convert this list of matching top-level records into lists
+            //  of records of each descendant datatype
+            foreach ($graph[$top_level_datatype_id] as $descendant_dt_id => $num) {
+                $matching_descendant_dr_list = self::getCompleteDatarecordList_worker($datatree_array, $graph, $flattened_list, $top_level_datatype_id, $descendant_dt_id, $matching_top_level_dr_list);
+                // Each of the records returned needs to be added to the master list
+                foreach ($matching_descendant_dr_list as $dr_id => $num)
+                    $complete_datarecord_list[$dr_id] = 1;
+            }
+        }
 
-                    // No sense checking the records of this "leaf" datatype unless it's the
-                    //  desired datatype
-                    if ( $current_datatype_id === $desired_datatype_id) {
-                        // The criteria for a child record to "match the search" is slightly different
-                        //  from that of a top-level record...primarily, whether the record matched
-                        //  the general search isn't actually relevant.  Since the top-level record
-                        //  does, any descendant record is assumed to match as long as it doesn't
-                        //  have a reason to be excluded.
+        return $complete_datarecord_list;
+    }
 
-                        // The two reasons to exclude a descendant are if the user can't see it (0b1---),
-                        //  but that has effectively already been enforced by earlier logic
-                        // The other reason is the descendant doesn't match the advanced search (0b-10-)
 
-                        // Therefore, as long as the third bit is a 1 or the second bit is 0, this record
-                        //  ends up maching the search
-                        if ( $flattened_list[$working_dr_id] & SearchAPIService::MATCHES_ADV   // third bit set
-                            || !($flattened_list[$working_dr_id] & SearchAPIService::MUST_MATCH)    // second bit not set
+    /**
+     * Split off from {@see self::getCompleteDatarecordList()} for readability.
+     *
+     * @param array $datatree_array {@see DatatreeInfoService::getDatatreeArray()}
+     * @param array $graph {@see self::buildSearchDependencyGraph()}
+     * @param array $flattened_list {@see self::getSearchArrays()}
+     * @param int $ancestor_dt_id The "ancestor" of the current datatype from the perspective of $graph.
+     *                            Not necessarily an "ancestor" from the POV of the rendering systems.
+     * @param int $current_dt_id The "current" datatype being looked at
+     * @param array $ancestor_dr_list The list of ancestor records that matched the search
+     * @return array
+     */
+    private function getCompleteDatarecordList_worker($datatree_array, $graph, $flattened_list, $ancestor_dt_id, $current_dt_id, $ancestor_dr_list)
+    {
+        // Need to juggle a couple lists of datarecords...first is the complete list of records that
+        //  match the search...
+        $complete_datarecord_list = array();
+        // ...second is the list of datarecords from this specific datatype that match the search
+        $current_matching_dr_list = array();
+
+        // ...and third is the "search equivalent" list of datarecords from the ancestor
+        $transformed_dr_list = self::transformRecordsFromList($datatree_array, $flattened_list, $ancestor_dt_id, $current_dt_id, $ancestor_dr_list);
+        foreach ($transformed_dr_list as $dr_id => $num) {
+            // The criteria for a child record to "match the search" is slightly different than that
+            //  of a top-level record...primarily, whether the record matched the general search isn't
+            //  actually relevant.  Since the top-level record does, any descendant record is assumed
+            //  to match as long as it doesn't have a reason to be excluded.
+
+            // The two reasons to exclude a descendant are if the user can't see it (0b1---), but
+            //  that has effectively already been enforced by earlier logic
+            // The other reason is the descendant doesn't match the advanced search (0b-10-)
+
+            // Therefore, as long as the third bit is a 1 or the second bit is 0, this record
+            //  ends up maching the search
+            if ( $flattened_list[$current_dt_id][$dr_id] & SearchAPIService::MATCHES_ADV   // second bit set
+                || !($flattened_list[$current_dt_id][$dr_id] & SearchAPIService::MUST_MATCH)    // third bit not set
+            ) {
+                $current_matching_dr_list[$dr_id] = 1;
+                $complete_datarecord_list[$dr_id] = 1;
+            }
+        }
+
+        // If this datatype has any descendants...
+        if ( !empty($graph[$current_dt_id]) ) {
+            // ...then going to need to convert this datatype's list of matching records into lists
+            //  of records of each descendant datatype
+            foreach ($graph[$current_dt_id] as $descendant_dt_id => $num) {
+                $matching_descendant_dr_list = self::getCompleteDatarecordList_worker($datatree_array, $graph, $flattened_list, $current_dt_id, $descendant_dt_id, $current_matching_dr_list);
+                // Each of the records returned needs to be added to the master list
+                foreach ($matching_descendant_dr_list as $dr_id => $num)
+                    $complete_datarecord_list[$dr_id] = 1;
+            }
+        }
+
+        return $complete_datarecord_list;
+    }
+
+
+    /**
+     * The transforms required to locate the "complete datarecord list" for the purposes of MassEdit
+     * or CSVExport are quite similar to {@link self::transformRecordsFromCriteria()}, but the list
+     * of records is...better behaved...at the point this functionality gets called.
+     *
+     * In the future, I might refactor the other function so that its internal complexity is moved
+     * into {@link self::performMerge()} and this function effectively is the base for both...but
+     * today is not that day.
+     *
+     * @param array $datatree_array {@see DatatreeInfoService::getDatatreeArray()}
+     * @param array $flattened_list {@see self::getSearchArrays()}
+     * @param int $source_dt_id
+     * @param int $target_dt_id
+     * @param array $matching_source_dr_list The list of records to be transformed into $target_dt_id
+     * @return array
+     */
+    private function transformRecordsFromList($datatree_array, $flattened_list, $source_dt_id, $target_dt_id, $matching_source_dr_list)
+    {
+        // In order to pull off the transform, you need to determine how the records are related to
+        //  each other.  ODR has four different possible relations, and there are cache entries for
+        //  ODR to use to expedite this...
+        $source_is_child_descendant = $source_is_link_descendant = false;
+        $target_is_child_descendant = $target_is_link_descendant = false;
+
+        if ( isset($datatree_array['descendant_of'][$source_dt_id])
+            && $datatree_array['descendant_of'][$source_dt_id] === $target_dt_id
+        ) {
+            $source_is_child_descendant = true;
+        }
+        else if ( isset($datatree_array['descendant_of'][$target_dt_id])
+            && $datatree_array['descendant_of'][$target_dt_id] === $source_dt_id
+        ) {
+            $target_is_child_descendant = true;
+        }
+        else if ( isset($datatree_array['linked_from'][$source_dt_id])
+            && in_array($target_dt_id, $datatree_array['linked_from'][$source_dt_id])
+        ) {
+            $source_is_link_descendant = true;
+        }
+        else if ( isset($datatree_array['linked_from'][$target_dt_id])
+            && in_array($source_dt_id, $datatree_array['linked_from'][$target_dt_id])
+        ) {
+            $target_is_link_descendant = true;
+        }
+
+        // One of these has to be true to continue
+        if ( !($source_is_child_descendant || $target_is_child_descendant || $source_is_link_descendant || $target_is_link_descendant) )
+            throw new ODRBadRequestException('source/target are not directly related TODO');
+
+
+        // ----------------------------------------
+        // Most of the cache entries have extra datarecords that aren't relevant to the search
+//        $source_dr_list = $flattened_list[$source_dt_id];
+        $target_dr_list = $flattened_list[$target_dt_id];
+
+        // The actual transformation depends on the structure of the cache entries...
+        $transformed_records = array();
+        if ($source_is_child_descendant) {
+            // ...this gets an array where <child_dr_id> => <parent_record_id>
+            $source_child_to_parent = $this->search_service->getCachedDatarecordList($source_dt_id, false, false);
+            // The child records belong to $source_dt_id, and the parent records belong to $target_dt_id
+
+            // For this transformation, need to take the child records...
+            foreach ($matching_source_dr_list as $source_dr_id => $num) {
+                if ( isset($source_child_to_parent[$source_dr_id])
+                    && $flattened_list[$source_dt_id][$source_dr_id] < SearchAPIService::CANT_VIEW
+                ) {
+                    // If the user can view the child record, then get its parent...
+                    $parent_dr_id = $source_child_to_parent[$source_dr_id];
+                    // ...and if the user can view the parent...
+                    if ( $target_dr_list[$parent_dr_id] < SearchAPIService::CANT_VIEW ) {
+                        // ...then save the parent record id
+                        $transformed_records[$parent_dr_id] = 1;
+                    }
+                }
+            }
+        }
+        else if ($target_is_child_descendant) {
+            // ...this gets an array where <parent_dr_id> => array(<child_dr_1> => '', <child_dr_2> => '',...)
+            $source_parent_to_child = $this->search_service->getCachedDatarecordList($source_dt_id, true, false);
+            // The parent records belong to $source_dt_id, but the child records don't necessarily
+            //  belong to $target_dt_id...
+
+            // For this transformation, need to take the matching parent records...
+            foreach ($matching_source_dr_list as $source_dr_id => $num) {
+                if ( !empty($source_parent_to_child[$source_dr_id])
+                    && $flattened_list[$source_dt_id][$source_dr_id] < SearchAPIService::CANT_VIEW
+                ) {
+                    // ...if the parent record has child records, and the user can view the
+                    //  parent record...
+                    foreach ($source_parent_to_child[$source_dr_id] as $descendant_dr_id => $str) {
+                        // ...then determine which child records belong to the target datatype...
+                        if ( isset($target_dr_list[$descendant_dr_id])
+                            && $target_dr_list[$descendant_dr_id] < SearchAPIService::CANT_VIEW
                         ) {
-                            // Save it for when this function is fully complete
-                            $matching_dr_list[$working_dr_id] = 1;
+                            // ...and if the user can also view the child record, then save it
+                            $transformed_records[$descendant_dr_id] = 1;
                         }
                     }
                 }
-                else {
-                    // If this is an array, then it has descendants of its own
-                    foreach ($tmp_dr_list[$working_dr_id] as $descendant_dt_id => $descendant_dr_list) {
-                        if ( $descendant_dt_id === $desired_datatype_id ) {
-                            // Turns out the recursion ran into the desired datatype...
-                            foreach ($descendant_dr_list as $dr_id => $tmp) {
-                                // ...so if the descendant record didn't fail the search...
-                                if ( $flattened_list[$dr_id] & SearchAPIService::MATCHES_ADV   // third bit set
-                                    || !($flattened_list[$dr_id] & SearchAPIService::MUST_MATCH)    // second bit not set
-                                ) {
-                                    // ...then save it for when this function is fully complete
-                                    $matching_dr_list[$dr_id] = 1;
-                                }
-                            }
+            }
+        }
+        else if ($source_is_link_descendant) {
+            // ...this gets an array where <descendant_dr_id> => array(<ancestor_dr_1> => '', <ancestor_dr_2> => '', ...)
+            $source_linked_to_by = $this->search_service->getCachedDatarecordList($source_dt_id, false, true);
+            // The descendant belongs to $source_dt_id, but the ancestor records don't necessarily
+            //  belong to $target_dt_id...
+
+            // For this transformation, need to take the descendant records...
+            foreach ($matching_source_dr_list as $source_dr_id => $num) {
+                if ( !empty($source_linked_to_by[$source_dr_id])
+                    && $flattened_list[$source_dt_id][$source_dr_id] < SearchAPIService::CANT_VIEW
+                ) {
+                    // If the user can view the descendant record, then check its linked
+                    //  ancestors...
+                    foreach ($source_linked_to_by[$source_dr_id] as $ancestor_dr_id => $str) {
+                        if ( isset($target_dr_list[$ancestor_dr_id])
+                            && $target_dr_list[$ancestor_dr_id] < SearchAPIService::CANT_VIEW
+                        ) {
+                            // ...if the user can view the ancestor record and it also belongs
+                            //  to the correct datatype, then save it
+                            $transformed_records[$ancestor_dr_id] = 1;
                         }
-                        else {
-                            // This is not the desired datatype...but since it has descendants of its
-                            //  own, the recursion needs to dig into it
-                            $new_inflated_list = array($descendant_dt_id => array());
-                            $new_working_list = array();
-                            foreach ($descendant_dr_list as $dr_id => $tmp) {
-                                // If the descendant record didn't fail the search...
-                                if ( $flattened_list[$dr_id] & SearchAPIService::MATCHES_ADV   // third bit set
-                                    || !($flattened_list[$dr_id] & SearchAPIService::MUST_MATCH)    // second bit not set
-                                ) {
-                                    // ...then include it as part of recursion
-                                    $new_working_list[$dr_id] = 1;
-                                    $new_inflated_list[$descendant_dt_id][$dr_id] = $tmp;
-                                }
-                            }
+                    }
+                }
+            }
+        }
+        else if ($target_is_link_descendant) {
+            // ...this gets an array where <ancestor_dr_id> => array(<descendant_dr_1> => '', <descendant_dr_2> => '', ...)
+            $source_links_to = $this->search_service->getCachedDatarecordList($source_dt_id, true, true);
 
-                            // Recurse into this subset of the inflated list
-                            $tmp = self::undoInverseSearch($descendant_dt_id, $desired_datatype_id, $flattened_list, $new_inflated_list, $new_working_list);
-
-                            // Save any matching results for when this function is fully complete
-                            foreach ($tmp as $dr_id => $num)
-                                $matching_dr_list[$dr_id] = 1;
+            // The ancestor belongs to $source_dt_id, but the descendant records don't necessarily
+            //  belong to $target_dt_id...so for each matching ancestor record...
+            foreach ($matching_source_dr_list as $source_dr_id => $num) {
+                if ( !empty($source_links_to[$source_dr_id])
+                    && $flattened_list[$source_dt_id][$source_dr_id] < SearchAPIService::CANT_VIEW
+                ) {
+                    // ...and the user can view it, then locate which of its linked descendants
+                    //  belong to the target datatype...
+                    foreach ($source_links_to[$source_dr_id] as $descendant_dr_id => $str) {
+                        if ( isset($target_dr_list[$descendant_dr_id])
+                            && $target_dr_list[$descendant_dr_id] < SearchAPIService::CANT_VIEW
+                        ) {
+                            // ...and save the descendant record if the user can view it
+                            $transformed_records[$descendant_dr_id] = 1;
                         }
                     }
                 }
             }
         }
 
-        return $matching_dr_list;
+        return $transformed_records;
     }
 }

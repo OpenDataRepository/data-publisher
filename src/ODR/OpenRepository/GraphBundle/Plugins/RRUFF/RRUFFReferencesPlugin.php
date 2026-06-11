@@ -672,7 +672,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
     /**
      * @inheritDoc
      */
-    public function searchOverriddenField($datafield, $search_term, $render_plugin_fields, $render_plugin_options)
+    public function searchOverriddenField($datafield, $search_term, $render_plugin_fields, $render_plugin_options, $use_set_logic)
     {
         // The goal is to modify the Journal field so doublequotes around the search term are treated
         //  as matching the entire field, instead of just a ~phrase~ inside the field...which is how
@@ -699,8 +699,14 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
         // Since MYSQL's collation is case-insensitive, the php caching should treat it the same
         $value = $search_term['value'];
         $cache_key = mb_strtolower($value);
-        if ( isset($cached_searches[$cache_key]) )
-            return $cached_searches[$cache_key];
+        if ( !$use_set_logic ) {
+            if ( isset($cached_searches[$cache_key]) )
+                return $cached_searches[$cache_key];
+        }
+        else {
+            if ( isset($cached_searches['set'][$cache_key]) )
+                return $cached_searches['set'][$cache_key];
+        }
 
 
         // ----------------------------------------
@@ -716,17 +722,21 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
             $datafield->getId(),
             $typeclass,
             $value,
+            $use_set_logic,
             $doublequotes_force_exact_match
         );
 
         $end_result = array(
             'dt_id' => $datafield->getDataType()->getId(),
             'records' => $result['records'],
-            'guard' => $result['guard'],
+            'modify' => $result['modify'],
         );
 
         // ...then recache the search result
-        $cached_searches[$cache_key] = $end_result;
+        if ( !$use_set_logic )
+            $cached_searches[$cache_key] = $end_result;
+        else
+            $cached_searches['set'][$cache_key] = $end_result;
         $this->cache_service->set('cached_search_df_'.$datafield->getId(), $cached_searches);
 
         // ...then return it

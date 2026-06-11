@@ -42,7 +42,6 @@ use ODR\AdminBundle\Component\Service\CloneTemplateService;
 use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
-use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\TagHelperService;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
@@ -487,7 +486,7 @@ class WorkerController extends ODRCustomController
                 /** @var SearchService $search_service */
                 $search_service = $this->container->get('odr.search_service');
 
-                $dr_list = $search_service->getCachedSearchDatarecordList($datatype->getGrandparent()->getId());
+                $dr_list = $search_service->getCachedDatarecordList($datatype->getGrandparent()->getId());
                 foreach ($dr_list as $dr_id => $parent_dr_id) {
                     $cache_service->delete('cached_datarecord_'.$dr_id);
                     $cache_service->delete('cached_table_data_'.$dr_id);
@@ -1505,7 +1504,7 @@ $ret .= '  Set current to '.$count."\n";
     }
 
 
-    public function asdfAction(Request $request)
+    public function asdfAction($search_key, $complete, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -1528,49 +1527,6 @@ $ret .= '  Set current to '.$count."\n";
             $em = $this->getDoctrine()->getManager();
             $conn = $em->getConnection();
 
-            $query =
-               'SELECT iv.value AS mineral_id, mv.value AS display_name
-                FROM odr_data_record dr
-                LEFT JOIN odr_data_record_fields iv_drf ON (iv_drf.data_record_id = dr.id AND iv_drf.data_field_id = 7050 AND iv_drf.deletedAt IS NULL)
-                LEFT JOIN odr_integer_value iv ON (iv.data_record_fields_id = iv_drf.id AND iv.deletedAt IS NULL)
-                LEFT JOIN odr_data_record_fields mv_drf ON (mv_drf.data_record_id = dr.id AND mv_drf.data_field_id = 7052 AND mv_drf.deletedAt IS NULL)
-                LEFT JOIN odr_medium_varchar mv ON (mv.data_record_fields_id = mv_drf.id AND mv.deletedAt IS NULL)
-                WHERE dr.data_type_id = 736
-                AND dr.deletedAt IS NULL';
-            $results = $conn->executeQuery($query);
-
-            print '<table border=1><tr><th>mineral id</th><th>display name</th><th>ascii name</th></tr>';
-            foreach ($results as $result) {
-                $matches = array();
-                $ascii_name = str_replace(
-                    array('Å', 'Á', 'á', 'à', 'ä', 'å', 'ã', 'ă', 'Č', 'ć', 'ç', 'č', 'É', 'é', 'ë', 'ê', 'è', 'ĕ', 'ě', 'ę', 'í', 'ï', 'ł', 'ň', 'ñ', 'ń', 'Ö', 'ö', 'ø', 'ő', 'ó', 'ô', 'ř', 'Š', 'š', 'ş', 'ţ', 'ü', 'ú', 'ý', 'Ż', 'ž', 'ż'),
-                    array('A', 'A', 'a', 'a', 'a', 'a', 'a', 'a', 'C', 'c', 'c', 'c', 'E', 'e', 'e', 'e', 'e', 'e', 'e', 'e', 'i', 'i', 'l', 'n', 'n', 'n', 'O', 'o', 'o', 'o', 'o', 'o', 'r', 'S', 's', 's', 't', 'u', 'u', 'y', 'Z', 'z', 'z'),
-                    $result['display_name']
-                );
-
-                $ascii_name = str_replace(
-                    array("'", '<i>', '</i>', '_', '^'),
-                    '',
-                    $ascii_name
-                );
-
-                if ( preg_match('/[^a-zA-Z0-9\-\+\_\^\(\)]/', $ascii_name, $matches) === 1 ) {
-                    print '<tr>';
-                    print '<td>'.$result['mineral_id'].'</td>';
-                    print '<td>'.$result['display_name'].'</td>';
-                    print '<td>'.$ascii_name.'</td>';
-                    print '</tr>';
-                }
-                else {
-                    print '<tr>';
-                    print '<td>'.$result['mineral_id'].'</td>';
-                    print '<td>'.$result['display_name'].'</td>';
-                    print '<td>'.$ascii_name.'</td>';
-                    print '</tr>';
-                }
-            }
-            print '</table>';
-
         }
         catch (\Exception $e) {
             $source = 0xffffffff;
@@ -1582,6 +1538,7 @@ $ret .= '  Set current to '.$count."\n";
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'text/html');
+//        $response->headers->set('Content-Type', 'application/json');
         return $response;
     }
 }

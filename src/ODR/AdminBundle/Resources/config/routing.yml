@@ -1895,7 +1895,7 @@ odr_track_search_result_changes:
     path: /admin/track/search/{search_key}
     defaults: { _controller: ODRAdminBundle:Tracking:tracksearchresultchanges }
     requirements:
-        search_key: '[^\/]*'
+        search_key: '[a-zA-Z0-9\-\_]*'
 
 odr_track_datatype_changes:
     path:  /admin/track/datatype/{datatype_id}
@@ -1975,22 +1975,6 @@ odr_trigger_tag_rebuild:
 #    methods: [POST]
 #-----------------------------------------
 
-#odr_amcsd_update_trigger:
-#    path: /admin/amcsd/trigger
-#    defaults: { _controller: ODRAdminBundle:Worker:amcsdupdatetrigger }
-
-#odr_asdf:
-#    path: /admin/asdf/
-#    defaults: { _controller: ODRAdminBundle:Worker:asdf }
-
-#odr_qwer:
-#    path: /admin/qwer/
-#    defaults: { _controller: ODRAdminBundle:Worker:qwer }
-
-#odr_zxcv:
-#    path: /admin/zxcv/
-#    defaults: { _controller: ODRAdminBundle:Worker:zxcv }
-
 #-----------------------------------------
 # Statistics Controller
 # Public routes for logging statistics from JavaScript
@@ -2016,8 +2000,23 @@ odr_statistics_log_download:
 odr_system_opcache:
     path:  /system/opcache
     defaults: { _controller: ODRAdminBundle:ODRSystem:opcache }
-
 #-----------------------------------------
+
+odr_asdf:
+    path: /admin/asdf/{search_key}/{complete}
+    defaults: { _controller: ODRAdminBundle:Worker:asdf, search_key: '', complete: '' }
+    requirements:
+        search_key: '[a-zA-Z0-9\-\_]*'
+        complete: '|1'
+
+#odr_qwer:
+#    path: /admin/qwer/
+#    defaults: { _controller: ODRAdminBundle:Worker:qwer }
+
+#odr_zxcv:
+#    path: /admin/zxcv/
+#    defaults: { _controller: ODRAdminBundle:Worker:zxcv }
+
 
 imports:
     resource: api.yml
