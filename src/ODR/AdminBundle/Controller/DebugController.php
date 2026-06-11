@@ -28,7 +28,9 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CSVExportHelperService;
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
@@ -172,8 +174,14 @@ class DebugController extends ODRCustomController
 
             /** @var CSVExportHelperService $csv_export_helper_service */
             $csv_export_helper_service = $this->container->get('odr.csv_export_helper_service');
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var DatatreeInfoService $datatree_info_service */
+            $datatree_info_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchAPIService $search_api_service */
+            $search_api_service = $this->container->get('odr.search_api_service');
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
 
@@ -196,11 +204,15 @@ class DebugController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Going to need this...
+            $datatree_array = $datatree_info_service->getDatatreeArray();
+
             // Need to re-run the search to get a couple lists of datarecords for the export
-            $export_search_results = $csv_export_helper_service->getExportSearchResults($datatype, $search_key, $user_permissions);
+            $export_search_results = $csv_export_helper_service->getExportSearchResults($datatree_array, $datatype, $search_key, $user_permissions);
             $grandparent_datarecord_list = $export_search_results['grandparent_datarecord_list'];
             $complete_datarecord_list = $export_search_results['complete_datarecord_list'];
-            $inflated_list = $export_search_results['inflated_list'];
+            $search_permissions = $export_search_results['search_permissions'];
+            $graph = $export_search_results['graph'];
 
 
             // ----------------------------------------
@@ -209,24 +221,28 @@ class DebugController extends ODRCustomController
             $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
 
             $datarecord_ids = [];
-            $complete_datarecord_list_array = [];
+            $related_datarecord_ids = [];
             $job_order = 0;
             $counter = 0;
             foreach ($grandparent_datarecord_list as $num => $datarecord_id) {
-                // Need to use $complete_datarecord_list and $inflated_list to locate the child/linked
-                //  datarecords related to this top-level datarecord
-                $tmp_list = array($datarecord_id => $inflated_list[$datarecord_id]);
-                $filtered_datarecord_list = $csv_export_helper_service->getFilteredDatarecordList($tmp_list, $complete_datarecord_list);
+                // Need to split the datarecord list into chunks so it doesn't overwhelm beanstalk
                 $datarecord_ids[] = $datarecord_id;
-                $complete_datarecord_list_array[] = $filtered_datarecord_list;
 
                 // Job order - used for reassembly of export temp files in the proper
                 // order to match the original query.
                 $counter++;
-                if(
-                    $counter % 200 === 0
+                if (
+                    $counter % 5 === 0
                     || $counter === count($grandparent_datarecord_list)
                 ) {
+                    // Need to use other parts of SearchAPIService to determine which child/linked
+                    //  datarecords are related to the grandparent records
+                    $tmp_flattened_list = $search_api_service->getFlattenedList($search_permissions, $complete_datarecord_list);
+                    $related_datarecord_ids = $search_api_service->getCompleteDatarecordList($datatree_array, $graph, $tmp_flattened_list, $datatype_id);
+                    // This array was returned with the datarecord ids as keys, but it needs to have
+                    //  them as values instead for beanstalk
+                    $related_datarecord_ids = array_keys($related_datarecord_ids);
+
                     $parameters = array(
                         'tracked_job_id' => -1,    // don't create database entries to track this
                         'user_id' => $user->getId(),
@@ -238,8 +254,10 @@ class DebugController extends ODRCustomController
                         'tag_hierarchy_delimiter' => $tag_hierarchy_delimiter,
 
                         'datatype_id' => $datatype_id,
+                        // top-level datarecord ids
                         'datarecord_id' => $datarecord_ids,
-                        'complete_datarecord_list' => $complete_datarecord_list_array,
+                        // list of all datarecords related to $datarecord_id that matched the search
+                        'complete_datarecord_list' => $related_datarecord_ids,
                         'datafields' => $datafields,
 
                         'redis_prefix' => $redis_prefix,    // debug purposes only
@@ -250,7 +268,7 @@ class DebugController extends ODRCustomController
                     $csv_export_helper_service->execute($parameters);
 
                     $datarecord_ids = [];
-                    $complete_datarecord_list_array = [];
+                    $related_datarecord_ids = [];
                     $job_order++;
                 }
             }

@@ -572,7 +572,7 @@ class SearchAPIService
      *                       an array(<dt_id> => <# of paths>,...)
      * @return void
      */
-    private function buildSearchDependencyGraph($datatree_array, $related_datatypes, $ignored_prefixes, $current_datatype_id, $current_prefix, &$graph, &$counts)
+    public function buildSearchDependencyGraph($datatree_array, $related_datatypes, $ignored_prefixes, $current_datatype_id, $current_prefix, &$graph, &$counts)
     {
         // Need to perform a bit of setup on the first entry...
         if ( empty($graph) )
@@ -675,7 +675,7 @@ class SearchAPIService
      * @param int $current_datatype_id The datatype to rebase $graph from
      * @return array An array to replace the $counts computed by buildSearchDependencyGraph()
      */
-    private function invertSearchDependencyGraph(&$graph, $original_counts, $current_datatype_id)
+    public function invertSearchDependencyGraph(&$graph, $original_counts, $current_datatype_id)
     {
         // ----------------------------------------
         // Easier to do this iteratively because $graph is unstacked
@@ -1213,7 +1213,7 @@ class SearchAPIService
      *
      * @return array
      */
-    private function getIgnoredPrefixes($search_params, $datatype)
+    public function getIgnoredPrefixes($search_params, $datatype)
     {
         $ignored_prefixes = array();
 
@@ -1247,11 +1247,17 @@ class SearchAPIService
      * The number is some combination of bitflags...this function only initializes the array with
      * {@link SearchAPIService::CANT_VIEW} and {@link SearchAPIService::DOESNT_MATTER}
      *
+     * If $complete_datarecord_list is provided, then the datarecord ids contained within are set to
+     * {@link SearchAPIService::MATCHES_BOTH}.  This is currently used by CSVExportHelperService,
+     * because the complete datarecord list returned by {@link SearchAPIService::performSearch()}
+     * almost always needs to be broken up as part of forcing it into beanstalk for CSVExport.
+     *
      * @param array $permissions_array {@link self::getSearchPermissionsArray()}
+     * @param array $complete_datarecord_list Should generally be empty
      *
      * @return array
      */
-    private function getFlattenedList($permissions_array)
+    public function getFlattenedList($permissions_array, $complete_datarecord_list = array())
     {
         // ----------------------------------------
         // Intentionally not caching the results of this function for two reasons
@@ -1286,6 +1292,13 @@ class SearchAPIService
                     $flattened_list[$dt_id][$dr_id] = SearchAPIService::CANT_VIEW;
 //                else if ( $permissions['affected'] === true )
 //                    $flattened_list[$dt_id][$dr_id] = SearchAPIService::MUST_MATCH;  // NOTE: can't fill this in here
+                else if ( !empty($complete_datarecord_list) ) {
+                    // NOTE: used by/for CSVExport
+                    if ( isset($complete_datarecord_list[$dr_id]) )
+                        $flattened_list[$dt_id][$dr_id] = SearchAPIService::MATCHES_BOTH;
+                    else
+                        $flattened_list[$dt_id][$dr_id] = SearchAPIService::MUST_MATCH;
+                }
                 else
                     $flattened_list[$dt_id][$dr_id] = SearchAPIService::DOESNT_MATTER;  // TODO - rename?
             }
@@ -1403,7 +1416,6 @@ class SearchAPIService
 
         // Once the filtering is completed, then the search key can be converted into a considerably
         //  more complicated array format that serves as a repository for the upcoming search
-//        $criteria = $this->search_key_service->convertSearchKeyToCriteria($filtered_search_key, $searchable_datafields, $user_permissions, $search_as_super_admin);
         $criteria = $this->search_key_service->convertSearchKeyToCriteria($filtered_search_key, $searchable_datafields, $user_permissions, $search_as_super_admin);
 
         // Need to grab hydrated versions of the datafields/datatypes being searched on
@@ -1824,6 +1836,7 @@ class SearchAPIService
                 $datatree_array = $this->datatree_info_service->getDatatreeArray();
             $datarecord_ids = self::getCompleteDatarecordList($datatree_array, $graph, $flattened_list, $datatype->getId());
             $datarecord_ids = array_keys($datarecord_ids);
+//            sort($datarecord_ids);
 
             // There's no correct method to sort this list, so might as well return immediately
             return $datarecord_ids;
@@ -4623,9 +4636,9 @@ class SearchAPIService
      * @param array $graph {@see self::buildSearchDependencyGraph()}
      * @param array $flattened_list {@see self::getSearchArrays()}
      * @param int $top_level_datatype_id
-     * @return array
+     * @return array The keys of the array are the datarecord ids
      */
-    private function getCompleteDatarecordList($datatree_array, $graph, $flattened_list, $top_level_datatype_id)
+    public function getCompleteDatarecordList($datatree_array, $graph, $flattened_list, $top_level_datatype_id)
     {
         // Need to juggle a couple lists of datarecords...first is the complete list of records that
         //  match the search...
@@ -4693,7 +4706,6 @@ class SearchAPIService
 
             // Therefore, as long as the third bit is a 1 or the second bit is 0, this record
             //  ends up maching the search
-            $matches = false;
             if ( $flattened_list[$current_dt_id][$dr_id] & SearchAPIService::MATCHES_ADV   // second bit set
                 || !($flattened_list[$current_dt_id][$dr_id] & SearchAPIService::MUST_MATCH)    // third bit not set
             ) {
