@@ -362,10 +362,14 @@ odr_design_theme_element_visibility:
     defaults: { _controller: ODRAdminBundle:Theme:themeelementvisibility }
     requirements:
         theme_element_id:  \d+
-
 odr_design_theme_element_border_visibility:
     path:  /design/themeelementbordervisibility/{theme_element_id}
     defaults: { _controller: ODRAdminBundle:Theme:themeelementbordervisibility }
+    requirements:
+        theme_element_id:  \d+
+odr_design_theme_element_show_when_empty:
+    path:  /design/themeelementshowwhenempty/{theme_element_id}
+    defaults: { _controller: ODRAdminBundle:Theme:themeelementshowwhenempty }
     requirements:
         theme_element_id:  \d+
 
@@ -580,6 +584,11 @@ odr_design_get_special_datafield_properties:
     requirements:
         datatype_id:  \d+
         type: '|name|sort'
+odr_design_get_immediate_search_datafield_properties:
+    path:  /design/displaytemplate/immediate_search_datafields/get/{datatype_id}
+    defaults: { _controller: ODRAdminBundle:Displaytemplate:getimmediatesearchdatafields }
+    requirements:
+        datatype_id:  \d+
 
 odr_design_save_special_datafield_properties:
     path:  /design/displaytemplate/special_datafields/save/{datatype_id}
@@ -727,9 +736,21 @@ odr_record_save:
 odr_record_save_xyzdata:
     path:  /edit/save_xyzdata/{datarecord_id}/{datafield_id}
     defaults: { _controller: ODRAdminBundle:Edit:updatexyzdata }
+    methods: [ POST ]
     requirements:
         datarecord_id:  \d+
         datafield_id_id:  \d+
+
+odr_direct_edit_file_start:
+    path: /edit/edit_file/start/{file_id}/{reload_entire_page}
+    defaults: { _controller: ODRAdminBundle:Edit:directeditfilestart }
+    requirements:
+        file_id: \d+
+        reload_entire_page: 0|1
+odr_direct_edit_file_save:
+    path: /edit/edit_file/save
+    defaults: { _controller: ODRAdminBundle:Edit:directeditfilesave }
+    methods: [ POST ]
 
 odr_record_public:
     path:  /edit/publicdatarecord/{datarecord_id}

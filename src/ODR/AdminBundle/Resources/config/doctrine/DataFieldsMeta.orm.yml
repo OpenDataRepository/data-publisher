@@ -128,6 +128,14 @@ ODR\AdminBundle\Entity\DataFieldsMeta:
             default: ''
             column: quality_str
 
+        # This one only applies to files
+        editable_file_extensions:
+            type: string
+            length: 32
+            nullable: false
+            default: ''
+            column: editable_file_extensions
+
         # This one only applies to radio options
         children_per_row:
             type: integer

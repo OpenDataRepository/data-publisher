@@ -2123,11 +2123,16 @@ class DisplaytemplateController extends ODRCustomController
                             JOIN ODRAdminBundle:DataFields df WITH dtsf.dataField = df
                             JOIN ODRAdminBundle:DataType dt WITH df.dataType = dt
                             WHERE dtsf.dataType = :ancestor_datatype_id AND dt = :descendant_datatype_id
+                            AND dtsf.field_purpose IN (:field_purposes)
                             AND dtsf.deletedAt IS NULL AND df.deletedAt IS NULL AND dt.deletedAt IS NULL'
                         )->setParameters(
                             array(
                                 'ancestor_datatype_id' => $ancestor_datatype->getId(),
                                 'descendant_datatype_id' => $descendant_datatype->getId(),
+                                'field_purposes' => array(
+                                    DataTypeSpecialFields::NAME_FIELD,
+                                    DataTypeSpecialFields::SORT_FIELD,
+                                ),
                             )
                         );
                         $results = $query->getResult();
@@ -2375,6 +2380,7 @@ class DisplaytemplateController extends ODRCustomController
                     $submitted_data->setDescription( stripslashes($submitted_data->getDescription()) );
                     $submitted_data->setMarkdownText( stripslashes($submitted_data->getMarkdownText()) );
                     $submitted_data->setQualityStr( stripslashes($submitted_data->getQualityStr()) );
+                    $submitted_data->setEditableFileExtensions( stripslashes($submitted_data->getEditableFileExtensions()) );
                     $submitted_data->setInternalReferenceName( stripslashes($submitted_data->getInternalReferenceName()) );
                 }
 
@@ -2469,6 +2475,7 @@ class DisplaytemplateController extends ODRCustomController
 //                    $submitted_data->setShortenFilename( $master_datafield->getShortenFilename() );
 //                    $submitted_data->setNewFilesArePublic( $master_datafield->getNewFilesArePublic() );
 //                    $submitted_data->setQualityStr( $master_datafield->getQualityStr() );
+//                    $submitted_data->setEditableFileExtensions( $master_datafield->getEditableFileExtensions() );
 //                    $submitted_data->setChildrenPerRow( $master_datafield->getChildrenPerRow() );
                     $submitted_data->setRadioOptionNameSort( $master_datafield->getRadioOptionNameSort() );
 //                    $submitted_data->setRadioOptionDisplayUnselected( $master_datafield->getRadioOptionDisplayUnselected() );
@@ -2515,6 +2522,23 @@ class DisplaytemplateController extends ODRCustomController
                 else if ( strlen($submitted_data->getQualityStr()) > 255 ) {
                     // ...forcing a reload is appropriate when the length is exceeded, however
                     $datafield_form->addError( new FormError("'Quality Type' is not allowed to exceed 255 characters") );
+                }
+
+                if ( is_null($submitted_data->getEditableFileExtensions()) ) {
+                    // Going to ensure this value is non-null
+                    $submitted_data->setEditableFileExtensions('');
+                }
+                else if ( strlen($submitted_data->getEditableFileExtensions()) > 0 ) {
+                    // ...also going to perform some rudimentary modification to get rid of blank
+                    //  extensions
+                    $extensions = explode(',', $submitted_data->getEditableFileExtensions());
+                    $trimmed_extensions = array();
+                    foreach ($extensions as $ext) {
+                        $tmp = trim($ext);
+                        if ( strlen($tmp) > 0 )
+                            $trimmed_extensions[] = $tmp;
+                    }
+                    $submitted_data->setEditableFileExtensions(implode(',', $trimmed_extensions));
                 }
 
 //                $datafield_form->addError( new FormError("Do not continue") );
@@ -2585,6 +2609,7 @@ class DisplaytemplateController extends ODRCustomController
                         'shorten_filename' => $submitted_data->getShortenFilename(),
                         'newFilesArePublic' => $submitted_data->getNewFilesArePublic(),
                         'quality_str' => $submitted_data->getQualityStr(),
+                        'editable_file_extensions' => $submitted_data->geteditableFileExtensions(),
                         'children_per_row' => $submitted_data->getChildrenPerRow(),
                         'radio_option_name_sort' => $submitted_data->getRadioOptionNameSort(),
                         'radio_option_display_unselected' => $submitted_data->getRadioOptionDisplayUnselected(),
@@ -4359,7 +4384,7 @@ if ($debug)
 
 
             // Locate all name/sort fields for the datatype...
-            $tmp = $database_info_service->getSpecialDatafields($datatype_id, $user_permissions);  // filter with the user's permissions
+            $tmp = $database_info_service->getNameSortDatafields($datatype, $user_permissions);  // filter with the user's permissions
 
             // ...though we only want some of them
             $available_datafields = $tmp['available_fields'];
@@ -4408,6 +4433,100 @@ if ($debug)
 
 
     /**
+     * Renders and returns a form to change the datatype's immediate search field.  This is separate
+     * from {@see self::getspecialdatafieldsAction()} due to immediate search fields requiring more
+     * strict criteria.
+     *
+     * @param integer $datatype_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function getimmediatesearchdatafieldsAction($datatype_id, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->container->get('odr.database_info_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+            /** @var CsrfTokenManager $token_manager */
+            $token_manager = $this->container->get('security.csrf.token_manager');
+
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
+
+            // Ensure user has permissions to be doing this
+            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            // Locate all permissible fields for the datatype...
+            $tmp = $database_info_service->getImmediateSearchDatafields($datatype, $user_permissions);
+
+            // ...though we only want some of them
+            $available_datafields = $tmp['available_fields'];
+            $current_datafields = $tmp['current_fields'];
+
+            // Generate a csrf token for the form
+            $token_key = 'Form_';
+            foreach ($available_datafields as $dt_id => $dt_data) {
+                foreach ($dt_data['datafields'] as $df_id => $df_name)
+                    $token_key .= $df_id.'_';
+            }
+            $token_key .= 'Datafields';
+            $token = $token_manager->getToken($token_key)->getValue();
+
+
+            // ----------------------------------------
+            // Render and return the dialog
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:Displaytemplate:special_datafield_selection_dialog_form.html.twig',
+                    array(
+                        'token' => $token,
+                        'purpose' => 'search',
+
+                        'available_datafields' => $available_datafields,
+                        'current_datafields' => $current_datafields,
+                    )
+                )
+            );
+
+        }
+        catch (\Exception $e) {
+            $source = 0x756b30d6;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
      * Validates and saves a form to change the datatype's name or sort fields.
      *
      * @param integer $datatype_id
@@ -4429,7 +4548,7 @@ if ($debug)
                 throw new ODRBadRequestException();
 
             $purpose = $post['purpose'];
-            if ( $purpose !== 'name' && $purpose !== 'sort' )
+            if ( $purpose !== 'name' && $purpose !== 'sort' && $purpose !== 'search' )
                 throw new ODRBadRequestException();
 
             $seen_datafields = array();
@@ -4438,6 +4557,12 @@ if ($debug)
                 foreach ($post['datafields'] as $display_order => $df_id) {
                     $df_list[intval($df_id)] = intval($display_order);
                     $seen_datafields[$df_id] = false;
+
+                    // If this is supposed to save an override field for the immediate search stuff...
+                    if ( $purpose === 'search' && count($df_list) === 1 ) {
+                        // ...then ensure there's only at most one field in the list to save
+                        break;
+                    }
                 }
             }
 
@@ -4481,14 +4606,16 @@ if ($debug)
             // --------------------
 
 
-            // Locate all name/sort fields for the datatype...
-            $tmp = $database_info_service->getSpecialDatafields($datatype_id, $user_permissions);  // filter with the user's permissions
-
-            // ...though we only actually want the fields that can be used as name/sort fields
-            $available_datafields = $tmp['available_fields'];
-//            $current_datafields = $tmp['current_namefields'];
-//            if ($purpose === 'sort')
-//                $current_datafields = $tmp['current_sortfields'];
+            // Locate all available fields for this purpose
+            $available_datafields = array();
+            if ( $purpose === 'name' || $purpose === 'sort' ) {
+                $tmp = $database_info_service->getNameSortDatafields($datatype, $user_permissions);  // filter with the user's permissions
+                $available_datafields = $tmp['available_fields'];
+            }
+            else if ( $purpose === 'search' ) {
+                $tmp = $database_info_service->getImmediateSearchDatafields($datatype, $user_permissions);
+                $available_datafields = $tmp['available_fields'];
+            }
 
             // Generate a csrf token for the form, and validate that an unrelated datafield isn't
             //  in said form
@@ -4535,13 +4662,20 @@ if ($debug)
             $field_purpose = DataTypeSpecialFields::NAME_FIELD;
             if ( $purpose === 'sort' )
                 $field_purpose = DataTypeSpecialFields::SORT_FIELD;
+            else if ( $purpose === 'search' )
+                $field_purpose = DataTypeSpecialFields::IMMEDIATE_SEARCH_FIELD;
 
             $query = $em->createQuery(
                'SELECT dtsf
                 FROM ODRAdminBundle:DataTypeSpecialFields dtsf
                 WHERE dtsf.dataType = :datatype_id AND dtsf.field_purpose = :purpose
                 AND dtsf.deletedAt IS NULL'
-            )->setParameters( array('datatype_id' => $datatype->getId(), 'purpose' => $field_purpose) );
+            )->setParameters(
+                array(
+                    'datatype_id' => $datatype->getId(),
+                    'purpose' => $field_purpose
+                )
+            );
             $results = $query->getResult();
 
             $entities = array();
@@ -4594,7 +4728,13 @@ if ($debug)
 
                 // Mark the datatype as updated
                 try {
-                    $event = new DatatypeModifiedEvent($datatype, $user, true);    // Also need to rebuild datarecord cache entries because they store sort/name field values
+                    // Need to rebuild datarecord cache entries if the name/sort field was modified,
+                    //  because they store sort/name field values
+                    $clear_datarecord_caches = false;
+                    if ( $purpose === 'name' || $purpose === 'sort' )
+                        $clear_datarecord_caches = true;
+
+                    $event = new DatatypeModifiedEvent($datatype, $user, $clear_datarecord_caches);
                     $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
                 }
                 catch (\Exception $e) {

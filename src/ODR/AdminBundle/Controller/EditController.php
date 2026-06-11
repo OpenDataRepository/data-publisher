@@ -82,6 +82,7 @@ use ODR\OpenRepository\GraphBundle\Plugins\DatafieldReloadOverrideInterface;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Form\FormError;
@@ -2726,6 +2727,360 @@ class EditController extends ODRCustomController
 
 
     /**
+     * Begins the process of attempting to edit a file inside ODR, as opposed to having the user
+     * download, edit, and re-upload.
+     *
+     * @param int $file_id
+     * @param int $reload_entire_page
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function directeditfilestartAction($file_id, $reload_entire_page, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Want to transform this into a boolean
+            if ( intval($reload_entire_page) === 1 )
+                $reload_entire_page = true;
+            else
+                $reload_entire_page = false;
+
+            // Get the Entity Manager
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var CryptoService $crypto_service */
+            $crypto_service = $this->container->get('odr.crypto_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
+
+            /** @var File $file */
+            $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
+            if ($file == null)
+                throw new ODRNotFoundException('File');
+
+            /** @var DataRecord $datarecord */
+            $datarecord = $file->getDataRecord();
+            if ($datarecord->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datarecord');
+
+            $datatype = $datarecord->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+            /** @var DataFields $datafield */
+            $datafield = $file->getDataField();
+            if ($datafield->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datafield');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
+                throw new ODRForbiddenException();
+
+            // If the datafield is set to prevent user edits, then prevent this controller action
+            //  from making a change to it
+            if ( $datafield->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Datatype's administrator has blocked changes to this Datafield.");
+            // --------------------
+
+            // ----------------------------------------
+            // Check that the file extension is on the admin-configured allow list
+            $editable_file_extensions = explode(',', $datafield->getEditableFileExtensions());
+            if ( empty($editable_file_extensions) )
+                throw new ODRBadRequestException('Files in this field can not be directly edited');
+
+            $original_filename = $file->getOriginalFileName();
+            $filename_length = strlen($original_filename);
+
+            $allowed = false;
+            foreach ($editable_file_extensions as $ext) {
+                if ( strripos($original_filename, '.'.$ext) === $filename_length-strlen($ext)-1 )
+                    $allowed = true;
+            }
+
+            if ( !$allowed )
+                throw new ODRBadRequestException('This File can not be directly edited');
+
+            // Don't edit huge files
+            if ( $file->getFilesize() > (1*1024*1024) ) // 1mb
+                throw new ODRBadRequestException('This file is too large to be directly edited');
+
+
+            // ----------------------------------------
+            // Due to how the crypto system works, the file has to be decrypted to a file instead
+            //  of into memory...
+            $filename = 'File_'.$file_id.'.'.$file->getExt();
+            if ( !$file->isPublic() )
+                $filename = md5($file->getOriginalChecksum().'_'.$file_id.'_'.$user->getId()).'.'.$file->getExt();
+
+            $local_filepath = realpath( $this->getParameter('odr_web_directory').'/'.$file->getUploadDir().'/'.$filename );
+            if (!$local_filepath) {
+                // If file doesn't exist, and user has permissions...just decrypt it directly?
+                // TODO - don't really like this, but downloading a file via table theme or interactive graph feature can't get at non-public files otherwise...
+                $local_filepath = $crypto_service->decryptFile($file->getId(), $filename);
+            }
+
+            if (!$local_filepath)
+                throw new FileNotFoundException($local_filepath);
+
+            // Going to send the file contents to twig...
+            $file_contents = file_get_contents($local_filepath);
+
+            // If the file is non-public, then delete it off the server
+            if ( !$file->isPublic() && file_exists($local_filepath) )
+                unlink($local_filepath);
+
+
+            // ----------------------------------------
+            // Also need a csrf token
+            /** @var CsrfTokenManager $token_generator */
+            $token_generator = $this->get('security.csrf.token_manager');
+
+            $token_id = 'FileDataForm_'.$datarecord->getId().'_'.$datafield->getId().'_'.$user->getId();
+            $expected_csrf_token = $token_generator->getToken($token_id)->getValue();
+
+            // Render and return the dialog contents
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:Edit:file_direct_edit_dialog_form.html.twig',
+                    array(
+                        'file' => $file,
+                        'csrf_token' => $expected_csrf_token,
+                        'file_contents' => $file_contents,
+
+                        'reload_entire_page' => $reload_entire_page,
+                    )
+                )
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0x52a4ab58;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Parses a $_POST request to update the contents of a File.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function directeditfilesaveAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            $post = $request->request->all();
+            if ( !isset($post['FileDataForm']['_token'])
+                || !isset($post['FileDataForm']['value'])
+                || !isset($post['FileDataForm']['file_id'])
+            ) {
+                throw new ODRBadRequestException('Invalid Form');
+            }
+
+            $file_id = $post['FileDataForm']['file_id'];
+            $csrf_token = $post['FileDataForm']['_token'];
+            $new_file_contents = $post['FileDataForm']['value'];
+
+            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            if ( $is_wordpress_integrated )
+                $new_file_contents = stripslashes($new_file_contents);
+
+
+            // These two might not exist
+            $linux_newlines = false;
+            if ( isset($post['FileDataForm']['linux_newlines']) && $post['FileDataForm']['linux_newlines'] == '1' )
+                $linux_newlines = true;
+
+            $replace_file = false;
+            if ( isset($post['FileDataForm']['replace']) && $post['FileDataForm']['replace'] == '1' )
+                $replace_file = true;
+
+
+            // Get the Entity Manager
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var CryptoService $crypto_service */
+            $crypto_service = $this->container->get('odr.crypto_service');
+            /** @var EntityDeletionService $entity_deletion_service */
+            $entity_deletion_service = $this->get('odr.entity_deletion_service');
+            /** @var ODRUploadService $odr_upload_service */
+            $odr_upload_service = $this->container->get('odr.upload_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+
+
+            /** @var File $file */
+            $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
+            if ($file == null)
+                throw new ODRNotFoundException('File');
+
+            /** @var DataRecord $datarecord */
+            $datarecord = $file->getDataRecord();
+            if ($datarecord->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datarecord');
+
+            $datatype = $datarecord->getDataType();
+            if ($datatype->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datatype');
+
+            /** @var DataFields $datafield */
+            $datafield = $file->getDataField();
+            if ($datafield->getDeletedAt() != null)
+                throw new ODRNotFoundException('Datafield');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            if ( !$permissions_service->canEditDatafield($user, $datafield, $datarecord) )
+                throw new ODRForbiddenException();
+
+            // If the datafield is set to prevent user edits, then prevent this controller action
+            //  from making a change to it
+            if ( $datafield->getPreventUserEdits() )
+                throw new ODRForbiddenException("The Datatype's administrator has blocked changes to this Datafield.");
+            // --------------------
+
+            // ----------------------------------------
+            // Check the csrf token
+            /** @var CsrfTokenManager $token_generator */
+            $token_generator = $this->get('security.csrf.token_manager');
+
+            $token_id = 'FileDataForm_'.$datarecord->getId().'_'.$datafield->getId().'_'.$user->getId();
+            $expected_csrf_token = $token_generator->getToken($token_id)->getValue();
+            if ( $csrf_token !== $expected_csrf_token )
+                throw new ODRBadRequestException('Invalid Form');
+
+
+            // ----------------------------------------
+            // Due to how the crypto system works, the file has to be decrypted to a file instead
+            //  of into memory...
+            $original_filename = 'File_'.$file_id.'.'.$file->getExt();
+            if ( !$file->isPublic() )
+                $original_filename = md5($file->getOriginalChecksum().'_'.$file_id.'_'.$user->getId()).'.'.$file->getExt();
+
+            $local_filepath = realpath( $this->getParameter('odr_web_directory').'/'.$file->getUploadDir().'/'.$original_filename );
+            if (!$local_filepath) {
+                // If file doesn't exist, and user has permissions...just decrypt it directly?
+                $local_filepath = $crypto_service->decryptFile($file->getId(), $original_filename);
+            }
+
+            if (!$local_filepath)
+                throw new FileNotFoundException($local_filepath);
+
+            // Going to need the file contents to check whether something changed...
+            $original_file_contents = file_get_contents($local_filepath);
+
+            // If the file is non-public, then delete it off the server
+            if ( !$file->isPublic() && file_exists($local_filepath) )
+                unlink($local_filepath);
+
+
+
+            // ----------------------------------------
+            // If the user wanted linux newlines, then ensure there are no "\r\n" sequences
+            if ( $linux_newlines )
+                $new_file_contents = str_replace("\r\n", "\n", $new_file_contents);
+
+            $changes_made = false;
+            if ( $new_file_contents !== $original_file_contents ) {
+                // If the submitted file is different, then going to delete the existing file and
+                //  re-upload it with the new contents
+                $changes_made = true;
+                unlink($local_filepath);
+
+                // Save the info required to upload a new file into the same location
+                $original_drf = $file->getDataRecordFields();
+                $original_public_date = $file->getPublicDate();
+                $original_quality = $file->getQuality();
+
+                // Write the file contents to a new file in the user's temp directory
+                $path_prefix = $this->getParameter('odr_tmp_directory').'/';
+                $destination_folder = 'user_'.$user->getId().'/chunks/completed';
+                if ( !file_exists($path_prefix.$destination_folder) )
+                    mkdir( $path_prefix.$destination_folder, 0777, true );
+
+                $new_filepath = $path_prefix.$destination_folder.'/'.$original_filename;
+                $handle = fopen($new_filepath, 'w');
+                if (!$handle)
+                    throw new \Exception('failed to open destination file: '.$new_filepath);
+                fwrite($handle, $new_file_contents);
+                fclose($handle);
+
+//                throw new ODRException('do not continue');
+
+                if ( !$replace_file ) {
+                    // Delete the existing file...
+                    $entity_deletion_service->deleteFile($file, $user);
+                    // ...and trigger an upload of the new file
+                    $odr_upload_service->uploadNewFile(
+                        $new_filepath,
+                        $user,
+                        $original_drf,
+                        null,    // don't specify an arbitrary create date
+                        $original_public_date,
+                        $original_quality,
+                        false    // shouldn't need to use beanstalk due to filesize being limited
+                    );
+                }
+                else {
+                    // Replacing the existing file instead
+                    $odr_upload_service->replaceExistingFile(
+                        $file,
+                        $new_filepath,
+                        $user,
+                        false    // shouldn't need to use beanstalk due to filesize being limited
+                    );
+                }
+            }
+
+            // Notify whether a change was made or not
+            $return['d'] = array('change_made' => $changes_made);
+        }
+        catch (\Exception $e) {
+            $source = 0x3c17cf8a;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
      * Given a child datatype id and a datarecord, re-render and return the html for that child datatype.
      *
      * @param int $theme_element_id        The theme element this child/linked datatype is in
@@ -3373,6 +3728,17 @@ class EditController extends ODRCustomController
                 );
             }
 
+            // ----------------------------------------
+            // Determine the user's preferred theme. Resolved here (before
+            // the header render) so it can be passed into edit_header and
+            // forwarded to search_header, which needs theme.themeMeta to
+            // gate the "Modify Search" button the same way
+            // pagination_header.html.twig does.
+//            $theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'edit');    // NOTE: apparently differentiating between 'display' and 'edit' is...'confusing'
+            $theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'display');
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+
             $redirect_path = $router->generate('odr_record_edit', array('datarecord_id' => 0));
             $record_header_html = $templating->render(
                 'ODRAdminBundle:Edit:edit_header.html.twig',
@@ -3382,6 +3748,7 @@ class EditController extends ODRCustomController
 
                     'datarecord' => $datarecord,
                     'datatype' => $datatype,
+                    'theme' => $theme,
 
                     'is_top_level' => $is_top_level,
                     'odr_tab_id' => $odr_tab_id,
@@ -3399,14 +3766,6 @@ class EditController extends ODRCustomController
                     'redirect_path' => $redirect_path,
                 )
             );
-
-
-            // ----------------------------------------
-            // Determine the user's preferred theme
-//            $theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'edit');    // NOTE: apparently differentiating between 'display' and 'edit' is...'confusing'
-            $theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'display');
-            /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
 
             // Render the edit page for this datarecord
             $page_html = $odr_render_service->getEditHTML($user, $datarecord, $merged_search_key, $search_theme_id, $theme, $edit_shows_all_fields);

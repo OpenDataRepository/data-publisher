@@ -236,6 +236,7 @@ class EntityCreationService
         }
         $datafield_meta->setNewFilesArePublic(false);    // Newly uploaded files/images default to non-public
         $datafield_meta->setQualityStr('');
+        $datafield_meta->setEditableFileExtensions('');
 
         $datafield_meta->setCreated($created);
         $datafield_meta->setUpdated($created);
@@ -740,7 +741,7 @@ class EntityCreationService
      * @param ODRUser $user
      * @param DataType $datatype
      * @param DataFields $datafield
-     * @param int $field_purpose {@link DataTypeSpecialFields::NAME_FIELD}, {@link DataTypeSpecialFields::SORT_FIELD}
+     * @param int $field_purpose {@link DataTypeSpecialFields::NAME_FIELD}, {@link DataTypeSpecialFields::SORT_FIELD}, {@link DataTypeSpecialFields::IMMEDIATE_SEARCH_FIELD}
      * @param int $display_order
      * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
@@ -751,8 +752,12 @@ class EntityCreationService
     {
         // ----------------------------------------
         // Have some verification to do first...
-        if ( $field_purpose !== DataTypeSpecialFields::NAME_FIELD && $field_purpose !== DataTypeSpecialFields::SORT_FIELD )
+        if ( $field_purpose !== DataTypeSpecialFields::NAME_FIELD
+            && $field_purpose !== DataTypeSpecialFields::SORT_FIELD
+            && $field_purpose !== DataTypeSpecialFields::IMMEDIATE_SEARCH_FIELD
+        ) {
             throw new ODRBadRequestException('Invalid field_purpose for special Datatype field');
+        }
 
         if ( is_null($created) )
             $created = new \DateTime();
@@ -2955,6 +2960,7 @@ class EntityCreationService
         $theme_element_meta->setDisplayOrder(-1);
         $theme_element_meta->setHidden(0);
         $theme_element_meta->setHideBorder(false);
+        $theme_element_meta->setShowWhenEmpty(false);
         $theme_element_meta->setCssWidthMed('1-1');
         $theme_element_meta->setCssWidthXL('1-1');
 

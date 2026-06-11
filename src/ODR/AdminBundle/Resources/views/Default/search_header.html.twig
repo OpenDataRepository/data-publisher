@@ -3,7 +3,16 @@
 {# NOTE: this is called by Display/Edit mode.  SearchResults uses pagination_header.html.twig instead, and TextResults doesn't have a separate header file. #}
 
 {% if search_key != '' %}
-<div id="ODRSearchResultsButtons" class="pure-u-1-2 pure-u-xl-1-3 pure-u-xxl-1-4 pure-u-xxxl-1-4 pure-u-x4k-1-4">
+<div id="ODRSearchResultsButtons" class="pure-u-1-2 pure-u-xl-1-2 pure-u-xxl-1-2 pure-u-xxxl-1-2 pure-u-x4k-1-2">
+    {% if config_odr_wordpress_integrated and theme is defined and theme.themeMeta.disableSearchSidebar == true %}
+        {# Sends the user back to the WordPress search-form page (configured
+           via odr_wordpress_search_redirects). modifySearch() and
+           ODR_MODIFY_SEARCH_MAP are defined in Default/common_js.html.twig.
+           Gating matches pagination_header.html.twig: WP-integrated AND the
+           current theme has the search sidebar disabled. #}
+        <button type="button" id="ODRModifySearch" class="pure-button pure-button-primary" onclick="modifySearch();">Modify Search</button>
+    {% endif %}
+
     {% if search_result_count > 1 %}
         <button id="ODRSearchResultsPrevious" class="pure-button pure-button-primary" onclick="changeResult('prev');">
             <i class="fa fa-backward"></i><span>&nbsp;Prev</span>

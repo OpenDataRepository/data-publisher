@@ -1,0 +1,127 @@
+{% spaceless %}
+
+<script>
+    /**
+     * Opens the dialog to permit direct editing of a (hopefully) text(ish) file.
+     *
+     * @param {number} file_id
+     * @param {boolean} reload_entire_page
+     */
+    function openFileDirectEditDialog(file_id, reload_entire_page) {
+        /** @type {odr_remodal_options} modal_options */
+        var modal_options = {
+            title: 'File Editing',
+            buttons: [
+                {
+                    id: 'ODRFileDirectEdit_save',
+                    text: 'Save',
+                    click_handler: function() {
+                        saveFileDirectEditDialog(reload_entire_page);
+                    }
+                },
+                {
+                    id: 'ODRFileDirectEdit_close',
+                    secondary: true,
+                    text: 'Cancel',
+                    click_handler: function() {
+                        closeODRRemodal();
+                    }
+                }
+            ]
+        };
+        openODRRemodal(modal_options);
+
+        var url  = '{{ path('odr_direct_edit_file_start', {'file_id': 0, 'reload_entire_page': 0} ) }}';
+        url = url.substring(0,(url.length-3));
+        url += file_id + '/';
+        if ( !reload_entire_page )
+            url += '0';
+        else
+            url += '1';
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data) {
+                updateODRRemodalBody(data.d.html);
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Close the dialog so it's not in some half-initialized state
+                closeODRRemodal();
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Saves the form for directly editing a file's contents.
+     *
+     * @param {boolean} reload_entire_page
+     */
+    function saveFileDirectEditDialog(reload_entire_page) {
+
+        var url = '{{ path('odr_direct_edit_file_save') }}';
+        var datarecord_id = $("#FileDataForm_dr_id").val();
+        var datafield_id = $("#FileDataForm_df_id").val();
+
+        var post_data = $("#ODRFileDirectEdit_form").serialize();
+
+        // Show the loading blurb
+        setODRRemodalLoadingText('Saving...');
+        showODRRemodalLoading();
+
+        $.ajax({
+            cache: false,
+            type: 'POST',
+            url: url,
+            data: post_data,
+            dataType: "json",
+            success: function(data) {
+                // Don't need this open anymore
+                closeODRRemodal();
+
+                if ( data.d.change_made == true ) {
+                    notifySaved();
+
+                    if (!reload_entire_page)
+                        ReloadEditDatafield(datarecord_id, datafield_id);
+                    else
+                        window.location.reload();
+                }
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Close the dialog so it's not in some half-initialized state
+                closeODRRemodal();
+            },
+            complete: function(jqXHR) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+</script>
+
+{% endspaceless %}

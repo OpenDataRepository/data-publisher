@@ -12,7 +12,7 @@
 <div class="pure-u-1 clearfix" id="ODRSearchHeaderWrapper">
 
     {% if search_key != '' %}
-    <div id="ODRPublicExportButtons" class="pure-u-1-2 pure-u-xl-2-3 pure-u-xxl-3-4 pure-u-xxxl-3-4 pure-u-x4k-3-4">
+    <div id="ODRPublicExportButtons" class="pure-u-1-2 pure-u-xl-1-2 pure-u-xxl-1-2 pure-u-xxxl-1-2 pure-u-x4k-1-2">
     {% else %}
     <div id="ODRPublicExportButtons" class="pure-u-1">
     {% endif %}
@@ -46,6 +46,7 @@
             'search_result_count': search_result_count,
 
             'page_type': page_type,
+            'theme': theme,
         } %}
     {% endif %}
 </div>

@@ -513,6 +513,24 @@
         </div>
     {% endif %}
 
+    {% if typename == 'File' %}
+        <div class="">
+            <label for="{{ datafield_form.editable_file_extensions.vars.id }}">
+                {{ datafield_form.editable_file_extensions.vars.label }}
+                <span class="ODRThemeDesignTool" title="Enter a comma-separated list of file extensions, without the period.">
+                    &nbsp;<i class="fa fa-info-circle fa-lg Info"></i>
+                </span>
+            </label>
+            {{ form_errors(datafield_form.editable_file_extensions) }}
+            {{ form_widget(datafield_form.editable_file_extensions, {
+                'attr': {
+                    'class': 'pure-u-1',
+                    'data-error-type': 'inline'
+                }
+            }) }}
+        </div>
+    {% endif %}
+
         <div class="">
             <label for="{{ datafield_form.internal_reference_name.vars.id }}">
                 {{ datafield_form.internal_reference_name.vars.label }}
