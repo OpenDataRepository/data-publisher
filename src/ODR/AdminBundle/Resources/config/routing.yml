@@ -1202,16 +1202,15 @@ odr_start_zip_archive_download:
     requirements:
         grandparent_datarecord_id: \d+
 
-odr_get_search_results_file_list:
-    path:  /view/search_file_list/{search_key}
-    defaults: { _controller: ODRAdminBundle:Display:listsearchresultfiles }
-    requirements:
-        search_key: '[a-zA-Z0-9\-\_]*'
-
-odr_start_search_results_archive_download:
-    path:  /view/search_archive_build
-    defaults: { _controller: ODRAdminBundle:Display:startsearchresultfilesdownload }
-    methods: [ POST ]
+#odr_get_search_results_file_list:
+#    path:  /view/search_file_list/{search_key}
+#    defaults: { _controller: ODRAdminBundle:Display:listsearchresultfiles }
+#    requirements:
+#        search_key: '[a-zA-Z0-9\-\_]*'
+#odr_start_search_results_archive_download:
+#    path:  /view/search_archive_build
+#    defaults: { _controller: ODRAdminBundle:Display:startsearchresultfilesdownload }
+#    methods: [ POST ]
 
 odr_download_zip_archive:
     path:  /view/zip_archive_download/{archive_filename}

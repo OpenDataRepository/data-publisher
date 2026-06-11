@@ -2370,6 +2370,10 @@ class ReportsController extends ODRCustomController
                 $user_id = $user->getId();
             // ----------------------------------------
 
+            if ( $user_id === 0 )
+                throw new ODRForbiddenException();
+
+
             // Symfony firewall requires $archive_filename to match "0|[0-9a-zA-Z\-\_]{12}.zip"
             if ($archive_filename == '0')
                 throw new ODRBadRequestException();
