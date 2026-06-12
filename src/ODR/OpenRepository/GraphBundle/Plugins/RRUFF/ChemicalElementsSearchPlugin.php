@@ -46,6 +46,7 @@ use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\SortService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\SearchOverrideInterface;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchQueryService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
 use Doctrine\DBAL\ParameterType;
@@ -361,7 +362,7 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
         $end_result = array(
             'dt_id' => $datafield->getDataType()->getId(),
             'records' => $results,
-            'guard' => false,    // the plugin never explicitly searches on the empty string
+            'modify' => SearchQueryService::NO_MODIFICATION,    // the plugin never explicitly searches on the empty string
         );
 
         // ...then return the results of the search

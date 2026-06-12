@@ -1698,11 +1698,11 @@ class SearchService
      * {@see SearchQueryService::NO_MODIFICATION},{@see SearchQueryService::NEGATED_QUERY},{@see SearchQueryService::NEED_UNRELATED_RECORDS}
      *
      * The difference between this function and {@link self::searchTextOrNumberDatafield()} is that
-     * negated search terms are silently ignored...e.g. a search for "!Gold" instead returns the
-     * results for "Gold".  As such, the 'guard' key is always true in the erturn.
+     * negated search terms are silently unnegated...e.g. a search for "!Gold" instead returns the
+     * results for "Gold".
      *
      * If it did search on "!Gold", then the general search results would only be accurate when
-     * there was only one field.  {@link SearchKeyService::tokenizeGeneralSearch()}
+     * the datatype only had one field.  {@link SearchKeyService::tokenizeGeneralSearch()}
      * The negation has to be applied at a later time and in a couple different places to work with
      * multiple search terms and across ancestor/descendant relationships.
      *

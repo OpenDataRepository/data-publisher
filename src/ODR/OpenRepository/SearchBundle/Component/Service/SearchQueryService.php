@@ -993,7 +993,7 @@ class SearchQueryService
      * The array has the following structure:
      * <pre>
      * array(
-     *     'guard' => <true when the query can match the empty string, false otherwise>,
+     *     'modify' => <one of the SearchQueryService modify flags>,
      *     'records' => array(
      *         'public' => array(
      *             <matching_dr_id> => 1,
@@ -1007,6 +1007,7 @@ class SearchQueryService
      *     ),
      * )
      * </pre>
+     * {@see SearchQueryService::NO_MODIFICATION},{@see SearchQueryService::NEGATED_QUERY},{@see SearchQueryService::NEED_UNRELATED_RECORDS}
      *
      * @param int $datatype_id
      * @param int $datafield_id
