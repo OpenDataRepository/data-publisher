@@ -1837,11 +1837,12 @@ class LinkController extends ODRCustomController
      * and what links to the given datarecord.
      *
      * @param integer $local_datarecord_id
+     * @param string $context
      * @param Request $request
      *
      * @return Response
      */
-    public function getlinkeddatarecordsAction($local_datarecord_id, Request $request)
+    public function getlinkeddatarecordsAction($local_datarecord_id, $context, Request $request)
     {
         $return = array();
         $return['r'] = 0;
@@ -2199,6 +2200,7 @@ class LinkController extends ODRCustomController
                 'html' => $templating->render(
                     'ODRAdminBundle:Link:datarecord_link_info.html.twig',
                     array(
+                        'context' => $context,
                         'local_datarecord' => $local_datarecord,
                         'linked_record_data' => $linked_record_data,
                     )
