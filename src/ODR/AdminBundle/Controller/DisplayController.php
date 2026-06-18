@@ -1180,7 +1180,17 @@ class DisplayController extends ODRCustomController
             ) {
                 throw new ODRForbiddenException();
             }
+
+            // Need a user id for the temp directory to work...
+            $user_id = null;
+            if ($user == null || $user === 'anon.')
+                $user_id = 0;
+            else
+                $user_id = $user->getId();
             // ----------------------------------------
+
+            if ( $user_id === 0 )
+                throw new ODRForbiddenException();
 
 
             // ----------------------------------------
@@ -1554,6 +1564,9 @@ class DisplayController extends ODRCustomController
                 $user_id = $user->getId();
             // ----------------------------------------
 
+            if ( $user_id === 0 )
+                throw new ODRForbiddenException();
+
 
             // ----------------------------------------
             // Easier/faster to just load the entire datarecord/datatype arrays...
@@ -1714,6 +1727,8 @@ class DisplayController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            throw new ODRNotImplementedException();
+
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -2257,6 +2272,9 @@ class DisplayController extends ODRCustomController
                 $user_id = $user->getId();
             // ----------------------------------------
 
+            if ( $user_id === 0 )
+                throw new ODRForbiddenException();
+
 
             // Symfony firewall requires $archive_filename to match "0|[0-9a-zA-Z\-\_]{12}.zip"
             if ($archive_filename == '0')
@@ -2455,6 +2473,9 @@ class DisplayController extends ODRCustomController
             else
                 $user_id = $user->getId();
             // ----------------------------------------
+
+            if ( $user_id === 0 )
+                throw new ODRForbiddenException();
 
 
             // ----------------------------------------
