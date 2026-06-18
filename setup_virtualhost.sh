@@ -110,4 +110,13 @@ for srcpath in "$SRC"/* "$SRC"/.[!.]* "$SRC"/..?*; do
   fi
 done
 
+echo "Settng cache permissions."
+
+HTTPDUSER=`ps axo user,comm | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d\  -f1`
+
+echo $HTTPDUSER
+
+sudo setfacl -R -m u:"$HTTPDUSER":rwX -m u:`whoami`:rwX app app/cache app/logs app/tmp
+sudo setfacl -dR -m u:"$HTTPDUSER":rwX -m u:`whoami`:rwX app app/cache app/logs app/tmp
+
 echo "Done."

@@ -170,6 +170,15 @@ class UpdateDataFieldsForm extends AbstractType
             );
         }
 
+        if ( $current_typeclass === 'File' ) {
+            $builder->add(
+                'editable_file_extensions',
+                TextType::class,
+                array(
+                    'label'  => 'Editable File Extensions',
+                )
+            );
+        }
 
         if ( $current_typeclass === 'Image' || $current_typeclass === 'Radio' ) {
             // NOTE: this semi-intentionally doesn't match with datafield_properties_form.html.twig

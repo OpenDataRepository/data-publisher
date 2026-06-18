@@ -7,6 +7,8 @@
         {% if df.masterdatafield != null %}Derived{% else %}Local{% endif %} datafield "{{ df.getfieldname }}", belonging to the Datatype "{{ df.datatype.getshortname }}" <a target="_blank" href="#{{ path('odr_design_master_theme', {'datatype_id': df.datatype.grandparent.id}) }}"><i class="fa fa-external-link"></i></a>
             <br>
 
+            {# NOTE: name/sort/immediate_search fields aren't here, because this is only called when migrating from multiple radio/select to single radio/select #}
+
         {% if render_plugin_restrictions[df_id] is defined and render_plugin_restrictions[df_id]['affected_by_render_plugin'] == true %}
             <div class="bold{% if new_fieldtype.id not in render_plugin_restrictions[df_id]['allowed_fieldtypes'] %} ODRInputError{% endif %}">
                 This datafield is currently used by a render plugin{% if new_fieldtype.id not in render_plugin_restrictions[df_id]['allowed_fieldtypes'] %}, and can't be migrated to this fieldtype because the render plugin would stop working{% endif %}.

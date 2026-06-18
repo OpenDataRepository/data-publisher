@@ -1231,19 +1231,17 @@ class LinkController extends ODRCustomController
                 }
 
                 // ----------------------------------------
-                // Determine whether one of the local datatype's name/sortfields belongs to a remote
-                //  datatype...
+                // Determine whether one of the local datatype's name/sort/immediate_search fields
+                //  belongs to this remote datatype...
                 $query = $em->createQuery(
                    'SELECT dtsf.id
                     FROM ODRAdminBundle:DataTypeSpecialFields AS dtsf
                     LEFT JOIN ODRAdminBundle:DataFields AS remote_df WITH dtsf.dataField = remote_df
-                    WHERE dtsf.dataType = :local_datatype_id AND dtsf.field_purpose = :field_purpose
-                    AND remote_df.dataType = :remote_datatype_id
+                    WHERE dtsf.dataType = :local_datatype_id AND remote_df.dataType = :remote_datatype_id
                     AND dtsf.deletedAt IS NULL AND remote_df.deletedAt IS NULL'
                 )->setParameters(
                     array(
                         'local_datatype_id' => $local_datatype_id,
-                        'field_purpose' => DataTypeSpecialFields::SORT_FIELD,
                         'remote_datatype_id' => $previous_remote_datatype_id,
                     )
                 );
@@ -2848,27 +2846,6 @@ class LinkController extends ODRCustomController
                         unset( $datarecords[$remote_datarecord->getId()] );
                         // print 'link between local datarecord '.$local_datarecord->getId().' and remote datarecord '.$remote_datarecord->getId()." already exists\n";
                     }
-                }
-
-                // If the local datatype is using a name/sortfield that comes from the remote datatype,
-                //  then need to wipe some cache entries in the local datatype
-                $query = $em->createQuery(
-                   'SELECT dtsf.id
-                    FROM ODRAdminBundle:DataTypeSpecialFields AS dtsf
-                    LEFT JOIN ODRAdminBundle:DataFields AS remote_df WITH dtsf.dataField = remote_df
-                    WHERE dtsf.dataType = :local_datatype_id AND remote_df.dataType = :remote_datatype_id
-                    AND dtsf.deletedAt IS NULL AND remote_df.deletedAt IS NULL'
-                )->setParameters(
-                    array(
-                        'local_datatype_id' => $local_datatype_id,
-                        'remote_datatype_id' => $remote_datatype_id,
-                    )
-                );
-                $dtsf_ids = $query->getArrayResult();
-
-                if ( !empty($dtsf_ids) ) {
-                    $cache_service->delete('datatype_'.$local_datatype_id.'_record_names');
-                    $cache_service->delete('datatype_'.$local_datatype_id.'_record_order');
                 }
 
                 // Flush once everything is deleted

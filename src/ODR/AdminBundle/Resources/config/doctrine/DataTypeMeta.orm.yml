@@ -75,7 +75,6 @@ ODR\AdminBundle\Entity\DataTypeMeta:
             type: datetime
             nullable: false
             column: public_date
-
         newRecordsArePublic:
             type: boolean
             nullable: false

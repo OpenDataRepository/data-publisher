@@ -1319,4 +1319,24 @@ class DataType
 
         return $sortfields;
     }
+
+    /**
+     * Gets the "immediate search" field defined for this datatype.
+     * @return DataFields[]
+     */
+    public function getImmediateSearchField()
+    {
+        $immediate_search_field = array();
+        if ( !is_null($this->dataTypeSpecialFields) ) {
+            foreach ($this->dataTypeSpecialFields as $dtsf) {
+                /** @var DataTypeSpecialFields $dtsf */
+                if ( $dtsf->getFieldPurpose() === DataTypeSpecialFields::IMMEDIATE_SEARCH_FIELD )
+                    $immediate_search_field[$dtsf->getDisplayOrder()] = $dtsf->getDataField();
+            }
+            ksort($immediate_search_field);
+            $immediate_search_field = array_values($immediate_search_field);
+        }
+
+        return $immediate_search_field;
+    }
 }

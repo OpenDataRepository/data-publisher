@@ -19,6 +19,7 @@ namespace ODR\AdminBundle\Controller;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 use ODR\AdminBundle\Entity\DatetimeValue;
 use ODR\AdminBundle\Entity\DecimalValue;
 use ODR\AdminBundle\Entity\File;
@@ -1845,11 +1846,17 @@ class MassEditController extends ODRCustomController
                 LEFT JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
                 LEFT JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
                 LEFT JOIN ODRAdminBundle:DataType AS l_dt WITH dtsf.dataType = l_dt
-                WHERE dr.id IN (:datarecords_to_delete)
+                WHERE dr.id IN (:datarecords_to_delete) AND dtsf.field_purpose IN (:field_purposes)
                 AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL
                 AND dtsf.deletedAt IS NULL AND l_dt.deletedAt IS NULL'
             )->setParameters(
-                array( 'datarecords_to_delete' => $datarecords_to_delete )
+                array(
+                    'datarecords_to_delete' => $datarecords_to_delete,
+                    'field_purposes' => array(
+                        DataTypeSpecialFields::NAME_FIELD,
+                        DataTypeSpecialFields::SORT_FIELD,
+                    )
+                )
             );
             $results = $query->getArrayResult();
 

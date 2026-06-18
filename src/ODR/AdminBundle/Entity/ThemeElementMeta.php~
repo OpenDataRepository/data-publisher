@@ -43,6 +43,11 @@ class ThemeElementMeta
     private $hideBorder;
 
     /**
+     * @var bool
+     */
+    private $showWhenEmpty;
+
+    /**
      * @var string
      */
     private $cssWidthMed;
@@ -162,6 +167,30 @@ class ThemeElementMeta
     public function getHideBorder()
     {
         return $this->hideBorder;
+    }
+
+    /**
+     * Set showWhenEmpty.
+     *
+     * @param bool $showWhenEmpty
+     *
+     * @return ThemeElementMeta
+     */
+    public function setShowWhenEmpty($showWhenEmpty)
+    {
+        $this->showWhenEmpty = $showWhenEmpty;
+
+        return $this;
+    }
+
+    /**
+     * Get showWhenEmpty.
+     *
+     * @return bool
+     */
+    public function getShowWhenEmpty()
+    {
+        return $this->showWhenEmpty;
     }
 
     /**

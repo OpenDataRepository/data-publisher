@@ -667,6 +667,8 @@ class CloneThemeService
                 $new_te_meta = clone $te->getThemeElementMeta();
                 $new_te_meta->setThemeElement($new_te);
 
+                // No compelling reason to change properties of ThemeElementMeta
+
                 $new_te->addThemeElementMetum($new_te_meta);
                 self::persistObject($new_te_meta, $user, true);    // don't flush immediately
 
@@ -741,6 +743,7 @@ class CloneThemeService
         $new_tem->setDisplayOrder(-1);
         $new_tem->setHidden(1);
         $new_tem->setHideBorder(false);
+        $new_tem->setShowWhenEmpty(false);
         $new_tem->setCssWidthMed('1-1');
         $new_tem->setCssWidthXL('1-1');
 

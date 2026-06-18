@@ -5,8 +5,9 @@
 {% set DROPDOWN_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DROPDOWN_HEADER') %}
 {% set NO_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::NO_HEADER') %}
 {% set TABLE_CONTENT = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DATATABLES_CONTENT') %}
+{% set TABLE_NO_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DATATABLES_NO_HEADER_CONTENT') %}
 
-{% if is_top_level or display_type == ACCORDION_HEADER or display_type == NO_HEADER %}
+{% if is_top_level or display_type == ACCORDION_HEADER or display_type == NO_HEADER or display_type == TABLE_NO_HEADER %}
     </div><!-- End of .FormAccordion -->
 {% elseif display_type == TABBED_HEADER %}
     </div><!-- End of .TabAccordion -->

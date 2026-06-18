@@ -304,6 +304,8 @@ class CloneMasterTemplateThemeService
             $new_te_meta = clone $source_te->getThemeElementMeta();
             $new_te_meta->setThemeElement($new_te);
 
+            // No compelling reason to change properties of ThemeElementMeta
+
             // Ensure the "in-memory" representation of $new_te knows about its meta entry
             $new_te->addThemeElementMetum($new_te_meta);
             self::persistObject($new_te_meta, $user, true);    // These don't need to be flushed/refreshed immediately...

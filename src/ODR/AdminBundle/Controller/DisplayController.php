@@ -41,6 +41,7 @@ use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PaginationHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\StatisticsService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
@@ -302,6 +303,16 @@ class DisplayController extends ODRCustomController
                 );
             }
 
+            // ----------------------------------------
+            // Determine the user's preferred theme. Resolved here (before
+            // the header render) so it can be passed into display_header
+            // and forwarded to search_header, which needs theme.themeMeta
+            // to gate the "Modify Search" button the same way
+            // pagination_header.html.twig does.
+            $theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'display');
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+
             $redirect_path = $router->generate('odr_display_view', array('datarecord_id' => 0));    // blank path
             $header_html = $templating->render(
                 'ODRAdminBundle:Display:display_header.html.twig',
@@ -312,6 +323,7 @@ class DisplayController extends ODRCustomController
                     'can_add_datarecord' => $can_add_datarecord,
                     'datarecord' => $datarecord,
                     'datatype' => $datatype,
+                    'theme' => $theme,
 
                     'odr_tab_id' => $odr_tab_id,
 
@@ -332,12 +344,6 @@ class DisplayController extends ODRCustomController
             $now = microtime(true);
             // print "NOW: " . $now . "<br />";
             // print "Elapsed: " . ($now - $time) . "<br />";
-
-            // ----------------------------------------
-            // Determine the user's preferred theme
-            $theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'display');
-            /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
 
             // Render the display page for this datarecord
             /** @var ODRRenderService $odr_render_service */

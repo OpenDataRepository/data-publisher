@@ -57,6 +57,11 @@ class ThemeDataType
      */
     const DATATABLES_CONTENT = 5;
 
+    /**
+     * Child/linked datatype is rendered via datatables without a prepended header.
+     */
+    const DATATABLES_NO_HEADER_CONTENT = 6;
+
 
     /**
      * @var integer
