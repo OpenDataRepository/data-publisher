@@ -21,8 +21,13 @@ use Symfony\Component\HttpFoundation\Request;
 /**
  * @var Composer\Autoload\ClassLoader
  */
-$loader = require __DIR__.'/../app/autoload.php';
-require_once __DIR__.'/../app/bootstrap.php.cache';
+
+$symlink_basepath = dirname($_SERVER['SCRIPT_FILENAME']);
+$odr_instance_root = preg_replace('/\/web/', '', $symlink_basepath);
+
+$loader = require $odr_instance_root . '/app/autoload.php';
+require_once $odr_instance_root . '/app/bootstrap.php.cache';
+
 $kernel = new AppKernel('prod', false);
 $kernel->loadClassCache();
 

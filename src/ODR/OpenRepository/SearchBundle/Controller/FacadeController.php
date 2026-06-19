@@ -799,6 +799,7 @@ class FacadeController extends Controller
         // Initialize the output array
         $output = [];
         foreach($dataset_uuids as $dataset_uuid) {
+            // print $dataset_uuid . "<br />";
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
@@ -830,7 +831,7 @@ class FacadeController extends Controller
             $ch = curl_init($url);
             # Setup request to send json via POST.
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
-            curl_setopt($ch, CURLOPT_POSTFIELDS,'{"index.mapping.total_fields.limit": 6000}');
+            curl_setopt($ch, CURLOPT_POSTFIELDS,'{"index.mapping.total_fields.limit": 8000}');
             curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
             # Return response instead of printing.
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -861,7 +862,7 @@ class FacadeController extends Controller
                 $ch = curl_init($url);
                 # Setup request to send json via POST.
                 curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
-                curl_setopt($ch, CURLOPT_POSTFIELDS, '{"index.mapping.total_fields.limit": 6000}');
+                curl_setopt($ch, CURLOPT_POSTFIELDS, '{"index.mapping.total_fields.limit": 8000}');
                 curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
                 # Return response instead of printing.
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -899,9 +900,9 @@ class FacadeController extends Controller
                 );
 
                 $pheanstalk->useTube('odr_seed_elastic_record')->put($payload);
-                // if($counter == 5) {
-                    // break;
-                // }
+                if($counter == 5) {
+                    break;
+                }
                 $counter++;
 
             }
