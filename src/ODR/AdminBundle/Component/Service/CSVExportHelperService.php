@@ -277,7 +277,7 @@ class CSVExportHelperService
         $tracked_job_id = intval($parameters['tracked_job_id']);
         $user_id = intval($parameters['user_id']);
 
-        $datatype_id = $parameters['datatype_id'];
+        $datatype_id = intval($parameters['datatype_id']);
         $datarecord_ids = $parameters['datarecord_id'];
         $complete_datarecord_list_array = array_flip($parameters['complete_datarecord_list']);
 
@@ -548,6 +548,7 @@ class CSVExportHelperService
         $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
 
         $conn = $this->em->getConnection();
+//        $results = $conn->fetchAll($query, $parameters, $types);  // better for debugging
         $results = $conn->executeQuery($query, $parameters, $types);
 
         foreach ($results as $result) {
@@ -1070,7 +1071,21 @@ class CSVExportHelperService
                 // Implode the chain of tags with the hierarchy delimiter
                 $tags_to_export[] = implode(' '.$delimiters['tag_hierarchy'].' ', $tag_names);
             }
-            natcasesort($tags_to_export);
+
+            // Sort the tags by name
+            if ( extension_loaded('intl') ) {
+                // Strings get to use UCA collation rules
+                // https://www.unicode.org/Public/UCA/latest/allkeys.txt
+                $collator = new \Collator('root');
+                $collator->setAttribute(\Collator::NUMERIC_COLLATION, \Collator::ON);
+                $collator->setAttribute(\Collator::CASE_FIRST, \Collator::LOWER_FIRST);
+                $collator->asort($tags_to_export);
+            }
+            else {
+                // Use a case-insensitive natural sort otherwise...
+                $flag = SORT_NATURAL | SORT_FLAG_CASE;
+                asort($tags_to_export, $flag);
+            }
         }
 
         // Implode the list of tags with their delimiters to make a single string

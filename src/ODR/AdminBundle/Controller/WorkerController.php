@@ -1504,7 +1504,7 @@ $ret .= '  Set current to '.$count."\n";
     }
 
 
-    public function asdfAction($search_key, $complete, Request $request)
+    public function asdfAction(Request $request)
     {
         $return = array();
         $return['r'] = 0;

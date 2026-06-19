@@ -3785,6 +3785,10 @@ class SearchAPIService
      */
     private function transformRecordsFromCriteria($datatree_array, $facet_dr_list, $flattened_list, $source_dt_id, $target_dt_id, $facet_type, $facet_num_src = null, $include_unrelated_records = false)
     {
+        // Need to guarantee these are integers
+        $source_dt_id = intval($source_dt_id);
+        $target_dt_id = intval($target_dt_id);
+
         // In order to pull off the transform, you need to determine how the records are related to
         //  each other.  ODR has four different possible relations, and there are cache entries for
         //  ODR to use to expedite this...
@@ -4748,6 +4752,10 @@ class SearchAPIService
      */
     private function transformRecordsFromList($datatree_array, $flattened_list, $source_dt_id, $target_dt_id, $matching_source_dr_list)
     {
+        // Need to guarantee these are integers
+        $source_dt_id = intval($source_dt_id);
+        $target_dt_id = intval($target_dt_id);
+
         // In order to pull off the transform, you need to determine how the records are related to
         //  each other.  ODR has four different possible relations, and there are cache entries for
         //  ODR to use to expedite this...

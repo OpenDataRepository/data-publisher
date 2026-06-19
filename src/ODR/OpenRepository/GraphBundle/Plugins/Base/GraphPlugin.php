@@ -445,12 +445,25 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
                     $legend_values[$dr_id] = $pivot_df_value.' '.$secondary_pivot_df_value;
             }
 
-            // Sort datarecords by their sortvalue
-            $flag = SORT_NATURAL | SORT_FLAG_CASE;
-            if ( $sortField_type === 'numeric' )
-                $flag = SORT_NUMERIC;
+            // Prefer to use the Collator class, but only if it exists
+            if ( extension_loaded('intl') && $sortField_type !== 'numeric' ) {
+                // Strings get to use UCA collation rules
+                // https://www.unicode.org/Public/UCA/latest/allkeys.txt
+                $collator = new \Collator('root');
+                $collator->setAttribute(\Collator::NUMERIC_COLLATION, \Collator::ON);
+                $collator->setAttribute(\Collator::CASE_FIRST, \Collator::LOWER_FIRST);
+                $collator->asort($datarecord_sortvalues);
+            }
+            else {
+                // Sort datarecords by their sortvalue
+                $flag = SORT_NATURAL | SORT_FLAG_CASE;
+                if ( $sortField_type === 'numeric' )
+                    $flag = SORT_NUMERIC;
 
-            asort($datarecord_sortvalues, $flag);
+                asort($datarecord_sortvalues, $flag);
+            }
+
+            // Only want the actual datarecord ids here
             $datarecord_sortvalues = array_flip( array_keys($datarecord_sortvalues) );
 
 
