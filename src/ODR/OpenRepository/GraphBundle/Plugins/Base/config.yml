@@ -2,6 +2,7 @@ services:
     # ----------------------------------------
     # Datatype plugins
     odr_plugins.base.references:
+        public: true
         class: '%odr_plugin_base_classpath%\Base\ReferencesPlugin'
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -9,16 +10,19 @@ services:
             $templating: '@templating'
 
     odr_plugins.base.comment:
+        public: true
         class: '%odr_plugin_base_classpath%\Base\CommentPlugin'
         arguments:
             $templating: '@templating'
 
     odr_plugins.base.link:
+        public: true
         class: '%odr_plugin_base_classpath%\Base\LinkPlugin'
         arguments:
             $templating: '@templating'
 
     odr_plugins.base.graph:
+        public: true
         class: '%odr_plugin_base_classpath%\Base\GraphPlugin'
         arguments:
             $request_stack: "@request_stack"
@@ -31,6 +35,7 @@ services:
             $logger: "@logger"
 
     odr_plugins.base.gcms:
+        public: true
         class: '%odr_plugin_base_classpath%\Base\GCMassSpecPlugin'
         arguments:
             $request_stack: "@request_stack"
@@ -43,6 +48,7 @@ services:
             $logger: "@logger"
 
     odr_plugins.base.filter_graph:
+        public: true
         class: '%odr_plugin_base_classpath%\Base\FilterGraphPlugin'
         arguments:
             $request_stack: "@request_stack"
@@ -56,6 +62,7 @@ services:
             $logger: "@logger"
 
     odr_plugins.base.map:
+        public: true
         class: '%odr_plugin_base_classpath%\Base\MapPlugin'
         arguments:
             $templating: '@templating'
@@ -65,6 +72,7 @@ services:
     # ----------------------------------------
     # Array plugins
     odr_plugins.base.linked_descendant_merger:
+        public: true
         class: '%odr_plugin_base_classpath%\Base\LinkedDescendantMergerPlugin'
         arguments:
             $database_info_service: "@odr.database_info_service"
@@ -76,29 +84,34 @@ services:
     # ----------------------------------------
     # Datafield plugins
     odr_plugins.base.chemistry:
+        public: true
         class: '%odr_plugin_base_classpath%\Base\ChemistryPlugin'
         arguments:
             $dri_service: '@odr.datarecord_info_service'
             $templating: '@templating'
 
     odr_plugins.base.url:
+        public: true
         class: '%odr_plugin_base_classpath%\Base\URLPlugin'
         arguments:
             $dri_service: '@odr.datarecord_info_service'
             $templating: '@templating'
 
     odr_plugins.base.url_button:
+        public: true
         class: '%odr_plugin_base_classpath%\Base\URLButtonPlugin'
         arguments:
             $templating: '@templating'
 
     odr_plugins.base.currency:
+        public: true
         class: '%odr_plugin_base_classpath%\Base\CurrencyPlugin'
         arguments:
             $dri_service: '@odr.datarecord_info_service'
             $templating: '@templating'
 
     odr_plugins.base.csvtable:
+        public: true
         class: '%odr_plugin_base_classpath%\Base\CSVTablePlugin'
         arguments:
             $templating: '@templating'
@@ -106,6 +119,7 @@ services:
             $odr_web_directory: '%odr_web_directory%'
 
     odr_plugins.base.file_renamer:
+        public: true
         class: '%odr_plugin_base_classpath%\Base\FileRenamerPlugin'
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -117,6 +131,7 @@ services:
             $logger: "@logger"
 
     odr_plugins.base.file_header_inserter:
+        public: true
         class: '%odr_plugin_base_classpath%\Base\FileHeaderInserterPlugin'
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -131,6 +146,7 @@ services:
             $logger: "@logger"
 
     odr_plugins.base.unit_conversion:
+        public: true
         class: '%odr_plugin_base_classpath%\Base\UnitConversionPlugin'
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -145,6 +161,7 @@ services:
     # ----------------------------------------
     # ThemeElement Plugins
     odr_plugins.base.file_updater_helper:
+        public: true
         class: '%odr_plugin_base_classpath%\Base\FileUpdaterHelperPlugin'
         arguments:
             $baseurl: '%site_baseurl%'

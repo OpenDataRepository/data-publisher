@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 {# Create a dynamic or static graph - either rollup or individual #}
 {% if odr_chart_legend|length %}
 
@@ -382,4 +382,4 @@ var {{ odr_chart_id }}_initialized = false;
 var odr_chart_{{ odr_chart_id }} = null;
 
 </script>
-{% endspaceless %}
+{% endapply %}

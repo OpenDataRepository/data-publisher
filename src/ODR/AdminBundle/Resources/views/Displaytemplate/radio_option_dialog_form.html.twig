@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set disable_controls = false %}
 {% if out_of_sync or (is_derived_field and not can_modify_template) %}
@@ -640,4 +640,4 @@
 {% endif %}    {# END if not disable_controls #}
 </script>
 
-{% endspaceless %}
+{% endapply %}

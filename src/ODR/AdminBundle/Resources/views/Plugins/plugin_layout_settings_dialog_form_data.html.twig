@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
     <input type="hidden" name="selected_theme" value="{{ theme_id }}"/>
     <input type="hidden" name="selected_render_plugin" value="{{ render_plugin.id }}"/>
@@ -67,4 +67,4 @@
         {% endif %}
         });
     </script>
-{% endspaceless %}
+{% endapply %}

@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set ALWAYS_EDIT = constant('ODR\\AdminBundle\\Entity\\DataTreeMeta::ALWAYS_EDIT') %}
 {% set LINK_EDIT = constant('ODR\\AdminBundle\\Entity\\DataTreeMeta::LINK_EDIT') %}
@@ -265,4 +265,4 @@
 {% endif %}
 
 {# closing div tag for all of these is in fieldarea_footer.html.twig #}
-{% endspaceless %}
+{% endapply %}

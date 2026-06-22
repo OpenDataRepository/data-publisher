@@ -65,7 +65,7 @@
     <!-- <script src="../../js/app.js"></script> -->
 </head>
 
-{% spaceless %}
+{% apply spaceless %}
 
 {# Create a dynamic or static graph - either rollup or individual #}
 {% set datatype = datatype_array[target_datatype_id] %}
@@ -159,4 +159,4 @@
 
     var {{ odr_chart_id }}_initialized = false;
 </script>
-{% endspaceless %}
+{% endapply %}

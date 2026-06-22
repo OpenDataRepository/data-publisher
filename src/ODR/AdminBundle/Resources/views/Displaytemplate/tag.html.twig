@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set has_children = false %}
 {% if tag.children is defined and tag.children is not empty %}
@@ -28,4 +28,4 @@
 {% endif %}
 </li>
 
-{% endspaceless %}
+{% endapply %}

@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 {{ form_start(form, {
     'action': path('odr_datatype_properties_meta', { 'datatype_id': datatype.getid }),
     'method': 'POST',
@@ -7,4 +7,4 @@
     }
 }) }}
 {{ form_end(form) }}
-{% endspaceless %}
+{% endapply %}

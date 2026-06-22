@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set datatype = datafield.getdatatype %}
 <h2>List of duplicate values for Datafield "{{ datafield.fieldname }}" of Datatype "{{ datatype.shortname }}"</h2>
@@ -113,4 +113,4 @@
     }
 
 </script>
-{% endspaceless %}
+{% endapply %}

@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = datatype.themes[theme_id] %}
@@ -150,4 +150,4 @@
     </xsd:complexType>
 </xsd:element>
 
-{% endspaceless %}
+{% endapply %}

@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[target_theme_id] %}
@@ -21,4 +21,4 @@
         } %}
     </div><!-- End of #FieldArea_{{ datatype.id }} -->
 
-{% endspaceless %}
+{% endapply %}

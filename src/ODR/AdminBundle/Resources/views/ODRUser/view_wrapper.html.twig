@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set can_view_datatype = false %}
 {% if datatype_permissions[ datatype.id ] is defined and datatype_permissions[ datatype.id ][ 'dt_view' ] is defined %}
@@ -174,4 +174,4 @@
             .start();
     }
 </script>
-{% endspaceless %}
+{% endapply %}

@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set datafield_meta = datafield.dataFieldMeta %}
 {% set field_typename = datafield_meta.fieldType.typeName %}
@@ -80,4 +80,4 @@
 
     {# NOTE: the lack of form submission javascript here is intentional...symmetry_popup.html.twig handles it instead #}
 
-{% endspaceless %}
+{% endapply %}

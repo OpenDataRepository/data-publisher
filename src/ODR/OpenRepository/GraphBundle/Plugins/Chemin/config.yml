@@ -1,6 +1,7 @@
 services:
     # Datatype plugins
     odr_plugins.chemin.chemin_references:
+        public: true
         class: '%odr_plugin_base_classpath%\Chemin\CheminReferencesPlugin'
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -8,47 +9,56 @@ services:
             $templating: '@templating'
 
     odr_plugins.chemin.chemined1:
+        public: true
         class: '%odr_plugin_base_classpath%\Chemin\CheminED1Plugin'
         arguments:
             $templating: "@templating"
             $logger: "@logger"
     odr_plugins.chemin.chemineda:
+        public: true
         class: '%odr_plugin_base_classpath%\Chemin\CheminEDAPlugin'
         arguments:
             $templating: "@templating"
             $logger: "@logger"
     odr_plugins.chemin.chemineds:
+        public: true
         class: '%odr_plugin_base_classpath%\Chemin\CheminEDSPlugin'
         arguments:
             $templating: "@templating"
             $logger: "@logger"
     odr_plugins.chemin.cheminee1:
+        public: true
         class: '%odr_plugin_base_classpath%\Chemin\CheminEE1Plugin'
         arguments:
             $templating: "@templating"
             $logger: "@logger"
     odr_plugins.chemin.chemineea:
+        public: true
         class: '%odr_plugin_base_classpath%\Chemin\CheminEEAPlugin'
         arguments:
             $templating: "@templating"
             $logger: "@logger"
     odr_plugins.chemin.cheminees:
+        public: true
         class: '%odr_plugin_base_classpath%\Chemin\CheminEESPlugin'
         arguments:
             $templating: "@templating"
             $logger: "@logger"
     odr_plugins.chemin.cheminefm:
+        public: true
         class: '%odr_plugin_base_classpath%\Chemin\CheminEFMPlugin'
         arguments:
             $templating: "@templating"
             $logger: "@logger"
     odr_plugins.chemin.cheminetr:
+        public: true
         class: '%odr_plugin_base_classpath%\Chemin\CheminETRPlugin'
         arguments:
             $templating: "@templating"
             $logger: "@logger"
 
     odr_plugins.chemin.qanalyze:
+        public: true
         class: '%odr_plugin_base_classpath%\Chemin\QanalyzePlugin'
         arguments:
             $templating: "@templating"
@@ -56,6 +66,7 @@ services:
 
 
     odr_plugins.chemin.chemin_analog:
+        public: true
         class: '%odr_plugin_base_classpath%\Chemin\CheminAnalogPlugin'
         arguments:
             $em: "@doctrine.orm.entity_manager"

@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set TABLE_CONTENT = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DATATABLES_CONTENT') %}
 
@@ -253,4 +253,4 @@
 
 </div><!-- end of #DataType_{{ datatype.id }} -->
 
-{% endspaceless %}
+{% endapply %}

@@ -60,7 +60,6 @@ class WPAutoLoginSubscriber implements EventSubscriberInterface
     {
         $controller_array = $event->getController();
         $controller = $controller_array[0];
-        $controller->integrated_user = '';
 
         // print "WP ODR Kernel Event Handler (WOKEH) - Fired<br />";
 
@@ -163,7 +162,7 @@ class WPAutoLoginSubscriber implements EventSubscriberInterface
                     $user = $this->user_manager->findUserByEmail($odr_wordpress_user);
                     if($user) {
                         // var_dump($user, true);exit();
-                        $controller->integrated_user = $user;
+                        $event->getRequest()->attributes->set('integrated_user', $user);
                         $token = new UsernamePasswordToken($user, null, 'main', $user->getRoles());
                         $this->container->get('security.token_storage')->setToken($token);
                     }

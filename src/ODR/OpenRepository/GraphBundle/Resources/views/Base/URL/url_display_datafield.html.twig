@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set datafield_meta = datafield.dataFieldMeta %}
 {% set unique_id = datarecord.id ~ '_' ~ datafield.id %}
@@ -10,4 +10,4 @@
     </div>
 </fieldset>
 
-{% endspaceless %}
+{% endapply %}

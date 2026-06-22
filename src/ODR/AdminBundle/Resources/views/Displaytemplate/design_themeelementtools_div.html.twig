@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set has_datafields = false %}
 {% set has_childtype = false %}
@@ -36,4 +36,4 @@
     {#console.log('theme_element {{ theme_element_id }}', $("#ThemeElement_{{ theme_element_id }}"), theme_element_properties.get({{ theme_element_id }}));#}
 </script>
 
-{% endspaceless %}
+{% endapply %}

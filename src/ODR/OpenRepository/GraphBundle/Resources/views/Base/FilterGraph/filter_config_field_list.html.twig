@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 <ul {% if is_top_level %}style="padding-left: 0px;"{% endif %}>
     <li><span class="ODRTristateCheckbox" style="margin-right: 5px;"><i class="fa"></i></span>{{ dt['dataTypeMeta']['shortName'] }}
@@ -31,4 +31,4 @@
     </li>
 </ul>
 
-{% endspaceless %}
+{% endapply %}

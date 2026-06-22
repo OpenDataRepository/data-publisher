@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set ALWAYS_EDIT = constant('ODR\\AdminBundle\\Entity\\DataTreeMeta::ALWAYS_EDIT') %}
 {% set LINK_EDIT = constant('ODR\\AdminBundle\\Entity\\DataTreeMeta::LINK_EDIT') %}
@@ -237,4 +237,4 @@
 
 {% endfor %}
 
-{% endspaceless %}
+{% endapply %}

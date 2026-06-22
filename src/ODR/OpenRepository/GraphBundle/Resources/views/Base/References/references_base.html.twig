@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% if author != '' %}
     {{ author|raw }}
@@ -32,4 +32,4 @@
     {{ pages|raw }}
 {% endif %}
 
-{% endspaceless %}
+{% endapply %}

@@ -1,24 +1,29 @@
 services:
     # Datatype plugins
     odr_plugins.ahed.organization:
+        public: true
         class: '%odr_plugin_base_classpath%\AHED\OrganizationPlugin'
         arguments:
             $templating: "@templating"
     odr_plugins.ahed.person:
+        public: true
         class: '%odr_plugin_base_classpath%\AHED\PersonPlugin'
         arguments:
             $templating: "@templating"
     odr_plugins.ahed.sample:
+        public: true
         class: '%odr_plugin_base_classpath%\AHED\SamplePlugin'
         arguments:
             $templating: "@templating"
     odr_plugins.ahed.site:
+        public: true
         class: '%odr_plugin_base_classpath%\AHED\SitePlugin'
         arguments:
             $templating: "@templating"
 
     # Datafield plugins
     odr_plugins.ahed.nanograin_url:
+        public: true
         class: '%odr_plugin_base_classpath%\AHED\NanograinURLPlugin'
         arguments:
             $datarecord_info_service: '@odr.datarecord_info_service'

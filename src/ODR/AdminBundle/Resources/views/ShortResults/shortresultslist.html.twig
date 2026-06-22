@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {# NOTE: The "intent" variable passed in could be either "searching" or "linking" for this file #}
 
@@ -208,4 +208,4 @@
 {% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}
 {{ js.write(search_theme_id, search_key) }}
 
-{% endspaceless %}
+{% endapply %}

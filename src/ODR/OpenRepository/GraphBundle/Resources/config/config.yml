@@ -7,6 +7,7 @@ imports:
 
 services:
     odr.amcsd_update_service:
+        public: true
         class: ODR\OpenRepository\GraphBundle\Component\Service\AMCSDUpdateService
         arguments:
             $em: "@doctrine.orm.entity_manager"

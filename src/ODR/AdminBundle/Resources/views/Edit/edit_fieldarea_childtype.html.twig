@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set childtype = datatype_array[target_datatype_id] %}
 
@@ -65,4 +65,4 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}<br>
 {% endif %}
 </div><!-- End of #ChildTypeWrapper_{{ target_datatype_id }}_{{ parent_datarecord.id }} -->
 
-{% endspaceless %}
+{% endapply %}

@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set datafield_meta = datafield.dataFieldMeta %}
 {% set field_typename = datafield_meta.fieldType.typeName %}
@@ -34,4 +34,4 @@
     </form>
 </div><!-- End of #Field_{{ df.id }} -->
 
-{% endspaceless %}
+{% endapply %}

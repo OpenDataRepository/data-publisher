@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set datafield_meta = datafield.dataFieldMeta %}
 {% set typeclass = datafield_meta.fieldType.typeClass %}
@@ -37,4 +37,4 @@
     </span>
 {% endif %}
 
-{% endspaceless %}
+{% endapply %}

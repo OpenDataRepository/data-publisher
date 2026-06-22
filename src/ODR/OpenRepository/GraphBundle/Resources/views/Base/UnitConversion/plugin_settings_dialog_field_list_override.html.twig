@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set current_option_value = '' %}
 {% if current_plugin_config['conversion_type'] is defined and current_plugin_config['target_units'] is defined %}
@@ -170,4 +170,4 @@
     }
 
 </script>
-{% endspaceless %}
+{% endapply %}

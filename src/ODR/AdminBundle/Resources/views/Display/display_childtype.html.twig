@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set TABLE_CONTENT = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DATATABLES_CONTENT') %}
 {% set DATATYPE_PLUGIN = constant('ODR\\AdminBundle\\Entity\\RenderPlugin::DATATYPE_PLUGIN') %}
@@ -151,4 +151,4 @@
 
 {% endif %}
 
-{% endspaceless %}
+{% endapply %}

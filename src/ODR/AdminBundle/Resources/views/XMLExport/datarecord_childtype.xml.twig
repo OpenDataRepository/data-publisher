@@ -10,7 +10,7 @@
     show_records)
 %}
 
-{% spaceless %}
+{% apply spaceless %}
 
 {% set datatype = datatype_array[target_datatype_id] %}
 
@@ -108,6 +108,6 @@
 </records>
 {% endif %}
 
-{% endspaceless %}
+{% endapply %}
 
 {% endmacro %}

@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {# The "intent" variable passed in is always "searching" for this file...
    ODRCustomController::renderList() renders ODRAdminBundle:Link:link_datarecord_form.html.twig
@@ -709,4 +709,4 @@
 {% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}
 {{ js.write(search_theme_id, search_key) }}
 
-{% endspaceless %}
+{% endapply %}

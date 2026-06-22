@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% if side == 'src' %}
     {% include 'ODRAdminBundle:Migration:list_worker.html.twig' with {
@@ -32,4 +32,4 @@
     </span>
 {% endif %}
 
-{% endspaceless %}
+{% endapply %}

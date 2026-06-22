@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 <div class="ODRCreatedBy pure-u-1 PadRight">
 {% if can_edit_datarecord %}
@@ -95,4 +95,4 @@
 {% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}
 {{ js.write(search_theme_id, search_key) }}
 
-{% endspaceless %}
+{% endapply %}

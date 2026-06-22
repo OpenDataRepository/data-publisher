@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set fieldtype = datafield.getfieldtype %}
 {% set typename = fieldtype.gettypename %}
@@ -529,4 +529,4 @@
 
 {{ form_end(datafield_form) }}
 
-{% endspaceless %}
+{% endapply %}

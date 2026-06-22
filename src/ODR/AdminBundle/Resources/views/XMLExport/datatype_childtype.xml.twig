@@ -1,6 +1,6 @@
 {% macro input(datatype_array, theme_array, target_datatype_id, target_theme_id, is_top_level, is_link, using_metadata, baseurl, version) %}
 
-{% spaceless %}
+{% apply spaceless %}
 
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set datatype_meta = datatype.dataTypeMeta %}
@@ -63,6 +63,6 @@
 
 {{ tag_end|raw }}
 
-{% endspaceless %}
+{% endapply %}
 
 {% endmacro %}

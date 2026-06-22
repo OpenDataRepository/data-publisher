@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% for error_level,error_categories in errors %}
     {% set level_count = 0 %}
@@ -50,4 +50,4 @@
 
 {% endfor %}
 
-{% endspaceless %}
+{% endapply %}

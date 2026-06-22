@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set upper_value = target_datatype.dataTypeMeta.searchNotesUpper %}
 {% set lower_value = target_datatype.dataTypeMeta.searchNotesLower %}
@@ -34,4 +34,4 @@
     {% endif %}
 </div>
 
-{% endspaceless %}
+{% endapply %}

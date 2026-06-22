@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set TABLE_CONTENT = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DATATABLES_CONTENT') %}
 {% set LIST_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::LIST_HEADER') %}
@@ -328,4 +328,4 @@
     });
 </script>
 
-{% endspaceless %}
+{% endapply %}

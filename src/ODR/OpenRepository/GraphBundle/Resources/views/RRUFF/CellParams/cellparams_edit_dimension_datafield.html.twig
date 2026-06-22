@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set DATAFIELD_PLUGIN = constant('ODR\\AdminBundle\\Entity\\RenderPlugin::DATAFIELD_PLUGIN') %}
 {% set datarecord_is_fake = false %}
@@ -138,4 +138,4 @@
 {% endif %}
 
 
-{% endspaceless %}
+{% endapply %}

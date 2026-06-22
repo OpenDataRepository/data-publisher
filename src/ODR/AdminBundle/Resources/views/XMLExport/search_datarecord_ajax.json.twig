@@ -22,7 +22,7 @@
 
 #}
 
-{% spaceless %}
+{% apply spaceless %}
 {# Twig doesn't have a decent spaceless tag for json #}
 {% set is_top_level = 1 %}
 {% set is_link = 0 %}
@@ -70,4 +70,4 @@
 {% if show_records == 1 %}
 }
 {% endif %}
-{% endspaceless %}
+{% endapply %}

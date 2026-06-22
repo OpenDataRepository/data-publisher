@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% if hwi_oauth_resource_owners()|length > 0 %}
     <h5>Or login with:</h5>
@@ -17,4 +17,4 @@
         </a>
     </div>
 {% endfor %}
-{% endspaceless %}
+{% endapply %}

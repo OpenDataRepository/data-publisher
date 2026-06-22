@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set can_edit_record = false %}
 {% set can_delete_record = false %}
@@ -305,4 +305,4 @@
 {% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}
 {{ js.write(search_theme_id, search_key) }}
 
-{% endspaceless %}
+{% endapply %}

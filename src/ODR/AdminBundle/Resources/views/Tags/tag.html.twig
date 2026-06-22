@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set datafield_meta = datafield.dataFieldMeta %}
 {% set allow_multiple_levels = datafield_meta.tags_allow_multiple_levels %}
@@ -62,4 +62,4 @@
     {% endif %}
 </li>
 
-{% endspaceless %}
+{% endapply %}

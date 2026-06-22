@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% for df_id,df_data in data %}
     {% if df_mapping[df_id] is defined %}
@@ -110,4 +110,4 @@
     </div>
     #}
 
-{% endspaceless %}
+{% endapply %}

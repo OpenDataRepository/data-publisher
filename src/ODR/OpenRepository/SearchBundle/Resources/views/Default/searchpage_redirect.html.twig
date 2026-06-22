@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
     <!-- <h2>You don't have permission to view the results of this search query</h2> -->
 {% if logged_in == false %}
@@ -39,4 +39,4 @@
         UpdateURL("{{ url }}");
     }
 </script>
-{% endspaceless %}
+{% endapply %}

@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set DATAFIELD_PLUGIN = constant('ODR\\AdminBundle\\Entity\\RenderPlugin::DATAFIELD_PLUGIN') %}
 {% set DATAFIELD_HEADER_PLUGIN = constant('ODR\\AdminBundle\\Entity\\RenderPlugin::DATAFIELD_HEADER_PLUGIN') %}
@@ -681,4 +681,4 @@
     {% endif %}
 {% endif %}
 
-{% endspaceless %}
+{% endapply %}

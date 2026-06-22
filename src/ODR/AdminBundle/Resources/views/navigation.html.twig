@@ -7,7 +7,7 @@
     {% endif %}
 {% endfor %}
 
-{% spaceless %}
+{% apply spaceless %}
 
     <ul class="ODR-pure-submenu">
         <li class="pure-menu-item"><a class="pure-menu-link" href="#{{ path('odr_self_profile_edit') }}">&nbsp;<i class="fa fa-md fa-user fa-fw"></i>Profile</a></li>
@@ -38,6 +38,6 @@
         {% endif %}
     </ul>
 
-{% endspaceless %}
+{% endapply %}
 
 {% endblock %}

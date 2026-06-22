@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% if datarecord_array|length > 0 %}
 <div id="DataType_{{ datatype.id }}" class="ODRDataType pure-u-1">
@@ -26,4 +26,4 @@
 </div><!-- End of #DataType_{{ datatype.id }} -->
 {% endif %}
 
-{% endspaceless %}
+{% endapply %}

@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set datatype_id = datatype.id %}
 
@@ -30,4 +30,4 @@
     {#console.log('datatype {{ datatype_id }}', $("#DataType_{{ datatype_id }}"), datatype_properties.get({{ datatype_id }}));#}
 </script>
 
-{% endspaceless %}
+{% endapply %}

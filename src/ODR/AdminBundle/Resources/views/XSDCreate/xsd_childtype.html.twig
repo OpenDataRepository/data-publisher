@@ -1,6 +1,6 @@
 {% macro input(datatype_array, target_datatype_id, theme_id, is_top_level, version) %}
 
-{% spaceless %}
+{% apply spaceless %}
     {% include 'ODRAdminBundle:XSDCreate:xsd_fieldarea.html.twig' with {
         'datatype_array': datatype_array,
         'target_datatype_id': target_datatype_id,
@@ -9,6 +9,6 @@
         'is_top_level': is_top_level,
         'version': version,
     } %}
-{% endspaceless %}
+{% endapply %}
 
 {% endmacro %}

@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set parent_datatype_id = parent_datarecord.dataType.id %}
 {% set datatype = datatype_array[target_datatype_id] %}
@@ -226,4 +226,4 @@
     </div><!-- End of .ThemeElement -->
 {% endfor %}
 
-{% endspaceless %}
+{% endapply %}

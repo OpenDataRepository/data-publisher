@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set NOT_SEARCHABLE = constant('ODR\\AdminBundle\\Entity\\DataFields::NOT_SEARCHABLE') %}
 
@@ -204,4 +204,4 @@
 </form>
 </div><!-- End of #Field_{{ datafield.id }} -->
 
-{% endspaceless %}
+{% endapply %}

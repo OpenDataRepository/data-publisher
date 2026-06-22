@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set pagechange_element = "#ODRPageSelectForm" %}
 {% set pagelength_element = "#ODRPaginationSpan" %}
@@ -81,4 +81,4 @@
         introJs().setOption("disableInteraction", true)
             .start();
     });
-{% endspaceless %}
+{% endapply %}

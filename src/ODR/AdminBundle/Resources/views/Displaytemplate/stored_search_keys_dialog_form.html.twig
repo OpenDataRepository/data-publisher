@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set ANY_CONTEXT = constant('ODR\\AdminBundle\\Entity\\StoredSearchKey::ANY_CONTEXT') %}
 {% set SEARCH_CONTEXT = constant('ODR\\AdminBundle\\Entity\\StoredSearchKey::SEARCH_CONTEXT') %}
@@ -224,4 +224,4 @@
         });
     }
 </script>
-{% endspaceless %}
+{% endapply %}

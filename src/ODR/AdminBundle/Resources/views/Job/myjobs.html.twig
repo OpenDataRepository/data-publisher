@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% if job_type == 'csv_export' %}
     {% include 'ODRAdminBundle:Job:csv_export.html.twig' %}
@@ -255,4 +255,4 @@
     }
 </script>
 
-{% endspaceless %}
+{% endapply %}

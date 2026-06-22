@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set datatype_is_public = datatype.dataTypeMeta.publicDate|is_public %}
 {% set datatype_id = datatype.id %}
@@ -71,4 +71,4 @@
         {% endif %}
     </span>
 
-{% endspaceless %}
+{% endapply %}

@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set datatype = datafield.getdatatype %}
 <h2>List of Datarecords with multiple uploaded files in Datafield "{{ datafield.fieldname }}" of Datatype "{{ datatype.shortname }}"</h2>
@@ -21,4 +21,4 @@
     });
 </script>
 
-{% endspaceless %}
+{% endapply %}

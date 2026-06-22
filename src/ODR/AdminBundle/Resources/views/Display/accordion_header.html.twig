@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set ACCORDION_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::ACCORDION_HEADER') %}
 
@@ -45,4 +45,4 @@
 
 {# tabbed and dropdown display_type have already been handled in Default::fieldarea_header.html.twig #}
 
-{% endspaceless %}
+{% endapply %}

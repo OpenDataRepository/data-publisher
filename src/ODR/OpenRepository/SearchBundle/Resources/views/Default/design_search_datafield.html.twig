@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set datatype_id = datatype.id %}
 {% set datafield_id = datafield.id %}
@@ -19,4 +19,4 @@
     <div class="ODRPseudoField" id="datafield_{{ datafield_id }}" name="{{ datafield_id }}" rel="{{ datatype_id }}"></div>
 {% endif %}
 
-{% endspaceless %}
+{% endapply %}

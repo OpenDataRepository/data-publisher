@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 <script>
     $(function() {
         var table = $("#Datatables_{{ unique_id }}").dataTable({
@@ -58,4 +58,4 @@
         });
     });
 </script>
-{% endspaceless %}
+{% endapply %}

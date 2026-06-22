@@ -5,9 +5,11 @@ parameters:
 
 services:
     odr_custom_controller:
+        public: true
         class: ODR\AdminBundle\Controller\ODRCustomController
 
     odr.search_api_service_no_conflict:
+        public: true
         class: ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIServiceNoConflict
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -21,6 +23,7 @@ services:
             $logger: "@logger"
 
     odr.search_sidebar_service:
+        public: true
         class: ODR\OpenRepository\SearchBundle\Component\Service\SearchSidebarService
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -33,6 +36,7 @@ services:
             $logger: "@logger"
 
     odr.search_api_service:
+        public: true
         class: ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService
         arguments:
             $search_key_char_limit: "%search_key_char_limit%"
@@ -46,6 +50,7 @@ services:
             $logger: "@logger"
 
     odr.search_cache_service:
+        public: true
         class: ODR\OpenRepository\SearchBundle\Component\Service\SearchCacheService
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -56,6 +61,7 @@ services:
             - { name: "kernel.event_subscriber" }
 
     odr.search_key_service:
+        public: true
         class: ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService
         arguments:
             $search_key_char_limit: "%search_key_char_limit%"
@@ -68,6 +74,7 @@ services:
             $logger: "@logger"
 
     odr.search_service:
+        public: true
         class: ODR\OpenRepository\SearchBundle\Component\Service\SearchService
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -78,6 +85,7 @@ services:
 
 
     odr.search_query_service:
+        public: true
         class: ODR\OpenRepository\SearchBundle\Component\Service\SearchQueryService
         public: false
         arguments:
@@ -86,6 +94,7 @@ services:
 
 
     odr.search_redirect_service:
+        public: true
         class: ODR\OpenRepository\SearchBundle\Component\Service\SearchRedirectService
         arguments:
             $tab_helper_service: "@odr.tab_helper_service"

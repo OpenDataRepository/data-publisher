@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set NOT_SEARCHABLE = constant('ODR\\AdminBundle\\Entity\\DataFields::NOT_SEARCHABLE') %}
 
@@ -124,4 +124,4 @@
     {% endif %}
 {% endfor %}
 
-{% endspaceless %}
+{% endapply %}

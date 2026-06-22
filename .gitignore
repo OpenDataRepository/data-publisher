@@ -75,3 +75,6 @@ node_modules/
 tests/screenshots/test-results/
 tests/screenshots/snapshots/
 tests/screenshots/.auth/
+
+# Rector tool binary (config rector.php is tracked)
+rector.phar

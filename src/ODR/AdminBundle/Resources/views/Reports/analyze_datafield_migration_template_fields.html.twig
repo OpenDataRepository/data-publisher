@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set new_fieldtype_can_be_unique = new_fieldtype.canBeUnique %}
 {# NOTE: the conversions sent through this twig file are always to fieldtypes that can't be unique, and will lose all data #}
@@ -67,4 +67,4 @@
     </div>
     #}
 
-{% endspaceless %}
+{% endapply %}

@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set DATATYPE_PLUGIN = constant('ODR\\AdminBundle\\Entity\\RenderPlugin::DATATYPE_PLUGIN') %}
 
@@ -190,4 +190,4 @@
     </div><!-- End of #DataType_{{ datatype.id }} -->
 {% endif %}
 
-{% endspaceless %}
+{% endapply %}

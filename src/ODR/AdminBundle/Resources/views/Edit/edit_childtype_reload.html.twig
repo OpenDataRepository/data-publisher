@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set parent_datarecord = datarecord_array[parent_datarecord_id] %}
 {% set parent_datatype_id = parent_datarecord.dataType.id %}
@@ -43,4 +43,4 @@
     'token_list': token_list,
 } %}
 
-{% endspaceless %}
+{% endapply %}

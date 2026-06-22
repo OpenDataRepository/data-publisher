@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {{ form_start(profile_form, {
     'method': 'POST',
@@ -100,4 +100,4 @@
 
 {% include 'ODRAdminBundle:ODRUser:password_rules.html.twig' with {'form': profile_form} %}
 
-{% endspaceless %}
+{% endapply %}

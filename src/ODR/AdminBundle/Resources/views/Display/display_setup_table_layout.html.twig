@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set datatype = datatype_array[target_datatype_id] %}
 {% set theme = theme_array[target_theme_id] %}
@@ -55,4 +55,4 @@
 
 {% include 'ODRAdminBundle:Display:display_setup_datatables.js.twig' with {'unique_id': unique_id, 'num_records': datarecord_array|length} %}
 
-{% endspaceless %}
+{% endapply %}

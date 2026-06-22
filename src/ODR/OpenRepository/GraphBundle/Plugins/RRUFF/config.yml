@@ -2,6 +2,7 @@ services:
     # ----------------------------------------
     # Datatype plugins
     odr_plugins.rruff.amcsd:
+        public: true
         class: '%odr_plugin_base_classpath%\RRUFF\AMCSDPlugin'
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -19,6 +20,7 @@ services:
             $logger: "@logger"
 
     odr_plugins.rruff.cell_parameters:
+        public: true
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFCellParametersPlugin'
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -34,6 +36,7 @@ services:
             $logger: "@logger"
 
     odr_plugins.rruff.ima:
+        public: true
         class: '%odr_plugin_base_classpath%\RRUFF\IMAPlugin'
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -49,6 +52,7 @@ services:
             $logger: "@logger"
 
     odr_plugins.rruff.ima_status_notes:
+        public: true
         class: '%odr_plugin_base_classpath%\RRUFF\IMAStatusNotesPlugin'
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -59,6 +63,7 @@ services:
             $logger: "@logger"
 
     odr_plugins.rruff.instrument_usage:
+        public: true
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFInstrumentUsagePlugin'
         arguments:
             $environment: "%kernel.environment%"
@@ -69,12 +74,14 @@ services:
             $logger: "@logger"
 
     odr_plugins.rruff.pin_data:
+        public: true
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFPinDataPlugin'
         arguments:
             $templating: "@templating"
             $logger: "@logger"
 
     odr_plugins.rruff.rruff_references:
+        public: true
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFReferencesPlugin'
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -92,6 +99,7 @@ services:
             $logger: "@logger"
 
     odr_plugins.rruff.rruff_sample:
+        public: true
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFSamplePlugin'
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -106,6 +114,7 @@ services:
     # ----------------------------------------
     # ThemeElement Plugins
     odr_plugins.rruff.rruff_sample_links:
+        public: true
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFSampleLinksPlugin'
         arguments:
             $baseurl: '%site_baseurl%'
@@ -119,6 +128,7 @@ services:
             $logger: "@logger"
 
     odr_plugins.rruff.rruff_special_reference:
+        public: true
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFSpecialReferencePlugin'
         arguments:
             $templating: "@templating"
@@ -128,6 +138,7 @@ services:
     # ----------------------------------------
     # Datafield plugins
     odr_plugins.rruff.chemical_elements_search:
+        public: true
         class: '%odr_plugin_base_classpath%\RRUFF\ChemicalElementsSearchPlugin'
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -138,6 +149,7 @@ services:
             $logger: "@logger"
 
     odr_plugins.rruff.file_header_inserter:
+        public: true
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFFileHeaderInserterPlugin'
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -152,6 +164,7 @@ services:
             $logger: "@logger"
 
     odr_plugins.rruff.child_rruff_id:
+        public: true
         class: '%odr_plugin_base_classpath%\RRUFF\ChildRRUFFIDPlugin'
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -167,31 +180,37 @@ services:
     # ----------------------------------------
     # Temporary datatype plugins
     odr_plugins.rruff.instruments:
+        public: true
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFInstrumentsPlugin'
         arguments:
             $logger: "@logger"
 
     odr_plugins.rruff.chemistry_analysis:
+        public: true
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFChemistryAnalysisPlugin'
         arguments:
             $logger: "@logger"
 
     odr_plugins.rruff.raman_spectra:
+        public: true
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFRamanSpectraPlugin'
         arguments:
             $logger: "@logger"
 
     odr_plugins.rruff.raman_full_spectra:
+        public: true
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFRamanFullSpectraPlugin'
         arguments:
             $logger: "@logger"
 
     odr_plugins.rruff.infrared_spectra:
+        public: true
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFInfraredSpectraPlugin'
         arguments:
             $logger: "@logger"
 
     odr_plugins.rruff.powder_diffraction:
+        public: true
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFPowderDiffractionPlugin'
         arguments:
             $logger: "@logger"

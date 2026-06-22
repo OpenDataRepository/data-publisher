@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 <fieldset {% if not is_datatype_admin %}class="ODRHidden"{% endif %}>
     {% if is_datatype_admin %}
@@ -8,4 +8,4 @@
     {% endif %}
 </fieldset>
 
-{% endspaceless %}
+{% endapply %}

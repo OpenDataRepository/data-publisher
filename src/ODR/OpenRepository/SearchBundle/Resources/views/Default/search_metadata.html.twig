@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set can_search_metadata = false %}
 {% if datatype_permissions[datatype_id] is defined %}
@@ -103,4 +103,4 @@
     </div>
 {% endif %}
 
-{% endspaceless %}
+{% endapply %}

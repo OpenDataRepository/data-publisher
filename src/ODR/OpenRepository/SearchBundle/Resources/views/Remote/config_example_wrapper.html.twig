@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% if template_type is not defined %}
     {% set template_type = 'adv' %}
@@ -31,4 +31,4 @@
 
 <link href="{{ site_baseurl }}/css/odr_remote_search_examples.css" type="text/css" rel="stylesheet">
 
-{% endspaceless %}
+{% endapply %}

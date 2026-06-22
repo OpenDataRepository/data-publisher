@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set is_datatype_admin = false %}
 {% if datatype_permissions[target_datatype.id] is defined and datatype_permissions[target_datatype.id]['dt_admin'] is defined %}
@@ -538,4 +538,4 @@
     }
 </script>
 
-{% endspaceless %}
+{% endapply %}

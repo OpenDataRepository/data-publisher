@@ -46,5 +46,11 @@ monolog:
             type:  firephp
             level: info
 
+        deprecation:
+            type:  stream
+            path:  "%kernel.logs_dir%/%kernel.environment%.deprecations.log"
+            level: debug
+            channels: [php]
+
 #assetic:
 #    use_controller: true

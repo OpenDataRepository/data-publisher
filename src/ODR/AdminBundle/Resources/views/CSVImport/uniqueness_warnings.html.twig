@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
     {# This twig file is never called when "importing into" a linked datatype #}
     {% set external_id_field = datatype.getexternalidfield %}
 
@@ -99,4 +99,4 @@
     }
 </script>
 
-{% endspaceless %}
+{% endapply %}

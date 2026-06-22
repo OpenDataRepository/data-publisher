@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set inverse_datatype_mismatch = false %}
 {% if sidebar_layout.inverse_datatype_id is null and current_inverse_datatype_id is not null %}
@@ -204,4 +204,4 @@
     {% endif %}
 </li>
 
-{% endspaceless %}
+{% endapply %}

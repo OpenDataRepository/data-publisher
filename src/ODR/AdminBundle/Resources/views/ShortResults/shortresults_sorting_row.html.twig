@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 <div class="ODRShortResultsSortForm_criteria pure-u-1 pure-u-lg-7-24">
     <label for="ODRShortResultsSortForm_{{ num }}" class="ODRShortResultsSortForm_label">{% if num == 0 %}Sort by:{% else %}Then by:{% endif %}&nbsp;</label>
@@ -20,4 +20,4 @@
     </select>
 </div>
 
-{% endspaceless %}
+{% endapply %}

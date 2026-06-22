@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set FILENAME_REGEX = constant('ODR\\AdminBundle\\Component\\Utility\\ValidUtility::FILENAME_ILLEGAL_CHARACTERS_REGEX_A') %}
 
@@ -447,4 +447,4 @@
         FileRenamer_attachHandlers();
     }
 </script>
-{% endspaceless %}
+{% endapply %}

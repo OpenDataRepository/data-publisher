@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 {% set unique_id = datarecord.id ~ '_' ~ datafield.id %}
 <div id="ODRFieldHistoryDialogWrapper">
@@ -207,4 +207,4 @@
             }
         }
     </script>
-{% endspaceless %}
+{% endapply %}

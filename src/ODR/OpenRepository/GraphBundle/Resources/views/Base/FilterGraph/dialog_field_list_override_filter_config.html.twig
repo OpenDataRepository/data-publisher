@@ -1,4 +1,4 @@
-{% spaceless %}
+{% apply spaceless %}
 
 <div class="pure-u-1">
     <textarea id="plugin_option_{{ rpo_id }}" class="ODRHidden" name="plugin_options[{{ rpo_id }}]">{{ current_filter_fields|join(',') }}</textarea>
@@ -131,4 +131,4 @@
         $("#plugin_option_{{ rpo_id }}").html( advanced_fields.join(',') );
     }
 </script>
-{% endspaceless %}
+{% endapply %}

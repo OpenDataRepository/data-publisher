@@ -32,6 +32,7 @@ parameters:
 
 services:
     odr.twig.plug_extension:
+        public: true
         class: ODR\AdminBundle\Twig\PlugExtension
         arguments:
             $container: "@service_container"
@@ -39,10 +40,12 @@ services:
             - { name: twig.extension }
 
     odr.markdown.parser:
+        public: true
         class: ODR\AdminBundle\Component\Service\ODRMarkdownParserService
 
     # Defines an event subscriber to disseminate events to relevant render plugins
     odr.event_subscriber:
+        public: true
         class: ODR\AdminBundle\Component\Event\ODREventSubscriber
         arguments:
             $env: "%kernel.environment%"
@@ -58,6 +61,7 @@ services:
 
     # Event subscriber for Kernel Events and Wordpress Integration
     odr.kernel_event_subscriber:
+        public: true
         class: ODR\AdminBundle\Component\Event\WPAutoLoginSubscriber
         arguments:
             $env: "%kernel.environment%"
@@ -69,6 +73,7 @@ services:
 
     # Services for improved data retrieval model
     odr.cache_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\CacheService
         arguments:
             $cache_service: "@snc_redis.default"
@@ -76,6 +81,7 @@ services:
             $related_cache_prefixes: "%related_memcached_key_prefixes%"
 
     odr.clone_master_datatype_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\CloneMasterDatatypeService
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -89,12 +95,14 @@ services:
             $logger: "@monolog.logger.clone_datatype"
 
     odr.clone_master_template_theme_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\CloneMasterTemplateThemeService
         arguments:
             $em: "@doctrine.orm.entity_manager"
             $logger: "@monolog.logger.clone_theme"
 
     odr.clone_template_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\CloneTemplateService
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -112,6 +120,7 @@ services:
             $logger: "@monolog.logger.clone_template"
 
     odr.clone_theme_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\CloneThemeService
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -122,6 +131,7 @@ services:
             $logger: "@monolog.logger.clone_theme"
 
     odr.crypto_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\CryptoService
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -134,6 +144,7 @@ services:
             $logger: "@logger"
 
     odr.csv_import_helper_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\CSVImportHelperService
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -143,6 +154,7 @@ services:
             $logger: "@logger"
 
     odr.csv_export_helper_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\CSVExportHelperService
         arguments:
             $container: "@service_container"    # needed in order to execute arbitrary render plugins
@@ -157,6 +169,7 @@ services:
             $logger: "@logger"
 
     odr.database_info_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\DatabaseInfoService
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -166,12 +179,14 @@ services:
             $logger: "@logger"
 
     odr.datafield_info_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\DatafieldInfoService
         arguments:
             $em: "@doctrine.orm.entity_manager"
             $logger: "@logger"
 
     odr.datarecord_info_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\DatarecordInfoService
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -182,6 +197,7 @@ services:
             $logger: "@logger"
 
     odr.datarecord_export_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\DatarecordExportService
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -192,6 +208,7 @@ services:
             $logger: "@logger"
 
     odr.datatype_export_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\DatatypeExportService
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -202,6 +219,7 @@ services:
             $logger: "@logger"
 
     odr.datatree_info_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\DatatreeInfoService
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -209,6 +227,7 @@ services:
             $logger: "@logger"
 
     odr.datatype_create_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\DatatypeCreateService
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -219,6 +238,7 @@ services:
             $logger: "@logger"
 
     odr.entity_creation_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\EntityCreationService
         arguments:
 #            $environment: "%kernel.environment%"
@@ -230,6 +250,7 @@ services:
             $logger: "@logger"
 
     odr.entity_deletion_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\EntityDeletionService
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -246,6 +267,7 @@ services:
             $logger: "@logger"
 
     odr.entity_meta_modify_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\EntityMetaModifyService
         arguments:
 #            $environment: "%kernel.environment%"
@@ -256,6 +278,7 @@ services:
             $logger: "@logger"
 
     odr.fieldtype_migration_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\FieldtypeMigrationService
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -264,12 +287,14 @@ services:
             $logger: "@logger"
 
     odr.lock_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\LockService
         arguments:
             $redis_client: "@snc_redis.default"
             $cache_prefix: "%memcached_key_prefix%"
 
     odr.namefield_helper_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\ODRNameFieldHelperService
         arguments:
             $container: "@service_container"    # needed in order to execute arbitrary render plugins
@@ -277,6 +302,7 @@ services:
             $logger: "@logger"
 
     odr.pagination_helper_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\PaginationHelperService
         arguments:
             $odr_tab_service: "@odr.tab_helper_service"
@@ -285,6 +311,7 @@ services:
             $logger: "@logger"
 
     odr.permissions_management_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\PermissionsManagementService
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -294,6 +321,7 @@ services:
             $logger: "@logger"
 
     odr.render_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\ODRRenderService
         arguments:
             $site_baseurl: "%site_baseurl%"
@@ -324,6 +352,7 @@ services:
             $logger: "@logger"
 
     odr.sort_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\SortService
         arguments:
             $container: "@service_container"    # needed in order to execute arbitrary render plugins
@@ -334,6 +363,7 @@ services:
             $logger: "@logger"
 
     odr.statistics_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\StatisticsService
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -342,6 +372,7 @@ services:
             $logger: "@logger"
 
     odr.tab_helper_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\ODRTabHelperService
         arguments:
             $default_search_results_limit: "%default_search_results_limit%"
@@ -349,6 +380,7 @@ services:
             $token_generator: "@fos_user.util.token_generator"
 
     odr.table_theme_helper_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\TableThemeHelperService
         arguments:
             $container: "@service_container"    # needed in order to execute arbitrary render plugins
@@ -362,6 +394,7 @@ services:
             $logger: "@logger"
 
     odr.tag_helper_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\TagHelperService
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -373,6 +406,7 @@ services:
             $logger: "@logger"
 
     odr.theme_info_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\ThemeInfoService
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -383,6 +417,7 @@ services:
             $logger: "@logger"
 
     odr.tracked_job_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\TrackedJobService
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -391,6 +426,7 @@ services:
             $logger: "@logger"
 
     odr.upload_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\ODRUploadService
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -404,6 +440,7 @@ services:
             $logger: "@logger"
 
     odr.user_group_management_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\ODRUserGroupMangementService
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -412,11 +449,13 @@ services:
             $logger: "@logger"
 
     odr.uuid_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\UUIDService
         arguments:
             $logger: "@logger"
 
     odr.xyzdata_helper_service:
+        public: true
         class: ODR\AdminBundle\Component\Service\XYZDataHelperService
         arguments:
             $em: "@doctrine.orm.entity_manager"
@@ -428,18 +467,21 @@ services:
 
     # Defines a number of reusable classes to use inside Symfony forms
     odr.type.datafield_type:
+        public: true
         class: ODR\AdminBundle\Form\Type\DatafieldType
         arguments: ['@doctrine.orm.entity_manager']
         tags:
             - { name: form.type }
 
     odr.type.theme_element_type:
+        public: true
         class: ODR\AdminBundle\Form\Type\ThemeElementType
         arguments: ['@doctrine.orm.entity_manager']
         tags:
             - { name: form.type }
 
     odr.type.datatype_type:
+        public: true
         class: ODR\AdminBundle\Form\Type\DatatypeType
         arguments: ['@doctrine.orm.entity_manager']
         tags:
