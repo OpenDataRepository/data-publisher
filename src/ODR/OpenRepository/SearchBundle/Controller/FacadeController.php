@@ -1431,6 +1431,7 @@ class FacadeController extends Controller
         if($limit > 0) {
             $records = array_slice($records, $offset, $limit);
         }
+        /** @var SearchAPIServiceNoConflict $search_api_service_nc */
         $search_api_service_nc = $this->container->get('odr.search_api_service_no_conflict');
 
         $output_data = [];
