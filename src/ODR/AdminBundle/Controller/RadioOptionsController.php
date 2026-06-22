@@ -75,7 +75,7 @@ class RadioOptionsController extends ODRCustomController
             $database_info_service = $this->container->get('odr.database_info_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 

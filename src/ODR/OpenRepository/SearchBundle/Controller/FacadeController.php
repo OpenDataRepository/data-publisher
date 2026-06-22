@@ -44,7 +44,7 @@ use FOS\UserBundle\Util\TokenGenerator;
 use Symfony\Component\Intl\Tests\Data\Provider\Json\JsonRegionDataProviderTest;
 
 
-class FacadeController extends Controller
+class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\AbstractController
 {
 
     /**
@@ -377,7 +377,7 @@ class FacadeController extends Controller
         /** @var ODRUser $user */
         $user = $this->container->get('security.token_storage')->getToken()->getUser();
         $html = $this->renderView(
-            'ODROpenRepositorySearchBundle:Default:test.html.twig',
+            '@ODROpenRepositorySearch/Default/test.html.twig',
             [
                 'records' => '<pre>' . var_export($records,true) . '</pre>',
                 'user' => $user,
@@ -624,7 +624,7 @@ class FacadeController extends Controller
             $wordpress_site_baseurl = $this->container->getParameter('wordpress_site_baseurl');
 
             $html = $this->renderView(
-                'ODROpenRepositorySearchBundle:TemplateSearch:index.html.twig',
+                '@ODROpenRepositorySearch/TemplateSearch/index.html.twig',
                 [
                     // required twig/javascript parameters
                     'user' => $admin_user,

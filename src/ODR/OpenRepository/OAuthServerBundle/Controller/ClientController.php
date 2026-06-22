@@ -27,7 +27,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 
-class ClientController extends \Symfony\Bundle\FrameworkBundle\Controller\Controller
+class ClientController extends \Symfony\Bundle\FrameworkBundle\Controller\AbstractController
 {
 
     /**

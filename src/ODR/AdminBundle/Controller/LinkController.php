@@ -87,7 +87,7 @@ class LinkController extends ODRCustomController
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 
@@ -440,7 +440,7 @@ class LinkController extends ODRCustomController
             $datatree_info_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 
@@ -1856,7 +1856,7 @@ class LinkController extends ODRCustomController
             $sort_service = $this->container->get('odr.sort_service');
             /** @var Router $router */
             $router = $this->get('router');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
             /** @var DataRecord $local_datarecord */
@@ -2259,7 +2259,7 @@ class LinkController extends ODRCustomController
             $theme_info_service = $this->container->get('odr.theme_info_service');
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 
@@ -3407,7 +3407,7 @@ class LinkController extends ODRCustomController
             // Load necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 
@@ -3544,7 +3544,7 @@ class LinkController extends ODRCustomController
             $datatree_info_service = $this->container->get('odr.datatree_info_service');
             /** @var ODRRenderService $odr_render_service */
             $odr_render_service = $this->container->get('odr.render_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
             /** @var DataFields $external_id_field */

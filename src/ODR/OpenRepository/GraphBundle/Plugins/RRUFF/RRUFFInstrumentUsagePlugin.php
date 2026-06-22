@@ -39,9 +39,9 @@ class RRUFFInstrumentUsagePlugin implements DatafieldPluginInterface, TableResul
     /**
      * RRUFFInstrumentUsagePlugin constructor.
      *
-     * @param EngineInterface $templating
+     * @param \Symfony\Component\Templating\EngineInterface $templating
      */
-    public function __construct(private readonly string $environment, private readonly string $site_baseurl, private readonly DatabaseInfoService $database_info_service, private readonly Router $router, private readonly EngineInterface $templating, private readonly Logger $logger)
+    public function __construct(private readonly string $environment, private readonly string $site_baseurl, private readonly DatabaseInfoService $database_info_service, private readonly Router $router, private readonly \Twig\Environment $templating, private readonly Logger $logger)
     {
     }
 

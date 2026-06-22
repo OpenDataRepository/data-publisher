@@ -33,10 +33,10 @@ class SearchRedirectService
      *
      * @param ODRTabHelperService $tab_helper_service
      * @param Router $router
-     * @param EngineInterface $templating
+     * @param \Symfony\Component\Templating\EngineInterface $templating
      * @param Logger $logger
      */
-    public function __construct(private readonly ODRTabHelperService $tab_helper_service, private readonly Router $router, private readonly EngineInterface $templating, private readonly Logger $logger)
+    public function __construct(private readonly ODRTabHelperService $tab_helper_service, private readonly Router $router, private readonly \Twig\Environment $templating, private readonly Logger $logger)
     {
     }
 

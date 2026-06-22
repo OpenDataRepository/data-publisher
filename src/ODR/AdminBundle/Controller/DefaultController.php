@@ -57,7 +57,7 @@ class DefaultController extends ODRCustomController
             if ($is_wordpress_integrated) {
                 // Render the base html for the page...$this->render() apparently creates and automatically returns a full Reponse object
                 $html = $this->renderView(
-                    'ODRAdminBundle:Default:index.html.twig',
+                    '@ODRAdmin/Default/index.html.twig',
                     [
                         'user' => $user,
                         'datatype_permissions' => $datatype_permissions,
@@ -70,7 +70,7 @@ class DefaultController extends ODRCustomController
             else {
                 // Render the base html for the page...$this->render() apparently creates and automatically returns a full Reponse object
                 $html = $this->renderView(
-                    'ODRAdminBundle:Default:default_full.html.twig',
+                    '@ODRAdmin/Default/default_full.html.twig',
                     [
                         'user' => $user,
                         'datatype_permissions' => $datatype_permissions,

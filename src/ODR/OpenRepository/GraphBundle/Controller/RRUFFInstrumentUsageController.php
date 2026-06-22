@@ -74,7 +74,7 @@ class RRUFFInstrumentUsageController extends ODRCustomController
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var Router $router */
             $router = $this->get('router');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 

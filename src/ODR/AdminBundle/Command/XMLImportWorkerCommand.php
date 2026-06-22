@@ -30,7 +30,7 @@ use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
 
-class XMLImportWorkerCommand extends ContainerAwareCommand
+class XMLImportWorkerCommand extends \Symfony\Component\Console\Command\Command
 {
     protected function configure()
     {
@@ -41,7 +41,7 @@ class XMLImportWorkerCommand extends ContainerAwareCommand
             ->setDescription('Attempts to import an XML file into the database...');
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         // Only need to load these once...
         $container = $this->getContainer();
@@ -140,6 +140,7 @@ $output->writeln($data->url);
                 }
             }
         }
+        return 0;
     }
 
 }

@@ -76,7 +76,7 @@ class ODRGroupController extends ODRCustomController
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 
@@ -151,7 +151,7 @@ class ODRGroupController extends ODRCustomController
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 
@@ -460,7 +460,7 @@ class ODRGroupController extends ODRCustomController
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 
@@ -632,7 +632,7 @@ class ODRGroupController extends ODRCustomController
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 
@@ -750,7 +750,7 @@ class ODRGroupController extends ODRCustomController
             $datatree_info_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 
@@ -1057,7 +1057,7 @@ class ODRGroupController extends ODRCustomController
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 

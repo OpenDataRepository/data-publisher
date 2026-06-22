@@ -113,7 +113,7 @@ class MassEditController extends ODRCustomController
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var SearchRedirectService $search_redirect_service */
             $search_redirect_service = $this->container->get('odr.search_redirect_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 

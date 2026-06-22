@@ -27,11 +27,11 @@ class CSVTablePlugin implements DatafieldPluginInterface
     /**
      * CSVTablePlugin constructor.
      *
-     * @param EngineInterface $templating
+     * @param \Symfony\Component\Templating\EngineInterface $templating
      * @param CryptoService $crypto_service
      * @param string $odr_web_directory
      */
-    public function __construct(private readonly EngineInterface $templating, private readonly CryptoService $crypto_service, private $odr_web_directory)
+    public function __construct(private readonly \Twig\Environment $templating, private readonly CryptoService $crypto_service, private $odr_web_directory)
     {
     }
 

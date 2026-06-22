@@ -49,7 +49,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
 {
 
     /**
-     * @var EngineInterface
+     * @var \Symfony\Component\Templating\EngineInterface
      */
     private $templating;
 
@@ -73,7 +73,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
      * FilterGraph Plugin constructor.
      *
      * @param RequestStack $request_stack
-     * @param EngineInterface $templating
+     * @param \Symfony\Component\Templating\EngineInterface $templating
      * @param CryptoService $crypto_service
      * @param DatabaseInfoService $database_info_service
      * @param Pheanstalk $pheanstalk
@@ -84,7 +84,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
      */
     public function __construct(
         private readonly RequestStack $request_stack,
-        EngineInterface $templating,
+        \Twig\Environment $templating,
         private readonly CryptoService $crypto_service,
         private readonly DatabaseInfoService $database_info_service,
         Pheanstalk $pheanstalk,

@@ -37,9 +37,9 @@ class URLPlugin implements DatafieldPluginInterface, TableResultsOverrideInterfa
      * URLPlugin constructor.
      *
      * @param DatarecordInfoService $dri_service
-     * @param EngineInterface $templating
+     * @param \Symfony\Component\Templating\EngineInterface $templating
      */
-    public function __construct(private readonly DatarecordInfoService $dri_service, private readonly EngineInterface $templating)
+    public function __construct(private readonly DatarecordInfoService $dri_service, private readonly \Twig\Environment $templating)
     {
     }
 

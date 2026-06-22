@@ -74,7 +74,7 @@ class ResettingController extends BaseController
         /** @var ODRUser $user */
         $user = $this->get('fos_user.user_manager')->findUserByUsernameOrEmail($username);
         if (null === $user) {
-            return $this->render('FOSUserBundle:Resetting:request.html.twig', [
+            return $this->render('@FOSUser/Resetting/request.html.twig', [
                 'invalid_username' => $username
             ]);
         }
@@ -83,7 +83,7 @@ class ResettingController extends BaseController
         //  twig file...required if they need to request another email for some reason
         if ($user->isPasswordRequestNonExpired($this->container->getParameter('fos_user.resetting.token_ttl'))) {
             return $this->render(
-                'FOSUserBundle:Resetting:passwordAlreadyRequested.html.twig',
+                '@FOSUser/Resetting/passwordAlreadyRequested.html.twig',
                 [
                     'username' => $username
                 ]
@@ -167,7 +167,7 @@ class ResettingController extends BaseController
         /** @var ODRUser $user */
         $user = $user_manager->findUserByUsernameOrEmail($username);
         if ( is_null($user) ) {
-            return $this->render('FOSUserBundle:Resetting:request.html.twig', [
+            return $this->render('@FOSUser/Resetting/request.html.twig', [
                 'invalid_username' => $username
             ]);
         }

@@ -70,12 +70,12 @@ class ODRRenderService
      * @param SearchKeyService $search_key_service
      * @param SearchSidebarService $search_sidebar_service
      * @param FormFactory $form_factory
-     * @param EngineInterface $templating
+     * @param \Symfony\Component\Templating\EngineInterface $templating
      * @param Pheanstalk $pheanstalk
      * @param Router $router
      * @param Logger $logger
      */
-    public function __construct(private readonly string $site_baseurl, private readonly bool $odr_wordpress_integrated, private readonly string $odr_web_dir, private readonly string $api_key, private readonly string $redis_prefix, private readonly EntityManager $em, private readonly DatabaseInfoService $database_info_service, private readonly DatafieldInfoService $datafield_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly DatatreeInfoService $datatree_info_service, private readonly PermissionsManagementService $permissions_service, private readonly ThemeInfoService $theme_info_service, private readonly CloneThemeService $clone_theme_service, private readonly CloneTemplateService $clone_template_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly ODRNameFieldHelperService $namefield_helper_service, private readonly SearchKeyService $search_key_service, private readonly SearchSidebarService $search_sidebar_service, private readonly FormFactory $form_factory, private readonly EngineInterface $templating, private readonly Pheanstalk $pheanstalk, private readonly Router $router, private readonly Logger $logger)
+    public function __construct(private readonly string $site_baseurl, private readonly bool $odr_wordpress_integrated, private readonly string $odr_web_dir, private readonly string $api_key, private readonly string $redis_prefix, private readonly EntityManager $em, private readonly DatabaseInfoService $database_info_service, private readonly DatafieldInfoService $datafield_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly DatatreeInfoService $datatree_info_service, private readonly PermissionsManagementService $permissions_service, private readonly ThemeInfoService $theme_info_service, private readonly CloneThemeService $clone_theme_service, private readonly CloneTemplateService $clone_template_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly ODRNameFieldHelperService $namefield_helper_service, private readonly SearchKeyService $search_key_service, private readonly SearchSidebarService $search_sidebar_service, private readonly FormFactory $form_factory, private readonly \Twig\Environment $templating, private readonly Pheanstalk $pheanstalk, private readonly Router $router, private readonly Logger $logger)
     {
     }
 

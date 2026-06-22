@@ -660,7 +660,7 @@ class FlowController extends ODRCustomController
      */
     private function validateChunk($file, $current_chunk_size)
     {
-        if ($file->getClientSize() !== $current_chunk_size)
+        if ($file->getSize() !== $current_chunk_size)
             return false;
 
         if ($file->getError() !== 0)

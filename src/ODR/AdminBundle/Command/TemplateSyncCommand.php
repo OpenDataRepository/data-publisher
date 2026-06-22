@@ -24,7 +24,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 
-class TemplateSyncCommand extends ContainerAwareCommand
+class TemplateSyncCommand extends \Symfony\Component\Console\Command\Command
 {
     /**
      * @inheritdoc
@@ -42,7 +42,7 @@ class TemplateSyncCommand extends ContainerAwareCommand
     /**
      * @inheritdoc
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         // Only need to load these once...
         $container = $this->getContainer();
@@ -144,5 +144,6 @@ class TemplateSyncCommand extends ContainerAwareCommand
                 }
             }
         }
+        return 0;
     }
 }

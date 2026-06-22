@@ -36,10 +36,10 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
      * @param DatabaseInfoService $database_info_service
      * @param SearchKeyService $search_key_service
      * @param Router $router
-     * @param EngineInterface $templating
+     * @param \Symfony\Component\Templating\EngineInterface $templating
      * @param Logger $logger
      */
-    public function __construct(private readonly string $baseurl, private readonly string $wordpress_site_baseurl, private readonly bool $odr_wordpress_integrated, private readonly string $environment, private readonly DatabaseInfoService $database_info_service, private readonly SearchKeyService $search_key_service, private readonly Router $router, private readonly EngineInterface $templating, private readonly Logger $logger)
+    public function __construct(private readonly string $baseurl, private readonly string $wordpress_site_baseurl, private readonly bool $odr_wordpress_integrated, private readonly string $environment, private readonly DatabaseInfoService $database_info_service, private readonly SearchKeyService $search_key_service, private readonly Router $router, private readonly \Twig\Environment $templating, private readonly Logger $logger)
     {
     }
 

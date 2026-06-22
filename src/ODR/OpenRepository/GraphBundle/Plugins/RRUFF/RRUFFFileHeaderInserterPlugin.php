@@ -124,10 +124,10 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
      * @param EntityDeletionService $entity_deletion_service
      * @param ODRUploadService $upload_service
      * @param string $odr_tmp_directory
-     * @param EngineInterface $templating
+     * @param \Symfony\Component\Templating\EngineInterface $templating
      * @param Logger $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly CryptoService $crypto_service, private readonly DatabaseInfoService $database_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly DatatreeInfoService $datatree_info_service, private readonly EntityDeletionService $entity_deletion_service, private readonly ODRUploadService $upload_service, private readonly string $odr_tmp_directory, private readonly EngineInterface $templating, private readonly Logger $logger)
+    public function __construct(private readonly EntityManager $em, private readonly CryptoService $crypto_service, private readonly DatabaseInfoService $database_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly DatatreeInfoService $datatree_info_service, private readonly EntityDeletionService $entity_deletion_service, private readonly ODRUploadService $upload_service, private readonly string $odr_tmp_directory, private readonly \Twig\Environment $templating, private readonly Logger $logger)
     {
     }
 

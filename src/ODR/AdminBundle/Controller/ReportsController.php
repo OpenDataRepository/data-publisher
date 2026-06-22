@@ -71,7 +71,7 @@ class ReportsController extends ODRCustomController
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 
@@ -338,7 +338,7 @@ class ReportsController extends ODRCustomController
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 
@@ -482,7 +482,7 @@ class ReportsController extends ODRCustomController
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 
@@ -610,7 +610,7 @@ class ReportsController extends ODRCustomController
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 
@@ -738,7 +738,7 @@ class ReportsController extends ODRCustomController
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 
@@ -899,7 +899,7 @@ class ReportsController extends ODRCustomController
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 
@@ -1023,7 +1023,7 @@ class ReportsController extends ODRCustomController
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
             $repo_datafields = $em->getRepository('ODRAdminBundle:DataFields');
@@ -1135,7 +1135,7 @@ class ReportsController extends ODRCustomController
             $datafield_info_service = $this->container->get('odr.datafield_info_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
             $repo_datafields = $em->getRepository('ODRAdminBundle:DataFields');
@@ -1613,7 +1613,7 @@ class ReportsController extends ODRCustomController
      * Determines what the values in a text field would be if it got migrated to a different text
      * fieldtype, and returns a list of records that would have a different value afterwards.
      *
-     * @param EngineInterface $templating
+     * @param \Twig\Environment $templating
      * @param DataFields[] $df_mapping
      * @param FieldType $new_fieldtype
      * @param array $render_plugin_restrictions
@@ -1682,7 +1682,7 @@ class ReportsController extends ODRCustomController
      * The values in a numerical/datetime field won't change when migrated to a text fieldtype, but
      * it's useful to treat it similarly to {@link self::DatafieldMigrations_ConvertToText()}
      *
-     * @param EngineInterface $templating
+     * @param \Twig\Environment $templating
      * @param DataFields[] $df_mapping
      * @param FieldType $new_fieldtype
      * @param array $render_plugin_restrictions
@@ -1754,7 +1754,7 @@ class ReportsController extends ODRCustomController
      * Determines what the values in a field would be if it got migrated to an IntegerValue, and
      * returns a list of records that would have a different value afterwards.
      *
-     * @param EngineInterface $templating
+     * @param \Twig\Environment $templating
      * @param DataFields[] $df_mapping
      * @param FieldType $new_fieldtype
      * @param array $render_plugin_restrictions
@@ -1822,7 +1822,7 @@ class ReportsController extends ODRCustomController
      * Determines what the values in a field would be if it got migrated to a DecimalValue, and
      * returns a list of records that would have a different value afterwards.
      *
-     * @param EngineInterface $templating
+     * @param \Twig\Environment $templating
      * @param DataFields[] $df_mapping
      * @param FieldType $new_fieldtype
      * @param array $render_plugin_restrictions
@@ -1890,7 +1890,7 @@ class ReportsController extends ODRCustomController
      * Determines which records would need to deselect some of their radio selections to "fit" in
      * a single radio/select field.
      *
-     * @param EngineInterface $templating
+     * @param \Twig\Environment $templating
      * @param DataFields[] $df_mapping
      * @param array $render_plugin_restrictions
      * @return string

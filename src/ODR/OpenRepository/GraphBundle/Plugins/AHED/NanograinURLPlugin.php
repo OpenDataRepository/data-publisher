@@ -27,9 +27,9 @@ class NanograinURLPlugin implements DatafieldPluginInterface
      * Nanograin URLPlugin constructor.
      *
      * @param DatarecordInfoService $datarecord_info_service
-     * @param EngineInterface $templating
+     * @param \Symfony\Component\Templating\EngineInterface $templating
      */
-    public function __construct(private readonly DatarecordInfoService $datarecord_info_service, private readonly EngineInterface $templating)
+    public function __construct(private readonly DatarecordInfoService $datarecord_info_service, private readonly \Twig\Environment $templating)
     {
     }
 

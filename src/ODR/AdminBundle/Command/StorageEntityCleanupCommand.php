@@ -23,7 +23,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 
-class StorageEntityCleanupCommand extends ContainerAwareCommand
+class StorageEntityCleanupCommand extends \Symfony\Component\Console\Command\Command
 {
     protected function configure()
     {
@@ -34,7 +34,7 @@ class StorageEntityCleanupCommand extends ContainerAwareCommand
             ->setDescription('Run jobs for deleting useless blank storage entities');
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         // Only need to load these once...
         $container = $this->getContainer();
@@ -154,5 +154,6 @@ class StorageEntityCleanupCommand extends ContainerAwareCommand
                 }
             }
         }
+        return 0;
     }
 }

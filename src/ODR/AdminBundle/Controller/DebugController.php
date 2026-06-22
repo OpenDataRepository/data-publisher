@@ -71,7 +71,7 @@ class DebugController extends ODRCustomController
             $database_info_service = $this->container->get('odr.database_info_service');
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
             /** @var DataType $datatype */

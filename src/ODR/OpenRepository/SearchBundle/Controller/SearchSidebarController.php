@@ -621,7 +621,7 @@ class SearchSidebarController extends ODRCustomController
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var SearchSidebarService $search_sidebar_service */
             $search_sidebar_service = $this->container->get('odr.search_sidebar_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 

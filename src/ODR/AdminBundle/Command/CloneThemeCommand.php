@@ -28,7 +28,7 @@ use Doctrine\ORM\EntityManager;
 use drymek\PheanstalkBundle\Entity\Job;
 
 
-class CloneThemeCommand extends ContainerAwareCommand
+class CloneThemeCommand extends \Symfony\Component\Console\Command\Command
 {
 
     /**
@@ -47,7 +47,7 @@ class CloneThemeCommand extends ContainerAwareCommand
     /**
      * {@inheritdoc}
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         // Only need to load these once...
         $container = $this->getContainer();
@@ -111,5 +111,6 @@ class CloneThemeCommand extends ContainerAwareCommand
                 }
             }
         }
+        return 0;
     }
 }

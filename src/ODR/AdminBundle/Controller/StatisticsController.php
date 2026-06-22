@@ -525,7 +525,7 @@ class StatisticsController extends ODRCustomController
 
             // Render template
             $html = $this->renderView(
-                'ODRAdminBundle:Statistics:dashboard.html.twig',
+                '@ODRAdmin/Statistics/dashboard.html.twig',
                 [
                     'datatype' => $datatype,
                     'multi_site_mode' => true,
@@ -922,7 +922,7 @@ class StatisticsController extends ODRCustomController
 
             // Render template
             $html = $this->renderView(
-                'ODRAdminBundle:Statistics:dashboard.html.twig',
+                '@ODRAdmin/Statistics/dashboard.html.twig',
                 [
                     'datatypes' => $datatypes_array,
                     'multi_site_mode' => true,

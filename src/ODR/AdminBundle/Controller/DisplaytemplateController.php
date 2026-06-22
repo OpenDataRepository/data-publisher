@@ -235,7 +235,7 @@ class DisplaytemplateController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
             /** @var DataType $datatype */
@@ -337,7 +337,7 @@ class DisplaytemplateController extends ODRCustomController
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 
@@ -1413,7 +1413,7 @@ class DisplaytemplateController extends ODRCustomController
             $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 
@@ -2260,7 +2260,7 @@ class DisplaytemplateController extends ODRCustomController
             $theme_info_service = $this->container->get('odr.theme_info_service');
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->container->get('odr.tracked_job_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 
@@ -2994,7 +2994,7 @@ class DisplaytemplateController extends ODRCustomController
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 
@@ -3553,7 +3553,7 @@ if ($debug)
         $return['d'] = '';
 
         try {
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
             $return['d'] = [
@@ -3809,7 +3809,7 @@ if ($debug)
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 
@@ -3922,7 +3922,7 @@ if ($debug)
             $datafield_info_service = $this->container->get('odr.datafield_info_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 
@@ -4330,7 +4330,7 @@ if ($debug)
             $database_info_service = $this->container->get('odr.database_info_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
             /** @var CsrfTokenManager $token_manager */
             $token_manager = $this->container->get('security.csrf.token_manager');
@@ -4650,7 +4650,7 @@ if ($debug)
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var SearchSidebarService $search_sidebar_service */
             $search_sidebar_service = $this->container->get('odr.search_sidebar_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 

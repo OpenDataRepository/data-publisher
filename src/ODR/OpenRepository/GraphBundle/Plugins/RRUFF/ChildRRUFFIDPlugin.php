@@ -53,10 +53,10 @@ class ChildRRUFFIDPlugin implements DatafieldPluginInterface
      * @param LockService $lock_service
      * @param EventDispatcherInterface $event_dispatcher
      * @param CsrfTokenManager $token_manager
-     * @param EngineInterface $templating
+     * @param \Symfony\Component\Templating\EngineInterface $templating
      * @param Logger $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly DatabaseInfoService $database_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly EntityCreationService $entity_create_service, private readonly LockService $lock_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly CsrfTokenManager $token_manager, private readonly EngineInterface $templating, private readonly Logger $logger)
+    public function __construct(private readonly EntityManager $em, private readonly DatabaseInfoService $database_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly EntityCreationService $entity_create_service, private readonly LockService $lock_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly CsrfTokenManager $token_manager, private readonly \Twig\Environment $templating, private readonly Logger $logger)
     {
     }
 
@@ -263,7 +263,7 @@ class ChildRRUFFIDPlugin implements DatafieldPluginInterface
         // Fire off events notifying that the modification of the datafield is done
         try {
             $event = new DatafieldModifiedEvent($child_rruff_id_df, $user);
-            $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+            $this->event_dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
         }
         catch (\Exception) {
             // ...don't want to rethrow the error since it'll interrupt everything after this

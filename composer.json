@@ -8,55 +8,42 @@
         "classmap": [ "app/AppKernel.php", "app/AppCache.php" ]
     },
     "require": {
-        "symfony/symfony": "3.4.*",
-        "symfony/swiftmailer-bundle": "^3.2",
-        "symfony/monolog-bundle": "^3.3",
-        "gedmo/doctrine-extensions": "^2.4",
+        "symfony/symfony": "4.4.*",
+        "symfony/swiftmailer-bundle": "^3.4",
+        "symfony/monolog-bundle": "^3.5",
+        "gedmo/doctrine-extensions": "^3.0",
         "twig/extensions": "^1.5",
-        "jms/security-extra-bundle": "^1.6",
         "paragonie/random_compat": ">=1 <9.99",
         "dterranova/crypto-bundle": "dev-master",
         "mrpoundsign/pheanstalk-5.3": "dev-master",
         "drymek/pheanstalk-bundle": "dev-master",
         "friendsofsymfony/oauth-server-bundle": "^1.6",
-        "knplabs/knp-markdown-bundle": "^1.7",
-        "league/commonmark": "^0.18.5",
+        "knplabs/knp-markdown-bundle": "^1.9",
+        "league/commonmark": "^1.0",
         "predis/predis": "^1.1",
-        "snc/redis-bundle": "^2.1",
-        "ramsey/uuid": "^3.8",
+        "snc/redis-bundle": "^3.0",
+        "ramsey/uuid": "^3.9",
         "neitanod/forceutf8": "^2.0",
-        "hwi/oauth-bundle": "^0.6.3",
-        "php-http/guzzle6-adapter": "~1.1.1",
-        "php-http/httplug-bundle": "~1.13",
+        "hwi/oauth-bundle": "^1.0",
+        "php-http/guzzle6-adapter": "^2.0",
+        "php-http/httplug-bundle": "^1.18",
         "friendsofsymfony/user-bundle": "^2.1",
         "ddeboer/data-import": "^0.20.0",
         "incenteev/composer-parameter-handler": "^2.1",
-        "sensio/framework-extra-bundle": "^5.3",
-        "sensio/generator-bundle": "^3.1",
-        "doctrine/orm": "2.6.*",
-        "doctrine/doctrine-bundle": "^1.10",
-        "sensio/distribution-bundle": "^5.0",
-        "lexik/jwt-authentication-bundle": "^2.6",
-        "nyholm/psr7": "^1.2",
+        "sensio/framework-extra-bundle": "^6.0",
+        "doctrine/orm": "^2.7",
+        "doctrine/doctrine-bundle": "^2.0",
+        "lexik/jwt-authentication-bundle": "^2.10",
+        "nyholm/psr7": "^1.4",
         "ml/json-ld": "^1.2",
         "amnuts/opcache-gui": "*"
     },
     "scripts": {
         "post-install-cmd": [
-            "Incenteev\\ParameterHandler\\ScriptHandler::buildParameters",
-            "Sensio\\Bundle\\DistributionBundle\\Composer\\ScriptHandler::buildBootstrap",
-            "Sensio\\Bundle\\DistributionBundle\\Composer\\ScriptHandler::clearCache",
-            "Sensio\\Bundle\\DistributionBundle\\Composer\\ScriptHandler::installAssets",
-            "Sensio\\Bundle\\DistributionBundle\\Composer\\ScriptHandler::installRequirementsFile",
-            "Sensio\\Bundle\\DistributionBundle\\Composer\\ScriptHandler::prepareDeploymentTarget"
+            "Incenteev\\ParameterHandler\\ScriptHandler::buildParameters"
         ],
         "post-update-cmd": [
-            "Incenteev\\ParameterHandler\\ScriptHandler::buildParameters",
-            "Sensio\\Bundle\\DistributionBundle\\Composer\\ScriptHandler::buildBootstrap",
-            "Sensio\\Bundle\\DistributionBundle\\Composer\\ScriptHandler::clearCache",
-            "Sensio\\Bundle\\DistributionBundle\\Composer\\ScriptHandler::installAssets",
-            "Sensio\\Bundle\\DistributionBundle\\Composer\\ScriptHandler::installRequirementsFile",
-            "Sensio\\Bundle\\DistributionBundle\\Composer\\ScriptHandler::prepareDeploymentTarget"
+            "Incenteev\\ParameterHandler\\ScriptHandler::buildParameters"
         ]
     },
     "config": {
@@ -77,9 +64,7 @@
         }
     },
     "require-dev": {
-        "symfony/phpunit-bridge": "^4.2",
-        "symfony/browser-kit": "3.*",
-        "symfony/css-selector": "3.*",
+        "symfony/phpunit-bridge": "^4.4",
         "symfony/maker-bundle": "^1.11",
         "phpunit/phpunit": "^7.5",
         "symfony/test-pack": "^1.0"

@@ -59,7 +59,7 @@ use ODR\AdminBundle\Entity\Image;
 use Symfony\Component\EventDispatcher\Event;
 
 
-class FilePreEncryptEvent extends Event implements ODREventInterface
+class FilePreEncryptEvent extends \Symfony\Contracts\EventDispatcher\Event implements ODREventInterface
 {
     // Best practice is apparently to have the Event class define the event name
     const NAME = 'odr.event.file_pre_encrypt_event';

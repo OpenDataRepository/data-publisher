@@ -87,7 +87,6 @@ services:
     odr.search_query_service:
         public: true
         class: ODR\OpenRepository\SearchBundle\Component\Service\SearchQueryService
-        public: false
         arguments:
             $em: "@doctrine.orm.entity_manager"
             $logger: "@logger"

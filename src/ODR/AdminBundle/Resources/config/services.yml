@@ -137,7 +137,6 @@ services:
             $em: "@doctrine.orm.entity_manager"
             $lock_service: "@odr.lock_service"
             $event_dispatcher: "@event_dispatcher"
-            $generator: "@security.util.secure_random"
             $crypto_adapter: "@dterranova_crypto.crypto_adapter"
             $crypto_dir: "%dterranova_crypto.temp_folder%"
             $odr_web_dir: "%odr_web_directory%"

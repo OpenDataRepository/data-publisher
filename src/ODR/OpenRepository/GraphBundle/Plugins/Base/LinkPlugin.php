@@ -28,9 +28,9 @@ class LinkPlugin implements DatatypePluginInterface
     /**
      * LinkPlugin constructor.
      *
-     * @param EngineInterface $templating
+     * @param \Symfony\Component\Templating\EngineInterface $templating
      */
-    public function __construct(private readonly EngineInterface $templating)
+    public function __construct(private readonly \Twig\Environment $templating)
     {
     }
 

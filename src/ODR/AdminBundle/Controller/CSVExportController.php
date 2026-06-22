@@ -89,7 +89,7 @@ class CSVExportController extends ODRCustomController
             $search_redirect_service = $this->container->get('odr.search_redirect_service');
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 

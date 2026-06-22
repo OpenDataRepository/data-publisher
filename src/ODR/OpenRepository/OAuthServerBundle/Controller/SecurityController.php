@@ -17,7 +17,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use Symfony\Component\HttpFoundation\Request;
 
 
-class SecurityController extends Controller
+class SecurityController extends \Symfony\Bundle\FrameworkBundle\Controller\AbstractController
 {
 
     /**
@@ -43,7 +43,7 @@ class SecurityController extends Controller
         // TODO - this doesn't seem to actually do anything on authentication failure
         $helper = $this->get('security.authentication_utils');
 
-        return $this->render('ODROpenRepositoryOAuthServerBundle:Security:oauth_login.html.twig', [
+        return $this->render('@ODROpenRepositoryOAuthServer/Security/oauth_login.html.twig', [
             'last_username' => $helper->getLastUsername(),
             'error'         => $helper->getLastAuthenticationError(),
             'csrf_token'    => $csrfToken

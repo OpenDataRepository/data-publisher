@@ -22,7 +22,7 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 use Symfony\Component\EventDispatcher\Event;
 
 
-class PluginAttachEvent extends Event implements ODREventInterface
+class PluginAttachEvent extends \Symfony\Contracts\EventDispatcher\Event implements ODREventInterface
 {
     // Best practice is apparently to have the Event class define the event name
     const NAME = 'odr.event.plugin_attach_event';

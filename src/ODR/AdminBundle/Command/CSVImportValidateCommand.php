@@ -28,7 +28,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
-class CSVImportValidateCommand extends ContainerAwareCommand
+class CSVImportValidateCommand extends \Symfony\Component\Console\Command\Command
 {
     protected function configure()
     {
@@ -39,7 +39,7 @@ class CSVImportValidateCommand extends ContainerAwareCommand
             ->setDescription('Gets the server to validat a row of CSV data...');
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         // Only need to load these once...
         $container = $this->getContainer();
@@ -163,5 +163,6 @@ $output->writeln($data->url);
                 }
             }
         }
+        return 0;
     }
 }

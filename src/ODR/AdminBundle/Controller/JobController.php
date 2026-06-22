@@ -53,7 +53,7 @@ class JobController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
             // Enabled keys in the $jobs array should be added to the route 'odr_job_list' in the

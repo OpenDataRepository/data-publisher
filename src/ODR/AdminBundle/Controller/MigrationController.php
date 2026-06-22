@@ -736,7 +736,7 @@ class MigrationController extends ODRCustomController
 
             /** @var DatabaseInfoService $database_info_service */
             $database_info_service = $this->container->get('odr.database_info_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
             /** @var DataType $datatype */
@@ -830,7 +830,7 @@ class MigrationController extends ODRCustomController
 
             /** @var DatabaseInfoService $database_info_service */
             $database_info_service = $this->container->get('odr.database_info_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
             /** @var DataFields $src_datafield */
@@ -1004,7 +1004,7 @@ class MigrationController extends ODRCustomController
 
             /** @var DatatreeInfoService $datatree_info_service */
             $datatree_info_service = $this->container->get('odr.datatree_info_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
             // Need to get a list of top-level datatypes and top-level templates...
@@ -1344,7 +1344,7 @@ class MigrationController extends ODRCustomController
 
             /** @var DatatreeInfoService $datatree_info_service */
             $datatree_info_service = $this->container->get('odr.datatree_info_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
             // Need to get a list of all top-level datatypes...
@@ -1826,7 +1826,7 @@ class MigrationController extends ODRCustomController
 
             /** @var DatatreeInfoService $datatree_info_service */
             $datatree_info_service = $this->container->get('odr.datatree_info_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
             // Going to be easier to use the datatree array here...
@@ -2270,7 +2270,7 @@ class MigrationController extends ODRCustomController
 
             /** @var DatatreeInfoService $datatree_info_service */
             $datatree_info_service = $this->container->get('odr.datatree_info_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
             // Going to be easier to use the datatree array here...

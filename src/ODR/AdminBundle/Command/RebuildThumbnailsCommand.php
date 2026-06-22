@@ -28,7 +28,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
-class RebuildThumbnailsCommand extends ContainerAwareCommand
+class RebuildThumbnailsCommand extends \Symfony\Component\Console\Command\Command
 {
     protected function configure()
     {
@@ -39,7 +39,7 @@ class RebuildThumbnailsCommand extends ContainerAwareCommand
             ->setDescription('Rebuilds thumbnails for ALL images uploaded to the database.');
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         // Only need to load these once...
         $container = $this->getContainer();
@@ -142,5 +142,6 @@ class RebuildThumbnailsCommand extends ContainerAwareCommand
                 }
             }
         }
+        return 0;
     }
 }

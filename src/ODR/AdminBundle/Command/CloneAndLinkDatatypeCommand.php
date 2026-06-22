@@ -27,7 +27,7 @@ use ODR\AdminBundle\Entity\TrackedJob;
 
 
 
-class CloneAndLinkDatatypeCommand extends ContainerAwareCommand
+class CloneAndLinkDatatypeCommand extends \Symfony\Component\Console\Command\Command
 {
 
     /**
@@ -46,7 +46,7 @@ class CloneAndLinkDatatypeCommand extends ContainerAwareCommand
     /**
      * {@inheritdoc}
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         // TODO This function need anti-timeout handler
         // Only need to load these once...
@@ -121,5 +121,6 @@ class CloneAndLinkDatatypeCommand extends ContainerAwareCommand
                 }
             }
         }
+        return 0;
     }
 }

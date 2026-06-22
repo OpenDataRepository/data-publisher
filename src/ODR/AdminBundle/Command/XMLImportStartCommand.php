@@ -31,7 +31,7 @@ use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
 
-class XMLImportStartCommand extends ContainerAwareCommand
+class XMLImportStartCommand extends \Symfony\Component\Console\Command\Command
 {
     protected function configure()
     {
@@ -42,7 +42,7 @@ class XMLImportStartCommand extends ContainerAwareCommand
             ->setDescription('Waits for an import request for a given datatype...');
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         // Only need to load these once...
         $container = $this->getContainer();
@@ -140,5 +140,6 @@ $output->writeln($data->url);
                 }
             }
         }
+        return 0;
     }
 }

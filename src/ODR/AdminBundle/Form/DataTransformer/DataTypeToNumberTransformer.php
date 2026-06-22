@@ -16,7 +16,7 @@ namespace ODR\AdminBundle\Form\DataTransformer;
 // ODR
 use ODR\AdminBundle\Entity\DataType;
 // Doctrine
-use Doctrine\Common\Persistence\ObjectManager;
+use Doctrine\Persistence\ObjectManager;
 // Symfony
 use Symfony\Component\Form\DataTransformerInterface;
 use Symfony\Component\Form\Exception\TransformationFailedException;

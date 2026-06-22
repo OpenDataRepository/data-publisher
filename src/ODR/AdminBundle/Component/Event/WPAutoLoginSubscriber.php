@@ -52,11 +52,11 @@ class WPAutoLoginSubscriber implements EventSubscriberInterface
      * logging in, or logging out of users based on event data and environment
      * variables.
      *
-     * @param FilterControllerEvent $event The event triggered before the controller is executed,
+     * @param \Symfony\Component\HttpKernel\Event\ControllerEvent $event The event triggered before the controller is executed,
      *                                     carrying the current HTTP request and controller information.
      * @return void
      */
-    public function onKernelControllerPre(FilterControllerEvent $event)
+    public function onKernelControllerPre(\Symfony\Component\HttpKernel\Event\ControllerEvent $event)
     {
         $controller_array = $event->getController();
         $controller = $controller_array[0];
@@ -181,7 +181,7 @@ class WPAutoLoginSubscriber implements EventSubscriberInterface
         }
     }
 
-    public function onKernelControllerPost(FilterControllerEvent $event)
+    public function onKernelControllerPost(\Symfony\Component\HttpKernel\Event\ControllerEvent $event)
     {
         // ...
     }

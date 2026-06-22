@@ -16,6 +16,9 @@
 !var/cache/.gitkeep
 !var/logs/.gitkeep
 
+# Cache and logs (Symfony4)
+/var/log/*
+
 # Parameters
 /app/config/config.yml
 /app/config/parameters.yml

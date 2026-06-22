@@ -90,10 +90,10 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
      * @param DatarecordInfoService $datarecord_info_service
      * @param DatatreeInfoService $datatree_info_service
      * @param EntityMetaModifyService $entity_modify_service
-     * @param EngineInterface $templating
+     * @param \Symfony\Component\Templating\EngineInterface $templating
      * @param Logger $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly DatabaseInfoService $database_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly DatatreeInfoService $datatree_info_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly EngineInterface $templating, private readonly Logger $logger)
+    public function __construct(private readonly EntityManager $em, private readonly DatabaseInfoService $database_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly DatatreeInfoService $datatree_info_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly \Twig\Environment $templating, private readonly Logger $logger)
     {
     }
 

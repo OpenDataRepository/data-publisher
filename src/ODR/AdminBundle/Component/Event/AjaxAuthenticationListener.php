@@ -28,17 +28,17 @@ class AjaxAuthenticationListener
     /**
      * Handles security related exceptions.
      *
-     * @param GetResponseForExceptionEvent $event An GetResponseForExceptionEvent instance
+     * @param \Symfony\Component\HttpKernel\Event\ExceptionEvent $event An GetResponseForExceptionEvent instance
      */
-    public function onCoreException(GetResponseForExceptionEvent $event)
+    public function onCoreException(\Symfony\Component\HttpKernel\Event\ExceptionEvent $event)
     {
-        $exception = $event->getException();
+        $exception = $event->getThrowable();
         $request = $event->getRequest();
 
         if ($request->isXmlHttpRequest()) {
             if ($exception instanceof AuthenticationException || $exception instanceof AccessDeniedException) {
                 // If this exception was caused as a result of an AJAX request, change it to an ODR-defined exception
-                $event->setException(
+                $event->setThrowable(
                     new ODRForbiddenException($exception->getMessage(), 0x050bfe48)
                 );
             }

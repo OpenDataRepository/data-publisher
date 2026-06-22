@@ -86,7 +86,7 @@ class DatatypeController extends ODRCustomController
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
             // Don't need to verify permissions, firewall won't let this action be called unless user is admin
@@ -215,7 +215,7 @@ class DatatypeController extends ODRCustomController
             $odr_render_service = $this->container->get('odr.render_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
             /** @var DataType $datatype */
@@ -392,7 +392,7 @@ class DatatypeController extends ODRCustomController
             $datatree_info_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 
@@ -562,7 +562,7 @@ class DatatypeController extends ODRCustomController
     {
         /** @var CacheService $cache_service */
         $cache_service = $this->container->get('odr.cache_service');
-        /** @var EngineInterface $templating */
+        /** @var \Twig\Environment $templating */
         $templating = $this->get('templating');
 
         $conn = $em->getConnection();
@@ -704,7 +704,7 @@ class DatatypeController extends ODRCustomController
             $datatree_info_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 
@@ -904,7 +904,7 @@ class DatatypeController extends ODRCustomController
             $datatree_info_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 
@@ -997,7 +997,7 @@ class DatatypeController extends ODRCustomController
             $datatree_info_service = $this->container->get('odr.datatree_info_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 
@@ -1104,7 +1104,7 @@ class DatatypeController extends ODRCustomController
 
             /** @var DatatreeInfoService $datatree_info_service */
             $datatree_info_service = $this->container->get('odr.datatree_info_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 
@@ -1355,7 +1355,7 @@ class DatatypeController extends ODRCustomController
             $usergroup_management_service = $this->container->get('odr.user_group_management_service');
             /** @var UUIDService $uuid_service */
             $uuid_service = $this->container->get('odr.uuid_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 
@@ -1874,7 +1874,7 @@ class DatatypeController extends ODRCustomController
             $token_generator = $this->get('security.csrf.token_manager');
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 

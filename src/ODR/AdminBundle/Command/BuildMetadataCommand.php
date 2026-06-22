@@ -24,7 +24,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 
-class BuildMetadataCommand extends ContainerAwareCommand
+class BuildMetadataCommand extends \Symfony\Component\Console\Command\Command
 {
     protected function configure()
     {
@@ -35,7 +35,7 @@ class BuildMetadataCommand extends ContainerAwareCommand
             ->setDescription('Transfers entity properties to its associated metadata table');
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         // Only need to load these once...
         $container = $this->getContainer();
@@ -136,5 +136,6 @@ class BuildMetadataCommand extends ContainerAwareCommand
                 }
             }
         }
+        return 0;
     }
 }

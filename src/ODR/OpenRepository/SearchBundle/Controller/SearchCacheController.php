@@ -25,7 +25,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use Symfony\Component\HttpFoundation\Request;
 
 
-class SearchCacheController extends Controller
+class SearchCacheController extends \Symfony\Bundle\FrameworkBundle\Controller\AbstractController
 {
 
     /**

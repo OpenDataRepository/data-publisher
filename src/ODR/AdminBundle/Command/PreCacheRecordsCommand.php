@@ -30,7 +30,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
-class PreCacheRecordsCommand extends ContainerAwareCommand
+class PreCacheRecordsCommand extends \Symfony\Component\Console\Command\Command
 {
     protected function configure()
     {
@@ -41,7 +41,7 @@ class PreCacheRecordsCommand extends ContainerAwareCommand
             ->setDescription('Pre-caches records so search runs faster and graphs exist.');
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         // Only need to load these once...
         $container = $this->getContainer();
@@ -127,5 +127,6 @@ class PreCacheRecordsCommand extends ContainerAwareCommand
                 }
             }
         }
+        return 0;
     }
 }

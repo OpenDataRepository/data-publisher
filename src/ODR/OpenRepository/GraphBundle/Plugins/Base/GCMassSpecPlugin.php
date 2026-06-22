@@ -37,7 +37,7 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
 {
 
     /**
-     * @var EngineInterface
+     * @var \Symfony\Component\Templating\EngineInterface
      */
     private $templating;
 
@@ -61,7 +61,7 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
      * GCMassSpecPlugin constructor.
      *
      * @param RequestStack $request_stack
-     * @param EngineInterface $templating
+     * @param \Symfony\Component\Templating\EngineInterface $templating
      * @param CryptoService $crypto_service
      * @param Pheanstalk $pheanstalk
      * @param string $site_baseurl
@@ -71,7 +71,7 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
      */
     public function __construct(
         private readonly RequestStack $request_stack,
-        EngineInterface $templating,
+        \Twig\Environment $templating,
         private readonly CryptoService $crypto_service,
         Pheanstalk $pheanstalk,
         string $site_baseurl,

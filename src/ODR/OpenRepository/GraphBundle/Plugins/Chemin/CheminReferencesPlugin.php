@@ -35,9 +35,9 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
      *
      * @param EntityManager $em
      * @param CacheService $cache_service
-     * @param EngineInterface $templating
+     * @param \Symfony\Component\Templating\EngineInterface $templating
      */
-    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly EngineInterface $templating)
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly \Twig\Environment $templating)
     {
     }
 

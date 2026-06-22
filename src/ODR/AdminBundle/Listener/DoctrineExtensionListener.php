@@ -35,12 +35,12 @@ class DoctrineExtensionListener implements ContainerAwareInterface
 
     /**
      * TODO: short description.
-     * 
-     * @param GetResponseEvent $event 
-     * 
+     *
+     * @param \Symfony\Component\HttpKernel\Event\RequestEvent $event
+     *
      * @return TODO
      */
-    public function onLateKernelRequest(GetResponseEvent $event)
+    public function onLateKernelRequest(\Symfony\Component\HttpKernel\Event\RequestEvent $event)
     {
         $translatable = $this->container->get('gedmo.listener.translatable');
         $translatable->setTranslatableLocale($event->getRequest()->getLocale());
@@ -48,12 +48,12 @@ class DoctrineExtensionListener implements ContainerAwareInterface
 
     /**
      * TODO: short description.
-     * 
-     * @param GetResponseEvent $event 
-     * 
+     *
+     * @param \Symfony\Component\HttpKernel\Event\RequestEvent $event
+     *
      * @return TODO
      */
-    public function onKernelRequest(GetResponseEvent $event)
+    public function onKernelRequest(\Symfony\Component\HttpKernel\Event\RequestEvent $event)
     {
 //        $securityContext = $this->container->get('security.context', ContainerInterface::NULL_ON_INVALID_REFERENCE);
 //        if (null !== $securityContext && null !== $securityContext->getToken() && $securityContext->isGranted('IS_AUTHENTICATED_REMEMBERED')) {

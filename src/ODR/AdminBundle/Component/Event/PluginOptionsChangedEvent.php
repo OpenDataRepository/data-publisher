@@ -20,7 +20,7 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 use Symfony\Component\EventDispatcher\Event;
 
 
-class PluginOptionsChangedEvent extends Event implements ODREventInterface
+class PluginOptionsChangedEvent extends \Symfony\Contracts\EventDispatcher\Event implements ODREventInterface
 {
     // Best practice is apparently to have the Event class define the event name
     const NAME = 'odr.event.plugin_options_changed_event';

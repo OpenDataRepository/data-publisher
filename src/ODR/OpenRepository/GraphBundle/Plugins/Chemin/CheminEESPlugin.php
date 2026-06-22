@@ -26,10 +26,10 @@ class CheminEESPlugin implements DatatypePluginInterface
     /**
      * CheminEESPlugin constructor.
      *
-     * @param EngineInterface $templating
+     * @param \Symfony\Component\Templating\EngineInterface $templating
      * @param Logger $logger
      */
-    public function __construct(private readonly EngineInterface $templating, private readonly Logger $logger)
+    public function __construct(private readonly \Twig\Environment $templating, private readonly Logger $logger)
     {
     }
 

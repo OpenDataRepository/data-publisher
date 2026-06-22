@@ -28,7 +28,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Router;
 
 
-class UtilityController extends Controller
+class UtilityController extends \Symfony\Bundle\FrameworkBundle\Controller\AbstractController
 {
 
     /**

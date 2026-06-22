@@ -52,7 +52,7 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Routing\Router;
 
 
-class DefaultController extends Controller
+class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\AbstractController
 {
 
     /**
@@ -283,7 +283,7 @@ class DefaultController extends Controller
             $wordpress_site_baseurl = $this->container->getParameter('wordpress_site_baseurl');
 
             $html = $this->renderView(
-                'ODROpenRepositorySearchBundle:Default:index.html.twig',
+                '@ODROpenRepositorySearch/Default/index.html.twig',
                 [
                     // required twig/javascript parameters
                     'user' => $admin_user,
@@ -342,7 +342,7 @@ class DefaultController extends Controller
 
         $response = new Response($html);
         $response->headers->set('Content-Type', 'text/html');
-        $response->headers->setCookie(new Cookie('prev_searched_datatype', $search_slug));
+        $response->headers->setCookie(\Symfony\Component\HttpFoundation\Cookie::create('prev_searched_datatype', $search_slug));
         return $response;
     }
 
@@ -573,7 +573,7 @@ class DefaultController extends Controller
                 $logout_url = wp_logout_url();
 
                 $html = $this->renderView(
-                    'ODROpenRepositorySearchBundle:Default:home.html.twig',
+                    '@ODROpenRepositorySearch/Default/home.html.twig',
                     [
                         // required twig/javascript parameters
                         'user' => $admin_user,
@@ -614,7 +614,7 @@ class DefaultController extends Controller
             }
             else {
                 $html = $this->renderView(
-                    'ODROpenRepositorySearchBundle:Default:index.html.twig',
+                    '@ODROpenRepositorySearch/Default/index.html.twig',
                     [
                         // required twig/javascript parameters
                         'user' => $admin_user,
@@ -670,7 +670,7 @@ class DefaultController extends Controller
 
         $response = new Response($html);
         $response->headers->set('Content-Type', 'text/html');
-        $response->headers->setCookie(new Cookie('prev_searched_datatype', $search_slug));
+        $response->headers->setCookie(\Symfony\Component\HttpFoundation\Cookie::create('prev_searched_datatype', $search_slug));
         return $response;
     }
 

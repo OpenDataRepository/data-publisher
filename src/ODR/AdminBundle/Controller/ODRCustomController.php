@@ -44,7 +44,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Templating\EngineInterface;
 
 
-class ODRCustomController extends Controller
+class ODRCustomController extends \Symfony\Bundle\FrameworkBundle\Controller\AbstractController
 {
 
     /**
@@ -105,7 +105,7 @@ class ODRCustomController extends Controller
         /** @var TableThemeHelperService $table_theme_helper_service */
         $table_theme_helper_service = $this->container->get('odr.table_theme_helper_service');
 
-        /** @var EngineInterface $templating */
+        /** @var \Twig\Environment $templating */
         $templating = $this->get('templating');
 
 

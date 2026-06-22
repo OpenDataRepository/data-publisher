@@ -24,7 +24,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 
-class CreateClientCommand extends ContainerAwareCommand
+class CreateClientCommand extends \Symfony\Component\Console\Command\Command
 {
 
     /**
@@ -63,7 +63,7 @@ EOT
     /**
      * @inheritdoc
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $clientManager = $this->getContainer()->get('fos_oauth_server.client_manager.default');
 
@@ -80,5 +80,6 @@ EOT
                 $client->getSecret()
             )
         );
+        return 0;
     }
 }

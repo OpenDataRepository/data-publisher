@@ -29,7 +29,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
-class XMLImportFileDownloadCommand extends ContainerAwareCommand
+class XMLImportFileDownloadCommand extends \Symfony\Component\Console\Command\Command
 {
     protected function configure()
     {
@@ -40,7 +40,7 @@ class XMLImportFileDownloadCommand extends ContainerAwareCommand
             ->setDescription('Attempts to download a file from a remote server for importing purposes...');
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         // Only need to load these once...
         $container = $this->getContainer();
@@ -152,6 +152,7 @@ $output->writeln($data->url);
                 }
             }
         }
+        return 0;
     }
 
 }

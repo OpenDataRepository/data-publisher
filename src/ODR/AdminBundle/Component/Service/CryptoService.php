@@ -28,7 +28,6 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Other
 use Doctrine\ORM\EntityManager;
 use dterranova\Bundle\CryptoBundle\Crypto\CryptoAdapter;
-use JMS\SecurityExtraBundle\Security\Util\SecureRandom;
 use Symfony\Bridge\Monolog\Logger;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
@@ -53,7 +52,6 @@ class CryptoService
      * @param EntityManager $em
      * @param LockService $lock_service
      * @param EventDispatcherInterface $event_dispatcher
-     * @param SecureRandom $generator
      * @param CryptoAdapter $crypto_adapter
      * @param string $crypto_dir
      * @param string $odr_web_dir
@@ -63,7 +61,6 @@ class CryptoService
         private readonly EntityManager $em,
         private readonly LockService $lock_service,
         private readonly EventDispatcherInterface $event_dispatcher,
-        private readonly SecureRandom $generator,
         private readonly CryptoAdapter $crypto_adapter,
         string $crypto_dir,
         string $odr_web_dir,
@@ -369,7 +366,7 @@ class CryptoService
 
         try {
             $event = new DatafieldModifiedEvent($datafield, $user);
-            $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+            $this->event_dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
         }
         catch (\Exception $e) {
             // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -382,7 +379,7 @@ class CryptoService
             // Do NOT mark the record as updated in the database after encryption finished...stuff
             //  was already marked as updated when the initial upload was completed
             $event = new DatarecordModifiedEvent($datarecord, $user, false);
-            $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+            $this->event_dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
         }
         catch (\Exception $e) {
             // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -394,7 +391,7 @@ class CryptoService
         // Need this event to be after DatarecordModified, to ensure that cache entries aren't stale...
         try {
             $event = new FilePostEncryptEvent($file, $datafield);
-            $this->event_dispatcher->dispatch(FilePostEncryptEvent::NAME, $event);
+            $this->event_dispatcher->dispatch($event, FilePostEncryptEvent::NAME);
         }
         catch (\Exception) {
             // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -472,7 +469,7 @@ class CryptoService
     private function encryptworker($obj, $filepath)
     {
         // Generate a random number for encryption purposes
-        $bytes = $this->generator->nextBytes(16); // 128-bit random number
+        $bytes = random_bytes(16); // 128-bit random number
         // Convert the binary key into a hex string for db storage
         $hexEncoded_num = bin2hex($bytes);
         // Save the encryption key

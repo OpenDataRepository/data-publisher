@@ -62,10 +62,10 @@ class LinkedDescendantMergerPlugin implements ArrayPluginInterface, PluginSettin
      *
      * @param DatabaseInfoService $database_info_service
      * @param SortService $sort_service
-     * @param EngineInterface $templating
+     * @param \Symfony\Component\Templating\EngineInterface $templating
      * @param Logger $logger
      */
-    public function __construct(private readonly DatabaseInfoService $database_info_service, private readonly SortService $sort_service, private readonly EngineInterface $templating, private readonly Logger $logger)
+    public function __construct(private readonly DatabaseInfoService $database_info_service, private readonly SortService $sort_service, private readonly \Twig\Environment $templating, private readonly Logger $logger)
     {
     }
 

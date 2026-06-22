@@ -16,7 +16,7 @@ namespace ODR\AdminBundle\Form\Type;
 // ODR
 use ODR\AdminBundle\Form\DataTransformer\ThemeElementToNumberTransformer;
 // Doctrine
-use Doctrine\Common\Persistence\ObjectManager;
+use Doctrine\Persistence\ObjectManager;
 // Symfony
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;

@@ -20,7 +20,7 @@ use ODR\AdminBundle\Entity\Image;
 use Symfony\Component\EventDispatcher\Event;
 
 
-class FilePublicStatusChangedEvent extends Event implements ODREventInterface
+class FilePublicStatusChangedEvent extends \Symfony\Contracts\EventDispatcher\Event implements ODREventInterface
 {
     // Best practice is apparently to have the Event class define the event name
     const NAME = 'odr.event.file_public_status_changed_event';

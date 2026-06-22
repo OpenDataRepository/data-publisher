@@ -22,7 +22,7 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 use Symfony\Component\EventDispatcher\Event;
 
 
-class DatafieldCreatedEvent extends Event implements ODREventInterface
+class DatafieldCreatedEvent extends \Symfony\Contracts\EventDispatcher\Event implements ODREventInterface
 {
     // Best practice is apparently to have the Event class define the event name
     const NAME = 'odr.event.datafield_created_event';

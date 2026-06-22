@@ -25,14 +25,14 @@ abstract class ODRGraphPlugin
     /**
      * ODRGraph Plugin constructor.
      *
-     * @param EngineInterface $templating
+     * @param \Symfony\Component\Templating\EngineInterface $templating
      * @param Pheanstalk $pheanstalk
      * @param string $site_baseurl
      * @param string $odr_web_directory
      * @param string $odr_files_directory
      * @param Logger $logger
      */
-    public function __construct(private readonly EngineInterface $templating, private readonly Pheanstalk $pheanstalk, private readonly string $site_baseurl, private readonly string $odr_web_directory, private readonly string $odr_files_directory, private readonly Logger $logger)
+    public function __construct(private readonly \Twig\Environment $templating, private readonly Pheanstalk $pheanstalk, private readonly string $site_baseurl, private readonly string $odr_web_directory, private readonly string $odr_files_directory, private readonly Logger $logger)
     {
     }
 

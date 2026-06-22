@@ -76,7 +76,7 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
      * @param CacheService $cache_service
      * @param SearchService $search_service
      * @param SortService $sort_service
-     * @param EngineInterface $templating
+     * @param \Symfony\Component\Templating\EngineInterface $templating
      * @param Logger $logger
      */
     public function __construct(
@@ -84,7 +84,7 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
         private readonly CacheService $cache_service,
         private readonly SearchService $search_service,
         private readonly SortService $sort_service,
-        private readonly EngineInterface $templating,
+        private readonly \Twig\Environment $templating,
         private readonly Logger $logger
     ) {
         $this->typeclass_map = [

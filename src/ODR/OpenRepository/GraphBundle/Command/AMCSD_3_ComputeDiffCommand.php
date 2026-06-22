@@ -21,7 +21,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 
-class AMCSD_3_ComputeDiffCommand extends ContainerAwareCommand
+class AMCSD_3_ComputeDiffCommand extends \Symfony\Component\Console\Command\Command
 {
 
     /**
@@ -40,7 +40,7 @@ class AMCSD_3_ComputeDiffCommand extends ContainerAwareCommand
     /**
      * {@inheritdoc}
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         // Only need to load these once...
         $container = $this->getContainer();
@@ -107,5 +107,6 @@ class AMCSD_3_ComputeDiffCommand extends ContainerAwareCommand
                 }
             }
         }
+        return 0;
     }
 }

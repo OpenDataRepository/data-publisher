@@ -391,7 +391,7 @@ class TextResultsController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         if ( $cookie_key !== '' && $cookie_value !== '' )
-            $response->headers->setCookie(new Cookie($cookie_key, $cookie_value));
+            $response->headers->setCookie(\Symfony\Component\HttpFoundation\Cookie::create($cookie_key, $cookie_value));
         return $response;
     }
 
@@ -689,7 +689,7 @@ class TextResultsController extends ODRCustomController
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var TableThemeHelperService $table_theme_helper_service */
             $table_theme_helper_service = $this->container->get('odr.table_theme_helper_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 

@@ -30,7 +30,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
-class MigrateCommand extends ContainerAwareCommand
+class MigrateCommand extends \Symfony\Component\Console\Command\Command
 {
     protected function configure()
     {
@@ -41,7 +41,7 @@ class MigrateCommand extends ContainerAwareCommand
             ->setDescription('Migrates the data stored in entities from one fieldtype to another, and recreates required datarecord memached entries');
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         // Only need to load these once...
         $container = $this->getContainer();
@@ -147,5 +147,6 @@ class MigrateCommand extends ContainerAwareCommand
                 }
             }
         }
+        return 0;
     }
 }

@@ -25,7 +25,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use drymek\PheanstalkBundle\Entity\Job;
 
 
-class CloneAndLinkDatatypeMonitorCommand extends ContainerAwareCommand
+class CloneAndLinkDatatypeMonitorCommand extends \Symfony\Component\Console\Command\Command
 {
 
     /**
@@ -44,7 +44,7 @@ class CloneAndLinkDatatypeMonitorCommand extends ContainerAwareCommand
     /**
      * {@inheritdoc}
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $current_time = new \DateTime();
         $output->writeln( 'Starting clone_and_link_monitor: ' . $current_time->format('Y-m-d H:i:s').' (UTC-5)' );
@@ -70,5 +70,6 @@ class CloneAndLinkDatatypeMonitorCommand extends ContainerAwareCommand
             usleep(5000000);
 
         }
+        return 0;
     }
 }

@@ -24,7 +24,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 
-class ClearCryptoCommand extends ContainerAwareCommand
+class ClearCryptoCommand extends \Symfony\Component\Console\Command\Command
 {
     protected function configure()
     {
@@ -36,7 +36,7 @@ class ClearCryptoCommand extends ContainerAwareCommand
             ->addOption('old', null, InputOption::VALUE_NONE, 'If set, prepends the redis_prefix to the tube name for deleting jobs');
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         // Only need to load these once...
         $container = $this->getContainer();
@@ -75,6 +75,7 @@ class ClearCryptoCommand extends ContainerAwareCommand
                 usleep(5000000);     // sleep for 5 seconds
             }
         }
+        return 0;
 
     }
 }

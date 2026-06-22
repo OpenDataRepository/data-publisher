@@ -45,7 +45,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 
-class RemoteController extends Controller
+class RemoteController extends \Symfony\Bundle\FrameworkBundle\Controller\AbstractController
 {
 
     /**
@@ -125,7 +125,7 @@ class RemoteController extends Controller
             $wordpress_site_baseurl = $this->container->getParameter('wordpress_site_baseurl');
 
             $html = $this->renderView(
-                'ODROpenRepositorySearchBundle:Remote:index.html.twig',
+                '@ODROpenRepositorySearch/Remote/index.html.twig',
                 [
                     'site_baseurl' => $site_baseurl,
                     'odr_wordpress_integrated' => $is_wordpress_integrated,

@@ -21,7 +21,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 
-class TagRebuildCommand extends ContainerAwareCommand
+class TagRebuildCommand extends \Symfony\Component\Console\Command\Command
 {
     protected function configure()
     {
@@ -32,7 +32,7 @@ class TagRebuildCommand extends ContainerAwareCommand
             ->setDescription('Deals with requests to ensure parents of selected tags are themselves selected');
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         // Only need to load these once...
         $container = $this->getContainer();
@@ -138,5 +138,6 @@ class TagRebuildCommand extends ContainerAwareCommand
                 }
             }
         }
+        return 0;
     }
 }

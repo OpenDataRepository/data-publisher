@@ -24,7 +24,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 
-class BuildMetadataStartCommand extends ContainerAwareCommand
+class BuildMetadataStartCommand extends \Symfony\Component\Console\Command\Command
 {
     protected function configure()
     {
@@ -35,7 +35,7 @@ class BuildMetadataStartCommand extends ContainerAwareCommand
             ->setDescription('Runs the DQL queries to determine which entities need metadata entries');
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         // Only need to load these once...
         $container = $this->getContainer();
@@ -134,5 +134,6 @@ class BuildMetadataStartCommand extends ContainerAwareCommand
                 }
             }
         }
+        return 0;
     }
 }

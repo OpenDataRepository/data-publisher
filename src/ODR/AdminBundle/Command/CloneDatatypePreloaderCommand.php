@@ -35,7 +35,7 @@ use \Doctrine\Common\Collections\Criteria;
 use ODR\AdminBundle\Entity\DataType;
 
 
-class CloneDatatypePreloaderCommand extends ContainerAwareCommand
+class CloneDatatypePreloaderCommand extends \Symfony\Component\Console\Command\Command
 {
 
     /**
@@ -55,7 +55,7 @@ class CloneDatatypePreloaderCommand extends ContainerAwareCommand
      * This function is currently used only for AHED Project
      * {@inheritdoc}
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         // Only need to load these once...
         $container = $this->getContainer();
@@ -229,5 +229,6 @@ class CloneDatatypePreloaderCommand extends ContainerAwareCommand
                 }
             }
         }
+        return 0;
     }
 }

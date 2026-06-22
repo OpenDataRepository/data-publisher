@@ -156,7 +156,7 @@ class DisplayController extends ODRCustomController
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
 
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
             /** @var Router $router */
             $router = $this->get('router');
@@ -903,14 +903,20 @@ class DisplayController extends ODRCustomController
 
         // Have to specify all these properties just so that the last one can be false...otherwise Flow.js can't keep track of the progress
         $response->headers->setCookie(
-            new Cookie(
-                'fileDownload', // name
-                'true',         // value
-                0,              // duration set to 'session'
-                '/',            // default path
-                null,           // default domain
-                false,          // don't require HTTPS
-                false           // allow cookie to be accessed outside HTTP protocol
+            \Symfony\Component\HttpFoundation\Cookie::create(
+                'fileDownload',
+                // name
+                'true',
+                // value
+                0,
+                // duration set to 'session'
+                '/',
+                // default path
+                null,
+                // default domain
+                false,
+                // don't require HTTPS
+                false
             )
         );
 
@@ -1138,7 +1144,7 @@ class DisplayController extends ODRCustomController
             $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 
@@ -1705,7 +1711,7 @@ class DisplayController extends ODRCustomController
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 
@@ -2261,14 +2267,20 @@ class DisplayController extends ODRCustomController
 
             // Have to specify all these properties just so that the last one can be false...otherwise Flow.js can't keep track of the progress
             $response->headers->setCookie(
-                new Cookie(
-                    'fileDownload', // name
-                    'true',         // value
-                    0,              // duration set to 'session'
-                    '/',            // default path
-                    null,           // default domain
-                    false,          // don't require HTTPS
-                    false           // allow cookie to be accessed outside HTTP protocol
+                \Symfony\Component\HttpFoundation\Cookie::create(
+                    'fileDownload',
+                    // name
+                    'true',
+                    // value
+                    0,
+                    // duration set to 'session'
+                    '/',
+                    // default path
+                    null,
+                    // default domain
+                    false,
+                    // don't require HTTPS
+                    false
                 )
             );
 

@@ -34,10 +34,10 @@ class MapPlugin implements DatatypePluginInterface
     /**
      * MapPlugin constructor.
      *
-     * @param EngineInterface $templating
+     * @param \Symfony\Component\Templating\EngineInterface $templating
      * @param TokenGenerator $tokenGenerator
      */
-    public function __construct(private readonly EngineInterface $templating, private readonly TokenGenerator $tokenGenerator)
+    public function __construct(private readonly \Twig\Environment $templating, private readonly TokenGenerator $tokenGenerator)
     {
     }
 

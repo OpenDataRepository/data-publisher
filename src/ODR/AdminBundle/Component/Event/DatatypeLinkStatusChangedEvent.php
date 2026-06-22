@@ -21,7 +21,7 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 use Symfony\Component\EventDispatcher\Event;
 
 
-class DatatypeLinkStatusChangedEvent extends Event implements ODREventInterface
+class DatatypeLinkStatusChangedEvent extends \Symfony\Contracts\EventDispatcher\Event implements ODREventInterface
 {
     // Best practice is apparently to have the Event class define the event name
     const NAME = 'odr.event.datatype_link_status_change_event';

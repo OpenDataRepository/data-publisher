@@ -112,7 +112,7 @@ class CSVImportController extends ODRCustomController
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->container->get('odr.tracked_job_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 
@@ -309,7 +309,7 @@ class CSVImportController extends ODRCustomController
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->container->get('odr.tracked_job_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 
@@ -862,14 +862,20 @@ class CSVImportController extends ODRCustomController
             // Have to specify all these properties just so that the last one can be false...otherwise
             //  Flow.js can't keep track of the progress
             $response->headers->setCookie(
-                new Cookie(
-                    'fileDownload', // name
-                    'true',         // value
-                    0,              // duration set to 'session'
-                    '/',            // default path
-                    null,           // default domain
-                    false,          // don't require HTTPS
-                    false           // allow cookie to be accessed outside HTTP protocol
+                \Symfony\Component\HttpFoundation\Cookie::create(
+                    'fileDownload',
+                    // name
+                    'true',
+                    // value
+                    0,
+                    // duration set to 'session'
+                    '/',
+                    // default path
+                    null,
+                    // default domain
+                    false,
+                    // don't require HTTPS
+                    false
                 )
             );
 
@@ -2367,7 +2373,7 @@ class CSVImportController extends ODRCustomController
             $tag_helper_service = $this->container->get('odr.tag_helper_service');
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->container->get('odr.tracked_job_service');
-            /** @var EngineInterface $templating */
+            /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
 

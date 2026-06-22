@@ -29,7 +29,7 @@ use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
 //class RefreshCommand extends Command
-class ClearMetaqueueCommand extends ContainerAwareCommand
+class ClearMetaqueueCommand extends \Symfony\Component\Console\Command\Command
 {
 
     /**
@@ -49,7 +49,7 @@ class ClearMetaqueueCommand extends ContainerAwareCommand
     /**
      * {@inheritdoc}
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         // Only need to load these once...
         $container = $this->getContainer();
@@ -79,6 +79,7 @@ else
             // Sleep for a bit
             usleep(10000); // sleep for 0.05 seconds
         }
+        return 0;
 
     }
 }

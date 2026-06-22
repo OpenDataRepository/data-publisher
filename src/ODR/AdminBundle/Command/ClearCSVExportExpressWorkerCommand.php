@@ -22,7 +22,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 
-class ClearCSVExportExpressWorkerCommand extends ContainerAwareCommand
+class ClearCSVExportExpressWorkerCommand extends \Symfony\Component\Console\Command\Command
 {
 
     /**
@@ -41,7 +41,7 @@ class ClearCSVExportExpressWorkerCommand extends ContainerAwareCommand
     /**
      * @inheritDoc
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         // Only need to load these once...
         $container = $this->getContainer();
@@ -68,6 +68,7 @@ class ClearCSVExportExpressWorkerCommand extends ContainerAwareCommand
             // Sleep for a bit
             usleep(50000); // sleep for 0.05 seconds
         }
+        return 0;
     }
 
 }

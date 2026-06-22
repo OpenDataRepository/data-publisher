@@ -107,7 +107,7 @@ class SessionController extends ODRCustomController
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
-        $response->headers->setCookie(new Cookie($cookie_key, $cookie_value));
+        $response->headers->setCookie(\Symfony\Component\HttpFoundation\Cookie::create($cookie_key, $cookie_value));
         return $response;
     }
 
@@ -149,7 +149,7 @@ class SessionController extends ODRCustomController
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
-        $response->headers->setCookie(new Cookie($cookie_key, $cookie_value));
+        $response->headers->setCookie(\Symfony\Component\HttpFoundation\Cookie::create($cookie_key, $cookie_value));
         return $response;
     }
 
@@ -224,7 +224,7 @@ class SessionController extends ODRCustomController
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
-        $response->headers->setCookie(new Cookie($cookie_key, $cookie_value));
+        $response->headers->setCookie(\Symfony\Component\HttpFoundation\Cookie::create($cookie_key, $cookie_value));
         return $response;
     }
 
@@ -294,7 +294,7 @@ class SessionController extends ODRCustomController
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
-        $response->headers->setCookie(new Cookie($cookie_key, $cookie_value));
+        $response->headers->setCookie(\Symfony\Component\HttpFoundation\Cookie::create($cookie_key, $cookie_value));
         return $response;
     }
 
@@ -364,7 +364,7 @@ class SessionController extends ODRCustomController
 
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
-        $response->headers->setCookie(new Cookie($cookie_key, $cookie_value));
+        $response->headers->setCookie(\Symfony\Component\HttpFoundation\Cookie::create($cookie_key, $cookie_value));
         return $response;
     }
 

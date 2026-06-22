@@ -25,7 +25,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 
-class CSVExportExpressWorkerCommand extends ContainerAwareCommand
+class CSVExportExpressWorkerCommand extends \Symfony\Component\Console\Command\Command
 {
 
     /**
@@ -43,7 +43,7 @@ class CSVExportExpressWorkerCommand extends ContainerAwareCommand
     /**
      * @inheritDoc
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $output->writeln( 'CSV Express Export Start' );
         // Only need to load these once...
@@ -139,6 +139,7 @@ class CSVExportExpressWorkerCommand extends ContainerAwareCommand
                 }
             }
         }
+        return 0;
     }
 
 }

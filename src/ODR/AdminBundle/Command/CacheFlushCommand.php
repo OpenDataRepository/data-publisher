@@ -27,7 +27,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
-class CacheFlushCommand extends ContainerAwareCommand
+class CacheFlushCommand extends \Symfony\Component\Console\Command\Command
 {
 
     protected function configure()
@@ -39,7 +39,7 @@ class CacheFlushCommand extends ContainerAwareCommand
             ->setDescription('Deletes ALL memcached entries on the server');
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         // Only need to load these once...
         $container = $this->getContainer();
@@ -53,5 +53,6 @@ class CacheFlushCommand extends ContainerAwareCommand
 $output->writeln($e->getMessage());
             $logger->err('CacheFlushCommand.php: '.$e->getMessage());
         }
+        return 0;
     }
 }

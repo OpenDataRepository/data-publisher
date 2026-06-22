@@ -30,7 +30,7 @@ use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
 
-class XMLImportValidateCommand extends ContainerAwareCommand
+class XMLImportValidateCommand extends \Symfony\Component\Console\Command\Command
 {
     protected function configure()
     {
@@ -41,7 +41,7 @@ class XMLImportValidateCommand extends ContainerAwareCommand
             ->setDescription('Attempts to validate an XML file scheduled for import...');
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         // Only need to load these once...
         $container = $this->getContainer();
@@ -139,6 +139,7 @@ $output->writeln($data->url);
                 }
             }
         }
+        return 0;
     }
 
 }

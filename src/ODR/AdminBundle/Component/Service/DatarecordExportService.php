@@ -32,10 +32,10 @@ class DatarecordExportService
      * @param DatabaseInfoService $dbi_service
      * @param DatarecordInfoService $dri_service
      * @param PermissionsManagementService $pm_service
-     * @param EngineInterface $templating
+     * @param \Symfony\Component\Templating\EngineInterface $templating
      * @param Logger $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly DatabaseInfoService $dbi_service, private readonly DatarecordInfoService $dri_service, private readonly PermissionsManagementService $pm_service, private readonly EngineInterface $templating, private readonly Logger $logger)
+    public function __construct(private readonly EntityManager $em, private readonly DatabaseInfoService $dbi_service, private readonly DatarecordInfoService $dri_service, private readonly PermissionsManagementService $pm_service, private readonly \Twig\Environment $templating, private readonly Logger $logger)
     {
     }
 

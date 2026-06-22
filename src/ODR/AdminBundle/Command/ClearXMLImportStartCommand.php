@@ -28,7 +28,7 @@ use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
 
-class ClearXMLImportStartCommand extends ContainerAwareCommand
+class ClearXMLImportStartCommand extends \Symfony\Component\Console\Command\Command
 {
     protected function configure()
     {
@@ -40,7 +40,7 @@ class ClearXMLImportStartCommand extends ContainerAwareCommand
             ->addOption('old', null, InputOption::VALUE_NONE, 'If set, prepends the redis_prefix to the tube name for deleting jobs');
     }
 
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         // Only need to load these once...
         $container = $this->getContainer();
@@ -69,6 +69,7 @@ else
             // Sleep for a bit
             usleep(100000); // sleep for 0.1 seconds
         }
+        return 0;
 
     }
 }
