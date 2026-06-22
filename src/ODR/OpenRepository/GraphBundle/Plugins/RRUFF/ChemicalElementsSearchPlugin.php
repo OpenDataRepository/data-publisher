@@ -46,6 +46,7 @@ use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\SortService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\SearchOverrideInterface;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchQueryService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
 use Doctrine\DBAL\ParameterType;
@@ -158,7 +159,7 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
     /**
      * @inheritDoc
      */
-    public function searchOverriddenField($datafield, $search_term, $render_plugin_fields, $render_plugin_options)
+    public function searchOverriddenField($datafield, $search_term, $render_plugin_fields, $render_plugin_options, $use_set_logic)
     {
         // ----------------------------------------
         // Don't continue if called on the wrong type of datafield
@@ -173,7 +174,7 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
             throw new ODRBadRequestException('ChemicalElementsSearchPlugin::searchPluginField() called with '.$typeclass.' datafield', 0xc508f89f);
 
         // This should already be cached from earlier in the search routine
-        $datarecord_list = $this->search_service->getCachedSearchDatarecordList($datafield->getDataType()->getId());
+        $datarecord_list = $this->search_service->getCachedDatarecordList($datafield->getDataType()->getId());
 
         // ----------------------------------------
         // Searching on chemical elements is vaugely similar to searching a radio/tag field...
@@ -361,7 +362,7 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
         $end_result = array(
             'dt_id' => $datafield->getDataType()->getId(),
             'records' => $results,
-            'guard' => false,    // the plugin never explicitly searches on the empty string
+            'modify' => SearchQueryService::NO_MODIFICATION,    // the plugin never explicitly searches on the empty string
         );
 
         // ...then return the results of the search

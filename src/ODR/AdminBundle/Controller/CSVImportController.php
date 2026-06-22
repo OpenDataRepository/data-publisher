@@ -3092,6 +3092,7 @@ print_r($new_mapping);
                     );
                 }
 
+                // getRadioOptionNameSort() also is used for tags
                 if ( $df->getRadioOptionNameSort() === true)
                     $datafields_to_resort[] = $df;
             }

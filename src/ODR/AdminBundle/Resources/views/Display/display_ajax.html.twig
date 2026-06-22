@@ -73,7 +73,7 @@
         {# TODO - will need to figure out another solution if something reloads a tag field in Display #}
 
         {% if has_linked_datatypes > 0 %}  {# ODRRenderService::getDisplayHTML() only allows this to be greater than zero when the user is logged in #}
-        GetLinkedDatarecords({{ datarecord.id }});  {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        GetLinkedDatarecords({{ datarecord.id }}, 'display');  {# defined in ODRAdminBundle:Default:common_js.html.twig #}
         {% endif %}
 
 {% if (odr_wordpress_integrated and theme.themeMeta.disableSearchSidebar == true) or search_key == '' %}

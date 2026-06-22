@@ -467,6 +467,7 @@ class SearchCacheService implements EventSubscriberInterface
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_public_status');
 
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_dr_parents');
+            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_dr_children');
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_linked_dr_parents');
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_linked_dr_children');
             $this->cache_service->delete('cached_dt_'.$dt_id.'_dr_uuid_list');
@@ -787,6 +788,7 @@ class SearchCacheService implements EventSubscriberInterface
             // ----------------------------------------
             // If a datarecord was created, then this needs to be rebuilt
             $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_dr_parents');
+            $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_dr_children');
             $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_linked_dr_parents');
             $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_linked_dr_children');
             $this->cache_service->delete('cached_dt_'.$datatype->getId().'_dr_uuid_list');
@@ -875,6 +877,7 @@ class SearchCacheService implements EventSubscriberInterface
                 // Would have to search through each of these entries to see whether they matched the
                 //  deleted datarecord...faster to just wipe all of them
                 $this->cache_service->delete('cached_search_dt_'.$dt_id.'_dr_parents');
+                $this->cache_service->delete('cached_search_dt_'.$dt_id.'_dr_children');
                 $this->cache_service->delete('cached_search_dt_'.$dt_id.'_linked_dr_parents');
                 $this->cache_service->delete('cached_search_dt_'.$dt_id.'_linked_dr_children');
                 $this->cache_service->delete('cached_dt_'.$dt_id.'_dr_uuid_list');
