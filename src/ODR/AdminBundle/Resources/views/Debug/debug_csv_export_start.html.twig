@@ -52,7 +52,7 @@
         </fieldset>
 
         {% set prefix = initial_datatype_id %}
-        {% include 'ODRAdminBundle:Debug:debug_csv_export_childtype.html.twig' with {
+        {% include '@ODRAdmin/Debug/debug_csv_export_childtype.html.twig' with {
             'datatype_array': datatype_array,
             'prefix': prefix
         } %}

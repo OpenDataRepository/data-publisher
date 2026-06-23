@@ -24,7 +24,7 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}<br>
 #}
 <div class="ODRChildDatatype" id="ChildTypeWrapper_{{ childtype.id }}_{{ parent_datarecord.id }}">
 {% if is_link == 0 and not can_edit_child_record %}
-    {% include 'ODRAdminBundle:Display:display_childtype.html.twig' with {
+    {% include '@ODRAdmin/Display/display_childtype.html.twig' with {
         'datatype_array': datatype_array,
         'datarecord_array': datarecord_array,
         'theme_array': theme_array,
@@ -43,7 +43,7 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}<br>
         'multiple_allowed': multiple_allowed,
     } %}
 {% else %}  {# is_link == 1 or can_edit_child_record #}
-    {% include 'ODRAdminBundle:FakeEdit:fake_edit_childtype.html.twig' with {
+    {% include '@ODRAdmin/FakeEdit/fake_edit_childtype.html.twig' with {
         'datatype_array': datatype_array,
         'datarecord_array': datarecord_array,
         'theme_array': theme_array,

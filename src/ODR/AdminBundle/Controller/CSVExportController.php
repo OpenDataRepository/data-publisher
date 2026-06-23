@@ -188,7 +188,7 @@ class CSVExportController extends ODRCustomController
             // ----------------------------------------
             // Generate the HTML required for a header
             $header_html = $templating->render(
-                'ODRAdminBundle:CSVExport:csvexport_header.html.twig',
+                '@ODRAdmin/CSVExport/csvexport_header.html.twig',
                 [
                     'search_theme_id' => $search_theme_id,
                     'search_key' => $search_key,

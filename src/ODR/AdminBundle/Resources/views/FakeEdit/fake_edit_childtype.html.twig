@@ -56,7 +56,7 @@
 {% if not can_execute_plugin or content|length == 0 %}
     <div class="ODRDataType pure-u-1" id="DataType_{{ datatype.id }}">
 
-        {% include 'ODRAdminBundle:Default:fieldarea_header.html.twig' with {
+        {% include '@ODRAdmin/Default/fieldarea_header.html.twig' with {
             'context' : 'fake_edit',
 
             'datatype': datatype,
@@ -74,7 +74,7 @@
         {% set is_first_record = true %}
         {% for dr_id, datarecord in datarecord_array %}
 
-            {% include 'ODRAdminBundle:Edit:accordion_header.html.twig' with {
+            {% include '@ODRAdmin/Edit/accordion_header.html.twig' with {
                 'datarecord': datarecord,
                 'datatype': datatype,
 
@@ -116,7 +116,7 @@
                     </div>
                 {% endif %}
 
-                    {% include 'ODRAdminBundle:FakeEdit:fake_edit_childtype_fieldarea.html.twig' with {
+                    {% include '@ODRAdmin/FakeEdit/fake_edit_childtype_fieldarea.html.twig' with {
                         'datatype_array': datatype_array,
                         'datarecord': datarecord,
                         'theme_array': theme_array,
@@ -144,7 +144,7 @@
                 {# Render Plugins shouldn't override the entire childtype in the FakeEdit context...for now... #}
 
                 <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datarecord.id }}">
-                    {% include 'ODRAdminBundle:Edit:edit_childtype_fieldarea.html.twig' with {
+                    {% include '@ODRAdmin/Edit/edit_childtype_fieldarea.html.twig' with {
                         'datatype_array': datatype_array,
                         'datarecord': datarecord,
                         'theme_array': theme_array,
@@ -172,7 +172,7 @@
 
         {% endfor %}
 
-        {% include 'ODRAdminBundle:Default:fieldarea_footer.html.twig' with {
+        {% include '@ODRAdmin/Default/fieldarea_footer.html.twig' with {
             'display_type': display_type,
             'is_top_level': is_top_level,
         } %}

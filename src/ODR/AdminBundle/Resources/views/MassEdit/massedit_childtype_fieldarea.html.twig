@@ -43,7 +43,7 @@
 {% endif %}
 
 {% if not can_execute_plugin or content|length == 0 %}
-    {% include 'ODRAdminBundle:MassEdit:massedit_fieldarea.html.twig' with {
+    {% include '@ODRAdmin/MassEdit/massedit_fieldarea.html.twig' with {
         'datatype_array': datatype_array,
         'theme_array': theme_array,
 

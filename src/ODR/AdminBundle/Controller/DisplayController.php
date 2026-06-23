@@ -295,7 +295,7 @@ class DisplayController extends ODRCustomController
 
             $redirect_path = $router->generate('odr_display_view', ['datarecord_id' => 0]);    // blank path
             $header_html = $templating->render(
-                'ODRAdminBundle:Display:display_header.html.twig',
+                '@ODRAdmin/Display/display_header.html.twig',
                 [
                     'page_type' => 'display',
 
@@ -1208,7 +1208,7 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             // Render and return a tree structure of data
             $return['d'] = $templating->render(
-                'ODRAdminBundle:Default:file_download_dialog_form.html.twig',
+                '@ODRAdmin/Default/file_download_dialog_form.html.twig',
                 [
                     'file_array' => $file_array,
                     'entity_names' => $entity_names,
@@ -1778,7 +1778,7 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             // Render the dialog
             $return['d'] = $templating->render(
-                'ODRAdminBundle:Default:mass_download_dialog_form.html.twig',
+                '@ODRAdmin/Default/mass_download_dialog_form.html.twig',
                 [
                     'entity_names' => $entity_names,
 

@@ -6,7 +6,7 @@
 {#
 
 {% set is_top_level = 1 %}
-{% import "ODRAdminBundle:XMLExport:datarecord_childtype.json.twig" as mychildform %}
+{% import "@ODRAdmin/XMLExport/datarecord_childtype.json.twig" as mychildform %}
 
 {% if show_records == 1 %}
 {
@@ -47,7 +47,7 @@
 
 {# Twig doesn't have a decent spaceless tag for json #}
 {% set is_top_level = 1 %}
-{% import "ODRAdminBundle:XMLExport:datarecord_childtype.json.twig" as mychildform %}
+{% import "@ODRAdmin/XMLExport/datarecord_childtype.json.twig" as mychildform %}
 {% if show_records == 1 %}
 {
     {% endif %}

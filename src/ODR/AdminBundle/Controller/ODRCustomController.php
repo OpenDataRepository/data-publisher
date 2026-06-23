@@ -391,7 +391,7 @@ class ODRCustomController extends \Symfony\Bundle\FrameworkBundle\Controller\Abs
             $pagination_html = '';
             if ( !is_null($pagination_values) ) {
                 $pagination_html = $templating->render(
-                    'ODRAdminBundle:Default:pagination_header.html.twig',
+                    '@ODRAdmin/Default/pagination_header.html.twig',
                     [
                         'user_permissions' => $datatype_permissions,
                         'datatype' => $datatype,
@@ -427,7 +427,7 @@ class ODRCustomController extends \Symfony\Bundle\FrameworkBundle\Controller\Abs
 
             // -----------------------------------
             // Finally, render the list
-            $template = 'ODRAdminBundle:ShortResults:shortresultslist.html.twig';
+            $template = '@ODRAdmin/ShortResults/shortresultslist.html.twig';
             $final_html = $templating->render(
                 $template,
                 [
@@ -537,11 +537,11 @@ class ODRCustomController extends \Symfony\Bundle\FrameworkBundle\Controller\Abs
 
             // -----------------------------------
             // Select the correct template for rendering
-            $template = 'ODRAdminBundle:TextResults:textresultslist.html.twig';
+            $template = '@ODRAdmin/TextResults/textresultslist.html.twig';
             if ($intent == 'linking')
-                $template = 'ODRAdminBundle:Link:link_datarecord_form_search.html.twig';
+                $template = '@ODRAdmin/Link/link_datarecord_form_search.html.twig';
             else if ( $theme->getDisplaysAllResults() )
-                $template = 'ODRAdminBundle:TextResults:textresultslist_full.html.twig';
+                $template = '@ODRAdmin/TextResults/textresultslist_full.html.twig';
 
             $final_html = $templating->render(
                 $template,

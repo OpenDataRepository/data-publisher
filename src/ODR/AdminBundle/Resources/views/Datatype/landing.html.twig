@@ -47,7 +47,7 @@
 <div class="ODRContentWrapper">
 
 {% if can_view_datatype or datatype_meta.publicDate|is_public == true %}
-    {% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
+    {% include '@ODRAdmin/Default/generic_block_head.html.twig' with {
         'header_label': 'Database Tools',
         'pure_sizes': 'pure-u-md-1-4 pure-u-lg-5-24 pure-u-xl-5-24',
         'icon': 0
@@ -222,11 +222,11 @@
         {% endif %}
 
     </div>
-    {% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
+    {% include '@ODRAdmin/Default/generic_block_foot.html.twig' %}
 {% endif %}
 
     {# Template Group Instructions #}
-    {% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
+    {% include '@ODRAdmin/Default/generic_block_head.html.twig' with {
         'header_label': 'Manage Your Database',
         'pure_sizes': 'pure-u-md-3-4 pure-u-lg-19-24 pure-u-xl-19-24',
         'icon': 0
@@ -235,27 +235,27 @@
         <p>Your database may have related databases that provide reference or other data that are used in your database.
             If so, you can managed those databases using the tools in the list of "Related Databases" below. Depending
             on your permission level, you may not have access to all features of the related databases.</p>
-    {% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
+    {% include '@ODRAdmin/Default/generic_block_foot.html.twig' %}
     {# END Template Group Instructions #}
 
     {# Manage Related Databases #}
-    {% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
+    {% include '@ODRAdmin/Default/generic_block_head.html.twig' with {
         'header_label': 'Related Databases',
         'pure_sizes': 'pure-u-md-1-1 pure-u-lg-24-24 pure-u-xl-24-24',
         'icon': 0
     } %}
-        {% include 'ODRAdminBundle:Datatype:type_list_related_databases.html.twig' with {
+        {% include '@ODRAdmin/Datatype/type_list_related_databases.html.twig' with {
             'top_level_datatype': datatype,
             'datatypes': related_datatypes,
             'metadata': related_metadata,
             'datatype_permissions': datatype_permissions
         } %}
-    {% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
+    {% include '@ODRAdmin/Default/generic_block_foot.html.twig' %}
     {# END Manage Related Databases #}
 
 
     {# Recent Activity Graphs #}
-    {% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
+    {% include '@ODRAdmin/Default/generic_block_head.html.twig' with {
         'header_label': 'Recent Activity over the past 6 weeks',
         'pure_sizes': 'pure-u-md-1-1 pure-u-lg-24-24 pure-u-xl-24-24',
         'icon': 0
@@ -267,11 +267,11 @@
             <div style="margin-left: 20px;">No changes made</div>
         {% endif %}
         </div>
-    {% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
+    {% include '@ODRAdmin/Default/generic_block_foot.html.twig' %}
     {# END Recent Activity Graphs #}
 
     {# Views & Downloads #}
-    {% include 'ODRAdminBundle:Statistics:dashboard.html.twig' with {
+    {% include '@ODRAdmin/Statistics/dashboard.html.twig' with {
         'landingpage_datatype_id': datatype.id,
         'landingpage_datatype_short_name': datatype_meta.shortName,
         'multi_site_mode': false
@@ -281,7 +281,7 @@
 
 <script>
     $(function () {
-        disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        disableSearchSidebar();    {# defined in @ODRAdmin/Default/common_js.html.twig #}
 
         $("#ODRDatarecordList_{{ datatype.id }}_random").unbind('click').click(function() {
             var url = "{{ path('odr_view_random', { 'datatype_id': datatype.id }) }}";

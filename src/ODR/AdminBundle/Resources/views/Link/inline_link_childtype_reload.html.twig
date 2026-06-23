@@ -8,7 +8,7 @@
     {% set datarecord_array = parent_datarecord['children'][ target_datatype_id ] %}
 {% endif %}
 
-{% include 'ODRAdminBundle:Link:inline_link_fieldarea_childtype.html.twig' with {
+{% include '@ODRAdmin/Link/inline_link_fieldarea_childtype.html.twig' with {
     'datatype_array': datatype_array,
     'datarecord_array': datarecord_array,
     'theme_array': theme_array,

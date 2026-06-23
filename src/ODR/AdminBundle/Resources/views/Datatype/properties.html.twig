@@ -4,7 +4,7 @@
         {% if datatype.getismastertype == 1 %} {# Master Template Creation #}
 
         {% else %}
-            {% include 'ODRAdminBundle:Displaytemplate:wizard.html.twig' with {
+            {% include '@ODRAdmin/Displaytemplate/wizard.html.twig' with {
                 'wizard_step': 2,
                 'datatype_id': datatype.getid,
                 'edit_properties': false,
@@ -15,7 +15,7 @@
         {% endif %}
     {% elseif datatype.getmasterdatatype is not null %}
         {# Dataset creation wizard is complete - menu for managing? #}
-        {% include 'ODRAdminBundle:Displaytemplate:wizard.html.twig' with {
+        {% include '@ODRAdmin/Displaytemplate/wizard.html.twig' with {
             'wizard_step': 2,
             'datatype_id': datatype.getid,
             'edit_properties': false,
@@ -25,7 +25,7 @@
         } %}
     {% else %}
         {# This should be only for databases with added metadata and no master template (legacy) #}
-        {% include 'ODRAdminBundle:Displaytemplate:wizard.html.twig' with {
+        {% include '@ODRAdmin/Displaytemplate/wizard.html.twig' with {
             'wizard_step': 2,
             'datatype_id': datatype.getid,
             'datatype': datatype,
@@ -40,7 +40,7 @@
 
 {# Need to be hidden form #}
 <div id="UpdateDatatypePropertiesFormWrapper">
-    {% include 'ODRAdminBundle:Datatype:update_datatype_properties_form.html.twig' with {
+    {% include '@ODRAdmin/Datatype/update_datatype_properties_form.html.twig' with {
         'form': form,
         'datatype': datatype
     } %}

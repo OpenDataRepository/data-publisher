@@ -94,7 +94,7 @@ class TriggerController extends ODRCustomController
             // ----------------------------------------
             // Render the required version of the page
             $html = $templating->render(
-                'ODRAdminBundle:Trigger:home.html.twig',
+                '@ODRAdmin/Trigger/home.html.twig',
                 [
                     'stacked_datatype_array' => $stacked_dt_array,
                 ]

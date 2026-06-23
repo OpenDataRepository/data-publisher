@@ -4,7 +4,7 @@
 {% set datarecord = datarecord_array[initial_datarecord_id] %}
 {% set theme = theme_array[initial_theme_id] %}
 
-{% include 'ODRAdminBundle:FakeEdit:fake_edit_area.html.twig' with {
+{% include '@ODRAdmin/FakeEdit/fake_edit_area.html.twig' with {
     'datatype_array': datatype_array,
     'datarecord_array': datarecord_array,
     'theme_array': theme_array,
@@ -40,7 +40,7 @@ $(function() {
     setupAccordionHighlights();
 
     // Never want the search sidebar
-    disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+    disableSearchSidebar();    {# defined in @ODRAdmin/Default/common_js.html.twig #}
 
     // --------------------
     initPage();
@@ -48,7 +48,7 @@ $(function() {
     window.scrollTo(0,0);
 
     {% if notify_of_sync is defined and notify_of_sync == true %}
-    {% include 'ODRAdminBundle:Theme:theme_sync_warning.js.twig' with {
+    {% include '@ODRAdmin/Theme/theme_sync_warning.js.twig' with {
         'datatype_id': datatype.id,
         'theme_id': theme.id,
         'page_type': 'edit',
@@ -60,10 +60,10 @@ $(function() {
 var SaveTimeout = 1000;
 function initPage() {
     // Shouldn't be needed, but shouldn't hurt
-    hideSearchOverlay();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+    hideSearchOverlay();    {# defined in @ODRAdmin/Default/common_js.html.twig #}
 
     // Attach click handlers to tags
-    setupTagTree( $(".ODRRecord"), 3);    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+    setupTagTree( $(".ODRRecord"), 3);    {# defined in @ODRAdmin/Default/common_js.html.twig #}
 
     $(".ODRDatePicker").datepicker({
         dateFormat: 'yy-mm-dd',

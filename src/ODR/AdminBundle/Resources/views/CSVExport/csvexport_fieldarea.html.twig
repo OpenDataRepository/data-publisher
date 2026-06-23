@@ -26,7 +26,7 @@
                     {% if theme_datafield.hidden == 0 or csvexport_shows_all_fields %}
                         {% set datafield = datatype['dataFields'][datafield_id] %}
 
-                        {% include 'ODRAdminBundle:CSVExport:csvexport_datafield.html.twig' with {
+                        {% include '@ODRAdmin/CSVExport/csvexport_datafield.html.twig' with {
                             'site_baseurl': site_baseurl,
                             'theme_datafield': theme_datafield,
                             'datafield': datafield,
@@ -54,7 +54,7 @@
 
                     {% set new_prefix = prefix ~ '-' ~ child_datatype_id %}
 
-                    {% include 'ODRAdminBundle:CSVExport:csvexport_childtype.html.twig' with {
+                    {% include '@ODRAdmin/CSVExport/csvexport_childtype.html.twig' with {
                         'datatype_array': child_datatype,
                         'theme_array': child_theme,
                         'site_baseurl': site_baseurl,

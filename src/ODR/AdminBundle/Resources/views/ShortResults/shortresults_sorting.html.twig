@@ -11,7 +11,7 @@
 
         {% for num in 0..2 %}
             {% if sort_datafields[num] is defined %}
-                {% include 'ODRAdminBundle:ShortResults:shortresults_sorting_row.html.twig' with {
+                {% include '@ODRAdmin/ShortResults/shortresults_sorting_row.html.twig' with {
                     'num': num,
                     'sort_df_id': sort_datafields[num],
                     'sort_df_dir': sort_directions[num],
@@ -19,7 +19,7 @@
                     'available_sortfields': available_sortfields,
                 } %}
             {% else %}
-                {% include 'ODRAdminBundle:ShortResults:shortresults_sorting_row.html.twig' with {
+                {% include '@ODRAdmin/ShortResults/shortresults_sorting_row.html.twig' with {
                     'num': num,
                     'sort_df_id': '',
                     'sort_df_dir': '',

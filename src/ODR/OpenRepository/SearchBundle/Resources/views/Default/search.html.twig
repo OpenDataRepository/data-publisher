@@ -14,16 +14,16 @@
 {% set datatype = datatype_array[target_datatype.id] %}
 
 <div id="markdown_help_dialog_wrapper">
-    {% include 'ODRAdminBundle:Displaytemplate:markdown_help_dialog.html.twig' %}
+    {% include '@ODRAdmin/Displaytemplate/markdown_help_dialog.html.twig' %}
 </div>
 
-    {# Search sidebar is loaded from ODROpenRepositorySearchBundle:Default:index.html.twig #}
-    {#{% include 'ODROpenRepositorySearchBundle:Default:search_sidebar.html.twig' %}#}
+    {# Search sidebar is loaded from @ODROpenRepositorySearch/Default/index.html.twig #}
+    {#{% include '@ODROpenRepositorySearch/Default/search_sidebar.html.twig' %}#}
 
 <script>
     $(function () {
         // Need to ensure the sidebar is initialized properly...
-        InitSearchSidebar();    {# defined in ODROpenRepositorySearchBundle:Default:search_sidebar.html.twig #}
+        InitSearchSidebar();    {# defined in @ODROpenRepositorySearch/Default/search_sidebar.html.twig #}
         // ...but don't need to ensure it's enabled...the display/edit/search results page will take
         //  care of that
         // enableSearchSidebar('{{ search_key }}', 'expanded');

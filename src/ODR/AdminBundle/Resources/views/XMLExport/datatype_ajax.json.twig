@@ -4,7 +4,7 @@
 
 {
     {# using macro on purpose #}
-    {% import "ODRAdminBundle:XMLExport:datatype_childtype.json.twig" as mychildform %}
+    {% import "@ODRAdmin/XMLExport/datatype_childtype.json.twig" as mychildform %}
     {{ mychildform.input(
         datatype_array,
         theme_array,

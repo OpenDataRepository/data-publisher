@@ -279,7 +279,7 @@ class MassEditController extends ODRCustomController
             // ----------------------------------------
             // Generate the HTML required for a header
             $header_html = $templating->render(
-                'ODRAdminBundle:MassEdit:massedit_header.html.twig',
+                '@ODRAdmin/MassEdit/massedit_header.html.twig',
                 [
                     'search_theme_id' => $search_theme_id,
                     'search_key' => $search_key,

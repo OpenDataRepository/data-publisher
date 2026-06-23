@@ -1,13 +1,13 @@
 {% apply spaceless %}
 
 {# The "intent" variable passed in is always "linking" for this file...
-   ODRCustomController::renderList() renders ODRAdminBundle:TextResults:textresultslist.html.twig
+   ODRCustomController::renderList() renders @ODRAdmin/TextResults/textresultslist.html.twig
    when intent == 'searching' #}
 
 {% set theme = theme_array[initial_theme_id] %}
 
 {# Page/View Options #}
-{% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
+{% include '@ODRAdmin/Default/view_manager.html.twig' with {
     'datatype': datatype,
     'theme': theme,
     'page_type': 'table',

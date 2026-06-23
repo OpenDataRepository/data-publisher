@@ -89,7 +89,7 @@ class FlowController extends ODRCustomController
      * All HTTP Status codes not specified in self::flowSuccess() and self::flowAbort() are
      * interpreted as "continue".
      *
-     * These codes are defined in ODRAdminBundle:Flow:flow_upload.html.twig
+     * These codes are defined in @ODRAdmin/Flow/flow_upload.html.twig
      *
      * @param string $message
      *
@@ -108,7 +108,7 @@ class FlowController extends ODRCustomController
     /** 
      * HTTP Status codes of 404 are interpreted by flow.js as "abort".
      *
-     * These codes are defined in ODRAdminBundle:Flow:flow_upload.html.twig
+     * These codes are defined in @ODRAdmin/Flow/flow_upload.html.twig
      *
      * @param string $message
      *

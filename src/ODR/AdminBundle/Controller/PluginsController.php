@@ -800,7 +800,7 @@ class PluginsController extends ODRCustomController
             // Render and return a page displaying the installed/available plugins
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Plugins:list_plugins.html.twig',
+                    '@ODRAdmin/Plugins/list_plugins.html.twig',
                     [
                         'installed_plugins' => $installed_plugins,
                         'available_plugins' => $available_plugins,
@@ -2034,7 +2034,7 @@ class PluginsController extends ODRCustomController
 
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Plugins:plugin_problems.html.twig',
+                    '@ODRAdmin/Plugins/plugin_problems.html.twig',
                     [
                         'plugin_update_problems' => $plugin_update_problems,
                     ]
@@ -2148,7 +2148,7 @@ class PluginsController extends ODRCustomController
 
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Plugins:plugin_uses.html.twig',
+                    '@ODRAdmin/Plugins/plugin_uses.html.twig',
                     [
                         'is_datafield_plugin' => $is_datafield_plugin,
                         'plugin_uses' => $results,
@@ -2975,7 +2975,7 @@ class PluginsController extends ODRCustomController
             // Get Templating Object
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Plugins:plugin_settings_dialog_form.html.twig',
+                    '@ODRAdmin/Plugins/plugin_settings_dialog_form.html.twig',
                     [
                         'local_datatype' => $datatype,
                         'local_datafield' => $datafield,
@@ -3346,7 +3346,7 @@ class PluginsController extends ODRCustomController
             // ----------------------------------------
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Plugins:plugin_settings_dialog_form_data.html.twig',
+                    '@ODRAdmin/Plugins/plugin_settings_dialog_form_data.html.twig',
                     [
                         'rpf_typenames' => $rpf_typenames,
 
@@ -4562,7 +4562,7 @@ class PluginsController extends ODRCustomController
             // Get Templating Object
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Plugins:plugin_layout_settings_dialog_form.html.twig',
+                    '@ODRAdmin/Plugins/plugin_layout_settings_dialog_form.html.twig',
                     [
                         'theme_id' => $theme_id,
                         'local_datatype' => $datatype,
@@ -4814,7 +4814,7 @@ class PluginsController extends ODRCustomController
             // ----------------------------------------
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Plugins:plugin_layout_settings_dialog_form_data.html.twig',
+                    '@ODRAdmin/Plugins/plugin_layout_settings_dialog_form_data.html.twig',
                     [
                         'theme_id' => $theme_id,
                         'local_datatype' => $datatype,

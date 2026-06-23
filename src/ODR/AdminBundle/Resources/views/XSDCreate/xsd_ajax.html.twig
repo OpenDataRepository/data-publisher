@@ -80,7 +80,7 @@
         <xsd:all>
             {# using macro on purpose #}
             {% set is_top_level = 1 %}
-            {% import "ODRAdminBundle:XSDCreate:xsd_childtype.html.twig" as mychildform %}
+            {% import "@ODRAdmin/XSDCreate/xsd_childtype.html.twig" as mychildform %}
             {{ mychildform.input(datatype_array, initial_datatype_id, theme_id, is_top_level, version) }}
 
             <xsd:element name="_datarecord_metadata" type="datarecord_metadata_type" minOccurs="0" />

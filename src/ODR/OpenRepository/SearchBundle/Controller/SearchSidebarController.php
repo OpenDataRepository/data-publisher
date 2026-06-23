@@ -116,7 +116,7 @@ class SearchSidebarController extends ODRCustomController
                 $return['d'] = [
                     'needs_update' => true,
                     'html' => $templating->render(
-                        'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig',
+                        '@ODROpenRepositorySearch/Default/search_datafield.html.twig',
                         [
                             'datatype_id' => $datatype->getId(),
                             'datafield' => $df_array,
@@ -235,7 +235,7 @@ class SearchSidebarController extends ODRCustomController
             $return['d'] = [
                 'num_params' => count($search_params),
                 'html' => $templating->render(
-                    'ODROpenRepositorySearchBundle:Default:search_sidebar.html.twig',
+                    '@ODROpenRepositorySearch/Default/search_sidebar.html.twig',
                     [
                         'search_key' => $search_key,
                         'search_params' => $search_params,
@@ -427,7 +427,7 @@ class SearchSidebarController extends ODRCustomController
             $return['d'] = [
                 'num_params' => count($search_params),
                 'html' => $templating->render(
-                    'ODROpenRepositorySearchBundle:Default:search_sidebar.html.twig',
+                    '@ODROpenRepositorySearch/Default/search_sidebar.html.twig',
                     [
                         'search_key' => $search_key,
                         'search_params' => $search_params,
@@ -552,7 +552,7 @@ class SearchSidebarController extends ODRCustomController
             $return['d'] = [
                 'num_params' => count($search_params),
                 'html' => $templating->render(
-                    'ODROpenRepositorySearchBundle:Default:search_sidebar.html.twig',
+                    '@ODROpenRepositorySearch/Default/search_sidebar.html.twig',
                     [
                         'search_key' => $search_key,
                         'search_params' => $search_params,
@@ -676,7 +676,7 @@ class SearchSidebarController extends ODRCustomController
             // Would prefer if this didn't use yet another dialog, but there's just too much
             //  useful information that needs displaying...
             $return['d'] = $templating->render(
-                'ODROpenRepositorySearchBundle:Default:choose_sidebar_layout.html.twig',
+                '@ODROpenRepositorySearch/Default/choose_sidebar_layout.html.twig',
                 [
                     'user' => $user,
                     'is_datatype_admin' => $is_datatype_admin,

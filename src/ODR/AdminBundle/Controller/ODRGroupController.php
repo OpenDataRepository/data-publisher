@@ -108,7 +108,7 @@ class ODRGroupController extends ODRCustomController
             // Render and return the wrapper HTML
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:ODRGroup:permissions_wrapper.html.twig',
+                    '@ODRAdmin/ODRGroup/permissions_wrapper.html.twig',
                     [
                         'datatype' => $datatype,
                     ]
@@ -200,7 +200,7 @@ class ODRGroupController extends ODRCustomController
             // Render and return the wrapper HTML
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:ODRGroup:group_list.html.twig',
+                    '@ODRAdmin/ODRGroup/group_list.html.twig',
                     [
                         'datatype' => $datatype,
                         'group_list' => $group_list,
@@ -582,7 +582,7 @@ class ODRGroupController extends ODRCustomController
 
                 // Return the slideout html
                 $return['d'] = $templating->render(
-                    'ODRAdminBundle:ODRGroup:group_properties_form.html.twig',
+                    '@ODRAdmin/ODRGroup/group_properties_form.html.twig',
                     [
                         'datatype' => $datatype,
                         'group' => $group,
@@ -705,7 +705,7 @@ class ODRGroupController extends ODRCustomController
 
             // Render and return the user list
             $return['d'] = $templating->render(
-                'ODRAdminBundle:ODRGroup:user_list_datatype.html.twig',
+                '@ODRAdmin/ODRGroup/user_list_datatype.html.twig',
                 [
                     'datatype' => $datatype,
                     'group_list' => $group_list,
@@ -883,7 +883,7 @@ class ODRGroupController extends ODRCustomController
             // Render and return the interface
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:ODRGroup:manage_user_groups.html.twig',
+                    '@ODRAdmin/ODRGroup/manage_user_groups.html.twig',
                     [
                         'target_user' => $user,
 
@@ -1131,7 +1131,7 @@ class ODRGroupController extends ODRCustomController
             }
 
             $return['d']['user_list_html'] = $templating->render(
-                'ODRAdminBundle:ODRGroup:user_list.html.twig',
+                '@ODRAdmin/ODRGroup/user_list.html.twig',
                 [
                     'group' => $group,
                     'user_list' => $user_list,
@@ -1155,7 +1155,7 @@ class ODRGroupController extends ODRCustomController
                 $readable_search_key = $search_key_service->getReadableSearchKey($datarecord_restriction);
 
             $return['d']['group_properties_html'] = $templating->render(
-                'ODRAdminBundle:ODRGroup:group_properties_form.html.twig',
+                '@ODRAdmin/ODRGroup/group_properties_form.html.twig',
                 [
                     'datatype' => $datatype,
                     'group' => $group,

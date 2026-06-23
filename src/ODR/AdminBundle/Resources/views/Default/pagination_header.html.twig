@@ -95,7 +95,7 @@
         {% set is_datatype_admin = true %}
     {% endif %}
 
-    {% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
+    {% include '@ODRAdmin/Default/view_manager.html.twig' with {
         'datatype': datatype,
         'theme': theme,
         'page_type': 'search_results',
@@ -115,7 +115,7 @@
     } %}
 
     <div id="ODRShortResultsSortForm_div" class="pure-u-1" style="display: none;">
-        {% include 'ODRAdminBundle:ShortResults:shortresults_sorting.html.twig' with {
+        {% include '@ODRAdmin/ShortResults/shortresults_sorting.html.twig' with {
             'datatype_id': datatype.id,
             'odr_tab_id': odr_tab_id,
             'sort_datafields': sort_datafields,

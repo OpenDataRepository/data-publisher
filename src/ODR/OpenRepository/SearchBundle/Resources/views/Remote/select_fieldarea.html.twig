@@ -52,7 +52,7 @@
                     {% set child_datatype = datatype['descendants'][child_datatype_id]['datatype'] %}
                     {% set child_theme = theme_element['themeDataType'][0]['childTheme']['theme'] %}
 
-                    {% include 'ODROpenRepositorySearchBundle:Remote:select_childtype.html.twig' with {
+                    {% include '@ODROpenRepositorySearch/Remote/select_childtype.html.twig' with {
                         'datatype_array': child_datatype,
                         'theme_array': child_theme,
 

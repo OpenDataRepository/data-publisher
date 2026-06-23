@@ -200,7 +200,7 @@ class XSDController extends ODRCustomController
         // Render the schema layout
         $templating = $this->get('templating');
         $xml = $templating->render(
-            'ODRAdminBundle:XSDCreate:xsd_ajax.html.twig',
+            '@ODRAdmin/XSDCreate/xsd_ajax.html.twig',
             [
                 'datatype_array' => $datatype_array,
                 'initial_datatype_id' => $datatype_id,

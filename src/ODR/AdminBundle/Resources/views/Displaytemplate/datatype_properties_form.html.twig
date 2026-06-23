@@ -198,7 +198,7 @@
 </div>
 
 {% if is_top_level == false and datatree != null %}   {# display datatree properties if not a top-level datatype #}
-    {% include 'ODRAdminBundle:Displaytemplate:datatree_properties_form.html.twig' with {
+    {% include '@ODRAdmin/Displaytemplate/datatree_properties_form.html.twig' with {
         'datatree': datatree,
         'datatree_form': datatree_form,
         'force_multiple': force_multiple,
@@ -208,7 +208,7 @@
 {% endif %}
 
 {% if is_top_level == false and theme_datatype != null %}   {# display theme_datatype properties if not a top-level datatype #}
-    {% include 'ODRAdminBundle:Theme:theme_datatype_properties_form.html.twig' with {
+    {% include '@ODRAdmin/Theme/theme_datatype_properties_form.html.twig' with {
         'theme_datatype': theme_datatype,
         'theme_datatype_form': theme_datatype_form
     } %}

@@ -22,7 +22,7 @@
     <updated_at>{{ tag_meta.updated|date('Y-m-d H:i:s') }}</updated_at>    {# TODO - should this be controlled by using_metadata? #}
 {% if has_children %}
     {% for child_tag_id, child_tag in tag.children %}
-        {% include 'ODRAdminBundle:XMLExport:datatype_tag.xml.twig' with {
+        {% include '@ODRAdmin/XMLExport/datatype_tag.xml.twig' with {
             'tag': child_tag,
         } %}
     {% endfor %}

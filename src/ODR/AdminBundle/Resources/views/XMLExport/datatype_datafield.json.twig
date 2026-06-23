@@ -99,7 +99,7 @@
         {% endif %}
 
     {% elseif field_typeclass == 'Tag' %}
-        {% include 'ODRAdminBundle:XMLExport:datatype_tag_wrapper.json.twig' with {
+        {% include '@ODRAdmin/XMLExport/datatype_tag_wrapper.json.twig' with {
             'datafield': datafield,
         } %}
     {% endif %}

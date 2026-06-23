@@ -14,9 +14,9 @@
         <div class="content">
 
             {% if section == "databases" %}
-                {% include 'ODRAdminBundle:Datatype:type_list_content_databases.html.twig' with {'user': user, 'datatype_permissions': datatype_permissions, 'datatypes': datatypes, 'metadata': metadata } %}
+                {% include '@ODRAdmin/Datatype/type_list_content_databases.html.twig' with {'user': user, 'datatype_permissions': datatype_permissions, 'datatypes': datatypes, 'metadata': metadata } %}
             {% elseif section == "templates" %}
-                {% include 'ODRAdminBundle:Datatype:type_list_content_templates.html.twig' with {'user': user, 'datatype_permissions': datatype_permissions, 'datatypes': datatypes, 'metadata': metadata } %}
+                {% include '@ODRAdmin/Datatype/type_list_content_templates.html.twig' with {'user': user, 'datatype_permissions': datatype_permissions, 'datatypes': datatypes, 'metadata': metadata } %}
             {% endif %}
             
         </div><!-- End of .content -->

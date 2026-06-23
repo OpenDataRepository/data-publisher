@@ -42,7 +42,7 @@
 
     <br><br>
 
-    {% include 'ODRAdminBundle:MassEdit:massedit_area.html.twig' with {
+    {% include '@ODRAdmin/MassEdit/massedit_area.html.twig' with {
         'datatype_array': datatype_array,
         'theme_array': theme_array,
 
@@ -80,11 +80,11 @@
 var SaveTimeout = 1500;
 
 $(function() {
-    disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+    disableSearchSidebar();    {# defined in @ODRAdmin/Default/common_js.html.twig #}
     window.scrollTo(0,0);
 
     // Attach click handlers to tags
-    setupTagTree();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+    setupTagTree();    {# defined in @ODRAdmin/Default/common_js.html.twig #}
 
     // Adding/removing the class .ODRSearchResultsWide triggers a 0.25s transition
     // The overlay divs need this transition to finish before they can get the correct width
@@ -729,4 +729,4 @@ function ODRMassEdit_startIntroJS() {
 }
 </script>
 
-{% include 'ODRAdminBundle:Job:job_progress.html.twig' %}
+{% include '@ODRAdmin/Job/job_progress.html.twig' %}

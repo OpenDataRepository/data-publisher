@@ -45,7 +45,7 @@
     {% endif %}
 
     {% if dt['child_datatypes'] is defined and dt['child_datatypes']|length > 0 %}
-        {% include 'ODRAdminBundle:Default:file_download_dialog_form_by_datafield.html.twig' with {
+        {% include '@ODRAdmin/Default/file_download_dialog_form_by_datafield.html.twig' with {
             'file_array': dt['child_datatypes'],
             'entity_names': entity_names,
 

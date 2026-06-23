@@ -42,7 +42,7 @@
 {% if has_children %}
     <ul class="ODRTagGroup ODRHidden">    {# Have the tag tree start out collapsed #}
         {% for child_tag_id, child_tag in tag.children %}
-            {% include 'ODROpenRepositorySearchBundle:Default:tag.html.twig' with {
+            {% include '@ODROpenRepositorySearch/Default/tag.html.twig' with {
                 'datafield': datafield,
                 'tag': child_tag,
 

@@ -20,7 +20,7 @@
             {% endif %}
 
             {% if display_unselected or is_selected == 1 %}
-                {% include 'ODRAdminBundle:Display:tag.html.twig' with {
+                {% include '@ODRAdmin/Display/tag.html.twig' with {
                     'display_unselected': display_unselected,
 
                     'tag_selections': tag_selections,

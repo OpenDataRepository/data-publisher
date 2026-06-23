@@ -28,7 +28,7 @@
         </div>
 
         <div id="ODRSearchSidebar" class="ODRStoredSearchKeySelection_sidebar pure-u-1-4">
-        {% include 'ODROpenRepositorySearchBundle:Default:search_sidebar.html.twig' with {
+        {% include '@ODROpenRepositorySearch/Default/search_sidebar.html.twig' with {
             'sidebar_array': sidebar_array,
             'datatype_permissions': datatype_permissions,
 
@@ -118,7 +118,7 @@
      */
     function initStoredSearchKeysDialog() {
 
-        InitSearchSidebar_storedSearchKeys( $("#ODRStoredSearchKeysDialogWrapper") );    {# defined in ODROpenRepositorySearchBundle:Default:search_sidebar.html.twig #}
+        InitSearchSidebar_storedSearchKeys( $("#ODRStoredSearchKeysDialogWrapper") );    {# defined in @ODROpenRepositorySearch/Default/search_sidebar.html.twig #}
         $(".ODRAdvSearch_header").trigger('click');
         $(".ODRInput").prop("disabled", false);
 
@@ -192,7 +192,7 @@
                     $("#ODRStoredSearchKeysDialogWrapper").find('#ODRSearchSidebar').html(data.d.html);
 
                     // Re-initialize the new sidebar
-                    InitSearchSidebar_storedSearchKeys( $("#ODRStoredSearchKeysDialogWrapper") );    {# defined in ODROpenRepositorySearchBundle:Default:search_sidebar.html.twig #}
+                    InitSearchSidebar_storedSearchKeys( $("#ODRStoredSearchKeysDialogWrapper") );    {# defined in @ODROpenRepositorySearch/Default/search_sidebar.html.twig #}
                     $(".ODRAdvSearch_header").trigger('click');
                     $(".ODRInput").prop("disabled", false);
 

@@ -2,7 +2,7 @@
 
 <div class="ODRContentWrapper" style="padding-bottom: 15px;">
 
-    {% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
+    {% include '@ODRAdmin/Default/generic_block_head.html.twig' with {
         'header_label': 'Create New Record',
         'pure_sizes': 'pure-u-1',
         'icon': 0
@@ -20,7 +20,7 @@
         </p>
         <button type="button" id="ODRFakeEdit_save" class="pure-button pure-button-primary">Save as New Record</button>    {# defined in Edit:fake_edit_ajax.html.twig #}
     </div>
-    {% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
+    {% include '@ODRAdmin/Default/generic_block_foot.html.twig' %}
 
 </div>
 

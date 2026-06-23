@@ -39,7 +39,7 @@
     <ul class="ODRTagGroup {% if is_selected == 0 %}ODRHidden{% endif %}">
         {# Hide tags when they don't have selected descendants...but all tags need to be rendered in Edit mode #}
         {% for child_tag_id, child_tag in tag.children %}
-            {% include 'ODRAdminBundle:Edit:tag.html.twig' with {
+            {% include '@ODRAdmin/Edit/tag.html.twig' with {
                 'unique_id': unique_id,
 
                 'tag_selections': tag_selections,

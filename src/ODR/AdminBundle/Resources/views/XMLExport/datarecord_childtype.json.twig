@@ -17,7 +17,7 @@
         {% set skip_comma = true %}
     {% elseif not datarecord.id is defined and dr_id is not null %}
         {# Check for Children #}
-        {% import "ODRAdminBundle:XMLExport:datarecord_childtype.json.twig" as mychildform %}
+        {% import "@ODRAdmin/XMLExport/datarecord_childtype.json.twig" as mychildform %}
         {% set show_records = 1 %}
         {{ mychildform.input(
             datarecord,
@@ -91,7 +91,7 @@
                     {% for datafield in datarecord.dataRecordFields %}
                         {% if datafield.dataField.id == dt_datafield.id  %}
                             {% if datafield.dataField.dataFieldMeta.fieldType.typeName != "Markdown" %}
-                                {% include 'ODRAdminBundle:XMLExport:datarecord_datafield.json.twig' with {
+                                {% include '@ODRAdmin/XMLExport/datarecord_datafield.json.twig' with {
                                     'datarecord': datarecord,
                                     'datafieldOLD': datafield.dataField,
                                     'datafield': dt_datafield,
@@ -107,7 +107,7 @@
                     {% endfor %}
                     {% if not found %}
                         {% if dt_datafied.dataFieldMeta is defined and dt_datafield.dataFieldMeta.fieldType.typeName != "Markdown" %}
-                            {% include 'ODRAdminBundle:XMLExport:datarecord_datafield.json.twig' with {
+                            {% include '@ODRAdmin/XMLExport/datarecord_datafield.json.twig' with {
                                 'datarecord': datarecord,
                                 'datafield': dt_datafield,
                                 'using_metadata': using_metadata,
@@ -133,7 +133,7 @@
                 "records": [
             {% endif %}
                 {# Check for Children #}
-                {% import "ODRAdminBundle:XMLExport:datarecord_childtype.json.twig" as mychildform %}
+                {% import "@ODRAdmin/XMLExport/datarecord_childtype.json.twig" as mychildform %}
                 {% set show_records = 1 %}
                 {{ mychildform.input(
                     datarecord.children,

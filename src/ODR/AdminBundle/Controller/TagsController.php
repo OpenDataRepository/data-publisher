@@ -194,7 +194,7 @@ class TagsController extends ODRCustomController
                 //  that checks for the job to be finished
                 $return['d'] = [
                     'html' => $templating->render(
-                        'ODRAdminBundle:Tags:tag_design_checker.html.twig',
+                        '@ODRAdmin/Tags/tag_design_checker.html.twig',
                         [
                             'tracked_job' => $conflicting_job,
                             'datafield_id' => $datafield_id,
@@ -216,7 +216,7 @@ class TagsController extends ODRCustomController
                 // Render and return the html for the list
                 $return['d'] = [
                     'html' => $templating->render(
-                        'ODRAdminBundle:Tags:tag_design_wrapper.html.twig',
+                        '@ODRAdmin/Tags/tag_design_wrapper.html.twig',
                         [
                             'datafield' => $cached_df,
                             'stacked_tags' => $stacked_tag_list,
@@ -713,7 +713,7 @@ class TagsController extends ODRCustomController
                 // Render and return the given tag list as HTML so it can be verified
                 $return['d'] = [
                     'html' => $templating->render(
-                        'ODRAdminBundle:Tags:tag_import_validate.html.twig',
+                        '@ODRAdmin/Tags/tag_import_validate.html.twig',
                         [
                             'would_create_new_tag' => $would_create_new_tag,
                             'stacked_tags' => $stacked_tag_array,
@@ -730,7 +730,7 @@ class TagsController extends ODRCustomController
                 $return['r'] = 1;
                 $return['d'] = [
                     'html' => $templating->render(
-                        'ODRAdminBundle:Tags:tag_import_errors.html.twig',
+                        '@ODRAdmin/Tags/tag_import_errors.html.twig',
                         [
                             'errors' => $errors,
                         ]

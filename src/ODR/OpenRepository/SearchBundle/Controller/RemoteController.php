@@ -278,7 +278,7 @@ class RemoteController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             $templating = $this->get('templating');
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODROpenRepositorySearchBundle:Remote:select_ajax.html.twig',
+                    '@ODROpenRepositorySearch/Remote/select_ajax.html.twig',
                     [
                         'datatype_id' => $datatype_id,
                         'datatype_array' => $dt_array,
@@ -419,7 +419,7 @@ class RemoteController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
             // Need to render this separately...
 //            $short_config = $templating->render(
-//                'ODROpenRepositorySearchBundle:Remote:config_data.html.twig',
+//                '@ODROpenRepositorySearch/Remote/config_data.html.twig',
 //                array(
 //                    'protocol' => $protocol,
 //                    'baseurl' => $site_baseurl,
@@ -430,7 +430,7 @@ class RemoteController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 //            );
 
             $long_config = $templating->render(
-                'ODROpenRepositorySearchBundle:Remote:odr_remote_search_inline.html.twig',
+                '@ODROpenRepositorySearch/Remote/odr_remote_search_inline.html.twig',
                 [
                     'protocol' => $protocol,
                     'baseurl' => $site_baseurl,
@@ -443,7 +443,7 @@ class RemoteController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             // ...so it can get escaped properly
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODROpenRepositorySearchBundle:Remote:config_data_wrapper.html.twig',
+                    '@ODROpenRepositorySearch/Remote/config_data_wrapper.html.twig',
                     [
 //                        'short_config' => $short_config,
                         'long_config' => $long_config,
@@ -485,14 +485,14 @@ class RemoteController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             $js = '';
             if ($minified) {
                 $js = $templating->render(
-                    'ODROpenRepositorySearchBundle:Remote:odr_remote_search_min.js.twig',
+                    '@ODROpenRepositorySearch/Remote/odr_remote_search_min.js.twig',
                     [
                     ]
                 );
             }
             else {
                 $js = $templating->render(
-                    'ODROpenRepositorySearchBundle:Remote:odr_remote_search.js.twig',
+                    '@ODROpenRepositorySearch/Remote/odr_remote_search.js.twig',
                     [
                     ]
                 );
@@ -560,15 +560,15 @@ class RemoteController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
             $template = null;
             if ($type === 'basic1')
-                $template = 'ODROpenRepositorySearchBundle:Remote:config_example_basic1.html.twig';
+                $template = '@ODROpenRepositorySearch/Remote/config_example_basic1.html.twig';
             else if ($type === 'basic2')
-                $template = 'ODROpenRepositorySearchBundle:Remote:config_example_basic2.html.twig';
+                $template = '@ODROpenRepositorySearch/Remote/config_example_basic2.html.twig';
             else if ($type === 'basic3')
-                $template = 'ODROpenRepositorySearchBundle:Remote:config_example_basic3.html.twig';
+                $template = '@ODROpenRepositorySearch/Remote/config_example_basic3.html.twig';
             else if ($type === 'defaults')
-                $template = 'ODROpenRepositorySearchBundle:Remote:config_example_adv_extra.html.twig';
+                $template = '@ODROpenRepositorySearch/Remote/config_example_adv_extra.html.twig';
             else if ($type === 'alt')
-                $template = 'ODROpenRepositorySearchBundle:Remote:config_example_adv_alt.html.twig';
+                $template = '@ODROpenRepositorySearch/Remote/config_example_adv_alt.html.twig';
 
             $template_type = 'basic';
             if ( str_contains($type, 'adv') )
@@ -585,7 +585,7 @@ class RemoteController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             // ...so it can get escaped properly
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODROpenRepositorySearchBundle:Remote:config_example_wrapper.html.twig',
+                    '@ODROpenRepositorySearch/Remote/config_example_wrapper.html.twig',
                     [
                         'site_baseurl' => $site_baseurl,
                         'template_type' => $template_type,

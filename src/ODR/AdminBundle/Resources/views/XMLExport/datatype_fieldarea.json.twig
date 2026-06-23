@@ -26,7 +26,7 @@
                     {% set datafield = datatype['dataFields'][datafield_id] %}
 
                     {% if datafield.dataFieldMeta.fieldType.typeName != "Markdown" %}
-                        {% include 'ODRAdminBundle:XMLExport:datatype_datafield.json.twig' with {
+                        {% include '@ODRAdmin/XMLExport/datatype_datafield.json.twig' with {
                             'datafield': datafield,
 
                             'is_link': is_link,
@@ -83,7 +83,7 @@
                     {% set is_top_level = 0 %}
 
                     {# using macro on purpose #}
-                    {% import "ODRAdminBundle:XMLExport:datatype_childtype.json.twig" as mychildform %}
+                    {% import "@ODRAdmin/XMLExport/datatype_childtype.json.twig" as mychildform %}
 
                     {% set show_records = 1 %}
                     {% if version != 'v3' and version != 'v4' and version != 'v5' %}
@@ -150,7 +150,7 @@
                     {% set is_top_level = 0 %}
 
                     {# using macro on purpose #}
-                    {% import "ODRAdminBundle:XMLExport:datatype_childtype.json.twig" as mychildform %}
+                    {% import "@ODRAdmin/XMLExport/datatype_childtype.json.twig" as mychildform %}
 
                     {% set show_records = 1 %}
                     {% if version != 'v3' and version != 'v4' and version != 'v5' %}

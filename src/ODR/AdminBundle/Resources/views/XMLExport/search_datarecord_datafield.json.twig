@@ -169,7 +169,7 @@
 ]
 
     {% elseif field_typename == "Tags" %}
-        {% include 'ODRAdminBundle:XMLExport:datarecord_tag_wrapper.json.twig' with {
+        {% include '@ODRAdmin/XMLExport/datarecord_tag_wrapper.json.twig' with {
             'datafield': datafield,
             'drf': datarecordfield,
         } %}

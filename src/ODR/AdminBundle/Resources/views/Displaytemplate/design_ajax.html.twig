@@ -20,7 +20,7 @@
         </h1>
         {% if datatype.setup_step != "complete" %}
             {% if datatype.metadata_for != null %} {# Master Template Creation #}
-                {% include 'ODRAdminBundle:Displaytemplate:wizard.html.twig' with {
+                {% include '@ODRAdmin/Displaytemplate/wizard.html.twig' with {
                     'wizard_step': 2,
                     'datatype_id': datatype.id,
                     'edit_properties': false,
@@ -29,7 +29,7 @@
                     'master_type_id': 0,
                 } %}
             {% else %}
-                {% include 'ODRAdminBundle:Displaytemplate:wizard.html.twig' with {
+                {% include '@ODRAdmin/Displaytemplate/wizard.html.twig' with {
                     'wizard_step': 3,
                     'datatype_id': datatype.id,
                     'edit_properties': false,
@@ -40,7 +40,7 @@
             {% endif %}
         {% else %}
             {# Dataset creation wizard is complete - menu for managing? #}
-            {% include 'ODRAdminBundle:Displaytemplate:wizard.html.twig' with {
+            {% include '@ODRAdmin/Displaytemplate/wizard.html.twig' with {
                 'wizard_step': 3,
                 'datatype_id': datatype.id,
                 'edit_properties': false,
@@ -156,7 +156,7 @@
                 {% set is_datatype_admin = true %}
             {% endif %}
 
-            {% include 'ODRAdminBundle:Displaytemplate:design_area.html.twig' with {
+            {% include '@ODRAdmin/Displaytemplate/design_area.html.twig' with {
                 'datatype_array': datatype_array,
                 'theme_array': theme_array,
                 'datafield_properties': datafield_properties,
@@ -171,38 +171,38 @@
     </div>
 
     <div id="link_datatype_dialog_wrapper">
-        {% include 'ODRAdminBundle:Link:link_type_dialog.html.twig' %}
+        {% include '@ODRAdmin/Link/link_type_dialog.html.twig' %}
     </div>
     <div id="clone_link_template_dialog_wrapper">
-        {% include 'ODRAdminBundle:Link:clone_link_template_dialog.html.twig' %}
+        {% include '@ODRAdmin/Link/clone_link_template_dialog.html.twig' %}
     </div>
     <div id="plugin_settings_dialog_wrapper">
-        {% include 'ODRAdminBundle:Plugins:plugin_settings_dialog.html.twig' %}
+        {% include '@ODRAdmin/Plugins/plugin_settings_dialog.html.twig' %}
     </div>
     <div id="markdown_help_dialog_wrapper">
-        {% include 'ODRAdminBundle:Displaytemplate:markdown_help_dialog.html.twig' %}
+        {% include '@ODRAdmin/Displaytemplate/markdown_help_dialog.html.twig' %}
     </div>
     <div id="radio_option_edit_dialog_wrapper">
-        {% include 'ODRAdminBundle:Displaytemplate:radio_option_wrapper_dialog.html.twig' %}
+        {% include '@ODRAdmin/Displaytemplate/radio_option_wrapper_dialog.html.twig' %}
     </div>
     <div id="tag_edit_dialog_wrapper">
-        {% include 'ODRAdminBundle:Displaytemplate:tag_wrapper_dialog.html.twig' with {
+        {% include '@ODRAdmin/Displaytemplate/tag_wrapper_dialog.html.twig' with {
             'display': 'design'
         } %}
     </div>
     <div id="multi_datafield_properties_dialog_wrapper">
-        {% include 'ODRAdminBundle:Displaytemplate:multi_datafield_properties_dialog.html.twig' %}
+        {% include '@ODRAdmin/Displaytemplate/multi_datafield_properties_dialog.html.twig' %}
     </div>
     <div id="special_datafield_selection_dialog_wrapper">
-        {% include 'ODRAdminBundle:Displaytemplate:special_datafield_selection_dialog.html.twig' %}
+        {% include '@ODRAdmin/Displaytemplate/special_datafield_selection_dialog.html.twig' %}
     </div>
     <div id="stored_search_keys_dialog_wrapper">
-        {% include 'ODRAdminBundle:Displaytemplate:stored_search_keys_dialog.html.twig' %}
+        {% include '@ODRAdmin/Displaytemplate/stored_search_keys_dialog.html.twig' %}
     </div>
 
 {#  TODO - get this working again...
     <div id="deleted_fields_dialog_wrapper">
-        {% include 'ODRAdminBundle:Displaytemplate:undelete_fields_dialog.html.twig' %}
+        {% include '@ODRAdmin/Displaytemplate/undelete_fields_dialog.html.twig' %}
     </div>
 #}
 
@@ -221,7 +221,7 @@
     {% endfor %}
 
     $(function() {
-        // disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        // disableSearchSidebar();    {# defined in @ODRAdmin/Default/common_js.html.twig #}
         // Remove the sidebar.  Slows down design page
         $("#odr_content").children("#ODRSearchSidebar").remove();
 
@@ -234,7 +234,7 @@
 
 {# TODO - enable this once a better non-master theme designer gets worked out...
         {% if notify_of_sync is defined and notify_of_sync == true %}
-        {% include 'ODRAdminBundle:Theme:theme_sync_warning.js.twig' with {
+        {% include '@ODRAdmin/Theme/theme_sync_warning.js.twig' with {
             'datatype_id': datatype.id,
             'theme_id': theme.id,
             'search_key': '',
@@ -276,7 +276,7 @@
     /**
      * Loads the properties form for the given theme_element.
      *
-     * This function is called by setupResizeable() in ODRAdminBundle:DisplayTemplate:functions.js.twig
+     * This function is called by setupResizeable() in @ODRAdmin/DisplayTemplate/functions.js.twig
      *
      * @param {number} theme_element_id
      */
@@ -315,7 +315,7 @@
     /**
      * Loads the properties form for the given theme_datafield.
      *
-     * This function is called by setupResizeable() in ODRAdminBundle:DisplayTemplate:functions.js.twig
+     * This function is called by setupResizeable() in @ODRAdmin/DisplayTemplate/functions.js.twig
      *
      * @param {number} theme_element_id
      * @param {number} datafield_id
@@ -483,7 +483,7 @@
             setupSortableDatafields(elem);    {# defined in Displaytemplate:functions.js.twig #}
     }
 
-    {% include 'ODRAdminBundle:Displaytemplate:functions.js.twig' %}
+    {% include '@ODRAdmin/Displaytemplate/functions.js.twig' %}
 
     /**
      * Resets the various toolset links on the left side of the master layout design page.
@@ -1796,7 +1796,7 @@
         InitDatatypeTools();
 
         // Attach click handlers to tags
-        setupTagTree();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        setupTagTree();    {# defined in @ODRAdmin/Default/common_js.html.twig #}
 
         // Click handler to Reset Opacity
         $("#ODRDatatypeDesign").find("> .ODRDataType > .ODRFieldArea").unbind('click').click(function(e) {
@@ -2023,7 +2023,7 @@
     /**
      * Saves the width and hidden properties of a theme_datafield entity
      *
-     * This function is called by setupResizeable() in ODRAdminBundle:DisplayTemplate:functions.js.twig
+     * This function is called by setupResizeable() in @ODRAdmin/DisplayTemplate/functions.js.twig
      *
      * @param {number} theme_element_id
      * @param {number} datafield_id
@@ -2165,16 +2165,16 @@
 
         // Init Field Properties forms
         $(".ODRRadioOptions").unbind('click').click(function() {
-            {# defined in ODRAdminBundle:Displaytemplate:radio_options_wrapper_dialog.html.twig #}
+            {# defined in @ODRAdmin/Displaytemplate/radio_options_wrapper_dialog.html.twig #}
             var datafield_id = $(this).attr('rel');
             openRadioOptionEditDialog(datafield_id);
         });
         $(".ODRMarkdownHelp").unbind('click').click(function() {
-            {# defined in ODRAdminBundle:Displaytemplate:markdown_help_dialog.html.twig #}
+            {# defined in @ODRAdmin/Displaytemplate/markdown_help_dialog.html.twig #}
             openMarkdownHelpDialog();
         });
         $(".ODRTagsEdit").unbind('click').click(function() {
-            {# defined in ODRAdminBundle:Displaytemplate:tag_wrapper_dialog.html.twig #}
+            {# defined in @ODRAdmin/Displaytemplate/tag_wrapper_dialog.html.twig #}
             var datafield_id = $(this).attr('rel');
             openTagEditDialog(datafield_id);
         });
@@ -2690,7 +2690,7 @@
     /**
      * Saves the results of moving a theme_element inside a datatype.
      *
-     * This function is called by setupSortableThemeElements() in ODRAdminBundle:DisplayTemplate:functions.js.twig
+     * This function is called by setupSortableThemeElements() in @ODRAdmin/DisplayTemplate/functions.js.twig
      *
      * @param {HTMLElement} container - The .ODRFieldArea element that is the direct parent of the theme_element being moved
      */
@@ -2748,7 +2748,7 @@
     /**
      * Saves the results of moving a datafield inside a theme_element, or to a different theme_element.
      *
-     * This function is called by setupSortableDatafields() in ODRAdminBundle:DisplayTemplate:functions.js.twig
+     * This function is called by setupSortableDatafields() in @ODRAdmin/DisplayTemplate/functions.js.twig
      *
      * @param {HTMLElement} container - The .ODRInnerBox element that is the direct parent of the datafields in the destination theme_element
      * @param {number} datafield_id - The id of the datafield that triggered this function by being moved
@@ -2868,7 +2868,7 @@
     /**
      * Saves the width and hidden properties of a theme_element
      *
-     * This function is called by setupResizeable() in ODRAdminBundle:DisplayTemplate:functions.js.twig
+     * This function is called by setupResizeable() in @ODRAdmin/DisplayTemplate/functions.js.twig
      *
      * @param {number} theme_element_id
      */
@@ -3142,7 +3142,7 @@
      * @param {number} datatype_id
      */
     function ReloadChild(datatype_id) {
-        // Called in ODRAdminBundle:Plugins:plugin_settings_dialog.html.twig
+        // Called in @ODRAdmin/Plugins/plugin_settings_dialog.html.twig
 
         // Find all theme elements that contain the given datatype on the page...they all need to
         //  be reloaded.  Can't just use the id selector, since there could be multiples of the same

@@ -94,7 +94,7 @@ class DebugController extends ODRCustomController
 
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Debug:debug_csv_export_start.html.twig',
+                    '@ODRAdmin/Debug/debug_csv_export_start.html.twig',
                     [
                         'initial_datatype_id' => $datatype_id,
                         'datatype_array' => $dt_array,

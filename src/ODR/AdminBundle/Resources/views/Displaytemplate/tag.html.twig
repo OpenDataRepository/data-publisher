@@ -20,7 +20,7 @@
     {% if has_children %}
     <ul class="ODRTagGroup ODRHidden">    {# Have the tag tree start out collapsed #}
         {% for child_tag_id, child_tag in tag.children %}
-            {% include 'ODRAdminBundle:Displaytemplate:tag.html.twig' with {
+            {% include '@ODRAdmin/Displaytemplate/tag.html.twig' with {
                 'tag': child_tag,
             } %}
         {% endfor %}

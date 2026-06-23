@@ -754,7 +754,7 @@ class MigrationController extends ODRCustomController
             // Render and return a tree structure of data
             if ( $side === 'src' ) {
                 $return['d'] = $templating->render(
-                    'ODRAdminBundle:Migration:list.html.twig',
+                    '@ODRAdmin/Migration/list.html.twig',
                     [
                         'datatype' => $datatype_array,
                         'side' => 'src',
@@ -764,14 +764,14 @@ class MigrationController extends ODRCustomController
             else {
                 $return['d'] = [
                     'datafields' => $templating->render(
-                        'ODRAdminBundle:Migration:list.html.twig',
+                        '@ODRAdmin/Migration/list.html.twig',
                         [
                             'datatype' => $datatype_array,
                             'side' => 'fields',
                         ],
                     ),
                     'datatypes' => $templating->render(
-                        'ODRAdminBundle:Migration:list.html.twig',
+                        '@ODRAdmin/Migration/list.html.twig',
                         [
                             'datatype' => $datatype_array,
                             'side' => 'types',
@@ -865,7 +865,7 @@ class MigrationController extends ODRCustomController
             // Render and return a tree structure of data
             $return['d'] = [
                 'radio_options' => $templating->render(
-                    'ODRAdminBundle:Migration:radio_option_list.html.twig',
+                    '@ODRAdmin/Migration/radio_option_list.html.twig',
                     [
                         'src_df' => $src_dt_array[$src_dt_id]['dataFields'][$src_datafield_id],
 
@@ -1058,7 +1058,7 @@ class MigrationController extends ODRCustomController
             // Render and return a tree structure of data
             $return['d'] = [
                 'html' =>$templating->render(
-                    'ODRAdminBundle:Migration:make_datatype_use_template.html.twig',
+                    '@ODRAdmin/Migration/make_datatype_use_template.html.twig',
                     [
                         'datatypes' => $top_level_datatypes,
                         'templates' => $top_level_templates,
@@ -1371,7 +1371,7 @@ class MigrationController extends ODRCustomController
             // Render and return a tree structure of data
             $return['d'] = [
                 'html' =>$templating->render(
-                    'ODRAdminBundle:Migration:move_datatype_contents.html.twig',
+                    '@ODRAdmin/Migration/move_datatype_contents.html.twig',
                     [
                         'datatypes' => $datatypes,
                     ]
@@ -1879,7 +1879,7 @@ class MigrationController extends ODRCustomController
             // Render and return a tree structure of data
             $return['d'] = [
                 'html' =>$templating->render(
-                    'ODRAdminBundle:Migration:convert_link_to_childtype.html.twig',
+                    '@ODRAdmin/Migration/convert_link_to_childtype.html.twig',
                     [
                         'datatypes' => $datatypes,
 
@@ -2322,7 +2322,7 @@ class MigrationController extends ODRCustomController
             // Render and return a tree structure of data
             $return['d'] = [
                 'html' =>$templating->render(
-                    'ODRAdminBundle:Migration:convert_childtype_to_link.html.twig',
+                    '@ODRAdmin/Migration/convert_childtype_to_link.html.twig',
                     [
                         'datatypes' => $datatypes,
 

@@ -52,7 +52,7 @@
                 {{ content|raw }}
             {% else %}
                 {# ...otherwise, render the datafield as normal #}
-                {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
+                {% include '@ODROpenRepositorySearch/Default/search_datafield.html.twig' with {
                     'search_params': search_params,
                     'datatype': dt,
                     'datafield': df

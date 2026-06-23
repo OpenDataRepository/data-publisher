@@ -21,7 +21,7 @@
                     {% set datafield = datatype['dataFields'][datafield_id] %}
 
                     {% if datafield.dataFieldMeta.fieldType.typeName != "Markdown" %}
-                        {% include 'ODRAdminBundle:XMLExport:search_datarecord_datafield.json.twig' with {
+                        {% include '@ODRAdmin/XMLExport/search_datarecord_datafield.json.twig' with {
                             'datarecord': datarecord,
                             'datafield': datafield,
 
@@ -79,7 +79,7 @@
                     {% set is_top_level = 0 %}
 
                     {# using macro on purpose to get the template as a string #}
-                    {% import "ODRAdminBundle:XMLExport:search_datarecord_childtype.json.twig" as mychildform %}
+                    {% import "@ODRAdmin/XMLExport/search_datarecord_childtype.json.twig" as mychildform %}
                     {% set show_records = 0 %}
                     {% if version != 'v3' or version == 'v4' %}
                         {% set show_records = 1 %}

@@ -175,7 +175,7 @@
             </span>
 
             {% if datafield.tags is defined %}
-                {% include 'ODRAdminBundle:Displaytemplate:tag_wrapper.html.twig' with {
+                {% include '@ODRAdmin/Displaytemplate/tag_wrapper.html.twig' with {
                     'stacked_tags': datafield.tags,
                 } %}
             {% endif %}
@@ -206,7 +206,7 @@
         </fieldset>
 
         {% elseif field_typename == "Markdown" %}
-            {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {'datafield': datafield} %}
+            {% include '@ODRAdmin/Display/display_markdown.html.twig' with {'datafield': datafield} %}
         {% endif %}
     </form>
 

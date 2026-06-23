@@ -135,7 +135,7 @@ class ThemeController extends ODRCustomController
 
             // Render and return the theme chooser dialog
             $return['d'] = $templating->render(
-                'ODRAdminBundle:Default:choose_view.html.twig',
+                '@ODRAdmin/Default/choose_view.html.twig',
                 [
                     'user' => $user,
                     'is_datatype_admin' => $is_datatype_admin,
@@ -1379,7 +1379,7 @@ class ThemeController extends ODRCustomController
 
                 // Return the slideout html
                 $return['d'] = $templating->render(
-                    'ODRAdminBundle:Theme:theme_element_properties_form.html.twig',
+                    '@ODRAdmin/Theme/theme_element_properties_form.html.twig',
                     [
                         'theme_element' => $theme_element,
                         'theme_element_form' => $theme_element_form->createView(),
@@ -1837,7 +1837,7 @@ class ThemeController extends ODRCustomController
 
             // Return the slideout html
             $return['d'] = $templating->render(
-                'ODRAdminBundle:Theme:theme_datatype_properties_form.html.twig',
+                '@ODRAdmin/Theme/theme_datatype_properties_form.html.twig',
                 [
                     'theme_datatype' => $theme_datatype,
                     'theme_datatype_form' => $theme_datatype_form,
@@ -2077,7 +2077,7 @@ class ThemeController extends ODRCustomController
 
             // Return the slideout html
             $return['d'] = $templating->render(
-                'ODRAdminBundle:Theme:theme_datafield_properties_form.html.twig',
+                '@ODRAdmin/Theme/theme_datafield_properties_form.html.twig',
                 [
                     'theme_datafield' => $theme_datafield,
                     'theme_datafield_form' => $theme_datafield_form,

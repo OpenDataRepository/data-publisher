@@ -868,7 +868,7 @@ class TextResultsController extends ODRCustomController
             // Return the data for this request
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Link:link_datarecord_form_table.html.twig',
+                    '@ODRAdmin/Link/link_datarecord_form_table.html.twig',
                     [
                         'data' => $data,
                         'column_str' => $column_str,

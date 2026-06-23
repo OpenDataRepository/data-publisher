@@ -18,7 +18,7 @@
                     {% set datafield = datatype['dataFields'][datafield_id] %}
 
                     {% if datafield.dataFieldMeta.fieldType.typeName != "Markdown" %}
-                        {% include 'ODRAdminBundle:XMLExport:datarecord_datafield.xml.twig' with {
+                        {% include '@ODRAdmin/XMLExport/datarecord_datafield.xml.twig' with {
                             'datarecord': datarecord,
                             'datafield': datafield,
 
@@ -57,7 +57,7 @@
                     {% set is_top_level = 0 %}
 
                     {# using macro on purpose #}
-                    {% import "ODRAdminBundle:XMLExport:datarecord_childtype.xml.twig" as mychildform %}
+                    {% import "@ODRAdmin/XMLExport/datarecord_childtype.xml.twig" as mychildform %}
                     {% set content = mychildform.input(child_datatype, datarecord_array, child_theme, child_datatype_id, datarecord.id, child_theme_id, is_top_level, theme_datatype.is_link, using_metadata, baseurl, version) %}
 
                     {% if "<" in content|trim %}
@@ -115,7 +115,7 @@
                     {% set is_top_level = 0 %}
 
                     {# using macro on purpose #}
-                    {% import "ODRAdminBundle:XMLExport:datarecord_childtype.xml.twig" as mychildform %}
+                    {% import "@ODRAdmin/XMLExport/datarecord_childtype.xml.twig" as mychildform %}
                     {% set content = mychildform.input(child_datatype, datarecord_array, child_theme, child_datatype_id, datarecord.id, child_theme_id, is_top_level, theme_datatype.is_link, using_metadata, baseurl, version) %}
 
                     {% if "<" in content|trim %}

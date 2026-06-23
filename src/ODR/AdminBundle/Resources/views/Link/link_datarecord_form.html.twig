@@ -32,7 +32,7 @@
         </div>
 
         <div class="ODRHidden">
-        {% include 'ODRAdminBundle:Display:display_ajax.html.twig' with {
+        {% include '@ODRAdmin/Display/display_ajax.html.twig' with {
             'datatype_array': datatype_array,
             'datarecord_array': datarecord_array,
             'theme_array': theme_array,
@@ -77,7 +77,7 @@
     var illegal_datarecords = [{% for dr,value in illegal_datarecords %}{{ dr }},{% endfor %}];
 
     $(function() {
-        enableSearchSidebar('{{ remote_datatype_search_key }}', 'expanded', 'linking');    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        enableSearchSidebar('{{ remote_datatype_search_key }}', 'expanded', 'linking');    {# defined in @ODRAdmin/Default/common_js.html.twig #}
 
         $(".ODRLinkHeader").unbind('click').click(function() {
             if ( $(this).hasClass('ODRAccordionSelected') ) {

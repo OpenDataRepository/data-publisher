@@ -48,7 +48,7 @@
                             Click a field to bring up its configurable properties.  To view hidden fields, toggle the "show hidden elements" checkbox below.
                         </p>
                         <p>Edit the name and description of the view below:</p>
-                        {% include 'ODRAdminBundle:Theme:theme_properties_form.html.twig' with {
+                        {% include '@ODRAdmin/Theme/theme_properties_form.html.twig' with {
                             'theme': theme,
                             'theme_form': theme_form,
                         } %}
@@ -141,7 +141,7 @@
         </div>
 
         <div id="ThemeDesignArea">
-            {% include 'ODRAdminBundle:Theme:theme_area.html.twig' with {
+            {% include '@ODRAdmin/Theme/theme_area.html.twig' with {
                 'datatype_array': datatype_array,
                 'theme_array': theme_array,
                 'datafield_properties': datafield_properties,
@@ -157,7 +157,7 @@
     </div>
 
     <div id="plugin_layout_settings_dialog_wrapper">
-        {% include 'ODRAdminBundle:Plugins:plugin_layout_settings_dialog.html.twig' %}
+        {% include '@ODRAdmin/Plugins/plugin_layout_settings_dialog.html.twig' %}
     </div>
 
 <style>
@@ -173,7 +173,7 @@
 <script>
     var SaveTimeout = 1500;
     $(function() {
-        disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        disableSearchSidebar();    {# defined in @ODRAdmin/Default/common_js.html.twig #}
 
         // Initialize the help button
         $("#ODRHelpButton").unbind('click').click(function() {
@@ -395,7 +395,7 @@
             setupSortableDatafields(elem);    {# defined in Displaytemplate:functions.js.twig #}
     }
 
-    {% include 'ODRAdminBundle:Displaytemplate:functions.js.twig' %}
+    {% include '@ODRAdmin/Displaytemplate/functions.js.twig' %}
 
     /**
      * Resets the various toolset links on the left side of the master layout design page.
@@ -768,7 +768,7 @@
         ODRTheme_InitDatatypeTools();
 
         // Attach click handlers to tags
-        setupTagTree();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        setupTagTree();    {# defined in @ODRAdmin/Default/common_js.html.twig #}
 
         // Click handler to Reset Opacity
         $("#ODRDatatypeDesign").find("> .ODRDataType > .ODRFieldArea").click(function(e) {
@@ -991,7 +991,7 @@
     /**
      * Saves the width and hidden properties of a theme_element
      *
-     * This function is called by setupResizeable() in ODRAdminBundle:DisplayTemplate:functions.js.twig
+     * This function is called by setupResizeable() in @ODRAdmin/DisplayTemplate/functions.js.twig
      *
      * @param {number} theme_element_id
      */
@@ -1138,7 +1138,7 @@
     /**
      * Saves the width of a theme_datafield entity
      *
-     * This function is called by setupResizeable() in ODRAdminBundle:DisplayTemplate:functions.js.twig
+     * This function is called by setupResizeable() in @ODRAdmin/DisplayTemplate/functions.js.twig
      *
      * @param {number} theme_element_id
      * @param {number} datafield_id
@@ -1450,7 +1450,7 @@
     /**
      * Saves the results of moving a theme_element inside a datatype.
      *
-     * This function is called by setupSortableThemeElements() in ODRAdminBundle:DisplayTemplate:functions.js.twig
+     * This function is called by setupSortableThemeElements() in @ODRAdmin/DisplayTemplate/functions.js.twig
      *
      * @param {HTMLElement} container - The .ODRFieldArea element that is the direct parent of the theme_element being moved
      */
@@ -1508,7 +1508,7 @@
     /**
      * Saves the results of moving a datafield inside a theme_element, or to a different theme_element.
      *
-     * This function is called by setupSortableDatafields() in ODRAdminBundle:DisplayTemplate:functions.js.twig
+     * This function is called by setupSortableDatafields() in @ODRAdmin/DisplayTemplate/functions.js.twig
      *
      * @param {HTMLElement} container - The .ODRInnerBox element that is the direct parent of the datafields in the destination theme_element
      * @param {number} datafield_id - The id of the datafield that triggered this function by being moved
@@ -1768,7 +1768,7 @@
     /**
      * Loads the properties form for the given theme_element.
      *
-     * This function is called by setupResizeable() in ODRAdminBundle:DisplayTemplate:functions.js.twig
+     * This function is called by setupResizeable() in @ODRAdmin/DisplayTemplate/functions.js.twig
      *
      * @param {number} theme_element_id
      */
@@ -1807,7 +1807,7 @@
     /**
      * Loads the properties form for the given theme_datafield.
      *
-     * This function is called by setupResizeable() in ODRAdminBundle:DisplayTemplate:functions.js.twig
+     * This function is called by setupResizeable() in @ODRAdmin/DisplayTemplate/functions.js.twig
      *
      * @param {number} theme_element_id
      * @param {number} datafield_id

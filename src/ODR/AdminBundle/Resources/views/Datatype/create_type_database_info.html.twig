@@ -1,6 +1,6 @@
 {% apply spaceless %}
 
-    {% include 'ODRAdminBundle:Displaytemplate:wizard.html.twig' with {
+    {% include '@ODRAdmin/Displaytemplate/wizard.html.twig' with {
         'wizard_step': 2,
         'datatype_id': 0,
         'edit_properties': false,
@@ -14,7 +14,7 @@
         <div class="ODRThemeElement pure-u-1">
             <div class="ODRInnerBox pure-u-1">
                 <h3 class="ODRHeader"><i class="fa fa-md fa-info-circle fa-fw"></i> Name and Description</h3>
-                {% include 'ODRAdminBundle:Datatype:create_datatype_info_form.html.twig' with {'form': form} %}
+                {% include '@ODRAdmin/Datatype/create_datatype_info_form.html.twig' with {'form': form} %}
             </div>
         </div>
     </div>

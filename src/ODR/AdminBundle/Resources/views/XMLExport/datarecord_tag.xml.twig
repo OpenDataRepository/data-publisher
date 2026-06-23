@@ -42,7 +42,7 @@
     {% endif %}
 
     {% for child_tag_id, child_tag in tag.children %}
-        {% include 'ODRAdminBundle:XMLExport:datarecord_tag.xml.twig' with {
+        {% include '@ODRAdmin/XMLExport/datarecord_tag.xml.twig' with {
             'tag_selections': tag_selections,
             'child_tag_selections': child_tag_selections,
             'tag': child_tag,

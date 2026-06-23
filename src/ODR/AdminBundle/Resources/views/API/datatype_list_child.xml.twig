@@ -14,7 +14,7 @@
 {% if database.child_databases is defined %}
     <child_databases>
         {# Using macro otherwise twig can't compile the template due to infinite recursion #}
-        {% import "ODRAdminBundle:API:datatype_list_child.xml.twig" as mychildform %}
+        {% import "@ODRAdmin/API/datatype_list_child.xml.twig" as mychildform %}
         {{ mychildform.input(database.child_databases) }}
     </child_databases>
 {% endif %}

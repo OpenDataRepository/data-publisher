@@ -3138,7 +3138,7 @@ class EditController extends ODRCustomController
             // Render and return the HTML for the list of files
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Edit:edit_file_datafield.html.twig',
+                    '@ODRAdmin/Edit/edit_file_datafield.html.twig',
                     [
                         'datafield' => $df_array,
                         'datarecord' => $dr_array,
@@ -3367,7 +3367,7 @@ class EditController extends ODRCustomController
 
             $redirect_path = $router->generate('odr_record_edit', ['datarecord_id' => 0]);
             $record_header_html = $templating->render(
-                'ODRAdminBundle:Edit:edit_header.html.twig',
+                '@ODRAdmin/Edit/edit_header.html.twig',
                 [
                     'datatype_permissions' => $datatype_permissions,
                     'edit_shows_all_fields' => $edit_shows_all_fields,
@@ -3611,7 +3611,7 @@ class EditController extends ODRCustomController
             // Render the dialog box for this request
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Edit:field_history_dialog_form.html.twig',
+                    '@ODRAdmin/Edit/field_history_dialog_form.html.twig',
                     [
                         'historical_values' => $historical_values,
 
@@ -3885,7 +3885,7 @@ class EditController extends ODRCustomController
             // Render the dialog box for this request
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Edit:field_history_dialog_form.html.twig',
+                    '@ODRAdmin/Edit/field_history_dialog_form.html.twig',
                     [
                         'historical_values' => $historical_values,
 

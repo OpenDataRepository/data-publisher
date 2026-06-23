@@ -47,7 +47,7 @@
             <div class="ODRThemeElement" style="margin-top: 15px;">
                 {# this form is for renaming radio options #}
                 <form id="ODRRadioOptionForm" rel="{{ datafield.id }}">
-                    {% include 'ODRAdminBundle:Displaytemplate:radio_option_rows.html.twig' with {
+                    {% include '@ODRAdmin/Displaytemplate/radio_option_rows.html.twig' with {
                         'datafield' : datafield,
 
                         'disable_controls': disable_controls,

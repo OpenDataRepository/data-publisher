@@ -105,7 +105,7 @@ class SearchRedirectService
             't' => '',
             'd' => [
                 'html' => $this->templating->render(
-                    'ODROpenRepositorySearchBundle:Default:searchpage_redirect.html.twig',
+                    '@ODROpenRepositorySearch/Default/searchpage_redirect.html.twig',
                     [
                         'logged_in' => $logged_in,
                         'url' => $new_url,

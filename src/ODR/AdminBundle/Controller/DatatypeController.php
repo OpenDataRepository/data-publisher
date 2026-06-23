@@ -160,7 +160,7 @@ class DatatypeController extends ODRCustomController
                     $form = $this->createForm(UpdateDatatypePropertiesForm::class, $new_datatype_meta, $params);
 
                     $html = $templating->render(
-                        'ODRAdminBundle:Datatype:update_datatype_properties_form.html.twig',
+                        '@ODRAdmin/Datatype/update_datatype_properties_form.html.twig',
                         [
                             'datatype' => $datatype,
                             'form' => $form->createView(),
@@ -237,7 +237,7 @@ class DatatypeController extends ODRCustomController
                 $return['t'] = "html";
                 $return['d'] = [
                     'html' => $templating->render(
-                        'ODRAdminBundle:Datatype:create_status_checker.html.twig',
+                        '@ODRAdmin/Datatype/create_status_checker.html.twig',
                         [
                             "datatype" => $datatype
                         ]
@@ -324,7 +324,7 @@ class DatatypeController extends ODRCustomController
                 $datatype_permissions = $permissions_service->getDatatypePermissions($user);
 
                 $record_header_html = $templating->render(
-                    'ODRAdminBundle:Edit:properties_edit_header.html.twig',
+                    '@ODRAdmin/Edit/properties_edit_header.html.twig',
                     [
                         'datatype_permissions' => $datatype_permissions,
                         'datarecord' => $datarecord,
@@ -336,7 +336,7 @@ class DatatypeController extends ODRCustomController
                 );
 
                 $html = $templating->render(
-                    'ODRAdminBundle:Datatype:properties.html.twig',
+                    '@ODRAdmin/Datatype/properties.html.twig',
                     [
                         'wizard' => $wizard,
                         'datatype' => $datatype,
@@ -416,7 +416,7 @@ class DatatypeController extends ODRCustomController
                 $return['t'] = "html";
                 $return['d'] = [
                     'html' => $templating->render(
-                        'ODRAdminBundle:Datatype:create_status_checker.html.twig',
+                        '@ODRAdmin/Datatype/create_status_checker.html.twig',
                         [
                             "datatype" => $datatype
                         ]
@@ -515,7 +515,7 @@ class DatatypeController extends ODRCustomController
                 // ----------------------------------------
                 // Render the required version of the page
                 $html = $templating->render(
-                    'ODRAdminBundle:Datatype:landing.html.twig',
+                    '@ODRAdmin/Datatype/landing.html.twig',
                     [
                         'user' => $user,
                         'initial_datatype_id' => $datatype->getId(),
@@ -654,7 +654,7 @@ class DatatypeController extends ODRCustomController
                 $value_str = substr($value_str, 0, -1);
 
                 $graph = $templating->render(
-                    'ODRAdminBundle:Datatype:dashboard_graphs.html.twig',
+                    '@ODRAdmin/Datatype/dashboard_graphs.html.twig',
                     [
                         'datatype_name' => $dt_name,
                         'created_str' => $created_str,
@@ -792,7 +792,7 @@ class DatatypeController extends ODRCustomController
             // Render and return the html for the datatype list
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Datatype:type_list.html.twig',
+                    '@ODRAdmin/Datatype/type_list.html.twig',
                     [
                         'user' => $user,
                         'datatype_permissions' => $datatype_permissions,
@@ -945,7 +945,7 @@ class DatatypeController extends ODRCustomController
             // Render and return the html
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Datatype:create_type_choose_template.html.twig',
+                    '@ODRAdmin/Datatype/create_type_choose_template.html.twig',
                     [
                         'user' => $user,
                         'datatype_permissions' => $datatype_permissions,
@@ -1049,7 +1049,7 @@ class DatatypeController extends ODRCustomController
             // Render and return the html
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Datatype:create_type_choose_template.html.twig',
+                    '@ODRAdmin/Datatype/create_type_choose_template.html.twig',
                     [
                         'user' => $user,
                         'datatype_permissions' => $datatype_permissions,
@@ -1156,7 +1156,7 @@ class DatatypeController extends ODRCustomController
                 // Render and return the html
                 $return['d'] = [
                     'html' => $templating->render(
-                        'ODRAdminBundle:Datatype:create_type_database_info.html.twig',
+                        '@ODRAdmin/Datatype/create_type_database_info.html.twig',
                         [
                             'user' => $user,
                             'form' => $form->createView(),
@@ -1700,7 +1700,7 @@ class DatatypeController extends ODRCustomController
             else {
                 // Otherwise, this was a GET request
                 $return['d'] = $templating->render(
-                    'ODRAdminBundle:Datatype:create_datatype_info_form.html.twig',
+                    '@ODRAdmin/Datatype/create_datatype_info_form.html.twig',
                     [
                         'form' => $form->createView()
                     ]
@@ -1945,7 +1945,7 @@ class DatatypeController extends ODRCustomController
             // Render and return the html for the datatype list
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Datatype:type_list_copy_databases.html.twig',
+                    '@ODRAdmin/Datatype/type_list_copy_databases.html.twig',
                     [
                         'admin' => $admin,
 

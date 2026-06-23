@@ -118,7 +118,7 @@ class FakeEditController extends ODRCustomController
 
             // The "fake" datarecord still needs a header
             $header_html = $templating->render(
-                'ODRAdminBundle:FakeEdit:fake_edit_header.html.twig',
+                '@ODRAdmin/FakeEdit/fake_edit_header.html.twig',
                 [
                     'datatype' => $datatype,
                     'odr_tab_id' => $odr_tab_id,

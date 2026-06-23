@@ -32,7 +32,7 @@
                 {% for child_datatype_id,tmp in datatype['descendants'] %}
                     {% if tmp['datatype'][child_datatype_id] is defined and tmp['datatype'][child_datatype_id]|length > 0 %}
                         {% set child_datatype = tmp['datatype'][child_datatype_id] %}
-                        {% include 'ODRAdminBundle:Trigger:trigger_childtype.html.twig' with {
+                        {% include '@ODRAdmin/Trigger/trigger_childtype.html.twig' with {
                             'datatype': child_datatype
                         } %}
                     {% endif %}

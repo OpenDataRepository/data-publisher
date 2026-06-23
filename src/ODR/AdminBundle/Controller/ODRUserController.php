@@ -102,7 +102,7 @@ class ODRUserController extends ODRCustomController
             // Render and return the form
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:ODRUser:create_user.html.twig',
+                    '@ODRAdmin/ODRUser/create_user.html.twig',
                     [
                         'profile_form' => $form->createView(),
                     ]
@@ -401,7 +401,7 @@ class ODRUserController extends ODRCustomController
             // Render them in a list
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:ODRUser:user_profile.html.twig',
+                    '@ODRAdmin/ODRUser/user_profile.html.twig',
                     [
                         'profile_form' => $form->createView(),
                         'current_user' => $user,
@@ -536,7 +536,7 @@ class ODRUserController extends ODRCustomController
             // Render them in a list
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:ODRUser:user_profile.html.twig',
+                    '@ODRAdmin/ODRUser/user_profile.html.twig',
                     [
                         'profile_form' => $form->createView(),
                         'current_user' => $admin_user,
@@ -818,7 +818,7 @@ class ODRUserController extends ODRCustomController
             // Render them in a list
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:ODRUser:change_password.html.twig',
+                    '@ODRAdmin/ODRUser/change_password.html.twig',
                     [
                         'form' => $form->createView(),
                         'current_user' => $admin_user,
@@ -999,7 +999,7 @@ class ODRUserController extends ODRCustomController
             // Render the list of users
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:ODRUser:user_list.html.twig',
+                    '@ODRAdmin/ODRUser/user_list.html.twig',
                     [
                         'users' => $user_list,
 
@@ -1070,7 +1070,7 @@ class ODRUserController extends ODRCustomController
             // Render them in a list
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:ODRUser:manage_roles.html.twig',
+                    '@ODRAdmin/ODRUser/manage_roles.html.twig',
                     [
                         'users' => $users,
                         'admin_user' => $admin_user,
@@ -1456,7 +1456,7 @@ class ODRUserController extends ODRCustomController
             // Render and return the required HTML
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:ODRUser:view_wrapper.html.twig',
+                    '@ODRAdmin/ODRUser/view_wrapper.html.twig',
                     [
                         'target_user' => $target_user,
                         'datatype_permissions' => $datatype_permissions,

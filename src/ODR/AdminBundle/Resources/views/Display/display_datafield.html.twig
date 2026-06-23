@@ -150,7 +150,7 @@
                         </span>
 
                         {% if datafield_meta.quality_str != '' %}
-                            {% include 'ODRAdminBundle:Display:file_quality.html.twig' with {
+                            {% include '@ODRAdmin/Display/file_quality.html.twig' with {
                                 'datafield': datafield,
                                 'file': file,
                                 'meta': file_meta,
@@ -202,7 +202,7 @@
 
                     <div id="Image_{{ oimage.id }}" class="ODRImage pure-u-1-{{ datafield_meta.children_per_row }}" rel="{{ image.id }}">    {# rel is the id of the thumbnail, id attr is the id of the full-size image #}
                         {% if datafield_meta.quality_str != '' %}
-                            {% include 'ODRAdminBundle:Display:file_quality.html.twig' with {
+                            {% include '@ODRAdmin/Display/file_quality.html.twig' with {
                                 'datafield': datafield,
                                 'file': oimage,
                                 'meta': oimage_meta,
@@ -268,7 +268,7 @@
         <fieldset>
             <label class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
             {% if datafield.tags is defined %}
-                {% include 'ODRAdminBundle:Display:tag_wrapper.html.twig' with {
+                {% include '@ODRAdmin/Display/tag_wrapper.html.twig' with {
                     'datafield': datafield,
                     'stacked_tags': datafield.tags,
 

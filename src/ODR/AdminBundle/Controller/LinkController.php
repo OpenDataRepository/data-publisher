@@ -196,7 +196,7 @@ class LinkController extends ODRCustomController
             // Get Templating Object
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Link:clone_link_template_dialog_form.html.twig',
+                    '@ODRAdmin/Link/clone_link_template_dialog_form.html.twig',
                     [
                         'local_datatype' => $local_datatype,
                         'theme_element' => $theme_element,
@@ -674,7 +674,7 @@ class LinkController extends ODRCustomController
             // Get Templating Object
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Link:link_type_dialog_form.html.twig',
+                    '@ODRAdmin/Link/link_type_dialog_form.html.twig',
                     [
                         'local_datatype' => $local_datatype,
                         'remote_datatype' => $current_remote_datatype,
@@ -2193,7 +2193,7 @@ class LinkController extends ODRCustomController
             // Get Templating Object
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Link:datarecord_link_info.html.twig',
+                    '@ODRAdmin/Link/datarecord_link_info.html.twig',
                     [
                         'local_datarecord' => $local_datarecord,
                         'linked_record_data' => $linked_record_data,
@@ -2467,7 +2467,7 @@ class LinkController extends ODRCustomController
             // Render the dialog box for this request
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Link:link_datarecord_form.html.twig',
+                    '@ODRAdmin/Link/link_datarecord_form.html.twig',
                     [
                         'search_theme_id' => $search_theme_id,
                         'search_key' => $search_key,
@@ -3467,7 +3467,7 @@ class LinkController extends ODRCustomController
             // Render and return a page displaying the installed/available plugins
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Link:replace_links_page.html.twig',
+                    '@ODRAdmin/Link/replace_links_page.html.twig',
                     [
                         'datatype_data' => $datatype_data,
                     ]
@@ -3600,14 +3600,14 @@ class LinkController extends ODRCustomController
             $return['d'] = [
                 'dr_id' => $dr->getId(),
                 'links_to' => $templating->render(
-                    'ODRAdminBundle:Link:replace_links_info.html.twig',
+                    '@ODRAdmin/Link/replace_links_info.html.twig',
                     [
                         'direction' => 'to',
                         'link_data' => $links_to,
                     ],
                 ),
                 'linked_from' => $templating->render(
-                    'ODRAdminBundle:Link:replace_links_info.html.twig',
+                    '@ODRAdmin/Link/replace_links_info.html.twig',
                     [
                         'direction' => 'from',
                         'link_data' => $linked_from,

@@ -51,7 +51,7 @@
     {# Have the tag tree start out collapsed #}
     <ul class="ODRTagGroup ODRHidden">
         {% for child_tag_id, child_tag in tag.children %}
-            {% include 'ODRAdminBundle:Tags:tag.html.twig' with {
+            {% include '@ODRAdmin/Tags/tag.html.twig' with {
                 'datafield': datafield,
                 'tag': child_tag,
 

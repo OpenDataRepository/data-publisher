@@ -1,7 +1,7 @@
 {% apply spaceless %}
 
 {# The "intent" variable passed in is always "searching" for this file...
-   ODRCustomController::renderList() renders ODRAdminBundle:Link:link_datarecord_form.html.twig
+   ODRCustomController::renderList() renders @ODRAdmin/Link/link_datarecord_form.html.twig
    when intent == 'linking' #}
 
 {% set dt = datatype_array[datatype.id] %}  {# the 'datatype' variable is the hydrated version #}
@@ -21,7 +21,7 @@
     </div>
 
     {# Page/View Options - notitle is intentionally undefined #}
-    {% include 'ODRAdminBundle:Default:view_manager.html.twig' with {
+    {% include '@ODRAdmin/Default/view_manager.html.twig' with {
         'datatype': datatype,
         'theme': theme,
         'page_type': 'table',
@@ -47,7 +47,7 @@
     </div><!-- end of #TextResults_wrapper -->
 {#
     <div id="mass_download_dialog_wrapper">
-        {% include 'ODRAdminBundle:Default:mass_download_dialog.html.twig' %}
+        {% include '@ODRAdmin/Default/mass_download_dialog.html.twig' %}
     </div>
 #}
 </div><!-- End of .ODRFormWrap -->
@@ -69,7 +69,7 @@
 <script>
     $(function() {
 {% if (odr_wordpress_integrated and theme.themeMeta.disableSearchSidebar == true) %}
-        disableSearchSidebar();        {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        disableSearchSidebar();        {# defined in @ODRAdmin/Default/common_js.html.twig #}
 {% elseif theme.themeMeta.disableSearchSidebar == false %}
         enableSearchSidebar('{{ search_key }}', 'expanded');
 {% else %}
@@ -318,7 +318,7 @@
 {% endif %}
 
         {% if notify_of_sync is defined and notify_of_sync == true %}
-        {% include 'ODRAdminBundle:Theme:theme_sync_warning.js.twig' with {
+        {% include '@ODRAdmin/Theme/theme_sync_warning.js.twig' with {
             'datatype_id': datatype.id,
             'theme_id': theme.id,
             'page_type': 'search_results',
@@ -517,7 +517,7 @@
         }
 
         {# NOTE - need to include this here so it executes after the table finishes drawing, instead of after page load #}
-        {% include 'ODRAdminBundle:Default:search_results_introjs.js.twig' with {
+        {% include '@ODRAdmin/Default/search_results_introjs.js.twig' with {
             'page_type': 'table'
         } %}
     });
@@ -622,7 +622,7 @@
     }
 </script>
 
-{% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}
+{% import "@ODRAdmin/Default/load_datarecord_js.html.twig" as js %}
 {{ js.write(search_theme_id, search_key) }}
 
 {% endapply %}

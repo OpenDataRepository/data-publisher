@@ -12,7 +12,7 @@
     {% set is_datatype_admin = true %}
 {% endif %}
 
-{% include 'ODRAdminBundle:Edit:edit_datatypetools.html.twig' with {
+{% include '@ODRAdmin/Edit/edit_datatypetools.html.twig' with {
     'datatype': datatype,
     'datarecord': datarecord,
     'parent_datarecord': parent_datarecord,
@@ -69,13 +69,13 @@
                     >
                         {% if datafield.dataFieldMeta.fieldType.typeName == "Markdown" %}
                             {# markdown fields are their own thing #}
-                            {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {
+                            {% include '@ODRAdmin/Display/display_markdown.html.twig' with {
                                 'datafield': datafield
                             } %}
                         {# Don't want to check for whether the user can edit the datafield or not, since this is more of a search interface #}
 {#
                         {% elseif datafield.dataFieldMeta.prevent_user_edits or not can_edit_datafield %}
-                            {% include 'ODRAdminBundle:Display:display_datafield.html.twig' with {
+                            {% include '@ODRAdmin/Display/display_datafield.html.twig' with {
                                 'datarecord': datarecord,
                                 'datafield': datafield,
                                 'themeDatafield': theme_datafield,
@@ -85,7 +85,7 @@
 #}
                         {% else %}
                             {# user is allowed to edit datafield #}
-                            {% include 'ODRAdminBundle:Link:inline_link_datafield.html.twig' with {
+                            {% include '@ODRAdmin/Link/inline_link_datafield.html.twig' with {
                                 'datatype': datatype,
                                 'datarecord': datarecord,
                                 'datafield': datafield,
@@ -121,7 +121,7 @@
                         {% set datarecord_array = datarecord['children'][ child_datatype_id ] %}
                     {% endif %}
 
-                    {% include 'ODRAdminBundle:Edit:edit_fieldarea_childtype.html.twig' with {
+                    {% include '@ODRAdmin/Edit/edit_fieldarea_childtype.html.twig' with {
                         'datatype_array': child_datatype,
                         'datarecord_array': datarecord_array,
                         'theme_array': child_theme,

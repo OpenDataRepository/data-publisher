@@ -255,7 +255,7 @@ class DisplaytemplateController extends ODRCustomController
                 // The database is still in the process of being created...return the HTML for the page that'll periodically check for progress
                 $return['d'] = [
                     'html' => $templating->render(
-                        'ODRAdminBundle:Datatype:create_status_checker.html.twig',
+                        '@ODRAdmin/Datatype/create_status_checker.html.twig',
                         [
                             "datatype" => $datatype
                         ]
@@ -294,7 +294,7 @@ class DisplaytemplateController extends ODRCustomController
 
                 $return['d'] = [
                     'html' => $templating->render(
-                        'ODRAdminBundle:Datatype:create_status_checker_redirect.html.twig',
+                        '@ODRAdmin/Datatype/create_status_checker_redirect.html.twig',
                         [
                             'url' => $baseurl.'#'.$url
                         ]
@@ -364,7 +364,7 @@ class DisplaytemplateController extends ODRCustomController
                 $return['t'] = "html";
                 $return['d'] = [
                     'html' => $templating->render(
-                        'ODRAdminBundle:Datatype:create_status_checker.html.twig',
+                        '@ODRAdmin/Datatype/create_status_checker.html.twig',
                         [
                             "datatype" => $datatype
                         ]
@@ -1883,7 +1883,7 @@ class DisplaytemplateController extends ODRCustomController
 
                 // Return the slideout html
                 $return['d']['html'] = $templating->render(
-                    'ODRAdminBundle:Displaytemplate:datatype_properties_form.html.twig',
+                    '@ODRAdmin/Displaytemplate/datatype_properties_form.html.twig',
                     [
                         'show_name' => $show_name,
                         'show_description' => $show_description,
@@ -2734,7 +2734,7 @@ class DisplaytemplateController extends ODRCustomController
                 // ----------------------------------------
                 // Render the html for the form
                 $return['d']['html'] = $templating->render(
-                    'ODRAdminBundle:Displaytemplate:datafield_properties_form.html.twig',
+                    '@ODRAdmin/Displaytemplate/datafield_properties_form.html.twig',
                     [
                         'is_derived_field' => $is_derived_field,
 
@@ -3040,7 +3040,7 @@ class DisplaytemplateController extends ODRCustomController
             // Get Templating Object
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Displaytemplate:undelete_fields_dialog_form.html.twig',
+                    '@ODRAdmin/Displaytemplate/undelete_fields_dialog_form.html.twig',
                     [
                         'datafields' => $datafields,
                     ]
@@ -3558,7 +3558,7 @@ if ($debug)
 
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Displaytemplate:markdown_help_dialog_form.html.twig'
+                    '@ODRAdmin/Displaytemplate/markdown_help_dialog_form.html.twig'
                 )
             ];
         }
@@ -3841,7 +3841,7 @@ if ($debug)
                 // The datatype is still being synchronized
                 $return['d'] = [
                     'html' => $templating->render(
-                        'ODRAdminBundle:Datatype:sync_status_checker.html.twig',
+                        '@ODRAdmin/Datatype/sync_status_checker.html.twig',
                         [
                             'datatype' => $datatype,
                             'sync_metadata' => $sync_metadata,
@@ -3872,7 +3872,7 @@ if ($debug)
 
                 $return['d'] = [
                     'html' => $templating->render(
-                        'ODRAdminBundle:Datatype:sync_status_checker_redirect.html.twig',
+                        '@ODRAdmin/Datatype/sync_status_checker_redirect.html.twig',
                         [
                             "url" => $url
                         ]
@@ -3971,7 +3971,7 @@ if ($debug)
             // Render and return the dialog
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Displaytemplate:multi_datafield_properties_dialog_form.html.twig',
+                    '@ODRAdmin/Displaytemplate/multi_datafield_properties_dialog_form.html.twig',
                     [
                         'datafields' => $df_array,
                         'token' => $token,
@@ -4379,7 +4379,7 @@ if ($debug)
             // Render and return the dialog
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Displaytemplate:special_datafield_selection_dialog_form.html.twig',
+                    '@ODRAdmin/Displaytemplate/special_datafield_selection_dialog_form.html.twig',
                     [
                         'token' => $token,
                         'purpose' => $type,
@@ -4771,7 +4771,7 @@ if ($debug)
             // Render and return the dialog
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Displaytemplate:stored_search_keys_dialog_form.html.twig',
+                    '@ODRAdmin/Displaytemplate/stored_search_keys_dialog_form.html.twig',
                     [
                         'search_key' => $default_search_key,
                         'search_params' => $default_search_params,

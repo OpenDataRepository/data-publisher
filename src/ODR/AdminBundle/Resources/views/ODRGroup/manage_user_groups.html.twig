@@ -8,7 +8,7 @@
     <button id="ODRUserGroup_toggle" class="pure-button pure-button-primary">Switch to Templates</button>
 </div>
 
-{% include 'ODRAdminBundle:ODRGroup:manage_user_groups_table.html.twig' with {
+{% include '@ODRAdmin/ODRGroup/manage_user_groups_table.html.twig' with {
     'datatypes': datatypes,
     'dt_name_lookup': dt_name_lookup,
 
@@ -20,7 +20,7 @@
     'hidden': false
 } %}
 
-{% include 'ODRAdminBundle:ODRGroup:manage_user_groups_table.html.twig' with {
+{% include '@ODRAdmin/ODRGroup/manage_user_groups_table.html.twig' with {
     'datatypes': templates,
     'dt_name_lookup': dt_name_lookup,
 
@@ -34,7 +34,7 @@
 
 <script>
     $(function() {
-        disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        disableSearchSidebar();    {# defined in @ODRAdmin/Default/common_js.html.twig #}
 
         $("#ODRUserGroup_toggle").unbind('click').click(function() {
             if ( $("#ODRDatatypeList_wrapper").hasClass('ODRHidden') ) {

@@ -80,7 +80,7 @@
 
         {% if upload_type == 'csv' %}
             <div id="file_upload_div" class="ODRHidden">
-            {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {
+            {% include '@ODRAdmin/Flow/flow_upload.html.twig' with {
                 'target': 'csv_import',
                 'single_file': true,
                 'upload_type': 'csv',
@@ -96,7 +96,7 @@
 
         <div id="layout_content">
         {% if presets != null %}
-            {% include 'ODRAdminBundle:CSVImport:layout.html.twig' with {
+            {% include '@ODRAdmin/CSVImport/layout.html.twig' with {
                 'columns': columns,
                 'datatype': datatype,
                 'datafields': datafields,
@@ -127,7 +127,7 @@
                         <label id="Label_{{ col_num }}" class="ODRFieldLabel pure-u-1">
                             <span id="ODRDatafield_{{ col_num }}_name" style="margin-left:10px; font-weight: bold;">{{ columns[col_num] }}</span>
                         </label>
-                        {% include 'ODRAdminBundle:Displaytemplate:tag_wrapper.html.twig' with {
+                        {% include '@ODRAdmin/Displaytemplate/tag_wrapper.html.twig' with {
                             'stacked_tags': stacked_tag_array,
                         } %}
                     </fieldset>
@@ -148,7 +148,7 @@
 
     <div class="content" style="margin: 10px;">
     {% if errors != null and errors|length > 0 %}
-        {% include 'ODRAdminBundle:CSVImport:errors.html.twig' with {'errors': errors} %}
+        {% include '@ODRAdmin/CSVImport/errors.html.twig' with {'errors': errors} %}
     {% else %}
         <span>No errors found</span>
     {% endif %}
@@ -182,7 +182,7 @@
 
 <script>
     $(function() {
-        disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        disableSearchSidebar();    {# defined in @ODRAdmin/Default/common_js.html.twig #}
 
     {% if presets == null %}
         $("#delimiter_select").unbind('change').change(function() {
@@ -275,7 +275,7 @@
         // $(".ODRCSVImportErrors").prev().trigger('click');    {# want tables to be hidden by default #}
 
         {% if resulting_tag_arrays|length > 0 %}
-        setupTagTree();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        setupTagTree();    {# defined in @ODRAdmin/Default/common_js.html.twig #}
         {% endif %}
     {% endif %}
     });

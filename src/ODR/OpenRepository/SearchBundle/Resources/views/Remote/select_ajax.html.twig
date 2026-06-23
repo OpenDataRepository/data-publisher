@@ -40,7 +40,7 @@
 
 <div class="ODRContentWrapper pure-u-1">
     <div class="ODRFormWrap pure-u-1">
-        {% include 'ODROpenRepositorySearchBundle:Remote:select_childtype.html.twig' with {
+        {% include '@ODROpenRepositorySearch/Remote/select_childtype.html.twig' with {
             'datatype_array': datatype_array,
             'theme_array': theme_array,
 
@@ -59,7 +59,7 @@
 </div>
 
 <div id="odrremotesearch_config_dialog_wrapper">
-    {% include 'ODROpenRepositorySearchBundle:Remote:config_dialog.html.twig' %}
+    {% include '@ODROpenRepositorySearch/Remote/config_dialog.html.twig' %}
 </div>
 
 <script>
@@ -127,7 +127,7 @@
             });
 
             if ( has_selections ) {
-                {# defined in ODROpenRepositorySearchBundle:Remote:config_dialog.html.twig #}
+                {# defined in @ODROpenRepositorySearch/Remote/config_dialog.html.twig #}
                 openODRRemoteSearchDialog();
             }
         });

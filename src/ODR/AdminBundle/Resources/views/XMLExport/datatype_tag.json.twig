@@ -32,7 +32,7 @@
     {% if has_children %}
         "tags": [
         {% for child_tag_id, child_tag in tag.children %}
-            {% include 'ODRAdminBundle:XMLExport:datatype_tag.json.twig' with {
+            {% include '@ODRAdmin/XMLExport/datatype_tag.json.twig' with {
                 'tag': child_tag,
             } %}
         {% endfor %}

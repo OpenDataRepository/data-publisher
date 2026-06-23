@@ -15,7 +15,7 @@
     {% set is_datatype_admin = true %}
 {% endif %}
 
-{% include 'ODRAdminBundle:Edit:edit_area.html.twig' with {
+{% include '@ODRAdmin/Edit/edit_area.html.twig' with {
     'datatype_array': datatype_array,
     'datarecord_array': datarecord_array,
     'theme_array': theme_array,
@@ -32,7 +32,7 @@
     'token_list': token_list,
 } %}
 
-{% include 'ODRAdminBundle:Edit:utf8_inserter_popup.html.twig' %}
+{% include '@ODRAdmin/Edit/utf8_inserter_popup.html.twig' %}
 
 {% if has_linked_datatypes > 0 %}
 <div id="ODRRecordLinkInfoWrapperDiv"></div>
@@ -40,17 +40,17 @@
 
 {% if is_datatype_admin %}
 <div id="field_history_dialog_wrapper">
-    {% include 'ODRAdminBundle:Edit:field_history_dialog.html.twig' %}
+    {% include '@ODRAdmin/Edit/field_history_dialog.html.twig' %}
 </div>
 {% endif %}
 
 <div id="download_files_dialog_wrapper">
-    {% include 'ODRAdminBundle:Default:file_download_dialog.html.twig' with {
+    {% include '@ODRAdmin/Default/file_download_dialog.html.twig' with {
         'initial_datarecord_id': initial_datarecord_id,
     } %}
 </div>
 <div id="tag_edit_dialog_wrapper">
-    {% include 'ODRAdminBundle:Displaytemplate:tag_wrapper_dialog.html.twig' with {
+    {% include '@ODRAdmin/Displaytemplate/tag_wrapper_dialog.html.twig' with {
         'display': 'edit'
     } %}
 </div>
@@ -86,9 +86,9 @@ $(function() {
     setupAccordionHighlights();
 
 {% if (odr_wordpress_integrated and theme.themeMeta.disableSearchSidebar == true) or search_key == '' %}
-    disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+    disableSearchSidebar();    {# defined in @ODRAdmin/Default/common_js.html.twig #}
 {% else %}
-    enableSearchSidebar('{{ search_key }}', 'collapsed');    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+    enableSearchSidebar('{{ search_key }}', 'collapsed');    {# defined in @ODRAdmin/Default/common_js.html.twig #}
 {% endif %}
 
     // --------------------
@@ -99,7 +99,7 @@ $(function() {
     OpenLinkInfoDialog({{ datarecord.id }});
 
     {% if notify_of_sync is defined and notify_of_sync == true %}
-    {% include 'ODRAdminBundle:Theme:theme_sync_warning.js.twig' with {
+    {% include '@ODRAdmin/Theme/theme_sync_warning.js.twig' with {
         'datatype_id': datatype.id,
         'theme_id': theme.id,
         'page_type': 'edit',
@@ -120,7 +120,7 @@ function initPage() {
     // Shouldn't be needed, but shouldn't hurt
     hideSearchOverlay();    {# defined in Default::common_js.html.twig #}
 
-    // Attach standard click handlers to tags in the search sidebar...    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+    // Attach standard click handlers to tags in the search sidebar...    {# defined in @ODRAdmin/Default/common_js.html.twig #}
     setupTagTree( $("#ODRSearchSidebar"), 2);
     // ...but attach a different set of handlers to the tags in the actual record area
     setupTagTree( $(".ODRRecord"), 3);
@@ -128,7 +128,7 @@ function initPage() {
     //  tag fields is permissible
 
     $(".ODRTagsEdit").unbind('click').click(function() {
-        {# defined in ODRAdminBundle:Displaytemplate:tag_wrapper_dialog.html.twig #}
+        {# defined in @ODRAdmin/Displaytemplate/tag_wrapper_dialog.html.twig #}
         var datafield_id = $(this).attr('rel');
         openTagEditDialog(datafield_id);
     });
@@ -148,7 +148,7 @@ function initPage() {
         var datarecord_id = id_data[1];
         var datafield_id = id_data[2];
 
-        {# defined in ODRAdminBundle:Default:file_download_dialog.html.twig #}
+        {# defined in @ODRAdmin/Default/file_download_dialog.html.twig #}
         openFileDownloadDialog({{ initial_datarecord_id }}, datarecord_id, datafield_id);
     });
 

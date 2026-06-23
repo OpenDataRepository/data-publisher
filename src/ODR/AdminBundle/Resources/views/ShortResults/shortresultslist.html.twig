@@ -25,7 +25,7 @@
 {#    {% endif %}#}
 
     {% if has_datarecords %}
-        {% include 'ODRAdminBundle:ShortResults:shortresults_ajax.html.twig' with {
+        {% include '@ODRAdmin/ShortResults/shortresults_ajax.html.twig' with {
             'datatype_array': datatype_array,
             'datarecord_array': datarecord_array,
             'theme_array': theme_array,
@@ -44,7 +44,7 @@
         } %}
 {#
         <div id="mass_download_dialog_wrapper">
-            {% include 'ODRAdminBundle:Default:mass_download_dialog.html.twig' %}
+            {% include '@ODRAdmin/Default/mass_download_dialog.html.twig' %}
         </div>
 #}
     {% else %}
@@ -60,7 +60,7 @@
 <script>
     $(function() {
 {% if (odr_wordpress_integrated and theme.themeMeta.disableSearchSidebar == true) %}
-        disableSearchSidebar();        {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        disableSearchSidebar();        {# defined in @ODRAdmin/Default/common_js.html.twig #}
 {% elseif theme.themeMeta.disableSearchSidebar == false %}
         enableSearchSidebar('{{ search_key }}', 'expanded');
 {% else %}
@@ -111,7 +111,7 @@
         setupAccordions();
 
         // Attach click handlers to tags
-        setupTagTree();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        setupTagTree();    {# defined in @ODRAdmin/Default/common_js.html.twig #}
 
         $("a.ODRFileDownload").unbind('click').click(function(event) {
             // Grab necessary attributes
@@ -166,7 +166,7 @@
             var datarecord_id = id_data[1];
             var datafield_id = id_data[2];
 
-            {# defined in ODRAdminBundle:Default:mass_download_dialog.html.twig #}
+            {# defined in @ODRAdmin/Default/mass_download_dialog.html.twig #}
             openMassDownloadDialog("{{ search_key }}", datafield_id);
         });
         {% endif %}
@@ -191,7 +191,7 @@
         hideSearchOverlay();    {# defined in Default::common_js.html.twig #}
 
 {% if notify_of_sync is defined and notify_of_sync == true %}
-        {% include 'ODRAdminBundle:Theme:theme_sync_warning.js.twig' with {
+        {% include '@ODRAdmin/Theme/theme_sync_warning.js.twig' with {
             'datatype_id': datatype.id,
             'theme_id': theme.id,
             'page_type': 'search_results',
@@ -199,13 +199,13 @@
         }%}
 {% endif %}
 
-        {% include 'ODRAdminBundle:Default:search_results_introjs.js.twig' with {
+        {% include '@ODRAdmin/Default/search_results_introjs.js.twig' with {
             'page_type': 'search_results'
         } %}
     });
 </script>
 
-{% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}
+{% import "@ODRAdmin/Default/load_datarecord_js.html.twig" as js %}
 {{ js.write(search_theme_id, search_key) }}
 
 {% endapply %}

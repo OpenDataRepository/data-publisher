@@ -3,7 +3,7 @@
 {% set ACCORDION_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::ACCORDION_HEADER') %}
 
 <div id="ODRDatatypeDesign" class="ODRFormWrap ODRDesign pure-u-1">
-    {% include 'ODRAdminBundle:Theme:theme_childtype.html.twig' with {
+    {% include '@ODRAdmin/Theme/theme_childtype.html.twig' with {
         'datatype_array': datatype_array,
         'theme_array': theme_array,
         'datafield_properties': datafield_properties,

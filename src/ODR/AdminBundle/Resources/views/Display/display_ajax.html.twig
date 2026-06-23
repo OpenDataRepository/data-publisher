@@ -4,7 +4,7 @@
 {% set datarecord = datarecord_array[initial_datarecord_id] %}
 {% set theme = theme_array[initial_theme_id] %}
 
-{% include 'ODRAdminBundle:Display:display_area.html.twig' with {
+{% include '@ODRAdmin/Display/display_area.html.twig' with {
     'datatype_array': datatype_array,
     'datarecord_array': datarecord_array,
     'theme_array': theme_array,
@@ -21,7 +21,7 @@
 } %}
 
 {% if record_display_view == "single" %}
-    {% include 'ODRAdminBundle:Default:file_download_dialog.html.twig' with {
+    {% include '@ODRAdmin/Default/file_download_dialog.html.twig' with {
         'initial_datarecord_id': initial_datarecord_id,
     } %}
 {% endif %}
@@ -62,7 +62,7 @@
         // Setup File Downloader
         setupFileDownloader();
 
-        // Attach standard click handlers to tags in the search sidebar...    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        // Attach standard click handlers to tags in the search sidebar...    {# defined in @ODRAdmin/Default/common_js.html.twig #}
         setupTagTree( $("#ODRSearchSidebar"), 2);
         // Due to potentially having multiple tag fields with different values for display_unselected...
         // Can't initialize all of the tag fields here with a single call
@@ -70,9 +70,9 @@
 
 
 {% if (odr_wordpress_integrated and theme.themeMeta.disableSearchSidebar == true) or search_key == '' %}
-        disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        disableSearchSidebar();    {# defined in @ODRAdmin/Default/common_js.html.twig #}
 {% else %}
-        enableSearchSidebar('{{ search_key }}', 'collapsed');    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        enableSearchSidebar('{{ search_key }}', 'collapsed');    {# defined in @ODRAdmin/Default/common_js.html.twig #}
 {% endif %}
 
         hideSearchOverlay();    {# defined in Default::common_js.html.twig #}
@@ -97,7 +97,7 @@
             var datarecord_id = id_data[1];
             var datafield_id = id_data[2];
 
-            {# defined in ODRAdminBundle:Default:file_download_dialog.html.twig #}
+            {# defined in @ODRAdmin/Default/file_download_dialog.html.twig #}
             openFileDownloadDialog({{ initial_datarecord_id }}, datarecord_id, datafield_id);
         });
     }
@@ -114,7 +114,7 @@
         window.scrollTo(0,0);
 
         {% if notify_of_sync is defined and notify_of_sync == true %}
-        {% include 'ODRAdminBundle:Theme:theme_sync_warning.js.twig' with {
+        {% include '@ODRAdmin/Theme/theme_sync_warning.js.twig' with {
             'datatype_id': datatype.id,
             'theme_id': theme.id,
             'page_type': 'display',

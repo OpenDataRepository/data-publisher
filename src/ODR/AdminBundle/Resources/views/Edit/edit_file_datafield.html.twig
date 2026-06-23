@@ -53,7 +53,7 @@
         </span>
 
         {% if datafield_meta.quality_str != '' %}
-            {% include 'ODRAdminBundle:Edit:file_quality.html.twig' with {
+            {% include '@ODRAdmin/Edit/file_quality.html.twig' with {
                 'datafield': datafield,
                 'file': file,
                 'meta': file_meta,

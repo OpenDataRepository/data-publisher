@@ -17,7 +17,7 @@
     {# The user's currently selected layout goes at the top of the list... #}
     {% for sidebar_layout in available_layouts %}
         {% if sidebar_layout.id == selected_layout_id %}
-            {% include 'ODROpenRepositorySearchBundle:Default:choose_sidebar_layout_details.html.twig' with {
+            {% include '@ODROpenRepositorySearch/Default/choose_sidebar_layout_details.html.twig' with {
                 'sidebar_layout': sidebar_layout,
                 'user': user,
                 'selected_layout_id': selected_layout_id,
@@ -31,14 +31,14 @@
     {% endfor %}
 
     {# ...all others come after the currently selected sidebar layout #}
-    {% include 'ODROpenRepositorySearchBundle:Default:default_layout_details.html.twig' with {
+    {% include '@ODROpenRepositorySearch/Default/default_layout_details.html.twig' with {
         'user': user,
         'selected_layout_id': selected_layout_id,
     } %}
 
     {% for sidebar_layout in available_layouts %}
         {% if sidebar_layout.id != selected_layout_id %}
-            {% include 'ODROpenRepositorySearchBundle:Default:choose_sidebar_layout_details.html.twig' with {
+            {% include '@ODROpenRepositorySearch/Default/choose_sidebar_layout_details.html.twig' with {
                 'sidebar_layout': sidebar_layout,
                 'user': user,
                 'selected_layout_id': selected_layout_id,
@@ -216,7 +216,7 @@
             success: function (data, textStatus, jqXHR) {
                 if (reload) {
                     // Guarantee the sidebar is current
-                    updateSearchSidebar('{{ search_key }}', selected_intent, true);    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+                    updateSearchSidebar('{{ search_key }}', selected_intent, true);    {# defined in @ODRAdmin/Default/common_js.html.twig #}
                     closeODRRemodal();
                 }
 
@@ -456,7 +456,7 @@
             success: function (data, textStatus, jqXHR) {
                 // Ensure the sidebar didn't break if the user deleted their currently selected
                 //  layout
-                updateSearchSidebar('{{ search_key }}', '{{ intent }}', true);    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+                updateSearchSidebar('{{ search_key }}', '{{ intent }}', true);    {# defined in @ODRAdmin/Default/common_js.html.twig #}
                 closeODRRemodal();
             },
             error: function (jqXHR, textStatus, errorThrown) {

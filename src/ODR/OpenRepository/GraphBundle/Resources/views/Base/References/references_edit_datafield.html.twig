@@ -102,7 +102,7 @@
 
             <div class="ODRFileDatafield_content pure-u-1">
                 {% set file_delete_callback = 'function() { ODRReferencePlugin_DeleteFileCallback_' ~ datarecord.id ~ '(); }' %}
-                {% include "ODRAdminBundle:Edit:edit_file_datafield.html.twig" with {
+                {% include "@ODRAdmin/Edit/edit_file_datafield.html.twig" with {
                     'datafield': datafield,
                     'datarecord': datarecord,
                     'files': valuefield,
@@ -124,7 +124,7 @@
             {% endif %}
             {% set callback = 'ODRReferencePlugin_ReloadEditDatafield_' ~ datarecord.id ~ '(' ~ datafield.id ~');' %}
 
-            {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {
+            {% include '@ODRAdmin/Flow/flow_upload.html.twig' with {
                 'target': target,
                 'single_file': single_file,
                 'upload_type': 'file',

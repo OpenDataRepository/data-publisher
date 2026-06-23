@@ -143,7 +143,7 @@
         <fieldset>
             <label class="ODRFieldLabel pure-u-1" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
             {% if datafield.tags is defined %}
-                {% include 'ODRAdminBundle:Display:tag_wrapper.html.twig' with {
+                {% include '@ODRAdmin/Display/tag_wrapper.html.twig' with {
                     'datafield': datafield,
                     'stacked_tags': datafield.tags,
 

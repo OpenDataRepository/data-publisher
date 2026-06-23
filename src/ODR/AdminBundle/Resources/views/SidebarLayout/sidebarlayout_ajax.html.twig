@@ -31,7 +31,7 @@
                 </p>
 
                 <p>Edit the name and description of the layout below:</p>
-                {% include 'ODRAdminBundle:SidebarLayout:sidebarlayout_properties_form.html.twig' with {
+                {% include '@ODRAdmin/SidebarLayout/sidebarlayout_properties_form.html.twig' with {
                     'sidebar_layout': sidebar_layout,
                     'sidebar_layout_form': sidebar_layout_form,
                 } %}
@@ -72,7 +72,7 @@
             </span>
         </div>
         <div id=ODRSidebarLayout_fakeSidebar class="pure-u-23-24">
-            {% include 'ODROpenRepositorySearchBundle:Default:search_sidebar_design_element.html.twig' with {
+            {% include '@ODROpenRepositorySearch/Default/search_sidebar_design_element.html.twig' with {
                 'datatype': datatype,
                 'sidebar_array': sidebar_array,
             } %}
@@ -80,7 +80,7 @@
     </div>
 
     <div id="SidebarLayoutDesignArea" class="pure-u-3-4">
-        {% include 'ODRAdminBundle:SidebarLayout:sidebarlayout_area.html.twig' with {
+        {% include '@ODRAdmin/SidebarLayout/sidebarlayout_area.html.twig' with {
             'datatype_array': datatype_array,
             'theme_array': theme_array,
             'site_baseurl': site_baseurl,
@@ -106,7 +106,7 @@
 <script>
     var SaveTimeout = 1500;
     $(function() {
-        disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        disableSearchSidebar();    {# defined in @ODRAdmin/Default/common_js.html.twig #}
 
         {% if sidebar_array['always_display'] is not defined or sidebar_array['always_display']|length == 0 %}
         $("#ODRSidebarLayout_noFieldsWarning").removeClass('ODRHidden');
@@ -137,7 +137,7 @@
         });
 
         // Attach click handlers to tags
-        setupTagTree();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        setupTagTree();    {# defined in @ODRAdmin/Default/common_js.html.twig #}
         // Resize overlay divs
         ODRSidebarLayout_resizeOverlayDivs();
 

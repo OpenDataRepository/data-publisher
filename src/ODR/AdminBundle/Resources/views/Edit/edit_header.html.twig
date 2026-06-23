@@ -69,7 +69,7 @@
     </div>
 
     {% if search_key != '' %}
-        {% include 'ODRAdminBundle:Default:search_header.html.twig' with {
+        {% include '@ODRAdmin/Default/search_header.html.twig' with {
             'search_key': search_key,
             'page_length': page_length,
             'offset': offset,
@@ -116,7 +116,7 @@
         });
 
         $("#ODRDownloadAllFilesIcon").unbind('click').click(function() {
-            {# defined in ODRAdminBundle:Default:mass_download_dialog.html.twig #}
+            {# defined in @ODRAdmin/Default/mass_download_dialog.html.twig #}
             openMassDownloadDialog("{{ search_key }}");
         });
 
@@ -302,7 +302,7 @@
     });
 </script>
 
-{% import "ODRAdminBundle:Default:load_datarecord_js.html.twig" as js %}
+{% import "@ODRAdmin/Default/load_datarecord_js.html.twig" as js %}
 {{ js.write(search_theme_id, search_key) }}
 
 {% endapply %}

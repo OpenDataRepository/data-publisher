@@ -145,13 +145,13 @@
     </files>
 
 {% elseif field_typename == "Single Radio" or field_typename == "Multiple Radio" or field_typename == "Single Select" or field_typename == "Multiple Select" %}
-    {% include 'ODRAdminBundle:XMLExport:datarecord_radio_selections.xml.twig' with {
+    {% include '@ODRAdmin/XMLExport/datarecord_radio_selections.xml.twig' with {
         'datafield': datafield,
         'drf': datarecordfield,
     } %}
 
 {% elseif field_typename == "Tags" %}
-    {% include 'ODRAdminBundle:XMLExport:datarecord_tag_wrapper.xml.twig' with {
+    {% include '@ODRAdmin/XMLExport/datarecord_tag_wrapper.xml.twig' with {
         'datafield': datafield,
         'drf': datarecordfield,
     } %}

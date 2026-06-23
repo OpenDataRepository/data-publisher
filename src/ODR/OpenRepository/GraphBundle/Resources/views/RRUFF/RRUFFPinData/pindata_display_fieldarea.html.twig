@@ -9,7 +9,7 @@
     {% set is_datatype_admin = true %}
 {% endif %}
 
-{% include 'ODRAdminBundle:Display:display_datatypetools.html.twig' with {
+{% include '@ODRAdmin/Display/display_datatypetools.html.twig' with {
     'datatype': datatype,
     'datarecord': datarecord,
     'parent_datarecord': parent_datarecord,
@@ -60,9 +60,9 @@
                                 {% if theme_datafield.hidden == 0 %}
                                 <div class="ODRDataField pure-u-1 pure-u-md-{{ theme_datafield.cssWidthMed }} pure-u-xl-{{ theme_datafield.cssWidthXL }}" id="Field_{{ datarecord.id }}_{{ datafield.id }}" rel="{{ theme.id }}">
                                     {% if datafield.dataFieldMeta.fieldType.typeName == "Markdown" %}
-                                        {% include 'ODRAdminBundle:Display:display_markdown.html.twig' with {'datafield': datafield} %}
+                                        {% include '@ODRAdmin/Display/display_markdown.html.twig' with {'datafield': datafield} %}
                                     {% else %}
-                                        {% include 'ODRAdminBundle:Display:display_datafield.html.twig' with {
+                                        {% include '@ODRAdmin/Display/display_datafield.html.twig' with {
                                             'datarecord': datarecord,
                                             'datafield': datafield,
                                             'themeDatafield': theme_datafield,
@@ -125,7 +125,7 @@
                                 {% set datarecord_array = datarecord['children'][ child_datatype_id ] %}
 
                                 <div class="ODRChildDatatype" id="ChildTypeWrapper_{{ child_datatype_id }}_{{ datarecord.id }}">
-                                {% include 'ODRAdminBundle:Display:display_childtype.html.twig' with {
+                                {% include '@ODRAdmin/Display/display_childtype.html.twig' with {
                                     'datatype_array': child_datatype,
                                     'datarecord_array': datarecord_array,
                                     'theme_array': child_theme,

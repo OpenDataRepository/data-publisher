@@ -28,7 +28,7 @@
                 {{ datatype_meta.shortName }}
             </a>
         </h3>
-        {% include 'ODRAdminBundle:Displaytemplate:design_datatypetools_div.html.twig' with {
+        {% include '@ODRAdmin/Displaytemplate/design_datatypetools_div.html.twig' with {
             'datatype': datatype,
             'theme_id': theme.id,
             'containing_theme_element_id': containing_theme_element_id,
@@ -42,7 +42,7 @@
         } %}
 
         <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datatype.id }}">
-            {% include 'ODRAdminBundle:Displaytemplate:design_fieldarea.html.twig' with {
+            {% include '@ODRAdmin/Displaytemplate/design_fieldarea.html.twig' with {
                 'datatype_array': datatype_array,
                 'theme_array': theme_array,
                 'datafield_properties': datafield_properties,
@@ -76,7 +76,7 @@
                     <span id="Datatype_{{ datatype.id }}_ShortName">{{ datatype_meta.shortName }}</span>
                 </h3>
                 {# current datatype is top-level...no containing theme_element #}
-                {% include 'ODRAdminBundle:Displaytemplate:design_datatypetools_div.html.twig' with {
+                {% include '@ODRAdmin/Displaytemplate/design_datatypetools_div.html.twig' with {
                     'datatype': datatype,
                     'theme_id': theme.id,
                     'containing_theme_element_id': 0,
@@ -92,7 +92,7 @@
         </div>
 
         <div class="ODRFieldArea pure-u-1" id="FieldArea_{{ datatype.id }}">
-            {% include 'ODRAdminBundle:Displaytemplate:design_fieldarea.html.twig' with {
+            {% include '@ODRAdmin/Displaytemplate/design_fieldarea.html.twig' with {
                 'datatype_array': datatype_array,
                 'theme_array': theme_array,
                 'datafield_properties': datafield_properties,

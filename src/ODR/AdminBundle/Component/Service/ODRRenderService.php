@@ -112,7 +112,7 @@ class ODRRenderService
 
 
         // ----------------------------------------
-        $template_name = 'ODRAdminBundle:Displaytemplate:design_ajax.html.twig';
+        $template_name = '@ODRAdmin/Displaytemplate/design_ajax.html.twig';
         $extra_parameters = [
             'fieldtype_array' => $fieldtype_array,
             'has_datarecords' => $has_datarecords,
@@ -181,7 +181,7 @@ class ODRRenderService
         );
 
         // ----------------------------------------
-        $template_name = 'ODRAdminBundle:Theme:theme_ajax.html.twig';
+        $template_name = '@ODRAdmin/Theme/theme_ajax.html.twig';
         $extra_parameters = [
             'site_baseurl' => $this->site_baseurl,
 //            'display_mode' => "wizard",
@@ -191,7 +191,7 @@ class ODRRenderService
             'is_datatype_admin' => $is_datatype_admin,
 
             'theme_form' => $theme_form->createView(),
-            'theme' => $theme,    // Needed for ODRAdminBundle:Theme:theme_properties_form.html.twig
+            'theme' => $theme,    // Needed for @ODRAdmin/Theme/theme_properties_form.html.twig
 
             'datafield_properties' => [],
         ];
@@ -250,7 +250,7 @@ class ODRRenderService
         );
 
         // ----------------------------------------
-        $template_name = 'ODRAdminBundle:SidebarLayout:sidebarlayout_ajax.html.twig';
+        $template_name = '@ODRAdmin/SidebarLayout/sidebarlayout_ajax.html.twig';
         $extra_parameters = [
             'site_baseurl' => $this->site_baseurl,
             'search_key' => $search_key,
@@ -258,7 +258,7 @@ class ODRRenderService
             'is_datatype_admin' => $is_datatype_admin,
 
             'sidebar_layout_form' => $sidebar_layout_form->createView(),
-            'sidebar_layout' => $sidebar_layout,    // Needed for ODRAdminBundle:SidebarLayout:sidebarlayout_properties_form.html.twig
+            'sidebar_layout' => $sidebar_layout,    // Needed for @ODRAdmin/SidebarLayout/sidebarlayout_properties_form.html.twig
             'sidebar_array' => $sidebar_array,
 
             'intent' => $intent,
@@ -289,7 +289,7 @@ class ODRRenderService
         if ( $search_key !== '' )
             $is_oversized_search_key = $this->search_key_service->isOversizedSearchKey($search_key);
 
-        $template_name = 'ODRAdminBundle:Display:display_ajax.html.twig';
+        $template_name = '@ODRAdmin/Display/display_ajax.html.twig';
         $extra_parameters = [
             'is_top_level' => 1,    // TODO - get rid of this requirement
             'ensure_images_exist' => 1,    // Triggers the check to decrypt images in cached arrays if they don't exist
@@ -343,7 +343,7 @@ class ODRRenderService
         if ( $search_key !== '' )
             $is_oversized_search_key = $this->search_key_service->isOversizedSearchKey($search_key);
 
-        $template_name = 'ODRAdminBundle:Edit:edit_ajax.html.twig';
+        $template_name = '@ODRAdmin/Edit/edit_ajax.html.twig';
         $extra_parameters = [
             'is_top_level' => 1,    // TODO - get rid of this requirement
 
@@ -394,7 +394,7 @@ class ODRRenderService
      */
     public function getFakeEditHTML($user, $datatype)
     {
-        $template_name = 'ODRAdminBundle:FakeEdit:fake_edit_ajax.html.twig';
+        $template_name = '@ODRAdmin/FakeEdit/fake_edit_ajax.html.twig';
         $extra_parameters = [
             'is_top_level' => 1,    // TODO - get rid of this requirement
 
@@ -429,7 +429,7 @@ class ODRRenderService
      */
     public function getMassEditHTML($user, $datatype, $odr_tab_id, $mass_edit_trigger_datafields, $theme = null)
     {
-        $template_name = 'ODRAdminBundle:MassEdit:massedit_ajax.html.twig';
+        $template_name = '@ODRAdmin/MassEdit/massedit_ajax.html.twig';
         $extra_parameters = [
             'odr_tab_id' => $odr_tab_id,
             'include_links' => false,
@@ -469,7 +469,7 @@ class ODRRenderService
      */
     public function getCSVExportHTML($user, $datatype, $odr_tab_id, $theme = null, $csvexport_shows_all_fields = false)
     {
-        $template_name = 'ODRAdminBundle:CSVExport:csvexport_ajax.html.twig';
+        $template_name = '@ODRAdmin/CSVExport/csvexport_ajax.html.twig';
         $extra_parameters = [
             'odr_tab_id' => $odr_tab_id,
             'site_baseurl' => $this->site_baseurl,
@@ -516,7 +516,7 @@ class ODRRenderService
         if ( $group->getPurpose() !== '' )
             $prevent_all_changes = true;
 
-        $template_name = 'ODRAdminBundle:ODRGroup:permissions_ajax.html.twig';
+        $template_name = '@ODRAdmin/ODRGroup/permissions_ajax.html.twig';
         $extra_parameters = [
             'group' => $group,
             'prevent_all_changes' => $prevent_all_changes,
@@ -546,7 +546,7 @@ class ODRRenderService
      */
     public function getViewAsUserHTML($user, $target_user, $theme)
     {
-        $template_name = 'ODRAdminBundle:ODRUser:view_ajax.html.twig';
+        $template_name = '@ODRAdmin/ODRUser/view_ajax.html.twig';
         $extra_parameters = [
             'target_user' => $target_user
         ];
@@ -926,7 +926,7 @@ class ODRRenderService
      */
     public function reloadEditChildtype($user, $theme_element, $parent_datarecord, $top_level_datarecord, $edit_shows_all_fields, $edit_behavior_override)
     {
-        $template_name = 'ODRAdminBundle:Edit:edit_childtype_reload.html.twig';
+        $template_name = '@ODRAdmin/Edit/edit_childtype_reload.html.twig';
 
         $extra_parameters = [
             'token_list' => [],
@@ -957,7 +957,7 @@ class ODRRenderService
      */
     public function reloadFakeEditChildtype($user, $theme_element, $parent_datarecord, $top_level_datarecord, $datafield_values)
     {
-        $template_name = 'ODRAdminBundle:FakeEdit:fake_edit_childtype_reload.html.twig';
+        $template_name = '@ODRAdmin/FakeEdit/fake_edit_childtype_reload.html.twig';
 
         $extra_parameters = [
             'token_list' => [],
@@ -991,7 +991,7 @@ class ODRRenderService
      */
     public function loadInlineLinkChildtype($user, $theme_element, $parent_datarecord, $top_level_datarecord, $fake_datarecord_id, $edit_shows_all_fields)
     {
-        $template_name = 'ODRAdminBundle:Link:inline_link_childtype_reload.html.twig';
+        $template_name = '@ODRAdmin/Link/inline_link_childtype_reload.html.twig';
 
         $extra_parameters = [
             'token_list' => [],
@@ -1187,7 +1187,7 @@ class ODRRenderService
      */
     public function reloadMasterDesignThemeElement($user, $theme_element)
     {
-        $template_name = 'ODRAdminBundle:Displaytemplate:design_fieldarea.html.twig';
+        $template_name = '@ODRAdmin/Displaytemplate/design_fieldarea.html.twig';
 
         $is_datatype_admin = $this->permissions_service->isDatatypeAdmin($user, $theme_element->getTheme()->getDataType());
         $extra_parameters = [
@@ -1215,7 +1215,7 @@ class ODRRenderService
      */
     public function reloadThemeDesignThemeElement($user, $theme_element)
     {
-        $template_name = 'ODRAdminBundle:Theme:theme_fieldarea.html.twig';
+        $template_name = '@ODRAdmin/Theme/theme_fieldarea.html.twig';
 
         $is_datatype_admin = $this->permissions_service->isDatatypeAdmin($user, $theme_element->getTheme()->getDataType());
         $extra_parameters = [
@@ -1381,7 +1381,7 @@ class ODRRenderService
         // It doesn't make sense to synchronize the entire theme when just the datafield is getting
         //  reloaded
 
-        $template_name = 'ODRAdminBundle:Displaytemplate:design_datafield.html.twig';
+        $template_name = '@ODRAdmin/Displaytemplate/design_datafield.html.twig';
         return self::reloadDatafield($user, $template_name, $extra_parameters, $source_datatype, $theme_element, $datafield);
     }
 
@@ -1409,11 +1409,11 @@ class ODRRenderService
         // It doesn't make sense to synchronize the entire theme when just the datafield is getting
         //  reloaded
 
-        $template_name = 'ODRAdminBundle:Edit:edit_datafield.html.twig';
+        $template_name = '@ODRAdmin/Edit/edit_datafield.html.twig';
         if ( $datafield->getPreventUserEdits() ) {
             // In theory, fields that are blocked shouldn't be requesting reloads...but if they do,
             //  reload the Display version instead of the Edit version
-            $template_name = 'ODRAdminBundle:Display:display_datafield.html.twig';
+            $template_name = '@ODRAdmin/Display/display_datafield.html.twig';
         }
 
         return self::reloadDatafield($user, $template_name, $extra_parameters, $source_datatype, $theme_element, $datafield, $datarecord);
@@ -1603,7 +1603,7 @@ class ODRRenderService
 
         // Render and return the
         $html = $this->templating->render(
-            'ODROpenRepositorySearchBundle:Default:search_sidebar_design_element.html.twig',
+            '@ODROpenRepositorySearch/Default/search_sidebar_design_element.html.twig',
             [
                 'datatype' => $datatype_array,
                 'sidebar_array' => $sidebar_array

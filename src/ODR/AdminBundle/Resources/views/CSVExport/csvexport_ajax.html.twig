@@ -148,7 +148,7 @@
             <button class="ODRCSVExport_startexport pure-button pure-button-primary">Export</button>
         </div>
 
-        {% include 'ODRAdminBundle:CSVExport:csvexport_area.html.twig' with {
+        {% include '@ODRAdmin/CSVExport/csvexport_area.html.twig' with {
             'datatype_array': datatype_array,
             'theme_array': theme_array,
             'site_baseurl': site_baseurl,
@@ -191,7 +191,7 @@
 
     $(function() {
         // Adding/removing the class .ODRSearchResultsWide triggers a 0.25s transition
-        disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        disableSearchSidebar();    {# defined in @ODRAdmin/Default/common_js.html.twig #}
         setTimeout( function() { $("#ODRCSVExport_selectall").trigger('click'); }, 350);
 
         initCSVExportPage();
@@ -753,4 +753,4 @@
     }
 </script>
 
-{% include 'ODRAdminBundle:Job:job_progress.html.twig' %}
+{% include '@ODRAdmin/Job/job_progress.html.twig' %}

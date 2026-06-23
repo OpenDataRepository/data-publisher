@@ -310,7 +310,7 @@
         {% if datafield['tags'] is defined %}
             <input type="hidden" class="ODRInput" id="datafield_{{ datafield_id }}" name="{{ datafield_id }}" value="" />
 
-            {% include 'ODROpenRepositorySearchBundle:Default:tag_wrapper.html.twig' with {
+            {% include '@ODROpenRepositorySearch/Default/tag_wrapper.html.twig' with {
                 'datafield': datafield,
                 'stacked_tags': datafield['tags'],
 

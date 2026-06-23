@@ -1,18 +1,18 @@
 {% apply spaceless %}
 
-{% include 'ODRAdminBundle:Default:generic_block_head.html.twig' with {
+{% include '@ODRAdmin/Default/generic_block_head.html.twig' with {
     'header_label': 'Database Tools',
     'pure_sizes': 'pure-u-1',
     'icon': 0
 } %}
 
 <div class="ODRTriggerWrapper">
-{% include 'ODRAdminBundle:Trigger:trigger_childtype.html.twig' with {
+{% include '@ODRAdmin/Trigger/trigger_childtype.html.twig' with {
     'datatype': stacked_datatype_array
 } %}
 </div>
 
-{% include 'ODRAdminBundle:Default:generic_block_foot.html.twig' %}
+{% include '@ODRAdmin/Default/generic_block_foot.html.twig' %}
 
 
 <script>

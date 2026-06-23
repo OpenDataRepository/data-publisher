@@ -114,7 +114,7 @@ class ODRTabHelperService
 
     /**
      * Locates the necessary values and datarecord ids from the tab data stored in the current
-     * user's session so ODRAdminBundle:Default:search_header.html.twig can display the correct
+     * user's session so @ODRAdmin/Default/search_header.html.twig can display the correct
      * numbers and the next/prev buttons can redirect to the correct datarecords.  Requires that a
      * datarecord list already be defined for the given tab.
      *
@@ -176,7 +176,7 @@ class ODRTabHelperService
 
 
     /**
-     * Locates the values required to render ODRAdminBundle:Default:pagination_header.html.twig for
+     * Locates the values required to render @ODRAdmin/Default/pagination_header.html.twig for
      * a non-table search results theme.  Requires that a datarecord list already be defined for
      * the given tab.
      *
@@ -330,7 +330,7 @@ class ODRTabHelperService
 
 
     /**
-     * Using the next/prev buttons on ODRAdminBundle:Default:search_header.html.twig to change
+     * Using the next/prev buttons on @ODRAdmin/Default/search_header.html.twig to change
      * which datarecord is currently being viewed or edited can also change which page of search
      * results should be displayed.
      *

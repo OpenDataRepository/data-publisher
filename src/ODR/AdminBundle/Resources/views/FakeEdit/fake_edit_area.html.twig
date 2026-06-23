@@ -7,7 +7,7 @@
     {% if is_top_level == 1 %}
         <input type="hidden" id="ODRTopLevelDatarecordId" value="{{ initial_datarecord_id }}" />
 
-        {% include 'ODRAdminBundle:FakeEdit:fake_edit_childtype.html.twig' with {
+        {% include '@ODRAdmin/FakeEdit/fake_edit_childtype.html.twig' with {
             'datatype_array': datatype_array,
             'datarecord_array': datarecord_array,
             'theme_array': theme_array,
@@ -30,7 +30,7 @@
         {# render a child datarecord as if it's a top-level datarecord #}
         {% set datarecord = datarecord_array[initial_datarecord_id] %}
 
-        {% include 'ODRAdminBundle:FakeEdit:fake_edit_childtype.html.twig' with {
+        {% include '@ODRAdmin/FakeEdit/fake_edit_childtype.html.twig' with {
             'datatype_array': datatype_array,
             'datarecord_array': datarecord_array,
             'theme_array': theme_array,

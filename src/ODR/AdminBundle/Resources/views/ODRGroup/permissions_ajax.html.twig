@@ -12,7 +12,7 @@
         <span class="ODRGroup_unchangeable" style="cursor: default; margin-left:15px; color: #000000;">Not allowed to make changes to this Group!</span>
     {% endif %}
 
-        {% include 'ODRAdminBundle:ODRGroup:datatype_permissions_icons.html.twig' with {
+        {% include '@ODRAdmin/ODRGroup/datatype_permissions_icons.html.twig' with {
             'datatype': datatype,
             'datatype_permissions': datatype_permissions,
 
@@ -24,7 +24,7 @@
     </h3>
 </div>
 
-{% include 'ODRAdminBundle:ODRGroup:permissions_area.html.twig' with {
+{% include '@ODRAdmin/ODRGroup/permissions_area.html.twig' with {
     'datatype_permissions': datatype_permissions,
     'datafield_permissions': datafield_permissions,
 

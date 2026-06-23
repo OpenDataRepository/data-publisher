@@ -16,7 +16,7 @@
             {% if child_dt_data['datatype']|length > 0 %}
                 {% set child_dt = child_dt_data['datatype'][child_dt_id] %}
                 <div>
-                    {% include 'ODRAdminBundle:Migration:list_worker.html.twig' with {
+                    {% include '@ODRAdmin/Migration/list_worker.html.twig' with {
                         'datatype': child_dt,
                         'side': side,
                     } %}
@@ -37,7 +37,7 @@
         {% for child_dt_id,child_dt_data in datatype['descendants'] %}
             {% if child_dt_data['datatype']|length > 0 %}
                 {% set child_dt = child_dt_data['datatype'][child_dt_id] %}
-                    {% include 'ODRAdminBundle:Migration:list_worker.html.twig' with {
+                    {% include '@ODRAdmin/Migration/list_worker.html.twig' with {
                         'datatype': child_dt,
                         'side': side,
                     } %}
@@ -51,7 +51,7 @@
         {% for child_dt_id,child_dt_data in datatype['descendants'] %}
             {% if child_dt_data['datatype']|length > 0 %}
                 {% set child_dt = child_dt_data['datatype'][child_dt_id] %}
-                {% include 'ODRAdminBundle:Migration:list_worker.html.twig' with {
+                {% include '@ODRAdmin/Migration/list_worker.html.twig' with {
                     'datatype': child_dt,
                     'side': side,
                 } %}

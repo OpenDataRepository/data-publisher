@@ -3,7 +3,7 @@
 {% set prefix = initial_datatype_id %}
 
 <div class="ODRFormWrap ODRDesign pure-u-1">
-    {% include 'ODRAdminBundle:CSVExport:csvexport_childtype.html.twig' with {
+    {% include '@ODRAdmin/CSVExport/csvexport_childtype.html.twig' with {
         'datatype_array': datatype_array,
         'theme_array': theme_array,
         'site_baseurl': site_baseurl,

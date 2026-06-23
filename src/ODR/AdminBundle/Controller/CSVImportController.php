@@ -197,7 +197,7 @@ class CSVImportController extends ODRCustomController
             // Render the basic csv import page
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:CSVImport:import.html.twig',
+                    '@ODRAdmin/CSVImport/import.html.twig',
                     [
                         'datatype' => $datatype,
                         'childtypes' => $childtypes,
@@ -515,7 +515,7 @@ class CSVImportController extends ODRCustomController
                 // If no errors, render the column/datafield/fieldtype selection page
                 $return['d'] = [
                     'html' => $templating->render(
-                        'ODRAdminBundle:CSVImport:layout.html.twig',
+                        '@ODRAdmin/CSVImport/layout.html.twig',
                         [
                             'parent_datatype' => $parent_datatype,  // as expected if importing into a child datatype, or null if importing into top-level datatype, or equivalent to the local datatype if importing links
                             'datatype' => $target_datatype,         // as expected if importing into a top-level or child datatype, or equivalent to the remote datatype if importing links
@@ -542,7 +542,7 @@ class CSVImportController extends ODRCustomController
                 // If errors found, render a table listing which errors are found on what line
                 $return['d'] = [
                     'html' => $templating->render(
-                        'ODRAdminBundle:CSVImport:errors.html.twig',
+                        '@ODRAdmin/CSVImport/errors.html.twig',
                         [
                             'error_messages' => $error_messages,
                         ]
@@ -2651,7 +2651,7 @@ class CSVImportController extends ODRCustomController
             // Render the page...
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:CSVImport:import.html.twig',
+                    '@ODRAdmin/CSVImport/import.html.twig',
                     [
                         'datatype' => $datatype,    // as expected if importing into a top-level or child datatype, or equivalent to the remote datatype if importing links
                         'childtypes' => $childtypes,

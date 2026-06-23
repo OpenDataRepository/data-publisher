@@ -63,7 +63,7 @@
         <fields>
         {% for df_id, df in datatype.dataFields %}
             {% if df.dataFieldMeta.fieldType.typeName != "Markdown" %}
-                {% include 'ODRAdminBundle:XMLExport:datarecord_datafield.xml.twig' with {
+                {% include '@ODRAdmin/XMLExport/datarecord_datafield.xml.twig' with {
                     'datarecord': datarecord,
                     'datafield': df,
                     'using_metadata': using_metadata,
@@ -75,7 +75,7 @@
         </fields>
 
         <records>
-        {% import "ODRAdminBundle:XMLExport:datarecord_childtype.xml.twig" as mychildform %}
+        {% import "@ODRAdmin/XMLExport/datarecord_childtype.xml.twig" as mychildform %}
         {% for child_datatype_id, child_records in datarecord.children %}
             {% set datatype_array_subset = datatype['descendants'][child_datatype_id]['datatype'] %}
 

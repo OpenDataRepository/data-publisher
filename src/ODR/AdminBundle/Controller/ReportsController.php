@@ -119,7 +119,7 @@ class ReportsController extends ODRCustomController
                 // Render the report
                 $return['d'] = [
                     'html' => $templating->render(
-                        'ODRAdminBundle:Reports:datafield_uniqueness_report.html.twig',
+                        '@ODRAdmin/Reports/datafield_uniqueness_report.html.twig',
                         [
                             'datafield' => $datafield,
                             'duplicate_values' => $values,
@@ -134,7 +134,7 @@ class ReportsController extends ODRCustomController
                 // Render the report
                 $return['d'] = [
                     'html' => $templating->render(
-                        'ODRAdminBundle:Reports:child_datafield_uniqueness_report.html.twig',
+                        '@ODRAdmin/Reports/child_datafield_uniqueness_report.html.twig',
                         [
                             'datafield' => $datafield,
                             'duplicate_values' => $values,
@@ -433,7 +433,7 @@ class ReportsController extends ODRCustomController
             // Render and return a page detailing which datarecords have multiple uploads...
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Reports:multiple_file_uploads_report.html.twig',
+                    '@ODRAdmin/Reports/multiple_file_uploads_report.html.twig',
                     [
                         'datafield' => $datafield,
                         'multiple_uploads' => $datarecord_list,
@@ -561,7 +561,7 @@ class ReportsController extends ODRCustomController
             // Render and return a page detailing which datarecords have multiple child/linked datarecords...
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Reports:datarecord_number_report.html.twig',
+                    '@ODRAdmin/Reports/datarecord_number_report.html.twig',
                     [
                         'datatree' => $datatree,
                         'datarecords' => $datarecord_list,
@@ -684,7 +684,7 @@ class ReportsController extends ODRCustomController
             // Render and return a page detailing which datarecords have multiple child/linked datarecords...
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Reports:datarecord_links_report.html.twig',
+                    '@ODRAdmin/Reports/datarecord_links_report.html.twig',
                     [
                         'local_datatype' => $local_datatype,
                         'remote_datatype' => $remote_datatype,
@@ -849,7 +849,7 @@ class ReportsController extends ODRCustomController
             // Render and return a page detailing which datarecords have multiple child/linked datarecords...
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Reports:datafield_content_report.html.twig',
+                    '@ODRAdmin/Reports/datafield_content_report.html.twig',
                     [
                         'datafield' => $datafield,
                         'datatype' => $datatype,
@@ -976,7 +976,7 @@ class ReportsController extends ODRCustomController
             // Render and return a page detailing which datarecords have multiple selected Radio Options...
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Reports:radio_selections_report.html.twig',
+                    '@ODRAdmin/Reports/radio_selections_report.html.twig',
                     [
                         'datafield' => $datafield,
                         'datatype' => $datatype,
@@ -1077,7 +1077,7 @@ class ReportsController extends ODRCustomController
             // ----------------------------------------
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Reports:analyze_datafield_migration_start.html.twig',
+                    '@ODRAdmin/Reports/analyze_datafield_migration_start.html.twig',
                     [
                         'datafield' => $datafield,
                         'datatype' => $datatype,
@@ -1358,7 +1358,7 @@ class ReportsController extends ODRCustomController
             if ( $html !== '' ) {
                 // In most cases, there will be a single string...wrap it inside a div here
                 $html = $templating->render(
-                    'ODRAdminBundle:Reports:analyze_datafield_migration_normal_field.html.twig',
+                    '@ODRAdmin/Reports/analyze_datafield_migration_normal_field.html.twig',
                     [
                         'df' => $datafield,
                         'html' => $html,
@@ -1374,7 +1374,7 @@ class ReportsController extends ODRCustomController
                 // If there's an array of strings, then render them...they also include the hydrdated
                 //  datafields already
                 $html = $templating->render(
-                    'ODRAdminBundle:Reports:analyze_datafield_migration_template_fields.html.twig',
+                    '@ODRAdmin/Reports/analyze_datafield_migration_template_fields.html.twig',
                     [
                         'strings' => $strings,
                         'new_fieldtype' => $new_fieldtype,
@@ -1661,7 +1661,7 @@ class ReportsController extends ODRCustomController
         $baseurl = 'https:'.$this->container->getParameter('site_baseurl').'/admin#/view/';
 
         $html = $templating->render(
-            'ODRAdminBundle:Reports:analyze_datafield_migration_to_text.html.twig',
+            '@ODRAdmin/Reports/analyze_datafield_migration_to_text.html.twig',
             [
                 'baseurl' => $baseurl,
                 'new_fieldtype' => $new_fieldtype,
@@ -1733,7 +1733,7 @@ class ReportsController extends ODRCustomController
         $baseurl = 'https:'.$this->container->getParameter('site_baseurl').'/admin#/view/';
 
         $html = $templating->render(
-            'ODRAdminBundle:Reports:analyze_datafield_migration_to_text.html.twig',
+            '@ODRAdmin/Reports/analyze_datafield_migration_to_text.html.twig',
             [
                 'baseurl' => $baseurl,
                 'new_fieldtype' => $new_fieldtype,
@@ -1801,7 +1801,7 @@ class ReportsController extends ODRCustomController
         $baseurl = 'https:'.$this->container->getParameter('site_baseurl').'/admin#/view/';
 
         $html = $templating->render(
-            'ODRAdminBundle:Reports:analyze_datafield_migration_to_integer.html.twig',
+            '@ODRAdmin/Reports/analyze_datafield_migration_to_integer.html.twig',
             [
                 'baseurl' => $baseurl,
                 'new_fieldtype' => $new_fieldtype,
@@ -1869,7 +1869,7 @@ class ReportsController extends ODRCustomController
         $baseurl = 'https:'.$this->container->getParameter('site_baseurl').'/admin#/view/';
 
         $html = $templating->render(
-            'ODRAdminBundle:Reports:analyze_datafield_migration_to_decimal.html.twig',
+            '@ODRAdmin/Reports/analyze_datafield_migration_to_decimal.html.twig',
             [
                 'baseurl' => $baseurl,
                 'new_fieldtype' => $new_fieldtype,
@@ -1921,7 +1921,7 @@ class ReportsController extends ODRCustomController
         $baseurl = 'https:'.$this->container->getParameter('site_baseurl').'/admin#/view/';
 
         $html = $templating->render(
-            'ODRAdminBundle:Reports:analyze_datafield_migration_to_single_radio.html.twig',
+            '@ODRAdmin/Reports/analyze_datafield_migration_to_single_radio.html.twig',
             [
                 'baseurl' => $baseurl,
                 'render_plugin_restrictions' => $render_plugin_restrictions,

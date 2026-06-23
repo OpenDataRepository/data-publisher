@@ -148,7 +148,7 @@ class RadioOptionsController extends ODRCustomController
             // Render the template
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Displaytemplate:radio_option_dialog_form.html.twig',
+                    '@ODRAdmin/Displaytemplate/radio_option_dialog_form.html.twig',
                     [
                         'datafield' => $df_array,
 

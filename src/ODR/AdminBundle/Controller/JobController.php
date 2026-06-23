@@ -69,7 +69,7 @@ class JobController extends ODRCustomController
 
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Job:list.html.twig',
+                    '@ODRAdmin/Job/list.html.twig',
                     [
                         'jobs' => $jobs,
                         'show_section' => $section,

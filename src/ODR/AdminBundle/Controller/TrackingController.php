@@ -170,7 +170,7 @@ class TrackingController extends ODRCustomController
             // Generate the HTML required for a header
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Tracking:tracking_wrapper.html.twig',
+                    '@ODRAdmin/Tracking/tracking_wrapper.html.twig',
                     [
                         'grandparent_datatype_name' => $grandparent_datatype->getLongName(),
                         'target_datatype_id' => $target_datatype_id,
@@ -328,7 +328,7 @@ class TrackingController extends ODRCustomController
             // Generate the HTML required for a header
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Tracking:tracking_wrapper.html.twig',
+                    '@ODRAdmin/Tracking/tracking_wrapper.html.twig',
                     [
                         'search_key' => $search_key,
                         'readable_search_key' => $readable_search_key,
@@ -453,7 +453,7 @@ class TrackingController extends ODRCustomController
             // Generate the HTML required for a header
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Tracking:tracking_wrapper.html.twig',
+                    '@ODRAdmin/Tracking/tracking_wrapper.html.twig',
                     [
                         'grandparent_datatype_name' => $grandparent_datatype->getLongName(),
                         'target_datatype_id' => $target_datatype_id,
@@ -579,7 +579,7 @@ class TrackingController extends ODRCustomController
             // Generate the HTML required for a header
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Tracking:tracking_wrapper.html.twig',
+                    '@ODRAdmin/Tracking/tracking_wrapper.html.twig',
                     [
                         // Intentionally not providing any default target datatype/datafield info
 
@@ -934,9 +934,9 @@ class TrackingController extends ODRCustomController
             if ( $row_count > self::ROWS_SOFT_LIMIT )
                 $rows_exceeded = true;
 
-            $template_name = 'ODRAdminBundle:Tracking:tracking_data.html.twig';
+            $template_name = '@ODRAdmin/Tracking/tracking_data.html.twig';
             if ( $simple )
-                $template_name = 'ODRAdminBundle:Tracking:tracking_data_simple.html.twig';
+                $template_name = '@ODRAdmin/Tracking/tracking_data_simple.html.twig';
 
             $return['d'] = [
                 'html' => $templating->render(
@@ -2643,7 +2643,7 @@ class TrackingController extends ODRCustomController
             // Render the list of users
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Tracking:tracking_dialog_datafield_selection.html.twig',
+                    '@ODRAdmin/Tracking/tracking_dialog_datafield_selection.html.twig',
                     [
                         'list' => $list,
                         'datatype_restriction' => $datatype_restriction,
@@ -2753,7 +2753,7 @@ class TrackingController extends ODRCustomController
             // Render the list of users
             $return['d'] = [
                 'html' => $templating->render(
-                    'ODRAdminBundle:Tracking:tracking_dialog_user_selection.html.twig',
+                    '@ODRAdmin/Tracking/tracking_dialog_user_selection.html.twig',
                     [
                         'user_list' => $user_list,
                     ]

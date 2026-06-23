@@ -27,7 +27,7 @@
             <tbody>
             {% for dr_id, datarecord in datarecord_array %}
                 <tr>
-                    {% include 'ODRAdminBundle:Display:display_fieldarea_table.html.twig' with {
+                    {% include '@ODRAdmin/Display/display_fieldarea_table.html.twig' with {
                         'datatype_array': datatype_array,
                         'datarecord': datarecord,
                         'theme_array': theme_array,
@@ -53,6 +53,6 @@
     </div>
 </div><!-- end of #TextResults_wrapper -->
 
-{% include 'ODRAdminBundle:Display:display_setup_datatables.js.twig' with {'unique_id': unique_id, 'num_records': datarecord_array|length} %}
+{% include '@ODRAdmin/Display/display_setup_datatables.js.twig' with {'unique_id': unique_id, 'num_records': datarecord_array|length} %}
 
 {% endapply %}

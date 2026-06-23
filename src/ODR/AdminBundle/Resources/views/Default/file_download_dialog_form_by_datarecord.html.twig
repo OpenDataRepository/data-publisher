@@ -36,7 +36,7 @@
         {% if dr['child_datatypes'] is defined and dr['child_datatypes']|length > 0 %}
             {% for child_dt_id, child_dr_list in dr['child_datatypes'] %}
                 <li><span class="ODRTristateCheckbox" style="margin-right: 5px;"><i class="fa"></i></span>{{ entity_names['datatypes'][child_dt_id] }}
-                    {% include 'ODRAdminBundle:Default:file_download_dialog_form_by_datarecord.html.twig' with {
+                    {% include '@ODRAdmin/Default/file_download_dialog_form_by_datarecord.html.twig' with {
                         'file_array': child_dr_list,
                         'entity_names': entity_names,
                     } %}

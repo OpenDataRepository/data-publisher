@@ -64,7 +64,7 @@
             <div class="ODRThemeElement" style="margin-top: 15px;">
                 {# this form is for renaming tags #}
                 <form id="ODRTagForm" rel="{{ datafield.id }}">
-                    {% include 'ODRAdminBundle:Tags:tag_wrapper.html.twig' with {
+                    {% include '@ODRAdmin/Tags/tag_wrapper.html.twig' with {
                         'datafield' : datafield,
                         'stacked_tags': stacked_tags,
 
@@ -694,7 +694,7 @@
             success: function(data) {
                 //
                 $(".ODRTagWrapper_import").html(data.d.html);
-                setupTagTree( $(".ODRTagImport_content") );    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+                setupTagTree( $(".ODRTagImport_content") );    {# defined in @ODRAdmin/Default/common_js.html.twig #}
             },
             error: function(jqXHR, textStatus, errorThrown) {
                 // Don't need to do anything specific on an error

@@ -34,7 +34,7 @@
     {% endif %}
 
     {% if parent_datatype != null %}
-        {% include 'ODRAdminBundle:CSVImport:parent_datatype_settings.html.twig' with {
+        {% include '@ODRAdmin/CSVImport/parent_datatype_settings.html.twig' with {
             'parent_datatype': parent_datatype,
             'datatype': datatype,
             'linked_importing': linked_importing,
@@ -44,7 +44,7 @@
     {% endif %}
 
     {% if not linked_importing %}
-        {% include 'ODRAdminBundle:CSVImport:uniqueness_warnings.html.twig' with {
+        {% include '@ODRAdmin/CSVImport/uniqueness_warnings.html.twig' with {
             'datatype': datatype,
             'datafields': datafields,
             'datatree_array': datatree_array,
@@ -197,7 +197,7 @@
         <div>
             <b>Any files or images that you want to import using this CSV file need to be uploaded here.</b>
         </div>
-        {% include 'ODRAdminBundle:CSVImport:filelist.html.twig' with {
+        {% include '@ODRAdmin/CSVImport/filelist.html.twig' with {
             'datatype_id': datatype.id,
             'presets': presets}
         %}
@@ -1053,6 +1053,6 @@
     }
 </script>
 
-{% include 'ODRAdminBundle:Job:job_progress.html.twig' %}
+{% include '@ODRAdmin/Job/job_progress.html.twig' %}
 
 {% endapply %}

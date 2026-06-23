@@ -7,7 +7,7 @@
 {% if sidebar_array['always_display']|length > 0 %}
     {% for df_id,df in sidebar_array['always_display'] %}
         <div class="ODRSidebarLayout_sidebarDatafield" rel="{{ df_id }}">
-            {% include 'ODROpenRepositorySearchBundle:Default:design_search_datafield.html.twig' with {
+            {% include '@ODROpenRepositorySearch/Default/design_search_datafield.html.twig' with {
                 'datatype': datatype,
                 'datafield': df,
             } %}
@@ -23,7 +23,7 @@
 {% if sidebar_array['extended_display']|length > 0 %}
     {% for df_id,df in sidebar_array['extended_display'] %}
         <div class="ODRSidebarLayout_sidebarDatafield" rel="{{ df_id }}">
-            {% include 'ODROpenRepositorySearchBundle:Default:design_search_datafield.html.twig' with {
+            {% include '@ODROpenRepositorySearch/Default/design_search_datafield.html.twig' with {
                 'datatype': datatype,
                 'datafield': df,
             } %}

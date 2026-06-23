@@ -33,15 +33,15 @@
 {% endif %}
 
 {% block navigation_top %}
-    {% include 'ODRAdminBundle::navigation.html.twig' with {'user': user, 'datatype_permissions': datatype_permissions} %}
+    {% include '@ODRAdmin/navigation.html.twig' with {'user': user, 'datatype_permissions': datatype_permissions} %}
 {% endblock %}
 
-{# Changes made to #ODRSearchSidebar and #ODRSearchContent also need to be made in ODROpenRepositorySearchBundle:Default:index.html.twig #}
+{# Changes made to #ODRSearchSidebar and #ODRSearchContent also need to be made in @ODROpenRepositorySearch/Default/index.html.twig #}
 {# This "backend page" starts out with the sidebar hidden and the content taking up the entire page #}
 {% block body %}
     <div id="ODRSearchSidebar" class="pure-u-1 pure-u-sm-1-3 pure-u-md-1-3 pure-u-xl-1-4 ODRContentWrapper ODRSearchVisible ODRHidden"></div>
     <div id="ODRSearchContent" class="pure-u-1 pure-u-sm-2-3 pure-u-md-2-3 pure-u-xl-3-4 ODRSearchResultsWide"></div>
 
-    {% import "ODRAdminBundle:Default:common_js.html.twig" as js %}
+    {% import "@ODRAdmin/Default/common_js.html.twig" as js %}
     {{ js.write(logged_in, site_baseurl, odr_wordpress_integrated, wordpress_site_baseurl) }}
 {% endblock %}

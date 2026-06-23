@@ -1,14 +1,14 @@
 {% apply spaceless %}
 
 {% if side == 'src' %}
-    {% include 'ODRAdminBundle:Migration:list_worker.html.twig' with {
+    {% include '@ODRAdmin/Migration/list_worker.html.twig' with {
         'datatype': datatype,
         'side': side,
     } %}
 {% elseif side == 'fields' %}
     <select class="ODRMigration_DestDatatype_field_select">
         <option rel=""></option>
-        {% include 'ODRAdminBundle:Migration:list_worker.html.twig' with {
+        {% include '@ODRAdmin/Migration/list_worker.html.twig' with {
             'datatype': datatype,
             'side': side,
         } %}
@@ -22,7 +22,7 @@
 {% elseif side == 'types' %}
     <select class="ODRMigration_DestDatatype_type_select">
         <option rel=""></option>
-        {% include 'ODRAdminBundle:Migration:list_worker.html.twig' with {
+        {% include '@ODRAdmin/Migration/list_worker.html.twig' with {
             'datatype': datatype,
             'side': side,
         } %}

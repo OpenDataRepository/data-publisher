@@ -269,7 +269,7 @@
         </label>
 
         {% if datafield.tags is defined %}
-            {% include 'ODRAdminBundle:MassEdit:tag_wrapper.html.twig' with {
+            {% include '@ODRAdmin/MassEdit/tag_wrapper.html.twig' with {
                 'stacked_tags': datafield.tags,
             } %}
         {% endif %}

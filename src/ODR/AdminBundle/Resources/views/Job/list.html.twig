@@ -15,9 +15,9 @@
         </h3>
 
         {% if job_type == 'csv_export' %}
-            {% include 'ODRAdminBundle:Job:csv_export.html.twig' %}
+            {% include '@ODRAdmin/Job/csv_export.html.twig' %}
         {% elseif job_type == 'csv_import_validate' %}
-            {% include 'ODRAdminBundle:Job:csv_import_validate.html.twig' %}
+            {% include '@ODRAdmin/Job/csv_import_validate.html.twig' %}
         {% else %}
         <div class="accordion-content ODRJobList_general_wrapper" rel="{{ job_type }}">
             <table id="ODRJobList_{{ job_type }}" class="display">
@@ -45,7 +45,7 @@
 
 <script>
     $(function() {
-        disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+        disableSearchSidebar();    {# defined in @ODRAdmin/Default/common_js.html.twig #}
 
         var window_intervals = {};
 {% for job_type, job_name in jobs %}

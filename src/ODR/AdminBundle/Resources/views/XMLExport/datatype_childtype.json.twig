@@ -64,7 +64,7 @@
 
     {% if is_link != -1 %}
         {# only detail datafields if this is not a linked datatype #}
-        {% include 'ODRAdminBundle:XMLExport:datatype_fieldarea.json.twig' with {
+        {% include '@ODRAdmin/XMLExport/datatype_fieldarea.json.twig' with {
             'datatype_array': datatype_array,
             'theme_array': theme_array,
 

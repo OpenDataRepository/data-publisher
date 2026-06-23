@@ -597,7 +597,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
             $output = '';
             $output .= $this->get('templating')->render(
-                'ODROpenRepositorySearchBundle:TemplateSearch:result_header.html.twig',
+                '@ODROpenRepositorySearch/TemplateSearch/result_header.html.twig',
                 [
                     'total' => $search_result['hits']['total']['value'], // total records
                     'limit' => $limit,
@@ -608,7 +608,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             foreach($search_result['hits']['hits'] as $record_data) {
                 $record = $record_data['_source'];
                 $output .= $this->get('templating')->render(
-                    'ODROpenRepositorySearchBundle:TemplateSearch:result.html.twig',
+                    '@ODROpenRepositorySearch/TemplateSearch/result.html.twig',
                     [
                         'record'=> $record,
                         'record_num' => $counter

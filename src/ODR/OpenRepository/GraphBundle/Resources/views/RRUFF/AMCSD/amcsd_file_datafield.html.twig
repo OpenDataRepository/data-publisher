@@ -88,7 +88,7 @@
                     {% set file_delete_callback = 'function() { ReloadEditChild(' ~ datarecord.dataType.id ~ ',' ~ parent_datarecord.id ~ '); }' %}
                 {% endif %}
 
-                {% include "ODRAdminBundle:Edit:edit_file_datafield.html.twig" with {
+                {% include "@ODRAdmin/Edit/edit_file_datafield.html.twig" with {
                     'datafield': datafield,
                     'datarecord': datarecord,
                     'files': valuefield,
@@ -122,7 +122,7 @@
                 {% set callback = 'ReloadEditChild(' ~ datarecord.dataType.id ~ ',' ~ parent_datarecord.id ~ ');' %}
             {% endif %}
 
-            {% include 'ODRAdminBundle:Flow:flow_upload.html.twig' with {
+            {% include '@ODRAdmin/Flow/flow_upload.html.twig' with {
                 'target': target,
                 'single_file': single_file,
                 'upload_type': 'file',

@@ -13,7 +13,7 @@ is_link: {% if is_link == 1 %}yes{% else %}no{%endif %}<br>
 --------------------<br>
 #}
 <div class="ODRChildDatatype" id="ChildTypeWrapper_{{ childtype.id }}_{{ parent_datarecord.id }}">
-    {% include 'ODRAdminBundle:Link:inline_link_childtype.html.twig' with {
+    {% include '@ODRAdmin/Link/inline_link_childtype.html.twig' with {
         'datatype_array': datatype_array,
         'datarecord_array': datarecord_array,
         'theme_array': theme_array,

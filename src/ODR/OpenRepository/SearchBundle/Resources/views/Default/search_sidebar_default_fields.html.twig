@@ -33,7 +33,7 @@
                  {{ content|raw }}
              {% else %}
                  {# ...otherwise, render the datafield as normal #}
-                 {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
+                 {% include '@ODROpenRepositorySearch/Default/search_datafield.html.twig' with {
                      'search_params': search_params,
                      'datatype': dt,
                      'datafield': df
@@ -45,7 +45,7 @@
 
     {% if intent != 'stored_search_keys' %}
         {# created/modified by, created/modified date, public status of child datarecord #}
-        {% include 'ODROpenRepositorySearchBundle:Default:search_metadata.html.twig' with {
+        {% include '@ODROpenRepositorySearch/Default/search_metadata.html.twig' with {
             'search_params': search_params,
 
             'datatype_id': target_datatype_id,
@@ -97,7 +97,7 @@
                         {{ content|raw }}
                     {% else %}
                         {# ...otherwise, render the datafield as normal #}
-                        {% include 'ODROpenRepositorySearchBundle:Default:search_datafield.html.twig' with {
+                        {% include '@ODROpenRepositorySearch/Default/search_datafield.html.twig' with {
                             'search_params': search_params,
                             'datatype': dt,
                             'datafield': df
@@ -109,7 +109,7 @@
 
             {% if intent != 'stored_search_keys' %}
                 {# created/modified by, created/modified date, public status of child datarecord #}
-                {% include 'ODROpenRepositorySearchBundle:Default:search_metadata.html.twig' with {
+                {% include '@ODROpenRepositorySearch/Default/search_metadata.html.twig' with {
                     'search_params': search_params,
 
                     'datatype_id': dt_id,

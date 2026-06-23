@@ -50,12 +50,12 @@
 
 
 {% block navigation_top %}
-    {% include 'ODRAdminBundle::navigation.html.twig' with {'user': user, 'datatype_permissions': datatype_permissions} %}
+    {% include '@ODRAdmin/navigation.html.twig' with {'user': user, 'datatype_permissions': datatype_permissions} %}
 {% endblock %}
 
 
 {% block body %}
     {{ records }}
-    {% import "ODRAdminBundle:Default:common_js.html.twig" as js %}
+    {% import "@ODRAdmin/Default/common_js.html.twig" as js %}
     {{ js.write(logged_in, site_baseurl, odr_wordpress_integrated, wordpress_site_baseurl) }}
 {% endblock %}
