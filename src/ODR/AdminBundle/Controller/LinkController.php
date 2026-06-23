@@ -57,9 +57,6 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Router;
-use Symfony\Component\Templating\EngineInterface;
-
-
 class LinkController extends ODRCustomController
 {
 
@@ -88,7 +85,7 @@ class LinkController extends ODRCustomController
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataType $local_datatype */
@@ -441,7 +438,7 @@ class LinkController extends ODRCustomController
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataType $local_datatype */
@@ -1857,7 +1854,7 @@ class LinkController extends ODRCustomController
             /** @var Router $router */
             $router = $this->get('router');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
             /** @var DataRecord $local_datarecord */
             $local_datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($local_datarecord_id);
@@ -2260,7 +2257,7 @@ class LinkController extends ODRCustomController
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             // Grab the datatypes from the database
@@ -3408,7 +3405,7 @@ class LinkController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             // ----------------------------------------
@@ -3545,7 +3542,7 @@ class LinkController extends ODRCustomController
             /** @var ODRRenderService $odr_render_service */
             $odr_render_service = $this->container->get('odr.render_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
             /** @var DataFields $external_id_field */
             $external_id_field = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($external_id_field_id);

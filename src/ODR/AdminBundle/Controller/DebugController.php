@@ -33,9 +33,6 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Templating\EngineInterface;
-
-
 class DebugController extends ODRCustomController
 {
 
@@ -72,7 +69,7 @@ class DebugController extends ODRCustomController
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);

@@ -274,8 +274,8 @@ class RemoteController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
 
             // ----------------------------------------
-            /** @var TwigEngine $templating */
-            $templating = $this->get('templating');
+            /** @var \Twig\Environment $templating */
+            $templating = $this->get('twig');
             $return['d'] = [
                 'html' => $templating->render(
                     '@ODROpenRepositorySearch/Remote/select_ajax.html.twig',
@@ -414,8 +414,8 @@ class RemoteController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
 
             // ----------------------------------------
-            /** @var TwigEngine $templating */
-            $templating = $this->get('templating');
+            /** @var \Twig\Environment $templating */
+            $templating = $this->get('twig');
 
             // Need to render this separately...
 //            $short_config = $templating->render(
@@ -479,8 +479,8 @@ class RemoteController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
         try {
             // Need templating to render a couple twig things in the javascript file...
-            /** @var TwigEngine $templating */
-            $templating = $this->get('templating');
+            /** @var \Twig\Environment $templating */
+            $templating = $this->get('twig');
 
             $js = '';
             if ($minified) {
@@ -555,8 +555,8 @@ class RemoteController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             $site_baseurl = $this->container->getParameter('site_baseurl');
 
             // Just need to get twig to render an example
-            /** @var TwigEngine $templating */
-            $templating = $this->get('templating');
+            /** @var \Twig\Environment $templating */
+            $templating = $this->get('twig');
 
             $template = null;
             if ($type === 'basic1')

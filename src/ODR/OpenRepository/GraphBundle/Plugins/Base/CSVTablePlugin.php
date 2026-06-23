@@ -18,16 +18,13 @@ use ODR\AdminBundle\Component\Service\CryptoService;
 // ODR
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 // Symfony
-use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
-
-
 class CSVTablePlugin implements DatafieldPluginInterface
 {
 
     /**
      * CSVTablePlugin constructor.
      *
-     * @param \Symfony\Component\Templating\EngineInterface $templating
+     * @param \Twig\Environment $templating
      * @param CryptoService $crypto_service
      * @param string $odr_web_directory
      */

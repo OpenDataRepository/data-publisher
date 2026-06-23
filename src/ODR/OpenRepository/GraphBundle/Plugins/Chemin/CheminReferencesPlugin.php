@@ -24,9 +24,6 @@ use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\TableResultsOverrideInterface;
 // Symfony
 use Doctrine\ORM\EntityManager;
-use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
-
-
 class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOverrideInterface
 {
 
@@ -35,7 +32,7 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
      *
      * @param EntityManager $em
      * @param CacheService $cache_service
-     * @param \Symfony\Component\Templating\EngineInterface $templating
+     * @param \Twig\Environment $templating
      */
     public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly \Twig\Environment $templating)
     {

@@ -17,16 +17,13 @@ namespace ODR\OpenRepository\GraphBundle\Plugins\Chemin;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 // Symfony
 use Symfony\Bridge\Monolog\Logger;
-use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
-
-
 class QanalyzePlugin implements DatafieldPluginInterface
 {
 
     /**
      * QanalyzePlugin constructor.
      *
-     * @param \Symfony\Component\Templating\EngineInterface $templating
+     * @param \Twig\Environment $templating
      * @param Logger $logger
      */
     public function __construct(private readonly \Twig\Environment $templating, private readonly Logger $logger)

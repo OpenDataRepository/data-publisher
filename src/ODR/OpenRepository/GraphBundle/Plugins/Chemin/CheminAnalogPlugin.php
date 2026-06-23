@@ -28,7 +28,6 @@ use ODR\AdminBundle\Component\Service\LockService;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
-use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
@@ -44,7 +43,7 @@ class CheminAnalogPlugin implements DatatypePluginInterface
      * @param LockService $lock_service
      * @param EventDispatcherInterface $event_dispatcher
      * @param CsrfTokenManager $token_manager
-     * @param \Symfony\Component\Templating\EngineInterface $templating
+     * @param \Twig\Environment $templating
      * @param Logger $logger
      */
     public function __construct(private readonly EntityManager $em, private readonly EntityCreationService $ec_service, private readonly LockService $lock_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly CsrfTokenManager $token_manager, private readonly \Twig\Environment $templating, private readonly Logger $logger)

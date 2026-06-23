@@ -20,7 +20,6 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 // Other
 use Symfony\Bridge\Monolog\Logger;
-use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Router;
 
@@ -33,7 +32,7 @@ class SearchRedirectService
      *
      * @param ODRTabHelperService $tab_helper_service
      * @param Router $router
-     * @param \Symfony\Component\Templating\EngineInterface $templating
+     * @param \Twig\Environment $templating
      * @param Logger $logger
      */
     public function __construct(private readonly ODRTabHelperService $tab_helper_service, private readonly Router $router, private readonly \Twig\Environment $templating, private readonly Logger $logger)

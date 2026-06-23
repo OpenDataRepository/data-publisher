@@ -15,7 +15,6 @@ namespace ODR\OpenRepository\GraphBundle\Plugins;
 
 
 // Symfony
-use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 use Symfony\Bridge\Monolog\Logger;
 // Other
 use Pheanstalk\Pheanstalk;
@@ -25,7 +24,7 @@ abstract class ODRGraphPlugin
     /**
      * ODRGraph Plugin constructor.
      *
-     * @param \Symfony\Component\Templating\EngineInterface $templating
+     * @param \Twig\Environment $templating
      * @param Pheanstalk $pheanstalk
      * @param string $site_baseurl
      * @param string $odr_web_directory

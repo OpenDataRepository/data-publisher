@@ -37,7 +37,6 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Templating\EngineInterface;
 use Doctrine\DBAL\Connection as DBALConnection;
 
 
@@ -96,7 +95,7 @@ class TrackingController extends ODRCustomController
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataRecord $datarecord */
@@ -235,7 +234,7 @@ class TrackingController extends ODRCustomController
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             // Ensure the search key is valid before attempting to decode it...
@@ -390,7 +389,7 @@ class TrackingController extends ODRCustomController
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataType $datatype */
@@ -508,7 +507,7 @@ class TrackingController extends ODRCustomController
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var ODRUser $target_user */
@@ -692,7 +691,7 @@ class TrackingController extends ODRCustomController
             /** @var SearchAPIService $search_api_service */
             $search_api_service = $this->container->get('odr.search_api_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataType $grandparent_datatype */
@@ -2525,7 +2524,7 @@ class TrackingController extends ODRCustomController
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataType|null $datatype_restriction */
@@ -2689,7 +2688,7 @@ class TrackingController extends ODRCustomController
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             // --------------------

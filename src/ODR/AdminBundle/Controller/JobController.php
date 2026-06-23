@@ -31,9 +31,6 @@ use ODR\AdminBundle\Component\Service\TrackedJobService;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Templating\EngineInterface;
-
-
 class JobController extends ODRCustomController
 {
 
@@ -54,7 +51,7 @@ class JobController extends ODRCustomController
 
         try {
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
             // Enabled keys in the $jobs array should be added to the route 'odr_job_list' in the
             //  routing file, so that only relevant jobs are shown

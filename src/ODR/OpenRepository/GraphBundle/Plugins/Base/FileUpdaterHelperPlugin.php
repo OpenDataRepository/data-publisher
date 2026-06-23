@@ -20,7 +20,6 @@ use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\OpenRepository\GraphBundle\Plugins\ThemeElementPluginInterface;
 // Symfony
 use Symfony\Bridge\Monolog\Logger;
-use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 use Symfony\Component\Routing\Router;
 
 
@@ -36,7 +35,7 @@ class FileUpdaterHelperPlugin implements ThemeElementPluginInterface
      * @param string $environment
      * @param DatabaseInfoService $database_info_service
      * @param Router $router
-     * @param \Symfony\Component\Templating\EngineInterface $templating
+     * @param \Twig\Environment $templating
      * @param Logger $logger
      */
     public function __construct(private readonly string $baseurl, private readonly string $wordpress_site_baseurl, private readonly bool $odr_wordpress_integrated, private readonly string $environment, private readonly DatabaseInfoService $database_info_service, private readonly Router $router, private readonly \Twig\Environment $templating, private readonly Logger $logger)

@@ -23,9 +23,6 @@ use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\TableResultsOverrideInterface;
 // Symfony
 use Doctrine\ORM\EntityManager;
-use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
-
-
 class ReferencesPlugin implements DatatypePluginInterface, TableResultsOverrideInterface
 {
 
@@ -34,7 +31,7 @@ class ReferencesPlugin implements DatatypePluginInterface, TableResultsOverrideI
      *
      * @param EntityManager $em
      * @param CacheService $cache_service
-     * @param \Symfony\Component\Templating\EngineInterface $templating
+     * @param \Twig\Environment $templating
      */
     public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly \Twig\Environment $templating)
     {

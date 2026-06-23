@@ -65,7 +65,6 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchQueryService;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
-use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 
@@ -81,7 +80,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
      * @param DatabaseInfoService $database_info_service
      * @param SearchService $search_service
      * @param SearchQueryService $search_query_service
-     * @param \Symfony\Component\Templating\EngineInterface $templating
+     * @param \Twig\Environment $templating
      * @param Logger $logger
      */
     public function __construct(private readonly EntityManager $em, private readonly EventDispatcherInterface $event_dispatcher, private readonly CacheService $cache_service, private readonly DatabaseInfoService $database_info_service, private readonly SearchService $search_service, private readonly SearchQueryService $search_query_service, private readonly \Twig\Environment $templating, private readonly Logger $logger)

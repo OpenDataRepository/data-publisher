@@ -34,9 +34,6 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Router;
-use Symfony\Component\Templating\EngineInterface;
-
-
 class RRUFFInstrumentUsageController extends ODRCustomController
 {
 
@@ -75,7 +72,7 @@ class RRUFFInstrumentUsageController extends ODRCustomController
             /** @var Router $router */
             $router = $this->get('router');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataRecord $datarecord */

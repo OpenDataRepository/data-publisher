@@ -25,16 +25,13 @@ namespace ODR\OpenRepository\GraphBundle\Plugins\RRUFF;
 use ODR\OpenRepository\GraphBundle\Plugins\ThemeElementPluginInterface;
 // Symfony
 use Symfony\Bridge\Monolog\Logger;
-use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
-
-
 class RRUFFSpecialReferencePlugin implements ThemeElementPluginInterface
 {
 
     /**
      * RRUFF Special Reference Plugin constructor
      *
-     * @param \Symfony\Component\Templating\EngineInterface $templating
+     * @param \Twig\Environment $templating
      * @param Logger $logger
      */
     public function __construct(private readonly \Twig\Environment $templating, private readonly Logger $logger)

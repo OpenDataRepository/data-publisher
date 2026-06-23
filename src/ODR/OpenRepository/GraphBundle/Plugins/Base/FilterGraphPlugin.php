@@ -37,7 +37,6 @@ use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\ODRGraphPlugin;
 use ODR\OpenRepository\GraphBundle\Plugins\PluginSettingsDialogOverrideInterface;
 // Symfony
-use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 use Symfony\Bridge\Monolog\Logger;
 // Other
 use Pheanstalk\Pheanstalk;
@@ -49,7 +48,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
 {
 
     /**
-     * @var \Symfony\Component\Templating\EngineInterface
+     * @var \Twig\Environment
      */
     private $templating;
 
@@ -73,7 +72,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
      * FilterGraph Plugin constructor.
      *
      * @param RequestStack $request_stack
-     * @param \Symfony\Component\Templating\EngineInterface $templating
+     * @param \Twig\Environment $templating
      * @param CryptoService $crypto_service
      * @param DatabaseInfoService $database_info_service
      * @param Pheanstalk $pheanstalk

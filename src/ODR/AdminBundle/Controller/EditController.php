@@ -87,9 +87,6 @@ use Symfony\Component\Form\FormError;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Routing\Router;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
-use Symfony\Component\Templating\EngineInterface;
-
-
 class EditController extends ODRCustomController
 {
 
@@ -3056,7 +3053,7 @@ class EditController extends ODRCustomController
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataFields $datafield */
@@ -3200,7 +3197,7 @@ class EditController extends ODRCustomController
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
             /** @var Router $router */
             $router = $this->get('router');
 
@@ -3450,7 +3447,7 @@ class EditController extends ODRCustomController
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataRecord $datarecord */
@@ -3663,7 +3660,7 @@ class EditController extends ODRCustomController
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataRecord $datarecord */

@@ -17,7 +17,6 @@ namespace ODR\OpenRepository\GraphBundle\Plugins\Base;
 // ODR
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 // Symfony
-use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 // Other
 use FOS\UserBundle\Util\TokenGenerator;
 
@@ -34,7 +33,7 @@ class MapPlugin implements DatatypePluginInterface
     /**
      * MapPlugin constructor.
      *
-     * @param \Symfony\Component\Templating\EngineInterface $templating
+     * @param \Twig\Environment $templating
      * @param TokenGenerator $tokenGenerator
      */
     public function __construct(private readonly \Twig\Environment $templating, private readonly TokenGenerator $tokenGenerator)

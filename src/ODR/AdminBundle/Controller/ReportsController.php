@@ -41,9 +41,6 @@ use ODR\AdminBundle\Component\Utility\ValidUtility;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Templating\EngineInterface;
-
-
 class ReportsController extends ODRCustomController
 {
 
@@ -72,7 +69,7 @@ class ReportsController extends ODRCustomController
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataFields $datafield */
@@ -339,7 +336,7 @@ class ReportsController extends ODRCustomController
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataFields $datafield */
@@ -483,7 +480,7 @@ class ReportsController extends ODRCustomController
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataTree $datatree */
@@ -611,7 +608,7 @@ class ReportsController extends ODRCustomController
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataType $local_datatype */
@@ -739,7 +736,7 @@ class ReportsController extends ODRCustomController
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataFields $datafield */
@@ -900,7 +897,7 @@ class ReportsController extends ODRCustomController
             /** @var SortService $sort_service */
             $sort_service = $this->container->get('odr.sort_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataFields $datafield */
@@ -1024,7 +1021,7 @@ class ReportsController extends ODRCustomController
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
             $repo_datafields = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
 
@@ -1136,7 +1133,7 @@ class ReportsController extends ODRCustomController
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
             $repo_datafields = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
 

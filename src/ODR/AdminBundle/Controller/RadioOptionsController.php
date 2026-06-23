@@ -42,7 +42,6 @@ use ODR\AdminBundle\Component\Service\TrackedJobService;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Templating\EngineInterface;
 use Doctrine\DBAL\Connection as DBALConnection;
 
 
@@ -76,7 +75,7 @@ class RadioOptionsController extends ODRCustomController
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataFields $datafield */

@@ -120,7 +120,7 @@ class BridgeController extends ODRCustomController
 
             // ----------------------------------------
             // Return the applist as a json array
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
             $html = $templating->render(
                 '@ODROpenRepositoryJupyterhubBridge/Default/app_list.html.twig',
                 [

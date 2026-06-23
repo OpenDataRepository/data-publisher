@@ -39,9 +39,6 @@ use FOS\UserBundle\Doctrine\UserManager;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Router;
-use Symfony\Component\Templating\EngineInterface;
-
-
 class MigrationController extends ODRCustomController
 {
 
@@ -737,7 +734,7 @@ class MigrationController extends ODRCustomController
             /** @var DatabaseInfoService $database_info_service */
             $database_info_service = $this->container->get('odr.database_info_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
@@ -831,7 +828,7 @@ class MigrationController extends ODRCustomController
             /** @var DatabaseInfoService $database_info_service */
             $database_info_service = $this->container->get('odr.database_info_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
             /** @var DataFields $src_datafield */
             $src_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($src_datafield_id);
@@ -1005,7 +1002,7 @@ class MigrationController extends ODRCustomController
             /** @var DatatreeInfoService $datatree_info_service */
             $datatree_info_service = $this->container->get('odr.datatree_info_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
             // Need to get a list of top-level datatypes and top-level templates...
             $top_level_datatypes = array_flip( $datatree_info_service->getTopLevelDatatypes() );
@@ -1345,7 +1342,7 @@ class MigrationController extends ODRCustomController
             /** @var DatatreeInfoService $datatree_info_service */
             $datatree_info_service = $this->container->get('odr.datatree_info_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
             // Need to get a list of all top-level datatypes...
             $top_level_datatypes = $datatree_info_service->getTopLevelDatatypes();
@@ -1827,7 +1824,7 @@ class MigrationController extends ODRCustomController
             /** @var DatatreeInfoService $datatree_info_service */
             $datatree_info_service = $this->container->get('odr.datatree_info_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
             // Going to be easier to use the datatree array here...
             $datatree_array = $datatree_info_service->getDatatreeArray();
@@ -2271,7 +2268,7 @@ class MigrationController extends ODRCustomController
             /** @var DatatreeInfoService $datatree_info_service */
             $datatree_info_service = $this->container->get('odr.datatree_info_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
             // Going to be easier to use the datatree array here...
             $datatree_array = $datatree_info_service->getDatatreeArray();

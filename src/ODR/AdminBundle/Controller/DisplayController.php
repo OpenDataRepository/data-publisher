@@ -55,9 +55,6 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Routing\Router;
-use Symfony\Component\Templating\EngineInterface;
-
-
 class DisplayController extends ODRCustomController
 {
 
@@ -157,7 +154,7 @@ class DisplayController extends ODRCustomController
             $theme_info_service = $this->container->get('odr.theme_info_service');
 
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
             /** @var Router $router */
             $router = $this->get('router');
 
@@ -1145,7 +1142,7 @@ class DisplayController extends ODRCustomController
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataRecord $grandparent_datarecord */
@@ -1712,7 +1709,7 @@ class DisplayController extends ODRCustomController
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->container->get('odr.search_key_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             // Need to locate the datatype from the search key

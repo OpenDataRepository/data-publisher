@@ -39,7 +39,6 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchSidebarService;
 use Doctrine\ORM\EntityManager;
 use Pheanstalk\Pheanstalk;
 use Symfony\Bridge\Monolog\Logger;
-use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 use Symfony\Component\Form\FormFactory;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Routing\Router;
@@ -70,7 +69,7 @@ class ODRRenderService
      * @param SearchKeyService $search_key_service
      * @param SearchSidebarService $search_sidebar_service
      * @param FormFactory $form_factory
-     * @param \Symfony\Component\Templating\EngineInterface $templating
+     * @param \Twig\Environment $templating
      * @param Pheanstalk $pheanstalk
      * @param Router $router
      * @param Logger $logger

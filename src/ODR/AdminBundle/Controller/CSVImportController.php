@@ -75,7 +75,6 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
-use Symfony\Component\Templating\EngineInterface;
 // CSV Reader
 use Ddeboer\DataImport\Reader\CsvReader;
 // ForceUTF8
@@ -113,7 +112,7 @@ class CSVImportController extends ODRCustomController
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->container->get('odr.tracked_job_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataType $datatype */
@@ -310,7 +309,7 @@ class CSVImportController extends ODRCustomController
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->container->get('odr.tracked_job_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataType $source_datatype */
@@ -2374,7 +2373,7 @@ class CSVImportController extends ODRCustomController
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->container->get('odr.tracked_job_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             // ----------------------------------------

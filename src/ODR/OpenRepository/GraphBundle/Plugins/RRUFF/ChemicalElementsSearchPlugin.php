@@ -50,7 +50,6 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
 use Doctrine\DBAL\ParameterType;
 use Doctrine\ORM\EntityManager;
-use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 use Symfony\Bridge\Monolog\Logger;
 
 
@@ -76,7 +75,7 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
      * @param CacheService $cache_service
      * @param SearchService $search_service
      * @param SortService $sort_service
-     * @param \Symfony\Component\Templating\EngineInterface $templating
+     * @param \Twig\Environment $templating
      * @param Logger $logger
      */
     public function __construct(

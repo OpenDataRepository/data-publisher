@@ -16,16 +16,13 @@ namespace ODR\OpenRepository\GraphBundle\Plugins\Metadata;
 // ODR
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 // Symfony
-use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
-
-
 class AHEDPropertiesPersonPlugin implements DatatypePluginInterface
 {
 
     /**
      * AHEDPropertiesPersonPlugin constructor.
      *
-     * @param \Symfony\Component\Templating\EngineInterface $templating
+     * @param \Twig\Environment $templating
      */
     public function __construct(private readonly \Twig\Environment $templating)
     {

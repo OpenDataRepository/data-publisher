@@ -42,9 +42,6 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Templating\EngineInterface;
-
-
 class TextResultsController extends ODRCustomController
 {
 
@@ -690,7 +687,7 @@ class TextResultsController extends ODRCustomController
             /** @var TableThemeHelperService $table_theme_helper_service */
             $table_theme_helper_service = $this->container->get('odr.table_theme_helper_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             // Grab the datatypes from the database

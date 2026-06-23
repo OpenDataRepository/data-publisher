@@ -46,9 +46,6 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
-use Symfony\Component\Templating\EngineInterface;
-
-
 class TagsController extends ODRCustomController
 {
 
@@ -81,7 +78,7 @@ class TagsController extends ODRCustomController
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->container->get('odr.tracked_job_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataFields $datafield */
@@ -560,7 +557,7 @@ class TagsController extends ODRCustomController
             /** @var TagHelperService $tag_helper_service */
             $tag_helper_service = $this->container->get('odr.tag_helper_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataFields $datafield */

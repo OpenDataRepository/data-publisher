@@ -41,9 +41,6 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\Templating\EngineInterface;
-
-
 class ODRCustomController extends \Symfony\Bundle\FrameworkBundle\Controller\AbstractController
 {
 
@@ -106,7 +103,7 @@ class ODRCustomController extends \Symfony\Bundle\FrameworkBundle\Controller\Abs
         $table_theme_helper_service = $this->container->get('odr.table_theme_helper_service');
 
         /** @var \Twig\Environment $templating */
-        $templating = $this->get('templating');
+        $templating = $this->get('twig');
 
 
         $logged_in = $is_super_admin = false;

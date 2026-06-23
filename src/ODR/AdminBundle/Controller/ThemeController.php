@@ -48,9 +48,6 @@ use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Templating\EngineInterface;
-
-
 class ThemeController extends ODRCustomController
 {
 
@@ -82,7 +79,7 @@ class ThemeController extends ODRCustomController
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataType $datatype */
@@ -1298,7 +1295,7 @@ class ThemeController extends ODRCustomController
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var ThemeElement $theme_element */
@@ -1766,7 +1763,7 @@ class ThemeController extends ODRCustomController
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var ThemeElement $theme_element */
@@ -2015,7 +2012,7 @@ class ThemeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataFields $datafield */

@@ -17,9 +17,6 @@ namespace ODR\OpenRepository\GraphBundle\Plugins\AHED;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 // Symfony
-use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
-
-
 class NanograinURLPlugin implements DatafieldPluginInterface
 {
 
@@ -27,7 +24,7 @@ class NanograinURLPlugin implements DatafieldPluginInterface
      * Nanograin URLPlugin constructor.
      *
      * @param DatarecordInfoService $datarecord_info_service
-     * @param \Symfony\Component\Templating\EngineInterface $templating
+     * @param \Twig\Environment $templating
      */
     public function __construct(private readonly DatarecordInfoService $datarecord_info_service, private readonly \Twig\Environment $templating)
     {

@@ -328,7 +328,7 @@ class GraphController extends ODRCustomController
      */
     private function svgWarning($message, $detail = "") {
 
-        $templating = $this->get('templating');
+        $templating = $this->get('twig');
 
         return $templating->render(
             'ODROpenRepositoryGraphBundle:Base:Graph/graph_error.html.twig',

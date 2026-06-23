@@ -82,9 +82,6 @@ use ODR\OpenRepository\GraphBundle\Plugins\MassEditTriggerEventInterface;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
-use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
-
-
 class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, PluginSettingsDialogOverrideInterface, MassEditTriggerEventInterface
 {
 
@@ -99,7 +96,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
      * @param EntityDeletionService $entity_deletion_service
      * @param ODRUploadService $upload_service
      * @param string $odr_tmp_directory
-     * @param \Symfony\Component\Templating\EngineInterface $templating
+     * @param \Twig\Environment $templating
      * @param Logger $logger
      */
     public function __construct(private readonly EntityManager $em, private readonly CryptoService $crypto_service, private readonly DatabaseInfoService $database_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly DatatreeInfoService $datatree_info_service, private readonly EntityDeletionService $entity_deletion_service, private readonly ODRUploadService $upload_service, private readonly string $odr_tmp_directory, private readonly \Twig\Environment $templating, private readonly Logger $logger)

@@ -19,16 +19,13 @@ namespace ODR\OpenRepository\GraphBundle\Plugins\Base;
 // Services
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 // Symfony
-use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
-
-
 class URLButtonPlugin implements DatafieldPluginInterface
 {
 
     /**
      * URLButtonPlugin constructor.
      *
-     * @param \Symfony\Component\Templating\EngineInterface $templating
+     * @param \Twig\Environment $templating
      */
     public function __construct(private readonly \Twig\Environment $templating)
     {

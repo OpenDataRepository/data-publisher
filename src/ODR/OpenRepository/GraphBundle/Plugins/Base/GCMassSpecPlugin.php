@@ -25,7 +25,6 @@ use ODR\AdminBundle\Component\Service\CryptoService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\ODRGraphPlugin;
 // Symfony
-use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
 use Symfony\Bridge\Monolog\Logger;
 // Other
 use Pheanstalk\Pheanstalk;
@@ -37,7 +36,7 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
 {
 
     /**
-     * @var \Symfony\Component\Templating\EngineInterface
+     * @var \Twig\Environment
      */
     private $templating;
 
@@ -61,7 +60,7 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
      * GCMassSpecPlugin constructor.
      *
      * @param RequestStack $request_stack
-     * @param \Symfony\Component\Templating\EngineInterface $templating
+     * @param \Twig\Environment $templating
      * @param CryptoService $crypto_service
      * @param Pheanstalk $pheanstalk
      * @param string $site_baseurl

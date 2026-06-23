@@ -47,9 +47,6 @@ use Symfony\Bridge\Monolog\Logger;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Templating\EngineInterface;
-
-
 class SearchSidebarController extends ODRCustomController
 {
 
@@ -112,7 +109,7 @@ class SearchSidebarController extends ODRCustomController
                 $datatype_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
                 $df_array = $datatype_array[$datatype->getId()]['dataFields'][$datafield->getId()];
 
-                $templating = $this->get('templating');
+                $templating = $this->get('twig');
                 $return['d'] = [
                     'needs_update' => true,
                     'html' => $templating->render(
@@ -231,7 +228,7 @@ class SearchSidebarController extends ODRCustomController
             $preferred_theme_id = $theme_info_service->getPreferredThemeId($user, $target_datatype->getId(), 'search_results');
             $preferred_theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($preferred_theme_id);
 
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
             $return['d'] = [
                 'num_params' => count($search_params),
                 'html' => $templating->render(
@@ -423,7 +420,7 @@ class SearchSidebarController extends ODRCustomController
             $preferred_theme_id = $theme_info_service->getPreferredThemeId($user, $target_datatype->getId(), 'linking');
             $preferred_theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($preferred_theme_id);
 
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
             $return['d'] = [
                 'num_params' => count($search_params),
                 'html' => $templating->render(
@@ -548,7 +545,7 @@ class SearchSidebarController extends ODRCustomController
 //            $preferred_theme_id = $theme_info_service->getPreferredThemeId($user, $target_datatype->getId(), 'search_results');
 //            $preferred_theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($preferred_theme_id);
 
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
             $return['d'] = [
                 'num_params' => count($search_params),
                 'html' => $templating->render(
@@ -622,7 +619,7 @@ class SearchSidebarController extends ODRCustomController
             /** @var SearchSidebarService $search_sidebar_service */
             $search_sidebar_service = $this->container->get('odr.search_sidebar_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataType $datatype */

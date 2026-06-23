@@ -67,7 +67,6 @@ use ODR\OpenRepository\GraphBundle\Plugins\ThemeElementPluginInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Templating\EngineInterface;
 // YAML Parsing
 use Symfony\Component\Yaml\Yaml;
 use Symfony\Component\Yaml\Exception\ParseException;
@@ -753,7 +752,7 @@ class PluginsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             // ----------------------------------------
@@ -1966,7 +1965,7 @@ class PluginsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             // ----------------------------------------
@@ -2075,7 +2074,7 @@ class PluginsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             // ----------------------------------------
@@ -2784,7 +2783,7 @@ class PluginsController extends ODRCustomController
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             // Grab necessary objects
@@ -3034,7 +3033,7 @@ class PluginsController extends ODRCustomController
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             // Ensure the relevant entities exist
@@ -4415,7 +4414,7 @@ class PluginsController extends ODRCustomController
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
             $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
             $repo_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
@@ -4619,7 +4618,7 @@ class PluginsController extends ODRCustomController
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             // Ensure the relevant entities exist

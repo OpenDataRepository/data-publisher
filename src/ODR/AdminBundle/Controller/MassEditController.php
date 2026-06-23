@@ -72,9 +72,6 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
-use Symfony\Component\Templating\EngineInterface;
-
-
 class MassEditController extends ODRCustomController
 {
 
@@ -114,7 +111,7 @@ class MassEditController extends ODRCustomController
             /** @var SearchRedirectService $search_redirect_service */
             $search_redirect_service = $this->container->get('odr.search_redirect_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataType $datatype */

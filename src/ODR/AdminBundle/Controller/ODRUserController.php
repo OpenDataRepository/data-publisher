@@ -48,9 +48,6 @@ use Symfony\Bundle\FrameworkBundle\Routing\Router;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Templating\EngineInterface;
-
-
 class ODRUserController extends ODRCustomController
 {
 
@@ -73,7 +70,7 @@ class ODRUserController extends ODRCustomController
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             // --------------------
@@ -342,7 +339,7 @@ class ODRUserController extends ODRCustomController
 
         try {
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
             // ----------------------------------------
             // Grab the specified user
@@ -454,7 +451,7 @@ class ODRUserController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var ODRUser $target_user */
@@ -782,7 +779,7 @@ class ODRUserController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var ODRUser $target_user */
@@ -959,7 +956,7 @@ class ODRUserController extends ODRCustomController
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->container->get('odr.permissions_management_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             // --------------------
@@ -1042,7 +1039,7 @@ class ODRUserController extends ODRCustomController
         try {
 
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
 
@@ -1404,7 +1401,7 @@ class ODRUserController extends ODRCustomController
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->container->get('odr.theme_info_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataType $datatype */

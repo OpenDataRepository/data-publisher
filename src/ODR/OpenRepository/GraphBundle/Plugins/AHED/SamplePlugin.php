@@ -17,16 +17,13 @@ namespace ODR\OpenRepository\GraphBundle\Plugins\AHED;
 // ODR
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 // Symfony
-use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
-
-
 class SamplePlugin implements DatatypePluginInterface
 {
 
     /**
      * SamplePlugin constructor.
      *
-     * @param \Symfony\Component\Templating\EngineInterface $templating
+     * @param \Twig\Environment $templating
      */
     public function __construct(private readonly \Twig\Environment $templating)
     {

@@ -18,9 +18,6 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;
-use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
-
-
 class DatatypeExportService
 {
 
@@ -31,7 +28,7 @@ class DatatypeExportService
      * @param DatabaseInfoService $dbi_service
      * @param PermissionsManagementService $pm_service
      * @param ThemeInfoService $theme_service
-     * @param \Symfony\Component\Templating\EngineInterface $templating
+     * @param \Twig\Environment $templating
      * @param Logger $logger
      */
     public function __construct(private readonly EntityManager $em, private readonly DatabaseInfoService $dbi_service, private readonly PermissionsManagementService $pm_service, private readonly ThemeInfoService $theme_service, private readonly \Twig\Environment $templating, private readonly Logger $logger)

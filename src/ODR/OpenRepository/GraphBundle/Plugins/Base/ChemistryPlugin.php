@@ -29,9 +29,6 @@ use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\TableResultsOverrideInterface;
 // Symfony
-use Symfony\Bundle\FrameworkBundle\Templating\EngineInterface;
-
-
 class ChemistryPlugin implements DatafieldPluginInterface, TableResultsOverrideInterface
 {
 
@@ -39,7 +36,7 @@ class ChemistryPlugin implements DatafieldPluginInterface, TableResultsOverrideI
      * ChemistryPlugin constructor.
      *
      * @param DatarecordInfoService $dri_service
-     * @param \Symfony\Component\Templating\EngineInterface $templating
+     * @param \Twig\Environment $templating
      */
     public function __construct(private readonly DatarecordInfoService $dri_service, private readonly \Twig\Environment $templating)
     {

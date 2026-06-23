@@ -75,9 +75,6 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
-use Symfony\Component\Templating\EngineInterface;
-
-
 class DisplaytemplateController extends ODRCustomController
 {
 
@@ -236,7 +233,7 @@ class DisplaytemplateController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
@@ -338,7 +335,7 @@ class DisplaytemplateController extends ODRCustomController
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataType $datatype */
@@ -1414,7 +1411,7 @@ class DisplaytemplateController extends ODRCustomController
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             // Either both $parent_datatype_id and $theme_element_id have to be the empty string, or
@@ -2261,7 +2258,7 @@ class DisplaytemplateController extends ODRCustomController
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->container->get('odr.tracked_job_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             // TODO - what should you be allowed to modify on a derived datafield?
@@ -2995,7 +2992,7 @@ class DisplaytemplateController extends ODRCustomController
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataType $datatype */
@@ -3554,7 +3551,7 @@ if ($debug)
 
         try {
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
             $return['d'] = [
                 'html' => $templating->render(
@@ -3810,7 +3807,7 @@ if ($debug)
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataType $datatype */
@@ -3923,7 +3920,7 @@ if ($debug)
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataType $datatype */
@@ -4331,7 +4328,7 @@ if ($debug)
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
             /** @var CsrfTokenManager $token_manager */
             $token_manager = $this->container->get('security.csrf.token_manager');
 
@@ -4651,7 +4648,7 @@ if ($debug)
             /** @var SearchSidebarService $search_sidebar_service */
             $search_sidebar_service = $this->container->get('odr.search_sidebar_service');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('templating');
+            $templating = $this->get('twig');
 
 
             /** @var DataType $datatype */
