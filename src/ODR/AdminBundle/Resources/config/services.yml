@@ -31,6 +31,14 @@ parameters:
             mimeTypesErrorMessage: Please upload a valid file.
 
 services:
+    # Console commands. Symfony 4 removed auto-registration of a bundle's
+    # Command/ directory, so the legacy ContainerAwareCommand classes must be
+    # registered explicitly as services tagged console.command.
+    ODR\AdminBundle\Command\:
+        resource: '../../Command/'
+        public: true
+        tags: ['console.command']
+
     odr.twig.plug_extension:
         public: true
         class: ODR\AdminBundle\Twig\PlugExtension

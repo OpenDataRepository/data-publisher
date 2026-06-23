@@ -35,7 +35,7 @@ use \Doctrine\Common\Collections\Criteria;
 use ODR\AdminBundle\Entity\DataType;
 
 
-class CloneDatatypePreloaderCommand extends \Symfony\Component\Console\Command\Command
+class CloneDatatypePreloaderCommand extends ContainerAwareCommand
 {
 
     /**

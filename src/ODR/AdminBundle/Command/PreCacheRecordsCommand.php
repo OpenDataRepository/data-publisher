@@ -30,7 +30,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
-class PreCacheRecordsCommand extends \Symfony\Component\Console\Command\Command
+class PreCacheRecordsCommand extends ContainerAwareCommand
 {
     protected function configure()
     {

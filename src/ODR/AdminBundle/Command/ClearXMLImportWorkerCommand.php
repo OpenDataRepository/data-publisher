@@ -29,7 +29,7 @@ use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
 
-class ClearXMLImportWorkerCommand extends \Symfony\Component\Console\Command\Command
+class ClearXMLImportWorkerCommand extends ContainerAwareCommand
 {
     protected function configure()
     {

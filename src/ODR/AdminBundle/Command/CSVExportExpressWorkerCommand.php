@@ -25,7 +25,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 
-class CSVExportExpressWorkerCommand extends \Symfony\Component\Console\Command\Command
+class CSVExportExpressWorkerCommand extends ContainerAwareCommand
 {
 
     /**

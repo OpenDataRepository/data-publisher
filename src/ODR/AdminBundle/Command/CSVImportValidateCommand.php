@@ -28,7 +28,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
-class CSVImportValidateCommand extends \Symfony\Component\Console\Command\Command
+class CSVImportValidateCommand extends ContainerAwareCommand
 {
     protected function configure()
     {

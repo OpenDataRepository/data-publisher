@@ -1,4 +1,10 @@
 services:
+    # Console commands (Symfony 4 requires explicit registration)
+    ODR\OpenRepository\OAuthServerBundle\Command\:
+        resource: '../../Command/'
+        public: true
+        tags: ['console.command']
+
     fos_oauth.preauth_event:
         public: true
         class: ODR\OpenRepository\OAuthServerBundle\EventListener\OAuthEventListener

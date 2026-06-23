@@ -23,7 +23,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 
-class StorageEntityCleanupCommand extends \Symfony\Component\Console\Command\Command
+class StorageEntityCleanupCommand extends ContainerAwareCommand
 {
     protected function configure()
     {

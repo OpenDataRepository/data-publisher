@@ -27,7 +27,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
-class ClearStorageEntityCleanupCommand extends \Symfony\Component\Console\Command\Command
+class ClearStorageEntityCleanupCommand extends ContainerAwareCommand
 {
     protected function configure()
     {

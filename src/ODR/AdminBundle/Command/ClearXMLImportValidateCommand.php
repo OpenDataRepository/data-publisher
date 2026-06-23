@@ -28,7 +28,7 @@ use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
 
-class ClearXMLImportValidateCommand extends \Symfony\Component\Console\Command\Command
+class ClearXMLImportValidateCommand extends ContainerAwareCommand
 {
     protected function configure()
     {

@@ -28,7 +28,7 @@ use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
 //class RefreshCommand extends Command
-class ClearMigrateCommand extends \Symfony\Component\Console\Command\Command
+class ClearMigrateCommand extends ContainerAwareCommand
 {
     protected function configure()
     {

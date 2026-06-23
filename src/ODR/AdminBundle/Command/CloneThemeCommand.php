@@ -28,7 +28,7 @@ use Doctrine\ORM\EntityManager;
 use drymek\PheanstalkBundle\Entity\Job;
 
 
-class CloneThemeCommand extends \Symfony\Component\Console\Command\Command
+class CloneThemeCommand extends ContainerAwareCommand
 {
 
     /**

@@ -24,7 +24,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 
-class TemplateSyncCommand extends \Symfony\Component\Console\Command\Command
+class TemplateSyncCommand extends ContainerAwareCommand
 {
     /**
      * @inheritdoc

@@ -25,7 +25,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use drymek\PheanstalkBundle\Entity\Job;
 
 
-class CloneDatatypeMonitorCommand extends \Symfony\Component\Console\Command\Command
+class CloneDatatypeMonitorCommand extends ContainerAwareCommand
 {
 
     /**

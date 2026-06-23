@@ -28,7 +28,7 @@ use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
 //class RefreshCommand extends Command
-class ClearCSVExportExpressFinalizeCommand extends \Symfony\Component\Console\Command\Command
+class ClearCSVExportExpressFinalizeCommand extends ContainerAwareCommand
 {
     protected function configure()
     {

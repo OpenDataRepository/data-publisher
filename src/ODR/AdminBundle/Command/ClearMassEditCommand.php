@@ -28,7 +28,7 @@ use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
 //class RefreshCommand extends Command
-class ClearMassEditCommand extends \Symfony\Component\Console\Command\Command
+class ClearMassEditCommand extends ContainerAwareCommand
 {
     protected function configure()
     {

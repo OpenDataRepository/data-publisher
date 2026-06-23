@@ -28,7 +28,7 @@ use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
 
-class ClearXMLImportFileDownloadCommand extends \Symfony\Component\Console\Command\Command
+class ClearXMLImportFileDownloadCommand extends ContainerAwareCommand
 {
     protected function configure()
     {

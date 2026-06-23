@@ -28,7 +28,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
-class RebuildThumbnailsCommand extends \Symfony\Component\Console\Command\Command
+class RebuildThumbnailsCommand extends ContainerAwareCommand
 {
     protected function configure()
     {

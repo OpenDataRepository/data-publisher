@@ -30,7 +30,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
-class MigrateCommand extends \Symfony\Component\Console\Command\Command
+class MigrateCommand extends ContainerAwareCommand
 {
     protected function configure()
     {

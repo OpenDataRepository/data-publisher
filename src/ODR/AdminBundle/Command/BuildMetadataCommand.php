@@ -24,7 +24,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 
-class BuildMetadataCommand extends \Symfony\Component\Console\Command\Command
+class BuildMetadataCommand extends ContainerAwareCommand
 {
     protected function configure()
     {

@@ -27,7 +27,7 @@ use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
 //class RefreshCommand extends Command
-class ClearTagRebuildCommand extends \Symfony\Component\Console\Command\Command
+class ClearTagRebuildCommand extends ContainerAwareCommand
 {
     protected function configure()
     {

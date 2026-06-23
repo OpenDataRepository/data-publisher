@@ -29,7 +29,7 @@ use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
 //class RefreshCommand extends Command
-class ClearMetaqueueCommand extends \Symfony\Component\Console\Command\Command
+class ClearMetaqueueCommand extends ContainerAwareCommand
 {
 
     /**

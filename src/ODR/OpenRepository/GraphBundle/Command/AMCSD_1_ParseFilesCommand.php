@@ -21,7 +21,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 
-class AMCSD_1_ParseFilesCommand extends \Symfony\Component\Console\Command\Command
+class AMCSD_1_ParseFilesCommand extends ContainerAwareCommand
 {
 
     /**

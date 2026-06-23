@@ -23,7 +23,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 
-class CryptoCommand extends \Symfony\Component\Console\Command\Command
+class CryptoCommand extends ContainerAwareCommand
 {
 
     /**

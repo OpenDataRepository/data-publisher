@@ -27,7 +27,7 @@ use ODR\AdminBundle\Entity\TrackedJob;
 
 
 
-class CloneAndLinkDatatypeCommand extends \Symfony\Component\Console\Command\Command
+class CloneAndLinkDatatypeCommand extends ContainerAwareCommand
 {
 
     /**

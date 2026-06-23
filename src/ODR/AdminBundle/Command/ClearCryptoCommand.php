@@ -24,7 +24,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 
-class ClearCryptoCommand extends \Symfony\Component\Console\Command\Command
+class ClearCryptoCommand extends ContainerAwareCommand
 {
     protected function configure()
     {

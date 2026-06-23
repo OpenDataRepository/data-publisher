@@ -6,6 +6,12 @@ imports:
     - { resource: "../../Plugins/RRUFF/config.yml" }    # TODO - need a more robust plugin management system...these plugins shouldn't be active/available to the entirety of ODR...
 
 services:
+    # Console commands (Symfony 4 requires explicit registration)
+    ODR\OpenRepository\GraphBundle\Command\:
+        resource: '../../Command/'
+        public: true
+        tags: ['console.command']
+
     odr.amcsd_update_service:
         public: true
         class: ODR\OpenRepository\GraphBundle\Component\Service\AMCSDUpdateService

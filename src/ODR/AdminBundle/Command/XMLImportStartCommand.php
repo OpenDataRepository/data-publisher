@@ -31,7 +31,7 @@ use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
 
 
-class XMLImportStartCommand extends \Symfony\Component\Console\Command\Command
+class XMLImportStartCommand extends ContainerAwareCommand
 {
     protected function configure()
     {
