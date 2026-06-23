@@ -345,7 +345,7 @@ class APIController extends ODRCustomController
                     'username' => $user->getUserString(),
                     'realname' => $user->getUserString(),
                     'email' => $user->getEmail(),
-                    'baseurl' => $this->getParameter('site_baseurl'),
+                    'baseurl' => $this->container->getParameter('site_baseurl'),
                 ];
 
                 if ($this->has('odr.jupyterhub_bridge.username_service'))
@@ -6112,7 +6112,7 @@ class APIController extends ODRCustomController
 
                 // Regardless of whether the file is "local" or not, it needs to get moved to this
                 //  directory so that ODRUploadService can find it
-                $destination_folder = $this->getParameter('odr_tmp_directory') . '/user_' . $user->getId() . '/chunks/completed';
+                $destination_folder = $this->container->getParameter('odr_tmp_directory') . '/user_' . $user->getId() . '/chunks/completed';
                 if (!file_exists($destination_folder))
                     mkdir($destination_folder, 0777, true);
 //                $logger->debug('ensured "'.$destination_folder.'" exists', array('APIController::addfileAction()'));
@@ -6124,7 +6124,7 @@ class APIController extends ODRCustomController
                     $original_filename = $file['original_file_name'];
 
                     // Additionally, it won't be in the "usual" place
-                    $current_folder = $this->getParameter('uploaded_files_path');
+                    $current_folder = $this->container->getParameter('uploaded_files_path');
 //                    $logger->debug('is local file...local_filename: "'.$local_filename.'", original_filename: "'.$original_filename.'", current_folder: "'.$current_folder.'"', array('APIController::addfileAction()'));
                 } else {
                     // Otherwise, the file will have been "uploaded" as part of the POST request
@@ -6133,7 +6133,7 @@ class APIController extends ODRCustomController
                     $original_filename = $file->getClientOriginalName();
 
                     // ...the "usual" place is same $destination given to FlowController::saveFile()
-                    $current_folder = $this->getParameter('odr_tmp_directory') . '/user_' . $user->getId() . '/chunks/completed';
+                    $current_folder = $this->container->getParameter('odr_tmp_directory') . '/user_' . $user->getId() . '/chunks/completed';
 //                    $logger->debug('not local file...local_filename: "'.$local_filename.'", original_filename: "'.$original_filename.'"', array('APIController::addfileAction()'));
 
                     // ...so get Symfony to move the file from the POST request to that location
@@ -6904,7 +6904,7 @@ class APIController extends ODRCustomController
                 if (!$file->isPublic())
                     $filename = md5($file->getOriginalChecksum() . '_' . $file->getId() . '_' . $user->getId()) . '.' . $file->getExt();
 
-                $local_filepath = realpath($this->getParameter('odr_web_directory') . '/' . $file->getUploadDir() . '/' . $filename);
+                $local_filepath = realpath($this->container->getParameter('odr_web_directory') . '/' . $file->getUploadDir() . '/' . $filename);
                 if (!$local_filepath)
                     $local_filepath = $crypto_service->decryptFile($file->getId(), $filename);
 
@@ -6962,7 +6962,7 @@ class APIController extends ODRCustomController
                     $filename = md5($image->getOriginalChecksum() . '_' . $image->getId() . '_' . $user->getId()) . '.' . $image->getExt();
 
                 // Ensure the image exists in decrypted format
-                $image_path = realpath($this->getParameter('odr_web_directory') . '/' . $filename);     // realpath() returns false if file does not exist
+                $image_path = realpath($this->container->getParameter('odr_web_directory') . '/' . $filename);     // realpath() returns false if file does not exist
                 if (!$image->isPublic() || !$image_path)
                     $image_path = $crypto_service->decryptImage($image->getId(), $filename);
 

@@ -413,7 +413,7 @@ class ThemeController extends ODRCustomController
 //                $theme_form->addError( new FormError('DO NOT SAVE') );
 
                 // Need to unescape these values if they're coming from a wordpress install...
-                $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+                $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
                 if ( $is_wordpress_integrated ) {
                     $submitted_data->setTemplateName( stripslashes($submitted_data->getTemplateName()) );
                     $submitted_data->setTemplateDescription( stripslashes($submitted_data->getTemplateDescription()) );

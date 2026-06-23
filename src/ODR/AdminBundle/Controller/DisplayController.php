@@ -469,7 +469,7 @@ class DisplayController extends ODRCustomController
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $redis_prefix = $this->getParameter('memcached_key_prefix');     // debug purposes only
+            $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
@@ -513,7 +513,7 @@ class DisplayController extends ODRCustomController
                 $filename = md5($file->getOriginalChecksum().'_'.$file_id.'_'.$user->getId()).'.'.$file->getExt();
 
             // Ensure file exists before attempting to download it
-            $local_filepath = realpath( $this->getParameter('odr_web_directory').'/'.$file->getUploadDir().'/'.$filename );
+            $local_filepath = realpath( $this->container->getParameter('odr_web_directory').'/'.$file->getUploadDir().'/'.$filename );
             if ( !file_exists($local_filepath) ) {
                 // Need to decrypt the file...generate the url for cURL to use
                 $url = $this->generateUrl('odr_crypto_request', [], UrlGeneratorInterface::ABSOLUTE_URL);
@@ -717,7 +717,7 @@ class DisplayController extends ODRCustomController
             if ( !$file->isPublic() )
                 $filename = md5($file->getOriginalChecksum().'_'.$output_file['id'].'_'.$user->getId()).'.'.$file->getExt();
 
-            $local_filepath = realpath( $this->getParameter('odr_web_directory').'/'.$file->getUploadDir().'/'.$filename );
+            $local_filepath = realpath( $this->container->getParameter('odr_web_directory').'/'.$file->getUploadDir().'/'.$filename );
             if (!$local_filepath) {
                 // If file doesn't exist, and user has permissions...just decrypt it directly?
                 // TODO - don't really like this, but downloading a file via table theme or interactive graph feature can't get at non-public files otherwise...
@@ -827,7 +827,7 @@ class DisplayController extends ODRCustomController
             if ( !$file->isPublic() )
                 $filename = md5($file->getOriginalChecksum().'_'.$file_id.'_'.$user->getId()).'.'.$file->getExt();
 
-            $local_filepath = realpath( $this->getParameter('odr_web_directory').'/'.$file->getUploadDir().'/'.$filename );
+            $local_filepath = realpath( $this->container->getParameter('odr_web_directory').'/'.$file->getUploadDir().'/'.$filename );
             if (!$local_filepath) {
                 // If file doesn't exist, and user has permissions...just decrypt it directly?
                 // TODO - don't really like this, but downloading a file via table theme or interactive graph feature can't get at non-public files otherwise...
@@ -1006,7 +1006,7 @@ class DisplayController extends ODRCustomController
                 $filename = md5($image->getOriginalChecksum().'_'.$image->getId().'_'.$user->getId()).'.'.$image->getExt();
 
                 // Ensure the image exists in decrypted format
-                $image_path = realpath( $this->getParameter('odr_web_directory').'/'.$filename );     // realpath() returns false if file does not exist
+                $image_path = realpath( $this->container->getParameter('odr_web_directory').'/'.$filename );     // realpath() returns false if file does not exist
                 if ( !$image->isPublic() || !$image_path )
                     $image_path = $crypto_service->decryptImage($image->getId(), $filename);
 
@@ -1080,7 +1080,7 @@ class DisplayController extends ODRCustomController
             }
             else {
                 // If image is public but doesn't exist, decrypt now
-                $image_path = realpath( $this->getParameter('odr_web_directory').'/'.$filename );     // realpath() returns false if file does not exist
+                $image_path = realpath( $this->container->getParameter('odr_web_directory').'/'.$filename );     // realpath() returns false if file does not exist
                 if ( !$image_path )
                     $image_path = $crypto_service->decryptImage($image->getId(), $filename);
 
@@ -1097,7 +1097,7 @@ class DisplayController extends ODRCustomController
                 );
 
                 // print microtime(true) - $start . "<br />";
-                $url = $this->getParameter('site_baseurl') . '/uploads/images/' . $filename;
+                $url = $this->container->getParameter('site_baseurl') . '/uploads/images/' . $filename;
                 // print microtime(true) - $start . "<br />";exit();
                 // $response = new Response($url);
                 // $response->headers->set('Content-Type', 'text/html');
@@ -1615,7 +1615,7 @@ class DisplayController extends ODRCustomController
                 $random_id = substr((string) $tokenGenerator->generateToken(), 0, 12);
 
                 $archive_filename = $random_id.'.zip';
-                $archive_filepath = $this->getParameter('odr_tmp_directory').'/user_'.$user_id.'/'.$archive_filename;
+                $archive_filepath = $this->container->getParameter('odr_tmp_directory').'/user_'.$user_id.'/'.$archive_filename;
 
                 $archive_size = count($file_list) + count($image_list);
 
@@ -2051,7 +2051,7 @@ class DisplayController extends ODRCustomController
                 $random_id = substr((string) $tokenGenerator->generateToken(), 0, 12);
 
                 $archive_filename = $random_id.'.zip';
-                $archive_filepath = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/'.$archive_filename;
+                $archive_filepath = $this->container->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/'.$archive_filename;
 
                 $archive_size = count($file_list) + count($image_list);
 
@@ -2249,7 +2249,7 @@ class DisplayController extends ODRCustomController
             if ($archive_filename == '0')
                 throw new ODRBadRequestException();
 
-            $archive_filepath = $this->getParameter('odr_tmp_directory').'/user_'.$user_id.'/'.$archive_filename;
+            $archive_filepath = $this->container->getParameter('odr_tmp_directory').'/user_'.$user_id.'/'.$archive_filename;
             if ( !file_exists($archive_filepath) )
                 throw new FileNotFoundException($archive_filename);
 
@@ -2523,7 +2523,7 @@ class DisplayController extends ODRCustomController
                 $random_id = substr((string) $tokenGenerator->generateToken(), 0, 12);
 
                 $archive_filename = $random_id.'.zip';
-                $archive_filepath = $this->getParameter('odr_tmp_directory').'/user_'.$user_id.'/'.$archive_filename;
+                $archive_filepath = $this->container->getParameter('odr_tmp_directory').'/user_'.$user_id.'/'.$archive_filename;
 
                 $archive_size = count($file_list);
 

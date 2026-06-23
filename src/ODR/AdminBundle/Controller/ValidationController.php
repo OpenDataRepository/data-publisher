@@ -2969,7 +2969,7 @@ class ValidationController extends ODRCustomController
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $site_baseurl = $this->getParameter('site_baseurl');
+            $site_baseurl = $this->container->getParameter('site_baseurl');
 
             /** @var DatabaseInfoService $database_info_service */
             $database_info_service = $this->container->get('odr.database_info_service');
@@ -3433,7 +3433,7 @@ class ValidationController extends ODRCustomController
             // Originally, this dumped "DELETE FROM" statements to the browser, which I would then
             //  copy/paste into a terminal to execute.  Unfortunately, this seems to not be entirely
             //  reliable, so had to modify it to create mysqldump files
-            $user_tmp_dir = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId();
+            $user_tmp_dir = $this->container->getParameter('odr_tmp_directory').'/user_'.$user->getId();
             if ( !file_exists($user_tmp_dir) )
                 mkdir( $user_tmp_dir );
 
@@ -3451,7 +3451,7 @@ class ValidationController extends ODRCustomController
 
             // ----------------------------------------
             // Set up the dmp file...
-            $db_name = $this->getParameter('database_name');
+            $db_name = $this->container->getParameter('database_name');
             fprintf($handle, "USE ".$db_name.";\n");
             fprintf($handle, "START TRANSACTION;\n\n");
 
@@ -3870,7 +3870,7 @@ class ValidationController extends ODRCustomController
             // Originally, this dumped "DELETE FROM" statements to the browser, which I would then
             //  copy/paste into a terminal to execute.  Unfortunately, this seems to not be entirely
             //  reliable, so had to modify it to create mysqldump files
-            $user_tmp_dir = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId();
+            $user_tmp_dir = $this->container->getParameter('odr_tmp_directory').'/user_'.$user->getId();
             if ( !file_exists($user_tmp_dir) )
                 mkdir( $user_tmp_dir );
 
@@ -3888,7 +3888,7 @@ class ValidationController extends ODRCustomController
 
             // ----------------------------------------
             // Set up the dmp file...
-            $db_name = $this->getParameter('database_name');
+            $db_name = $this->container->getParameter('database_name');
             fprintf($handle, "USE ".$db_name.";\n\n");
 
             // ...then storage entities...
@@ -4012,7 +4012,7 @@ class ValidationController extends ODRCustomController
 
             // ----------------------------------------
             // Get the directories from the crypto dir
-            $crypto_dir = realpath($this->getParameter('dterranova_crypto.temp_folder'));
+            $crypto_dir = realpath($this->container->getParameter('dterranova_crypto.temp_folder'));
             $encrypted_folders = ['File' => [], 'Image' => []];
 
             $contents = scandir($crypto_dir);

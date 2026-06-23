@@ -1316,7 +1316,7 @@ class MassEditController extends ODRCustomController
                             $entity_modify_service->updateFileMeta($user, $file, $properties, true);    // don't flush immediately
 
                             // Delete the decrypted version of the file, if it exists
-                            $file_upload_path = $this->getParameter('odr_web_directory').'/uploads/files/';
+                            $file_upload_path = $this->container->getParameter('odr_web_directory').'/uploads/files/';
                             $filename = 'File_'.$file->getId().'.'.$file->getExt();
                             $absolute_path = realpath($file_upload_path).'/'.$filename;
 
@@ -1405,7 +1405,7 @@ class MassEditController extends ODRCustomController
                             $entity_modify_service->updateImageMeta($user, $image, $properties, true);    // don't flush immediately
 
                             // Delete the decrypted version of the file, if it exists
-                            $image_upload_path = $this->getParameter('odr_web_directory').'/uploads/images/';
+                            $image_upload_path = $this->container->getParameter('odr_web_directory').'/uploads/images/';
                             $filename = 'Image_'.$image->getId().'.'.$image->getExt();
                             $absolute_path = realpath($image_upload_path).'/'.$filename;
 

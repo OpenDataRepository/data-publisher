@@ -181,7 +181,7 @@ class FakeEditController extends ODRCustomController
                 $datafields = $post['datafields'];
 
             // Need to unescape the values if they're coming from a wordpress install...
-            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
             if ( $is_wordpress_integrated ) {
                 foreach ($datafields as $id => $val) {
                     if ( !is_array($val) ) {
@@ -778,7 +778,7 @@ class FakeEditController extends ODRCustomController
             }
 
             // Need to unescape the value if it's coming from a wordpress install...
-            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
             if ( $is_wordpress_integrated )
                 $value = stripslashes($value);
 
@@ -929,7 +929,7 @@ class FakeEditController extends ODRCustomController
             }
 
             // Need to unescape the values if they're coming from a wordpress install...
-            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
             if ( $is_wordpress_integrated ) {
                 foreach ($datafields as $id => $val)
                     $datafields[$id] = stripslashes((string) $val);

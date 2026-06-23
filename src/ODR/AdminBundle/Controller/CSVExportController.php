@@ -681,7 +681,7 @@ class CSVExportController extends ODRCustomController
             if ( $datatype->getIsMasterType() )
                 throw new ODRBadRequestException('Unable to export from a master template');
 
-            $csv_export_path = $this->getParameter('odr_tmp_directory').'/user_'.$user_id.'/csv_export/';
+            $csv_export_path = $this->container->getParameter('odr_tmp_directory').'/user_'.$user_id.'/csv_export/';
             $filename = 'export_'.$user_id.'_'.$tracked_job_id.'.csv';
 
             $handle = fopen($csv_export_path.$filename, 'r');

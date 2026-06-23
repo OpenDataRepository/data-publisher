@@ -637,7 +637,7 @@ class RadioOptionsController extends ODRCustomController
                 throw new ODRBadRequestException("Radio Option Names can't be blank");
 
             // Need to unescape this value if it's coming from a wordpress install...
-            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
             if ( $is_wordpress_integrated )
                 $option_name = stripslashes($option_name);
 
@@ -1315,7 +1315,7 @@ class RadioOptionsController extends ODRCustomController
             $radio_option_list = $post['radio_option_list'];
             if ( strlen($radio_option_list) > 0 ) {
                 // Need to unescape this value if it's coming from a wordpress install...
-                $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+                $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
                 if ( $is_wordpress_integrated )
                     $radio_option_list = stripslashes($radio_option_list);
 

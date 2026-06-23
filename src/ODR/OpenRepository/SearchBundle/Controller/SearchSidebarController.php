@@ -985,7 +985,7 @@ class SearchSidebarController extends ODRCustomController
 //                $sidebar_layout_form->addError( new FormError('DO NOT SAVE') );
 
                 // Need to unescape these values if they're coming from a wordpress install...
-                $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+                $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
                 if ( $is_wordpress_integrated ) {
                     $submitted_data->setLayoutName( stripslashes($submitted_data->getLayoutName()) );
                     $submitted_data->setLayoutDescription( stripslashes((string) $submitted_data->getLayoutDescription()) );

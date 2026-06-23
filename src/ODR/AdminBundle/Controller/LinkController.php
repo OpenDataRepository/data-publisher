@@ -2128,10 +2128,10 @@ class LinkController extends ODRCustomController
             uasort($linked_record_data, fn($a, $b) => strcmp((string) $a['dt_name'], (string) $b['dt_name']));
 
             // Easier if PHP creates the extra info string
-            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
-            $site_baseurl = $this->getParameter('site_baseurl').'/';    // doesn't have trailing slash by default
+            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
+            $site_baseurl = $this->container->getParameter('site_baseurl').'/';    // doesn't have trailing slash by default
             if ( $is_wordpress_integrated )
-                $site_baseurl = $this->getParameter('wordpress_site_baseurl').'/';    // doesn't have trailing slash by default
+                $site_baseurl = $this->container->getParameter('wordpress_site_baseurl').'/';    // doesn't have trailing slash by default
             if ( $this->container->getParameter('kernel.environment') === 'dev' )
                 $site_baseurl .= 'app_dev.php/';
 

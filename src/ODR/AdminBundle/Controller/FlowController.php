@@ -347,7 +347,7 @@ class FlowController extends ODRCustomController
             }
 
             // Check whether file is uploaded completely and properly
-            $path_prefix = $this->getParameter('odr_tmp_directory').'/';
+            $path_prefix = $this->container->getParameter('odr_tmp_directory').'/';
             $destination_folder = 'user_'.$user_id.'/chunks/completed';
             if ( !file_exists($path_prefix.$destination_folder) )
                 mkdir( $path_prefix.$destination_folder, 0777, true );
@@ -437,7 +437,7 @@ class FlowController extends ODRCustomController
         $csv_file = new SymfonyFile($dirname.'/'.$original_filename);
 
         // Ensure a CSVImport directory exists for this user
-        $destination_folder = $this->getParameter('odr_tmp_directory').'/user_'.$user_id;
+        $destination_folder = $this->container->getParameter('odr_tmp_directory').'/user_'.$user_id;
         if ( !file_exists($destination_folder) )
             mkdir( $destination_folder );
         $destination_folder .= '/csv';
@@ -473,7 +473,7 @@ class FlowController extends ODRCustomController
         $xml_file = new SymfonyFile($filepath.'/'.$original_filename);
 
         // Ensure an XMLImport directory exists for this user
-        $destination_folder = $this->getParameter('odr_web_directory').'/uploads/xml';
+        $destination_folder = $this->container->getParameter('odr_web_directory').'/uploads/xml';
         if ( !file_exists($destination_folder) )
             mkdir( $destination_folder );
         $destination_folder .= '/user_'.$user_id;
@@ -520,7 +520,7 @@ class FlowController extends ODRCustomController
             throw new ODRBadRequestException('finishImportFileUpload(): invalid upload type "'.$upload_type.'"');
 
         // Ensure a CSV/XML Import directory exists for this user
-        $destination_folder = $this->getParameter('odr_tmp_directory').'/user_'.$user_id;
+        $destination_folder = $this->container->getParameter('odr_tmp_directory').'/user_'.$user_id;
         if ( !file_exists($destination_folder) )
             mkdir( $destination_folder );
         $destination_folder .= '/'.$type.'_storage';
@@ -684,7 +684,7 @@ class FlowController extends ODRCustomController
      */
     private function getChunkPath($user_id, $identifier, $index)
     {
-        $chunk_upload_path = $this->getParameter('odr_tmp_directory').'/user_'.$user_id;
+        $chunk_upload_path = $this->container->getParameter('odr_tmp_directory').'/user_'.$user_id;
         if ( !file_exists($chunk_upload_path) )
             mkdir( $chunk_upload_path );
         $chunk_upload_path .= '/chunks';

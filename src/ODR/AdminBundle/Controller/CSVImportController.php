@@ -449,7 +449,7 @@ class CSVImportController extends ODRCustomController
 
 
             // Ensure the file exists before attempting to read it...
-            $csv_import_path = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv/';
+            $csv_import_path = $this->container->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv/';
             $csv_filename = $session->get('csv_file');
 
             if ( !file_exists($csv_import_path.$csv_filename) )
@@ -842,7 +842,7 @@ class CSVImportController extends ODRCustomController
             if ( !$session->has('csv_delimiter') )
                 throw new ODRBadRequestException('No delimiter set');
 
-            $csv_import_path = $this->getParameter('odr_tmp_directory').'/user_'.$user_id.'/csv/';
+            $csv_import_path = $this->container->getParameter('odr_tmp_directory').'/user_'.$user_id.'/csv/';
             $csv_filename = $session->get('csv_file');
             $absolute_filepath = $csv_import_path.$csv_filename;
 
@@ -925,7 +925,7 @@ class CSVImportController extends ODRCustomController
 
             // Get all files in the given user's 'upload' directory
             $uploaded_files = [];
-            $upload_directory = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv_storage';
+            $upload_directory = $this->container->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv_storage';
             if ( file_exists($upload_directory) )
                 $uploaded_files = scandir($upload_directory);
 
@@ -977,7 +977,7 @@ class CSVImportController extends ODRCustomController
 
             // Get all files in the given user's 'upload' directory
             $uploaded_files = [];
-            $upload_directory = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv_storage';
+            $upload_directory = $this->container->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv_storage';
             if ( file_exists($upload_directory) )
                 $uploaded_files = scandir($upload_directory);
 
@@ -1026,7 +1026,7 @@ class CSVImportController extends ODRCustomController
             if ( $session->has('csv_file') ) {
                 // Delete the file if it exists
                 $filename = $session->get('csv_file');
-                $csv_import_path = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv/';
+                $csv_import_path = $this->container->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv/';
                 if ( file_exists($csv_import_path.$filename) )
                     unlink($csv_import_path.$filename);
 
@@ -1419,7 +1419,7 @@ class CSVImportController extends ODRCustomController
 
             // ----------------------------------------
             // Attempt to load csv file
-            $csv_import_path = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv/';
+            $csv_import_path = $this->container->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv/';
             $csv_filename = $session->get('csv_file');
             $delimiter = $session->get('csv_delimiter');
 
@@ -1965,7 +1965,7 @@ class CSVImportController extends ODRCustomController
                         if ( $value !== '' && isset($column_delimiters[$column_num]) ) {
                             // Due to validation in self::processAction(), this will exist when the
                             //  datafield is a file/image
-                            $upload_dir = $this->getParameter('odr_tmp_directory').'/user_'.$user_id.'/csv_storage/';
+                            $upload_dir = $this->container->getParameter('odr_tmp_directory').'/user_'.$user_id.'/csv_storage/';
 
                             // Grab a list of the files already uploaded to this datafield
                             $already_uploaded_files = [];
@@ -2531,7 +2531,7 @@ class CSVImportController extends ODRCustomController
 
             // ----------------------------------------
             // Read column names from the file
-            $csv_import_path = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv/';
+            $csv_import_path = $this->container->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv/';
             $csv_filename = $presets['csv_filename'];
             $delimiter = $presets['delimiter'];
 
@@ -2810,7 +2810,7 @@ class CSVImportController extends ODRCustomController
 
             // ----------------------------------------
             // Read column names from the file
-            $csv_import_path = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv/';
+            $csv_import_path = $this->container->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv/';
             $csv_filename = $job_data['csv_filename'];
             $delimiter = $job_data['delimiter'];
 
@@ -3135,7 +3135,7 @@ print_r($new_mapping);
 
             // ----------------------------------------
             // Re-read the csv file so a beanstalk job can be created for each line in the file
-            $csv_import_path = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv/';
+            $csv_import_path = $this->container->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv/';
             $csv_filename = $job_data['csv_filename'];
             $delimiter = $job_data['delimiter'];
 
@@ -3740,7 +3740,7 @@ exit();
                             $drf = $entity_create_service->createDatarecordField($user, $datarecord, $datafield);
 
                             // Store the path to the user's upload area...
-                            $storage_filepath = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv_storage';
+                            $storage_filepath = $this->container->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv_storage';
 
                             // Grab a list of the files/images already uploaded to this datafield
                             $existing_files = [];
@@ -3815,7 +3815,7 @@ exit();
                                     //  remain on the server
                                     $old_obj = $existing_files[$csv_filename];
                                     if ($typeclass == 'File') {
-                                        $filepath = $this->getParameter('odr_web_directory').'/'.$old_obj->getLocalFileName();
+                                        $filepath = $this->container->getParameter('odr_web_directory').'/'.$old_obj->getLocalFileName();
                                         if ( file_exists($filepath) )
                                             unlink($filepath);
                                     }
@@ -3826,7 +3826,7 @@ exit();
                                         $old_images[] = $old_obj;
 
                                         foreach ($old_images as $img) {
-                                            $filepath = $this->getParameter('odr_web_directory').'/'.$img->getLocalFileName();
+                                            $filepath = $this->container->getParameter('odr_web_directory').'/'.$img->getLocalFileName();
                                             if ( file_exists($filepath) )
                                                 unlink($filepath);
                                         }
@@ -3866,7 +3866,7 @@ exit();
                                         $status .= '      ...'.$typeclass.' ("'.$original_filename.'") not listed in csv file, deleting...'."\n";
 
                                         // Delete the decrypted version of this file from the server, if it exists
-                                        $file_upload_path = $this->getParameter('odr_web_directory').'/uploads/files/';
+                                        $file_upload_path = $this->container->getParameter('odr_web_directory').'/uploads/files/';
                                         $filename = 'File_'.$file->getId().'.'.$file->getExt();
                                         $absolute_path = realpath($file_upload_path).'/'.$filename;
 
@@ -3902,7 +3902,7 @@ exit();
 
                                         // Ensure no decrypted version of the image (or thumbnails)
                                         //  exists on the server
-                                        $local_filepath = $this->getParameter('odr_web_directory').'/uploads/images/Image_'.$file->getId().'.'.$file->getExt();
+                                        $local_filepath = $this->container->getParameter('odr_web_directory').'/uploads/images/Image_'.$file->getId().'.'.$file->getExt();
                                         if ( file_exists($local_filepath) )
                                             unlink($local_filepath);
 

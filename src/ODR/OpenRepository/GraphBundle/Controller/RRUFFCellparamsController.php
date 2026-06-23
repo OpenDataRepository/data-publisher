@@ -144,7 +144,7 @@ class RRUFFCellparamsController extends ODRCustomController
             $submitted_space_group = trim( (string) $values[ $relevant_fields['Space Group'] ] );
 
             // Need to unescape these values if they're coming from a wordpress install...
-            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
             if ( $is_wordpress_integrated ) {
                 $submitted_crystal_system = stripslashes($submitted_crystal_system);
                 $submitted_point_group = stripslashes($submitted_point_group);

@@ -383,7 +383,7 @@ class ODRUserController extends ODRCustomController
             // Determine whether the user owns any OAuth clients
             $has_oauth_clients = false;
             $owned_clients = [];
-            $site_baseurl = $this->getParameter('site_baseurl');
+            $site_baseurl = $this->container->getParameter('site_baseurl');
 
             if ( $self_edit && $this->has('odr.oauth_server.client_manager') ) {
                 $has_oauth_clients = true;
@@ -512,7 +512,7 @@ class ODRUserController extends ODRCustomController
             // Determine whether the user owns any OAuth clients
             $has_oauth_clients = false;
             $owned_clients = [];
-            $site_baseurl = $this->getParameter('site_baseurl');
+            $site_baseurl = $this->container->getParameter('site_baseurl');
 
             if ( $self_edit && $this->has('odr.oauth_server.client_manager') ) {
                 $has_oauth_clients = true;

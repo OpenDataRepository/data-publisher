@@ -398,8 +398,8 @@ class GraphController extends ODRCustomController
             // If the user can edit records in the datatype and also edit the graph datafield, then
             //  that's close enough for me...the regex is incredibly restrictive, and it doesn't
             //  really matter if they put random numbers in there
-            $odr_web_directory = $this->getParameter('odr_web_directory');
-            $odr_files_directory = $this->getParameter('odr_files_directory');
+            $odr_web_directory = $this->container->getParameter('odr_web_directory');
+            $odr_files_directory = $this->container->getParameter('odr_files_directory');
 
             $filepath = $odr_web_directory.'/'.$odr_files_directory.'/graphs/datatype_'.$datatype_id.'/'.$graph_filename;
             if ( file_exists($filepath) )

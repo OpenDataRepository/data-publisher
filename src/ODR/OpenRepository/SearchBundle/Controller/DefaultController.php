@@ -812,7 +812,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
             //  to generate a search key, and thus is vaguely similar
 
             // Convert the POST request into a search key and validate it
-            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
             $search_key = $search_key_service->convertPOSTtoSearchKey($search_params, $is_wordpress_integrated);
             $search_key_service->validateSearchKey($search_key);
 
@@ -822,7 +822,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
 //            $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype, $search_key, $user_permissions);
 
             // If the coverted POST request generates a search key that is considered to be too long...
-            if ( strlen($search_key) > intval($this->getParameter('search_key_char_limit')) ) {
+            if ( strlen($search_key) > intval($this->container->getParameter('search_key_char_limit')) ) {
                 // ...then shunt the generated key behind a different uuid
                 $search_key = $search_key_service->handleOversizedSearchKey($search_key);
             }
@@ -845,9 +845,9 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
             $new_url = '';
             if ( $intent === 'searching' ) {
                 // For a search results page, "manually" create the baseurl...
-                $baseurl = 'https:'.$this->getParameter('site_baseurl');
+                $baseurl = 'https:'.$this->container->getParameter('site_baseurl');
                 if ($is_wordpress_integrated)
-                    $baseurl = 'https:'.$this->getParameter('wordpress_site_baseurl');
+                    $baseurl = 'https:'.$this->container->getParameter('wordpress_site_baseurl');
                 if ( $this->container->getParameter('kernel.environment') === 'dev' )
                     $baseurl .= '/app_dev.php';
                 $baseurl .= '/'.$datatype->getSearchSlug();
@@ -1220,7 +1220,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
             }
 
             // Need to unescape these values if they're coming from a wordpress install...
-            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
             if ( $is_wordpress_integrated ) {
                 foreach ($search_params as $key => $value)
                     $search_params[$key] = stripslashes((string) $value);

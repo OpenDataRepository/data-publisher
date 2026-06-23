@@ -97,7 +97,7 @@ class EditController extends ODRCustomController
 //
 //        // Check for Wordpress Integration
 ////                if ( $this->container->getParameter('kernel.environment') === 'dev' )
-//        if($this->getParameter('wordpress_integrated')) {
+//        if($this->container->getParameter('wordpress_integrated')) {
 //            $odr_wordpress_user = getenv("WORDPRESS_USER");
 //            if ($odr_wordpress_user) {
 //                // print $odr_wordpress_user . ' ';
@@ -564,7 +564,7 @@ class EditController extends ODRCustomController
 
             // Need to unescape the value if it's coming from a wordpress install...
             $filename = $post['filename'];
-            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
             if ( $is_wordpress_integrated )
                 $filename = stripslashes($filename);
 
@@ -696,7 +696,7 @@ class EditController extends ODRCustomController
 
             // Need to unescape the value if it's coming from a wordpress install...
             $filename = $post['filename'];
-            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
             if ( $is_wordpress_integrated )
                 $filename = stripslashes($filename);
 
@@ -1217,7 +1217,7 @@ class EditController extends ODRCustomController
                 $entity_modify_service->updateFileMeta($user, $file, $properties);
 
                 // Delete the decrypted version of the file, if it exists
-                $file_upload_path = $this->getParameter('odr_web_directory').'/uploads/files/';
+                $file_upload_path = $this->container->getParameter('odr_web_directory').'/uploads/files/';
                 $filename = 'File_'.$file_id.'.'.$file->getExt();
                 $absolute_path = realpath($file_upload_path).'/'.$filename;
 
@@ -1425,7 +1425,7 @@ class EditController extends ODRCustomController
 
                 // Delete the decrypted version of the image and all of its children, if any of them exist
                 foreach ($all_images as $img) {
-                    $image_upload_path = $this->getParameter('odr_web_directory').'/uploads/images/';
+                    $image_upload_path = $this->container->getParameter('odr_web_directory').'/uploads/images/';
                     $filename = 'Image_'.$img->getId().'.'.$img->getExt();
                     $absolute_path = realpath($image_upload_path).'/'.$filename;
 
@@ -1806,7 +1806,7 @@ class EditController extends ODRCustomController
             //  deleted here
             foreach ($relevant_images as $i) {
                 if ( !$i->getOriginal() ) {
-                    $path = $this->getParameter('odr_web_directory').'/'.$i->getLocalFileName();
+                    $path = $this->container->getParameter('odr_web_directory').'/'.$i->getLocalFileName();
                     if ( file_exists($path) )
                         unlink($path);
                 }
@@ -1821,7 +1821,7 @@ class EditController extends ODRCustomController
 
             // Move the decrypted version into ODR's temporary directory, using the filename it was
             //  originally uploaded with
-            $dirname = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId();
+            $dirname = $this->container->getParameter('odr_tmp_directory').'/user_'.$user->getId();
             if ( !file_exists($dirname) )
                 mkdir($dirname);
             rename($image_path, $dirname.'/'.$original_filename);
@@ -2411,7 +2411,7 @@ class EditController extends ODRCustomController
             if ($form->isSubmitted()) {
 
                 // Need to unescape the value if it's coming from a wordpress install...
-                $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+                $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
                 if ( $is_wordpress_integrated )
                     $form_object->setValue( stripslashes($form_object->getValue()) );
 

@@ -264,7 +264,7 @@ class DisplaytemplateController extends ODRCustomController
             }
             else {
                 // Determine where to send this redirect
-                $baseurl = 'https:'.$this->getParameter('site_baseurl').'/';
+                $baseurl = 'https:'.$this->container->getParameter('site_baseurl').'/';
                 if ( $this->container->getParameter('kernel.environment') === 'dev' )
                     $baseurl .= 'app_dev.php/';
 
@@ -1569,7 +1569,7 @@ class DisplaytemplateController extends ODRCustomController
                     throw new ODRForbiddenException();
 
                 // Need to unescape these values if they're coming from a wordpress install...
-                $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+                $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
                 if ( $is_wordpress_integrated ) {
                     $submitted_data->setShortName( stripslashes($submitted_data->getShortName()) );  // ignoring that short name should be equivalent to long name here
                     $submitted_data->setLongName( stripslashes($submitted_data->getLongName()) );
@@ -1599,7 +1599,7 @@ class DisplaytemplateController extends ODRCustomController
 
                     // ...check that the new search slug isn't going to collide with other parts of the site
                     // TODO - make this automatic based on contents of routing files?
-                    $search_slug_blacklist = $this->getParameter('odr.search_slug_blacklist');
+                    $search_slug_blacklist = $this->container->getParameter('odr.search_slug_blacklist');
                     $invalid_slugs = explode('|', (string) $search_slug_blacklist);
                     if ( in_array(strtolower($submitted_data->getSearchSlug()), $invalid_slugs) )
                         $datatype_form->addError( new FormError('This abbreviation is reserved for use by ODR') );
@@ -2369,7 +2369,7 @@ class DisplaytemplateController extends ODRCustomController
                 $em->refresh($datafield->getDataFieldMeta());
 
                 // Need to unescape these values if they're coming from a wordpress install...
-                $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+                $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
                 if ( $is_wordpress_integrated ) {
                     $submitted_data->setFieldName( stripslashes($submitted_data->getFieldName()) );
                     $submitted_data->setDescription( stripslashes($submitted_data->getDescription()) );
@@ -3601,7 +3601,7 @@ if ($debug)
             $lower_value = $post['lower_value'];
 
             // Need to unescape the values if they're coming from a wordpress install...
-            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
             if ( $is_wordpress_integrated ) {
                 $upper_value = stripslashes($upper_value);
                 $lower_value = stripslashes($lower_value);
@@ -4885,12 +4885,12 @@ if ($debug)
 
             // ----------------------------------------
             // Convert the POST request into a search key and validate it
-            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
             $search_key = $search_key_service->convertPOSTtoSearchKey($search_params, $is_wordpress_integrated);
 
             // Don't want to filter the search key here...it wouldn't do anything anyways...but
             //  should complain if it's too long
-            if ( strlen($search_key) > intval($this->getParameter('search_key_char_limit')) )
+            if ( strlen($search_key) > intval($this->container->getParameter('search_key_char_limit')) )
                 throw new ODRBadRequestException('Search Key has too many criteria');
 
             // If the search key isn't too excessively long, then make sure it's legal

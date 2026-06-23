@@ -1658,7 +1658,7 @@ class ReportsController extends ODRCustomController
 
         // ----------------------------------------
         // Render and return a list of the records that would be changed
-        $baseurl = 'https:'.$this->getParameter('site_baseurl').'/admin#/view/';
+        $baseurl = 'https:'.$this->container->getParameter('site_baseurl').'/admin#/view/';
 
         $html = $templating->render(
             'ODRAdminBundle:Reports:analyze_datafield_migration_to_text.html.twig',
@@ -1730,7 +1730,7 @@ class ReportsController extends ODRCustomController
 
         // ----------------------------------------
         // Render and return a list of the records that would be changed
-        $baseurl = 'https:'.$this->getParameter('site_baseurl').'/admin#/view/';
+        $baseurl = 'https:'.$this->container->getParameter('site_baseurl').'/admin#/view/';
 
         $html = $templating->render(
             'ODRAdminBundle:Reports:analyze_datafield_migration_to_text.html.twig',
@@ -1798,7 +1798,7 @@ class ReportsController extends ODRCustomController
 
         // ----------------------------------------
         // Render and return a list of the records that would be changed
-        $baseurl = 'https:'.$this->getParameter('site_baseurl').'/admin#/view/';
+        $baseurl = 'https:'.$this->container->getParameter('site_baseurl').'/admin#/view/';
 
         $html = $templating->render(
             'ODRAdminBundle:Reports:analyze_datafield_migration_to_integer.html.twig',
@@ -1866,7 +1866,7 @@ class ReportsController extends ODRCustomController
 
         // ----------------------------------------
         // Render and return a list of the records that would be changed
-        $baseurl = 'https:'.$this->getParameter('site_baseurl').'/admin#/view/';
+        $baseurl = 'https:'.$this->container->getParameter('site_baseurl').'/admin#/view/';
 
         $html = $templating->render(
             'ODRAdminBundle:Reports:analyze_datafield_migration_to_decimal.html.twig',
@@ -1918,7 +1918,7 @@ class ReportsController extends ODRCustomController
 
         // ----------------------------------------
         // Render and return a list of the records that would be changed
-        $baseurl = 'https:'.$this->getParameter('site_baseurl').'/admin#/view/';
+        $baseurl = 'https:'.$this->container->getParameter('site_baseurl').'/admin#/view/';
 
         $html = $templating->render(
             'ODRAdminBundle:Reports:analyze_datafield_migration_to_single_radio.html.twig',
@@ -2022,7 +2022,7 @@ class ReportsController extends ODRCustomController
 
             // Shouldn't really be necessary if the file is public, but including anyways for completeness/later use
             if ( $file->isPublic() ) {
-                $absolute_path = realpath( $this->getParameter('odr_web_directory').'/'.$file->getLocalFileName() );
+                $absolute_path = realpath( $this->container->getParameter('odr_web_directory').'/'.$file->getLocalFileName() );
 
                 if (!$absolute_path) {
                     // File doesn't exist, so no progress yet
@@ -2039,7 +2039,7 @@ class ReportsController extends ODRCustomController
                 // Determine temporary filename
                 $temp_filename = md5($file->getOriginalChecksum().'_'.$file_id.'_'.$user->getId());
                 $temp_filename .= '.'.$file->getExt();
-                $absolute_path = realpath( $this->getParameter('odr_web_directory').'/uploads/files/'.$temp_filename );
+                $absolute_path = realpath( $this->container->getParameter('odr_web_directory').'/uploads/files/'.$temp_filename );
 
                 if (!$absolute_path) {
                     // File doesn't exist, so no progress yet
@@ -2175,7 +2175,7 @@ class ReportsController extends ODRCustomController
                 }
             }
             else {
-                $crypto_dir = $this->getParameter('dterranova_crypto.temp_folder').'/File_'.$file_id;
+                $crypto_dir = $this->container->getParameter('dterranova_crypto.temp_folder').'/File_'.$file_id;
                 $chunk_size = 2 * 1024 * 1024;  // 2Mb in bytes
 
                 $num_chunks = intval(floatval($file->getFilesize()) / floatval($chunk_size)) + 1;
@@ -2276,7 +2276,7 @@ class ReportsController extends ODRCustomController
 
             // If the filepath is already pointing to the fully-uploaded path for some reason, then
             //  throw an error
-            $odr_files_directory = $this->getParameter('odr_files_directory');
+            $odr_files_directory = $this->container->getParameter('odr_files_directory');
             if ( str_contains($filepath, (string) $odr_files_directory) )
                 throw new ODRException('File '.$file->getId().' in invalid state to retry encryption');
             // NOTE: I don't think this can actually happen, but be safe
@@ -2340,7 +2340,7 @@ class ReportsController extends ODRCustomController
             if ($archive_filename == '0')
                 throw new ODRBadRequestException();
 
-            $archive_filepath = $this->getParameter('odr_tmp_directory').'/user_'.$user_id.'/'.$archive_filename;
+            $archive_filepath = $this->container->getParameter('odr_tmp_directory').'/user_'.$user_id.'/'.$archive_filename;
             if ( file_exists($archive_filepath) ) {
                 // Load the number of files currently in the archive
                 $zip_archive = new \ZipArchive();

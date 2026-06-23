@@ -268,7 +268,7 @@ class TagsController extends ODRCustomController
 
             // Need to unescape this value if it's coming from a wordpress install...
             $tag_name = $post['tag_name'];
-            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
             if ( $is_wordpress_integrated )
                 $tag_name = stripslashes($tag_name);
 
@@ -637,7 +637,7 @@ class TagsController extends ODRCustomController
             $tag_list = $post['tag_list'];
             if ( strlen($tag_list) > 0 ) {
                 // Need to unescape this value if it's coming from a wordpress install...
-                $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+                $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
                 if ( $is_wordpress_integrated )
                     $tag_list = stripslashes($tag_list);
 
@@ -2147,7 +2147,7 @@ class TagsController extends ODRCustomController
                 throw new ODRBadRequestException("Tag Names can't be blank");
 
             // Need to unescape this value if it's coming from a wordpress install...
-            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
             if ( $is_wordpress_integrated )
                 $tag_name = stripslashes($tag_name);
 

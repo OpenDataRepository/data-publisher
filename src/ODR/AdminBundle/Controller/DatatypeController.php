@@ -522,9 +522,9 @@ class DatatypeController extends ODRCustomController
                         'datatype_permissions' => $datatype_permissions,
                         'related_datatypes' => $datatypes,
                         'related_metadata' => $related_metadata,
-                        'odr_wordpress_integrated' => $this->getParameter('odr_wordpress_integrated'),
-                        'site_baseurl' => $this->getParameter('site_baseurl'),
-                        'wordpress_site_baseurl' => $this->getParameter('wordpress_site_baseurl'),
+                        'odr_wordpress_integrated' => $this->container->getParameter('odr_wordpress_integrated'),
+                        'site_baseurl' => $this->container->getParameter('site_baseurl'),
+                        'wordpress_site_baseurl' => $this->container->getParameter('wordpress_site_baseurl'),
                         'dashboard_graphs' => $dashboard_graphs,
                     ]
                 );
@@ -1388,7 +1388,7 @@ class DatatypeController extends ODRCustomController
                     $description = $submitted_data->getDescription();
 
                 // Need to unescape this value if it's coming from a wordpress install...
-                $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+                $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
                 if ( $is_wordpress_integrated ) {
                     $short_name = stripslashes($short_name);
                     $description = stripslashes($description);

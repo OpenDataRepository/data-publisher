@@ -72,7 +72,7 @@ class ODRCustomController extends \Symfony\Bundle\FrameworkBundle\Controller\Abs
         $session = $this->get('session');    // NOTE: has to be $this->get(), not $request->get()
 
         $use_jupyterhub = false;
-        $jupyterhub_config = $this->getParameter('jupyterhub_config');
+        $jupyterhub_config = $this->container->getParameter('jupyterhub_config');
         if ( isset($jupyterhub_config['use_jupyterhub']) && $jupyterhub_config['use_jupyterhub'] == true )
             $use_jupyterhub = true;
 

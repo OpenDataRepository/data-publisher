@@ -2210,7 +2210,7 @@ class MigrationController extends ODRCustomController
             $metadata_lines[] = $hash;
             $metadata_str = implode("</br>", $metadata_lines);
 
-            $odr_tmp_directory = $this->getParameter('odr_tmp_directory');
+            $odr_tmp_directory = $this->container->getParameter('odr_tmp_directory');
             $handle = fopen($odr_tmp_directory.'/user_'.$user->getId().'/tmp.dmp', 'w');
             if ( !$handle )
                 throw new ODRException('Unable to open file');

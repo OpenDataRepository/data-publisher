@@ -552,7 +552,7 @@ class RemoteController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
         try {
             // ----------------------------------------
-            $site_baseurl = $this->getParameter('site_baseurl');
+            $site_baseurl = $this->container->getParameter('site_baseurl');
 
             // Just need to get twig to render an example
             /** @var TwigEngine $templating */
