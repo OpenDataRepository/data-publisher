@@ -16,18 +16,36 @@
 namespace ODR\AdminBundle\Controller;
 
 // Symfony
-use Symfony\Bundle\TwigBundle\Controller\ExceptionController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Log\DebugLoggerInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
-use Symfony\Component\Debug\Exception\FlattenException;
+use Symfony\Component\ErrorHandler\Exception\FlattenException;
 //? Twig
 use Twig\Environment;
 
 
-class ODRExceptionController extends ExceptionController
+/**
+ * Wired in as framework.error_controller (see app/config/config.yml). Replaces Symfony's
+ * built-in error rendering, because the default Responses it returns on uncaught
+ * errors/exceptions don't really work nicely with ODR's extensive use of AJAX.
+ *
+ * Previously extended the deprecated TwigBundle ExceptionController; the handful of helper
+ * methods it used (findTemplate/templateExists/getAndCleanOutputBuffering) are now inlined
+ * so the controller no longer depends on the removed-in-5.0 twig.exception_controller path.
+ */
+class ODRExceptionController
 {
+
+    /**
+     * @var Environment
+     */
+    protected $twig;
+
+    /**
+     * @var bool
+     */
+    protected $debug;
 
     /**
      * @var array
@@ -45,8 +63,9 @@ class ODRExceptionController extends ExceptionController
      */
     public function __construct(Environment $twig, $debug, TokenStorageInterface $token_storage)
     {
+        $this->twig = $twig;
+        $this->debug = $debug;
         $this->token_storage = $token_storage;
-        parent::__construct($twig, $debug);
 
         $this->accepted_formats = ['html', 'json', 'txt', 'xml'];
     }
@@ -55,7 +74,6 @@ class ODRExceptionController extends ExceptionController
     /**
      * @inheritdoc
      */
-    #[\Override]
     public function showAction(Request $request, FlattenException $exception, DebugLoggerInterface $logger = null)
     {
         $currentContent = $this->getAndCleanOutputBuffering($request->headers->get('X-Php-Ob-Level', -1));
@@ -133,5 +151,64 @@ class ODRExceptionController extends ExceptionController
             $response->headers->set($key, $value);
 
         return $response;
+    }
+
+
+    /**
+     * Locates the twig template to render for a given format/status code. ODR overrides most of
+     * these in app/Resources/TwigBundle/views/Exception/. Inlined from the former TwigBundle
+     * ExceptionController parent.
+     */
+    protected function findTemplate(Request $request, $format, $code, $showException)
+    {
+        $name = $showException ? 'exception' : 'error';
+        if ($showException && 'html' == $format) {
+            $name = 'exception_full';
+        }
+
+        // For error pages, try to find a template for the specific HTTP status code and format
+        if (!$showException) {
+            $template = sprintf('@Twig/Exception/%s%s.%s.twig', $name, $code, $format);
+            if ($this->templateExists($template)) {
+                return $template;
+            }
+        }
+
+        // try to find a template for the given format
+        $template = sprintf('@Twig/Exception/%s.%s.twig', $name, $format);
+        if ($this->templateExists($template)) {
+            return $template;
+        }
+
+        // default to a generic HTML exception
+        $request->setRequestFormat('html');
+
+        return sprintf('@Twig/Exception/%s.html.twig', $showException ? 'exception_full' : $name);
+    }
+
+
+    /**
+     * @param string $template
+     * @return bool
+     */
+    protected function templateExists($template)
+    {
+        return $this->twig->getLoader()->exists($template);
+    }
+
+
+    /**
+     * @param int $startObLevel
+     * @return string
+     */
+    protected function getAndCleanOutputBuffering($startObLevel)
+    {
+        if (ob_get_level() <= $startObLevel) {
+            return '';
+        }
+
+        Response::closeOutputBuffers($startObLevel + 1, true);
+
+        return ob_get_clean();
     }
 }
