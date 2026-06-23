@@ -7,7 +7,7 @@
 #-----------------------------------------
 odr_api_userdata:  # DEPRECATED v0
   path: /api/{version}/userdata.{_format}
-  defaults: { _controller: ODRAdminBundle:API:userdata, _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::userdataAction, _format: json }
   methods: [ GET ]
   requirements:
     version: 'v1'
@@ -15,7 +15,7 @@ odr_api_userdata:  # DEPRECATED v0
 
 odr_api_get_datatype_list:
   path: /api/{version}/search/databases.{_format}
-  defaults: { _controller: ODRAdminBundle:API:getDatatypeList, type: 'databases',  _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::getDatatypeListAction, type: 'databases',  _format: json }
   methods: [ GET ]
   requirements:
     version: 'v\d+'
@@ -23,7 +23,7 @@ odr_api_get_datatype_list:
 
 odr_api_get_template_list:
   path: /api/{version}/search/templates.{_format}
-  defaults: { _controller: ODRAdminBundle:API:getDatatypeList, type: 'master_templates', _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::getDatatypeListAction, type: 'master_templates', _format: json }
   methods: [ GET ]
   requirements:
     version: 'v\d+'
@@ -31,7 +31,7 @@ odr_api_get_template_list:
 
 odr_api_get_datatype_single:
   path:  /api/{version}/search/database/{datatype_uuid}.{_format}
-  defaults: { _controller: ODRAdminBundle:API:getDatatypeExport, type: 'databases', _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::getDatatypeExportAction, type: 'databases', _format: json }
   methods: [ GET ]
   requirements:
     version: 'v\d+'
@@ -40,7 +40,7 @@ odr_api_get_datatype_single:
 
 #odr_api_get_jsonld_test:
 #    path:  /api/{version}/jsonld
-#    defaults: { _controller: ODRAdminBundle:API:jsonLD, version: 'v5', dataset_uuid: '9d26d533e9bfe1907a18280cfc25'}
+#    defaults: { _controller: ODR\AdminBundle\Controller\APIController::jsonLDAction, version: 'v5', dataset_uuid: '9d26d533e9bfe1907a18280cfc25'}
 #    methods: [ GET ]
 #    requirements:
 #        version: 'v\d+'
@@ -49,7 +49,7 @@ odr_api_get_datatype_single:
 #
 odr_api_get_jsonld:
   path:  /api/{version}/jsonld/{dataset_uuid}
-  defaults: { _controller: ODRAdminBundle:API:jsonLD, version: 'v5' }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::jsonLDAction, version: 'v5' }
   methods: [ GET ]
   requirements:
     version: 'v\d+'
@@ -60,7 +60,7 @@ odr_api_get_jsonld:
 #
 odr_api_get_master_template:
   path:  /api/{version}/master/{datatype_uuid}.{_format}
-  defaults: { _controller: ODRAdminBundle:API:getDatatypeExport, type: 'master_template', _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::getDatatypeExportAction, type: 'master_template', _format: json }
   methods: [ GET ]
   requirements:
     version: 'v\d+'
@@ -72,7 +72,7 @@ odr_api_get_master_template:
 #
 odr_api_get_dataset_template:
   path:  /api/{version}/template/{datatype_uuid}.{_format}
-  defaults: { _controller: ODRAdminBundle:API:getDatatypeExport, type: 'master_template', _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::getDatatypeExportAction, type: 'master_template', _format: json }
   methods: [ GET ]
   requirements:
     version: 'v\d+'
@@ -85,7 +85,7 @@ odr_api_get_dataset_template:
 #
 odr_api_get_template_single:
   path:  /api/{version}/search/template/{datatype_uuid}.{_format}
-  defaults: { _controller: ODRAdminBundle:API:getDatatypeExport, type: 'master_template', _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::getDatatypeExportAction, type: 'master_template', _format: json }
   methods: [ GET ]
   requirements:
     version: 'v\d+'
@@ -94,7 +94,7 @@ odr_api_get_template_single:
 
 odr_api_datarecord_list:
   path: /api/{version}/search/database/{datatype_uuid}/records/{limit}/{offset}.{_format}
-  defaults: { _controller: ODRAdminBundle:API:getDatarecordList, limit: 0, offset: 0, recent: false, _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::getDatarecordListAction, limit: 0, offset: 0, recent: false, _format: json }
   methods: [ GET ]
   requirements:
     version: 'v\d'  # v1, v2, v3, v4 - no difference
@@ -105,7 +105,7 @@ odr_api_datarecord_list:
 
 odr_api_recent_dataset_record_list:
   path:  /api/{version}/dataset/{datatype_uuid}/modified/records/{recent}/{limit}/{offset}.{_format}
-  defaults: { _controller: ODRAdminBundle:API:getDatarecordList, limit: 0, offset: 0, recent: true, _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::getDatarecordListAction, limit: 0, offset: 0, recent: true, _format: json }
   methods: [ GET ]
   requirements:
     version: 'v\d'  # v1, v2, v3, v4 - no difference
@@ -116,7 +116,7 @@ odr_api_recent_dataset_record_list:
 
 odr_api_recently_modified_file_list:
   path: /api/{version}/dataset/{datatype_uuid}/modified_files/{recent}/{limit}/{offset}.{_format}
-  defaults: { _controller: ODRAdminBundle:API:getRecentlyModifiedFilesList, limit: 0, offset: 0, recent: true, _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::getRecentlyModifiedFilesListAction, limit: 0, offset: 0, recent: true, _format: json }
   methods: [ GET ]
   requirements:
     version: 'v\d'  # v1, v2, v3, v4 - no difference
@@ -127,7 +127,7 @@ odr_api_recently_modified_file_list:
 
 odr_api_recent_datarecord_list:
   path: /api/{version}/search/database/{datatype_uuid}/modified/records/{recent}/{limit}/{offset}.{_format}
-  defaults: { _controller: ODRAdminBundle:API:getDatarecordList, limit: 0, offset: 0, recent: true, _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::getDatarecordListAction, limit: 0, offset: 0, recent: true, _format: json }
   methods: [ GET ]
   requirements:
     version: 'v\d'  # v1, v2, v3, v4 - no difference
@@ -138,7 +138,7 @@ odr_api_recent_datarecord_list:
 
 odr_api_template_datatype_list:
   path: /api/{version}/search/template/{datatype_uuid}/databases/{limit}/{offset}.{_format}
-  defaults: { _controller: ODRAdminBundle:API:getTemplateDatatypeList, limit: 0, offset: 0, _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::getTemplateDatatypeListAction, limit: 0, offset: 0, _format: json }
   methods: [ GET ]
   requirements:
     version: 'v1'
@@ -149,7 +149,7 @@ odr_api_template_datatype_list:
 
 odr_api_get_datarecord_single_no_format:
   path:  /api/{version}/search/record/{record_uuid}
-  defaults: { _controller: ODRAdminBundle:API:getRecord, _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::getRecordAction, _format: json }
   methods: [ GET ]
   requirements:
     version: 'v\d+'
@@ -158,7 +158,7 @@ odr_api_get_datarecord_single_no_format:
 
 odr_api_get_datarecord_single:
   path:  /api/{version}/search/record/{record_uuid}.{_format}
-  defaults: { _controller: ODRAdminBundle:API:getRecord, _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::getRecordAction, _format: json }
   methods: [ GET ]
   requirements:
     version: 'v\d+'
@@ -167,7 +167,7 @@ odr_api_get_datarecord_single:
 
 odr_api_get_field_stats:
   path:  /api/{version}/search/field/stats/{template_uuid}/{template_field_uuid}.{_format}
-  defaults: { _controller: ODRAdminBundle:API:getfieldstats, _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::getfieldstatsAction, _format: json }
   methods: [ GET ]
   requirements:
     version: 'v\d+'
@@ -177,7 +177,7 @@ odr_api_get_field_stats:
 
 odr_api_get_field_stats_by_dataset:
   path:  /api/{version}/search/field/statsbydataset/{template_uuid}/{template_field_uuid}.{_format}
-  defaults: { _controller: ODRAdminBundle:API:getfieldstatsbydataset, _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::getfieldstatsbydatasetAction, _format: json }
   methods: [ GET ]
   requirements:
     version: 'v\d+'
@@ -187,7 +187,7 @@ odr_api_get_field_stats_by_dataset:
 
 odr_api_get_field_legacystats:
   path:  /api/{version}/search/field/legacystats/{template_uuid}/{template_field_uuid}.{_format}
-  defaults: { _controller: ODRAdminBundle:API:search_field_stats, _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::search_field_statsAction, _format: json }
   methods: [ GET ]
   requirements:
     version: 'v\d+'
@@ -197,14 +197,14 @@ odr_api_get_field_legacystats:
 
 odr_api_download_file:
   path: /api/{version}/search/file_download/{file_id}
-  defaults: { _controller: ODRAdminBundle:API:filedownload }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::filedownloadAction }
   methods: [ GET ]
   requirements:
     file_id: \d+
 
 odr_api_download_image:
   path: /api/{version}/search/image_download/{image_id}
-  defaults: { _controller: ODRAdminBundle:API:imagedownload }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::imagedownloadAction }
   methods: [ GET ]
   requirements:
     image_id: \d+
@@ -212,14 +212,14 @@ odr_api_download_image:
 # Alternative API access routes - migrated from search
 odr_search_api_get_datatype_single:
   path:  /{search_slug}/api/info.{_format}
-  defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getDatatypeExport, search_slug: '', _format: json }
+  defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\FacadeController::getDatatypeExportAction, search_slug: '', _format: json }
   requirements:
     search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'    # any 32 character alphanumeric string that isn't on the blacklist defined in the odr.search_slug_blacklist parameter
     _format: '|json|xml'
 
 odr_search_api_get_datarecord_list:
   path:  /{search_slug}/api/records.{_format}
-  defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getDatarecordList, search_slug: '', _format: json }
+  defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\FacadeController::getDatarecordListAction, search_slug: '', _format: json }
   requirements:
     search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'
     limit: \d+
@@ -228,7 +228,7 @@ odr_search_api_get_datarecord_list:
 
 odr_search_api_get_datarecord_single:
   path:  /{search_slug}/api/records/{datarecord_id}.{_format}
-  defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getDatarecordExport, search_slug: '', _format: json }
+  defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\FacadeController::getDatarecordExportAction, search_slug: '', _format: json }
   requirements:
     search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'
     datarecord_id: \d+
@@ -238,7 +238,7 @@ odr_search_api_get_datarecord_single:
 ## API for cross template search
 #odr_search_api_get_template_by_uuid_no_format:
 #    path: /api/{version}/search/template/{template_uuid}
-#    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getTemplate, version: 'v1', _format: 'json' }
+#    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\FacadeController::getTemplateAction, version: 'v1', _format: 'json' }
 #    methods: [ GET ]
 #    requirements:
 #        version: 'v\d+'
@@ -246,7 +246,7 @@ odr_search_api_get_datarecord_single:
 
 #odr_search_api_get_template_by_uuid:
 #    path: /api/{version}/search/template/{template_uuid}.{_format}
-#    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getTemplate, version: 'v1' }
+#    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\FacadeController::getTemplateAction, version: 'v1' }
 #    methods: [ GET ]
 #    requirements:
 #        version: 'v\d+'
@@ -255,7 +255,7 @@ odr_search_api_get_datarecord_single:
 
 odr_search_api_template_get:
   path: /api/{version}/search/{json_key}/{limit}/{offset}.{_format}
-  defaults: { _controller: ODROpenRepositorySearchBundle:Facade:searchTemplateGet, limit: 0, offset: 0, _format: json }
+  defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\FacadeController::searchTemplateGetAction, limit: 0, offset: 0, _format: json }
   methods: [ GET ]
   requirements:
     json_key: '[a-zA-Z0-9\=]+'
@@ -265,7 +265,7 @@ odr_search_api_template_get:
 
 #odr_search_api_get_field_stats_by_uuid:
 #    path: /api/{version}/search/field/stats/{template_uuid}/{template_field_uuid}
-#    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:search_field_stats, version: 'v1', _format: 'json'}
+#    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\FacadeController::search_field_statsAction, version: 'v1', _format: 'json'}
 #    methods: [ GET ]
 #    requirements:
 #        version: 'v\d+'
@@ -274,7 +274,7 @@ odr_search_api_template_get:
 
 odr_search_api_get_field_by_uuid:
   path: /api/{version}/search/field/{template_field_uuid}
-  defaults: { _controller: ODROpenRepositorySearchBundle:Facade:getfield, version: 'v1' }
+  defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\FacadeController::getfieldAction, version: 'v1' }
   methods: [ GET ]
   requirements:
     version: 'v\d+'
@@ -286,7 +286,7 @@ odr_search_api_get_field_by_uuid:
 #
 odr_search_api_general_search:
   path: /api/{version}/dataset/search/{search_key}/{limit}/{offset}/{return_as_list}
-  defaults: { _controller: ODROpenRepositorySearchBundle:Facade:datasetSearch, search_key: '', limit: 0, offset: 0, _format: 'json', version: 'v1', return_as_list: 0 }
+  defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\FacadeController::datasetSearchAction, search_key: '', limit: 0, offset: 0, _format: 'json', version: 'v1', return_as_list: 0 }
   methods: [ GET ]
   requirements:
     version: 'v\d+'
@@ -305,7 +305,7 @@ odr_search_api_general_search:
 #
 odr_search_api_template_post:
   path: /api/{version}/search/{limit}/{offset}.{_format}
-  defaults: { _controller: ODROpenRepositorySearchBundle:Facade:searchTemplatePostOptimized, limit: 0, offset: 0, _format: 'json', version: 'v1'}
+  defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\FacadeController::searchTemplatePostOptimizedAction, limit: 0, offset: 0, _format: 'json', version: 'v1'}
   methods: [ POST ]
   requirements:
     version: 'v\d+'
@@ -316,7 +316,7 @@ odr_search_api_template_post:
 
 odr_search_api_template_post_old:
   path: /api/{version}/legacysearch/{limit}/{offset}.{_format}
-  defaults: { _controller: ODROpenRepositorySearchBundle:Facade:searchTemplatePost, limit: 0, offset: 0, _format: 'json', version: 'v1'}
+  defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\FacadeController::searchTemplatePostAction, limit: 0, offset: 0, _format: 'json', version: 'v1'}
   methods: [ POST ]
   requirements:
     version: 'v\d+'
@@ -331,7 +331,7 @@ odr_search_api_template_post_old:
 #
 odr_search_api_general_search_post:
   path: /api/{version}/search/{limit}/{offset}
-  defaults: { _controller: ODROpenRepositorySearchBundle:Facade:search, limit: 0, offset: 0, _format: 'json', version: 'v1'}
+  defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\FacadeController::searchAction, limit: 0, offset: 0, _format: 'json', version: 'v1'}
   methods: [ POST ]
   requirements:
     version: 'v\d+'
@@ -342,7 +342,7 @@ odr_search_api_general_search_post:
 
 odr_api_dataset_public:
   path: /api/{version}/dataset/publish
-  defaults: { _controller: ODRAdminBundle:API:publish, _format: 'json', version: 'v3'}
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::publishAction, _format: 'json', version: 'v3'}
   methods: [ POST ]
   requirements:
     version: 'v\d+'
@@ -350,7 +350,7 @@ odr_api_dataset_public:
 
 odr_api_get_dataset_single_no_format:
   path:  /api/{version}/dataset/{dataset_uuid}
-  defaults: { _controller: ODRAdminBundle:API:getRecordsByDatasetUUID, _format: json, version: 'v3' }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::getRecordsByDatasetUUIDAction, _format: json, version: 'v3' }
   methods: [ GET ]
   requirements:
     version: 'v\d+'
@@ -360,7 +360,7 @@ odr_api_get_dataset_single_no_format:
 
 odr_api_get_dataset_single:
   path:  /api/{version}/dataset/{dataset_uuid}.{_format}
-  defaults: { _controller: ODRAdminBundle:API:getRecordsByDatasetUUID, _format: json, version: 'v3' }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::getRecordsByDatasetUUIDAction, _format: json, version: 'v3' }
   methods: [ GET ]
   requirements:
     version: 'v\d+'
@@ -371,7 +371,7 @@ odr_api_get_dataset_single:
 # TODO Should we restrict to version 4 only?
 #odr_api_get_metadata_dataset_record:
 #    path:  /api/{version}/dataset/{dataset_uuid}/{record_uuid}
-#    defaults: { _controller: ODRAdminBundle:API:getRecordByDatasetUUID, _format: json, version: 'v3' }
+#    defaults: { _controller: ODR\AdminBundle\Controller\APIController::getRecordByDatasetUUIDAction, _format: json, version: 'v3' }
 #    methods: [ GET ]
 #    requirements:
 #        version: 'v\d+'
@@ -381,7 +381,7 @@ odr_api_get_dataset_single:
 
 odr_api_delete_dataset:
   path:  /api/{version}/dataset/{dataset_uuid}
-  defaults: { _controller: ODRAdminBundle:API:deleteDatasetByUUID, version: 'v3' }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::deleteDatasetByUUIDAction, version: 'v3' }
   methods: [ DELETE ]
   requirements:
     version: 'v\d+'
@@ -390,7 +390,7 @@ odr_api_delete_dataset:
 
 odr_api_dataset_quota:
   path:  /api/{version}/dataset/quota/{dataset_uuid}
-  defaults: { _controller: ODRAdminBundle:API:datasetQuotaByUUID, version: 'v3' }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::datasetQuotaByUUIDAction, version: 'v3' }
   methods: [ GET ]
   requirements:
     version: 'v\d+'
@@ -406,7 +406,7 @@ odr_api_dataset_quota:
 #
 odr_api_update_dataset_metadata:
   path: /api/{version}/dataset
-  defaults: { _controller: ODRAdminBundle:API:updatedataset, _format: 'json', version: 'v3'}
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::updatedatasetAction, _format: 'json', version: 'v3'}
   methods: [ PUT ]
   requirements:
     version: 'v\d+'
@@ -415,7 +415,7 @@ odr_api_update_dataset_metadata:
 
 odr_api_dataset_delete_file:
   path: /api/{version}/file/{file_uuid}
-  defaults: { _controller: ODRAdminBundle:API:fileDeleteByUUID, _format: 'json', version: 'v3'}
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::fileDeleteByUUIDAction, _format: 'json', version: 'v3'}
   methods: [ DELETE ]
   requirements:
     version: 'v\d+'
@@ -424,7 +424,7 @@ odr_api_dataset_delete_file:
 
 odr_api_dataset_get_file:
   path: /api/{version}/file/{file_uuid}
-  defaults: { _controller: ODRAdminBundle:API:fileDownloadByUUID, _format: 'json', version: 'v3'}
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::fileDownloadByUUIDAction, _format: 'json', version: 'v3'}
   methods: [ GET ]
   requirements:
     version: 'v\d+'
@@ -433,7 +433,7 @@ odr_api_dataset_get_file:
 
 odr_api_dataset_add_file:
   path: /api/{version}/file
-  defaults: { _controller: ODRAdminBundle:API:addfile, _format: 'json', version: 'v3'}
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::addfileAction, _format: 'json', version: 'v3'}
   methods: [ POST ]
   requirements:
     version: 'v\d+'
@@ -446,7 +446,7 @@ odr_api_dataset_add_file:
 #
 odr_api_create_dataset_record:
   path: /api/{version}/dataset/{dataset_uuid}/record
-  defaults: { _controller: ODRAdminBundle:API:createrecord, _format: 'json', version: 'v3' }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::createrecordAction, _format: 'json', version: 'v3' }
   methods: [ POST ]
   requirements:
     version: 'v\d+'
@@ -458,7 +458,7 @@ odr_api_create_dataset_record:
 #
 odr_api_update_dataset_record:
   path: /api/{version}/dataset/record
-  defaults: { _controller: ODRAdminBundle:API:updatedataset, _format: 'json', version: 'v4' }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::updatedatasetAction, _format: 'json', version: 'v4' }
   methods: [ POST ]
   requirements:
     version: 'v\d+'
@@ -471,7 +471,7 @@ odr_api_update_dataset_record:
 #
 odr_api_create_dataset_from_template:
   path: /api/{version}/dataset
-  defaults: { _controller: ODRAdminBundle:API:createdataset, _format: 'json', version: 'v3'}
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::createdatasetAction, _format: 'json', version: 'v3'}
   methods: [ POST ]
   requirements:
     version: 'v\d+'
@@ -482,7 +482,7 @@ odr_api_create_dataset_from_template:
 #
 odr_api_record_public:
   path: /api/{version}/dataset/record/public
-  defaults: { _controller: ODRAdminBundle:API:publishRecord, _format: 'json', version: 'v3'}
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::publishRecordAction, _format: 'json', version: 'v3'}
   methods: [ POST ]
   requirements:
     version: 'v\d+'
@@ -495,7 +495,7 @@ odr_api_record_public:
 #
 odr_api_start_job:
   path: /api/{version}/job
-  defaults: { _controller: ODRAdminBundle:API:createJob, _format: json, version: 'v3' }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::createJobAction, _format: json, version: 'v3' }
   methods: [ POST ]
   requirements:
     version: 'v\d+'
@@ -507,7 +507,7 @@ odr_api_start_job:
 #
 odr_api_job_status:
   path: /api/{version}/job/status/{job_id}/{full}
-  defaults: { _controller: ODRAdminBundle:API:jobStatus, _format: json, version: 'v3', full: 1, job_id: 9999999 }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::jobStatusAction, _format: json, version: 'v3', full: 1, job_id: 9999999 }
   methods: [ GET ]
   requirements:
     version: 'v\d+'
@@ -520,7 +520,7 @@ odr_api_job_status:
 #
 odr_api_completed_jobs:
   path: /api/{version}/jobs/completed/{job_type}/{count}
-  defaults: { _controller: ODRAdminBundle:API:completedJobs, _format: json, version: 'v3', job_type: 'ima_update', count: 5 }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::completedJobsAction, _format: json, version: 'v3', job_type: 'ima_update', count: 5 }
   methods: [ GET ]
   requirements:
     version: 'v\d+'
@@ -535,7 +535,7 @@ odr_api_completed_jobs:
 #
 odr_api_job_cancel:
   path: /api/{version}/job/cancel/{job_id}
-  defaults: { _controller: ODRAdminBundle:API:jobCancel, _format: json, version: 'v3', job_id: 9999999 }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::jobCancelAction, _format: json, version: 'v3', job_id: 9999999 }
   methods: [ GET ]
   requirements:
     version: 'v\d+'
@@ -551,7 +551,7 @@ odr_api_job_cancel:
 #
 odr_api_job_complete:
   path: /api/{version}/job/complete/{job_id}
-  defaults: { _controller: ODRAdminBundle:API:jobComplete, _format: json, version: 'v3', job_id: 9999999 }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::jobCompleteAction, _format: json, version: 'v3', job_id: 9999999 }
   methods: [ GET ]
   requirements:
     version: 'v\d+'
@@ -564,7 +564,7 @@ odr_api_job_complete:
 #
 odr_api_running_job_list:
   path: /api/{version}/jobs/{job_type}
-  defaults: { _controller: ODRAdminBundle:API:runningJobs, _format: json, version: 'v3', job_type: 'ima_update' }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::runningJobsAction, _format: json, version: 'v3', job_type: 'ima_update' }
   methods: [ GET ]
   requirements:
     version: 'v\d+'
@@ -577,7 +577,7 @@ odr_api_running_job_list:
 #
 odr_api_update_job:
   path: /api/{version}/job
-  defaults: { _controller: ODRAdminBundle:API:updateJob, _format: json, version: 'v3' }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::updateJobAction, _format: json, version: 'v3' }
   methods: [ PUT ]
   requirements:
     version: 'v\d+'
@@ -588,7 +588,7 @@ odr_api_update_job:
 #
 odr_api_worker_job:
   path: /api/{version}/worker/job
-  defaults: { _controller: ODRAdminBundle:API:workerJob, _format: json, version: 'v3' }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::workerJobAction, _format: json, version: 'v3' }
   methods: [ POST ]
   requirements:
     version: 'v\d+'
@@ -600,7 +600,7 @@ odr_api_worker_job:
 #
 odr_api_get_dataset_record:
   path: /api/{version}/dataset/record/{record_uuid}
-  defaults: { _controller: ODRAdminBundle:API:getRecord, _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::getRecordAction, _format: json }
   methods: [ GET ]
   requirements:
     version: 'v\d+'
@@ -609,7 +609,7 @@ odr_api_get_dataset_record:
 
 odr_api_user_permissions:
   path: /api/{version}/user/permissions
-  defaults: { _controller: ODRAdminBundle:API:userPermissions, _format: json, version: 'v3' }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::userPermissionsAction, _format: json, version: 'v3' }
   methods: [ POST ]
   requirements:
     version: 'v\d+'
@@ -617,7 +617,7 @@ odr_api_user_permissions:
 
 odr_api_user_check:
   path: /api/{version}/user
-  defaults: { _controller: ODRAdminBundle:API:user, _format: json, version: 'v3' }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::userAction, _format: json, version: 'v3' }
   methods: [ POST ]
   requirements:
     version: 'v\d+'
@@ -627,7 +627,7 @@ odr_api_user_check:
 #  lexik_jwt_authentication handler
 #odr_api_token:
 #    path: /api/{version}/token
-#    defaults: { _controller: ODRAdminBundle:API:token, _format: 'json', version: 'v3'}
+#    defaults: { _controller: ODR\AdminBundle\Controller\APIController::tokenAction, _format: 'json', version: 'v3'}
 #    methods: [ POST ]
 #    requirements:
 #        version: 'v\d+'
@@ -642,35 +642,35 @@ odr_api_user_check:
 # API endpoints for background services
 odr_api_statistics_store_hourly:
   path: /api/{version}/statistics/store_hourly
-  defaults: { _controller: ODRAdminBundle:Statistics:storeHourly, _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\StatisticsController::storeHourlyAction, _format: json }
   methods: [ POST ]
   requirements:
     version: 'v\d+'
 
 odr_api_statistics_get_bots:
   path: /api/{version}/statistics/get_bots
-  defaults: { _controller: ODRAdminBundle:Statistics:getBots, _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\StatisticsController::getBotsAction, _format: json }
   methods: [ GET ]
   requirements:
     version: 'v\d+'
 
 odr_api_statistics_aggregate_daily:
   path: /api/{version}/statistics/aggregate_daily
-  defaults: { _controller: ODRAdminBundle:Statistics:aggregateDaily, _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\StatisticsController::aggregateDailyAction, _format: json }
   methods: [ POST ]
   requirements:
     version: 'v\d+'
 
 odr_api_statistics_cleanup_hourly:
   path: /api/{version}/statistics/cleanup_hourly
-  defaults: { _controller: ODRAdminBundle:Statistics:cleanupHourly, _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\StatisticsController::cleanupHourlyAction, _format: json }
   methods: [ POST ]
   requirements:
     version: 'v\d+'
 
 odr_api_statistics_update_bots:
   path: /api/{version}/statistics/update_bots
-  defaults: { _controller: ODRAdminBundle:Statistics:updateBots, _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\StatisticsController::updateBotsAction, _format: json }
   methods: [ POST ]
   requirements:
     version: 'v\d+'

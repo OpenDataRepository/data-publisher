@@ -5,48 +5,48 @@
 #-----------------------------------------
 odr_statistics_log_view:
   path: /statistics/log_view
-  defaults: { _controller: ODRAdminBundle:Statistics:logView, _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\StatisticsController::logViewAction, _format: json }
   methods: [ POST ]
 
 odr_statistics_log_download:
   path: /statistics/log_download
-  defaults: { _controller: ODRAdminBundle:Statistics:logDownload, _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\StatisticsController::logDownloadAction, _format: json }
   methods: [ POST ]
 
 odr_statistics_get_datatype:
   path: /statistics/datatype/{datatype_id}
-  defaults: { _controller: ODRAdminBundle:Statistics:getDatatypeStats, _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\StatisticsController::getDatatypeStatsAction, _format: json }
   methods: [ GET ]
   requirements:
     datatype_id: '\d+'
 
 odr_statistics_get_datarecord:
   path: /statistics/datarecord/{datarecord_id}
-  defaults: { _controller: ODRAdminBundle:Statistics:getDatarecordStats, _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\StatisticsController::getDatarecordStatsAction, _format: json }
   methods: [ GET ]
   requirements:
     datarecord_id: '\d+'
 
 odr_statistics_geographic:
   path: /statistics/geographic
-  defaults: { _controller: ODRAdminBundle:Statistics:getGeographicStats, _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\StatisticsController::getGeographicStatsAction, _format: json }
   methods: [ GET ]
 
 odr_statistics_dashboard:
   path: /statistics/dashboard/{datatype_id}
-  defaults: { _controller: ODRAdminBundle:Statistics:getDashboard }
+  defaults: { _controller: ODR\AdminBundle\Controller\StatisticsController::getDashboardAction }
   methods: [ GET ]
   requirements:
     datatype_id: '\d+'
 
 odr_statistics_admin_dashboard:
   path: /statistics/dashboard
-  defaults: { _controller: ODRAdminBundle:Statistics:adminDashboard }
+  defaults: { _controller: ODR\AdminBundle\Controller\StatisticsController::adminDashboardAction }
   methods: [ GET ]
 
 odr_statistics_summary:
   path: /statistics/summary
-  defaults: { _controller: ODRAdminBundle:Statistics:getSummary, _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\StatisticsController::getSummaryAction, _format: json }
   methods: [ GET ]
 
 #-----------------------------------------
@@ -59,19 +59,19 @@ odr_statistics_summary:
 # SearchSidebarController routes
 odr_reload_search_overlay_datafield:
     path:  /search/reload/datafield/{datafield_id}
-    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:reloadsearchdatafield }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\SearchSidebarController::reloadsearchdatafieldAction }
     requirements:
         datafield_id:  \d+
 odr_reload_search_sidebar:
     path:  /search/reload_sidebar/{search_key}/{intent}
-    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:reloadsearchsidebar }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\SearchSidebarController::reloadsearchsidebarAction }
     requirements:
         search_key: '[a-zA-Z0-9\-\_]*'
         intent: 'searching|linking|stored_search_keys|'
 
 odr_reload_inverse_search_key:
     path:  /search/reload_inverse_search_key/{search_theme_id}/{search_key}/{inverse_datatype_id}
-    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:reloadinversesearchkey, inverse_datatype_id: '-1' }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\SearchSidebarController::reloadinversesearchkeyAction, inverse_datatype_id: '-1' }
     requirements:
         search_theme_id: \d+
         search_key: '[a-zA-Z0-9\-\_]*'
@@ -79,21 +79,21 @@ odr_reload_inverse_search_key:
 
 odr_reload_inverse_linked_search_key:
     path:  /search/reload_inverse_linking_search_key/{datatype_id}/{inverse_datatype_id}
-    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:reloadinverselinkingsearchkey, inverse_datatype_id: '-1' }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\SearchSidebarController::reloadinverselinkingsearchkeyAction, inverse_datatype_id: '-1' }
     requirements:
         dataype_id: \d+
         inverse_datatype_id: -?\d+|
 
 odr_reload_inverse_stored_search_key:
     path:  /search/reload_inverse_stored_search_key/{datatype_id}/{inverse_datatype_id}
-    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:reloadinversestoredsearchkey, inverse_datatype_id: '-1' }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\SearchSidebarController::reloadinversestoredsearchkeyAction, inverse_datatype_id: '-1' }
     requirements:
         dataype_id: \d+
         inverse_datatype_id: -?\d+|
 
 odr_get_available_sidebar_layouts:
     path:  /view/getlayouts/{datatype_id}/{intent}/{search_key}
-    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:getavailablesidebarlayouts, search_key: '' }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\SearchSidebarController::getavailablesidebarlayoutsAction, search_key: '' }
     requirements:
         datatype_id:  \d+
         intent:  '|searching|linking'
@@ -101,13 +101,13 @@ odr_get_available_sidebar_layouts:
 
 odr_create_sidebar_layout:
     path: /design/create_layout/{datatype_id}
-    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:createsidebarlayout }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\SearchSidebarController::createsidebarlayoutAction }
     requirements:
         datatype_id: \d+
 
 odr_modify_sidebar_layout:
     path:  /design/modify_layout/{datatype_id}/{sidebar_layout_id}/{intent}/{search_key}
-    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:modifysidebarlayout, intent: '', search_key: '' }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\SearchSidebarController::modifysidebarlayoutAction, intent: '', search_key: '' }
     requirements:
         datatype_id:  \d+
         sidebar_layout_id:  \d+
@@ -116,61 +116,61 @@ odr_modify_sidebar_layout:
 
 odr_save_sidebar_layout_properties:
     path:  /view/layout_properties/{sidebar_layout_id}
-    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:savesidebarlayoutproperties }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\SearchSidebarController::savesidebarlayoutpropertiesAction }
     requirements:
         sidebar_layout_id: \d+
 
 odr_sidebar_layout_searchable_toggle:
     path:  /design/togglesearchable/{datafield_id}
-    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:sidebarsearchabletoggle }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\SearchSidebarController::sidebarsearchabletoggleAction }
     requirements:
         datafield_id: \d+
 
 odr_toggle_sidebar_layout_shared:
     path:  /design/togglelayoutshared/{sidebar_layout_id}
-    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:sidebarlayoutshared }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\SearchSidebarController::sidebarlayoutsharedAction }
     requirements:
         sidebar_layout_id:  \d+
 
 odr_make_default_sidebar_layout:
     path:  /design/makedefaultlayout/{intent}/{sidebar_layout_id}
-    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:setdatabasedefaultlayout }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\SearchSidebarController::setdatabasedefaultlayoutAction }
     requirements:
         intent:  '|searching|linking'
         sidebar_layout_id:  \d+
 
 odr_unset_default_sidebar_layout:
     path:  /design/unsetdefaultlayout/{intent}/{sidebar_layout_id}
-    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:unsetdatabasedefaultlayout }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\SearchSidebarController::unsetdatabasedefaultlayoutAction }
     requirements:
         intent:  '|searching|linking'
         sidebar_layout_id:  \d+
 odr_unset_personal_sidebar_layout:
     path:  /design/unsetpersonallayout/{intent}/{sidebar_layout_id}
-    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:unsetpersonaldefaultlayout }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\SearchSidebarController::unsetpersonaldefaultlayoutAction }
     requirements:
         intent:  '|searching|linking'
         sidebar_layout_id:  \d+
 
 odr_delete_sidebar_layout:
     path:  /design/delete_layout/{sidebar_layout_id}
-    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:deletesidebarlayout }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\SearchSidebarController::deletesidebarlayoutAction }
     requirements:
         sidebar_layout_id:  \d+
 
 odr_clone_sidebar_layout:
     path:  /design/copy_layout/{sidebar_layout_id}
-    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:clonelayout }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\SearchSidebarController::clonelayoutAction }
     requirements:
         sidebar_layout_id:  \d+
 
 odr_design_toggle_datafield_layout_status:
     path: /design/layout/datafieldstatus
-    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:datafieldlayoutstatus }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\SearchSidebarController::datafieldlayoutstatusAction }
     methods: [ POST ]
 odr_design_save_datafield_order_layout:
     path:  /design/layout/datafieldlayoutorder
-    defaults: { _controller: ODROpenRepositorySearchBundle:SearchSidebar:datafieldlayoutorder }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\SearchSidebarController::datafieldlayoutorderAction }
     methods: [ POST ]
 
 
@@ -178,28 +178,28 @@ odr_design_save_datafield_order_layout:
 # ODRRemoteSearch routes
 odr_remote_search_start:
     path: /remote_search
-    defaults: { _controller: ODROpenRepositorySearchBundle:Remote:start }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\RemoteController::startAction }
 
 odr_remote_search_select:
     path: /remote_search/{datatype_id}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Remote:select }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\RemoteController::selectAction }
     requirements:
         datatype_id: \d+
 
 odr_remote_search_config:
     path: /remote_search/config
-    defaults: { _controller: ODROpenRepositorySearchBundle:Remote:config }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\RemoteController::configAction }
     methods: [ POST ]
 
 odr_remote_search_download:
     path: /remote_search/download/{minified}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Remote:download }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\RemoteController::downloadAction }
     requirements:
         minified: 0|1
 
 odr_remote_search_examples:
     path: /remote_search/example/{type}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Remote:examples }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\RemoteController::examplesAction }
     requirements:
         type: '|basic1|basic2|basic3|defaults|alt'
 
@@ -209,13 +209,13 @@ odr_remote_search_examples:
 #
 odr_legacy_search_results:
     path: /search/results/{search_key}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Default:legacy_search }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\DefaultController::legacy_searchAction }
     requirements:
         search_key: '[^\/]*'
 
 odr_searchtest_get_results:
     path: /searchtest/{search_key}/{limit}/{offset}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:searchTemplateGetTest, version: 'v3' }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\FacadeController::searchTemplateGetTestAction, version: 'v3' }
     methods: [ GET ]
     requirements:
         search_key: '[^\/]*'
@@ -224,7 +224,7 @@ odr_searchtest_get_results:
 
 odr_legacy_render:
     path: /search/render/{search_key}/{offset}/{source}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Default:legacy_render, offset: 1, source: 'searching' }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\DefaultController::legacy_renderAction, offset: 1, source: 'searching' }
     requirements:
         search_key: '[^\/]*'
         offset: \d+
@@ -235,17 +235,17 @@ odr_legacy_render:
 
 odr_search_results:
     path: /search/results
-    defaults: { _controller: ODROpenRepositorySearchBundle:Default:search }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\DefaultController::searchAction }
     methods: [ POST ]
 
 odr_inline_link_search:
     path:  /search/inline_link
-    defaults: { _controller: ODROpenRepositorySearchBundle:Default:inlinelinksearch, offset: 0, limit: 1000000 }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\DefaultController::inlinelinksearchAction, offset: 0, limit: 1000000 }
     methods: [ POST ]
 
 odr_search_render:
     path: /search/display/{search_theme_id}/{search_key}/{offset}/{intent}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Default:render, offset: 1, intent: 'searching' }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\DefaultController::renderAction, offset: 1, intent: 'searching' }
     requirements:
         search_theme_id: \d+
         search_key: '[a-zA-Z0-9\-\_]*'
@@ -254,7 +254,7 @@ odr_search_render:
 
 odr_default_search_render:
     path: /search/render_default/{datatype_id}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Default:defaultrender }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\DefaultController::defaultrenderAction }
     requirements:
         datatype_id: \d+
 
@@ -267,7 +267,7 @@ odr_default_search_render:
 #
 odr_random_network_search:
     path: /network
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:networkSearchAPI, dataset_uuid: 'eb0451ce86d7f6cd20505170ea69', offset: 0, limit: 1000000, version: 'v5' }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\FacadeController::networkSearchAPIAction, dataset_uuid: 'eb0451ce86d7f6cd20505170ea69', offset: 0, limit: 1000000, version: 'v5' }
     methods: [ GET ]
     requirements:
         version: 'v\d+'
@@ -278,49 +278,49 @@ odr_random_network_search:
 # IMA List Rebuilder
 odr_ima_list_rebuild:
     path: /ima_list_rebuild
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:IMAListRebuild, version: 'v4', recent: false }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\FacadeController::IMAListRebuildAction, version: 'v4', recent: false }
     methods: [ GET ]
     requirements:
         version: 'v\d+'
 
 odr_ima_list_update:
     path: /ima_list_update
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:IMAListRebuild, version: 'v4', recent: true }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\FacadeController::IMAListRebuildAction, version: 'v4', recent: true }
     methods: [ GET ]
     requirements:
         version: 'v\d+'
 
 odr_build_rruff_files:
     path: /build_rruff_files
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:updateRRUFFFiles, version: 'v4', recent: false }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\FacadeController::updateRRUFFFilesAction, version: 'v4', recent: false }
     methods: [ GET ]
     requirements:
         version: 'v\d+'
 
 odr_update_rruff_files:
     path: /update_rruff_files
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:updateRRUFFFiles, version: 'v4', recent: true }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\FacadeController::updateRRUFFFilesAction, version: 'v4', recent: true }
     methods: [ GET ]
     requirements:
         version: 'v\d+'
 
 odr_rebuild_rruff_files:
     path: /rebuild_rruff_files
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:updateRRUFFFiles, version: 'v4', recent: false }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\FacadeController::updateRRUFFFilesAction, version: 'v4', recent: false }
     methods: [ GET ]
     requirements:
         version: 'v\d+'
 
 odr_update_amcsd_files:
   path: /update_amcsd_files
-  defaults: { _controller: ODROpenRepositorySearchBundle:Facade:updateAMCSDFiles, version: 'v4', recent: true }
+  defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\FacadeController::updateAMCSDFilesAction, version: 'v4', recent: true }
   methods: [ GET ]
   requirements:
     version: 'v\d+'
 
 odr_rebuild_amcsd_files:
   path: /rebuild_amcsd_files
-  defaults: { _controller: ODROpenRepositorySearchBundle:Facade:updateAMCSDFiles, version: 'v4', recent: false }
+  defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\FacadeController::updateAMCSDFilesAction, version: 'v4', recent: false }
   methods: [ GET ]
   requirements:
     version: 'v\d+'
@@ -328,14 +328,14 @@ odr_rebuild_amcsd_files:
 # need a realtime seed call - reseed specific database now (recent changes)
 odr_search_seed_elastic:
     path: /elastic
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:seedElastic, version: 'v4' }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\FacadeController::seedElasticAction, version: 'v4' }
     methods: [ GET ]
     requirements:
         version: 'v\d+'
 
 odr_search_seed_elastic_record:
     path: /elastic/record/{record_uuid}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Facade:seedElasticRecord, version: 'v5' }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\FacadeController::seedElasticRecordAction, version: 'v5' }
     methods: [ GET ]
     requirements:
         record_uuid: '^[a-z0-9]+$'
@@ -343,7 +343,7 @@ odr_search_seed_elastic_record:
 
 odr_precache_search:
     path:  /precache/{datatype_id}
-    defaults: { _controller: ODROpenRepositorySearchBundle:SearchCache:preCacheRecords }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\SearchCacheController::preCacheRecordsAction }
     requirements:
         datatype_id: \d+
 
@@ -360,18 +360,18 @@ odr_precache_search:
 # These routes MUST be the absolute last routes imported by ODR due to generic terms...they'll typically override any route imported later
 odr_search_immediate:
     path:  /{search_slug}/{search_string}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Default:searchpage }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\DefaultController::searchpageAction }
     requirements:
         search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'
         # any 32 character alphanumeric string that isn't on the blacklist defined in the odr.search_slug_blacklist parameter
 
 odr_search:
     path:  /{search_slug}
-    defaults: { _controller: ODROpenRepositorySearchBundle:Default:searchpage, search_slug: '', search_string: '' }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\DefaultController::searchpageAction, search_slug: '', search_string: '' }
     requirements:
         search_slug: '(?!%odr.search_slug_blacklist%)[a-zA-Z0-9_\-]{0,32}'
         # any 32 character alphanumeric string that isn't on the blacklist defined in the odr.search_slug_blacklist parameter
 
 odr_home:
     path: /
-    defaults: { _controller: ODROpenRepositorySearchBundle:Default:home }
+    defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\DefaultController::homeAction }

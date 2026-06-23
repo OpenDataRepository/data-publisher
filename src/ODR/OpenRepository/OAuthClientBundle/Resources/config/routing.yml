@@ -2,13 +2,13 @@
 # Link Controller
 odr_oauth_account_link_connect:
     path: /admin/oauth/connect/{resource}
-    defaults: { _controller: ODROpenRepositoryOAuthClientBundle:Link:connect }
+    defaults: { _controller: ODR\OpenRepository\OAuthClientBundle\Controller\LinkController::connectAction }
     requirements:
         resource: '[a-zA-Z0-9]+'
 
 odr_oauth_account_link_disconnect:
     path: /admin/oauth/disconnect/{resource}
-    defaults: { _controller: ODROpenRepositoryOAuthClientBundle:Link:disconnect }
+    defaults: { _controller: ODR\OpenRepository\OAuthClientBundle\Controller\LinkController::disconnectAction }
     requirements:
         resource: '[a-zA-Z0-9]+'
 
