@@ -160,7 +160,7 @@ services:
             $entity_deletion_service: "@odr.entity_deletion_service"
             $upload_service: "@odr.upload_service"
             $odr_tmp_directory: '%odr_tmp_directory%'
-            $templating: '@templating'
+            $templating: '@twig'
             $logger: "@logger"
 
     odr_plugins.rruff.child_rruff_id:
@@ -174,7 +174,7 @@ services:
             $lock_service: "@odr.lock_service"
             $event_dispatcher: "@event_dispatcher"
             $token_manager: "@security.csrf.token_manager"
-            $templating: '@templating'
+            $templating: '@twig'
             $logger: "@logger"
 
     # ----------------------------------------

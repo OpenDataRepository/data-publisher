@@ -7,26 +7,26 @@ services:
         arguments:
             $em: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
-            $templating: '@templating'
+            $templating: '@twig'
 
     odr_plugins.base.comment:
         public: true
         class: '%odr_plugin_base_classpath%\Base\CommentPlugin'
         arguments:
-            $templating: '@templating'
+            $templating: '@twig'
 
     odr_plugins.base.link:
         public: true
         class: '%odr_plugin_base_classpath%\Base\LinkPlugin'
         arguments:
-            $templating: '@templating'
+            $templating: '@twig'
 
     odr_plugins.base.graph:
         public: true
         class: '%odr_plugin_base_classpath%\Base\GraphPlugin'
         arguments:
             $request_stack: "@request_stack"
-            $templating: '@templating'
+            $templating: '@twig'
             $crypto_service: '@odr.crypto_service'
             $pheanstalk: '@pheanstalk'
             $site_baseurl: '%site_baseurl%'
@@ -39,7 +39,7 @@ services:
         class: '%odr_plugin_base_classpath%\Base\GCMassSpecPlugin'
         arguments:
             $request_stack: "@request_stack"
-            $templating: '@templating'
+            $templating: '@twig'
             $crypto_service: '@odr.crypto_service'
             $pheanstalk: '@pheanstalk'
             $site_baseurl: '%site_baseurl%'
@@ -52,7 +52,7 @@ services:
         class: '%odr_plugin_base_classpath%\Base\FilterGraphPlugin'
         arguments:
             $request_stack: "@request_stack"
-            $templating: '@templating'
+            $templating: '@twig'
             $crypto_service: '@odr.crypto_service'
             $database_info_service: '@odr.database_info_service'
             $pheanstalk: '@pheanstalk'
@@ -65,7 +65,7 @@ services:
         public: true
         class: '%odr_plugin_base_classpath%\Base\MapPlugin'
         arguments:
-            $templating: '@templating'
+            $templating: '@twig'
             $tokenGenerator: '@fos_user.util.token_generator'
 
 
@@ -77,7 +77,7 @@ services:
         arguments:
             $database_info_service: "@odr.database_info_service"
             $sort_service: "@odr.sort_service"
-            $templating: '@templating'
+            $templating: '@twig'
             $logger: "@logger"
 
 
@@ -88,33 +88,33 @@ services:
         class: '%odr_plugin_base_classpath%\Base\ChemistryPlugin'
         arguments:
             $dri_service: '@odr.datarecord_info_service'
-            $templating: '@templating'
+            $templating: '@twig'
 
     odr_plugins.base.url:
         public: true
         class: '%odr_plugin_base_classpath%\Base\URLPlugin'
         arguments:
             $dri_service: '@odr.datarecord_info_service'
-            $templating: '@templating'
+            $templating: '@twig'
 
     odr_plugins.base.url_button:
         public: true
         class: '%odr_plugin_base_classpath%\Base\URLButtonPlugin'
         arguments:
-            $templating: '@templating'
+            $templating: '@twig'
 
     odr_plugins.base.currency:
         public: true
         class: '%odr_plugin_base_classpath%\Base\CurrencyPlugin'
         arguments:
             $dri_service: '@odr.datarecord_info_service'
-            $templating: '@templating'
+            $templating: '@twig'
 
     odr_plugins.base.csvtable:
         public: true
         class: '%odr_plugin_base_classpath%\Base\CSVTablePlugin'
         arguments:
-            $templating: '@templating'
+            $templating: '@twig'
             $crypto_service: '@odr.crypto_service'
             $odr_web_directory: '%odr_web_directory%'
 
@@ -127,7 +127,7 @@ services:
             $datarecord_info_service: "@odr.datarecord_info_service"
             $datatree_info_service: "@odr.datatree_info_service"
             $entity_modify_service: "@odr.entity_meta_modify_service"
-            $templating: '@templating'
+            $templating: '@twig'
             $logger: "@logger"
 
     odr_plugins.base.file_header_inserter:
@@ -142,7 +142,7 @@ services:
             $entity_deletion_service: "@odr.entity_deletion_service"
             $upload_service: "@odr.upload_service"
             $odr_tmp_directory: '%odr_tmp_directory%'
-            $templating: '@templating'
+            $templating: '@twig'
             $logger: "@logger"
 
     odr_plugins.base.unit_conversion:
@@ -155,7 +155,7 @@ services:
             $database_info_service: "@odr.database_info_service"
             $search_service: "@odr.search_service"
             $search_query_service: "@odr.search_query_service"
-            $templating: '@templating'
+            $templating: '@twig'
             $logger: "@logger"
 
     # ----------------------------------------

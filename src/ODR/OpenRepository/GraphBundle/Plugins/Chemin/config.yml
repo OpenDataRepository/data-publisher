@@ -6,7 +6,7 @@ services:
         arguments:
             $em: "@doctrine.orm.entity_manager"
             $cache_service: "@odr.cache_service"
-            $templating: '@templating'
+            $templating: '@twig'
 
     odr_plugins.chemin.chemined1:
         public: true

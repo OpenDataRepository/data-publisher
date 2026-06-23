@@ -27,4 +27,4 @@ services:
         class: '%odr_plugin_base_classpath%\AHED\NanograinURLPlugin'
         arguments:
             $datarecord_info_service: '@odr.datarecord_info_service'
-            $templating: '@templating'
+            $templating: '@twig'
