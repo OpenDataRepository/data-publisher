@@ -10,13 +10,18 @@ framework:
     #translator:      { fallback: %locale% }
     translator: ~
     secret:          "%secret%"
+    # ODR's custom error rendering (AJAX-aware); replaces the removed-in-5.0 twig.exception_controller
+    error_controller: 'ODR.exception_controller::showAction'
     router:
         resource: "%kernel.root_dir%/config/routing.yml"
         strict_requirements: "%kernel.debug%"
     form:            true
     csrf_protection: true
     validation:      { enabled: true, enable_annotations: false }
-    templating:      { engines: ['twig'] } #assets_version: SomeVersionScheme
+    # Retained ONLY for FOSOAuthServerBundle's authorize controller (which type-hints the
+    # deprecated EngineInterface). All ODR code now renders via @twig directly; this service
+    # stays lazy and is not instantiated on normal requests. Remove with FOSOAuthServer in Phase 4.
+    templating:      { engines: ['twig'] }
     default_locale:  "%locale%"
     session:
         gc_probability: 0
@@ -31,7 +36,10 @@ twig:
     strict_variables: "%kernel.debug%"
     #cache: memcached
     #cache: false
-    exception_controller: ODR.exception_controller:showAction
+    # null disables TwigBundle's deprecated exception listener (removed in 5.0); error rendering
+    # is handled by framework.error_controller (ODR.exception_controller) above. Setting this to
+    # null -- rather than omitting it -- is required, since omitting falls back to the default.
+    exception_controller: ~
     globals:
         config_kernel_environment: '%kernel.environment%'
         config_odr_wordpress_integrated: '%odr_wordpress_integrated%'
