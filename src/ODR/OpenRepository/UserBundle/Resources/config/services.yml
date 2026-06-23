@@ -3,6 +3,18 @@ parameters:
 
 services:
 
+    # Registered as a service (controller.service_arguments) so Symfony resolves it from the
+    # container instead of auto-injecting the whole container (deprecated in 4.2, removed in 5.0).
+    ODR\OpenRepository\UserBundle\Controller\UtilityController:
+        public: true
+        arguments:
+            $tracked_path_service: '@odr.tracked_path_service'
+            $router: '@router'
+            $search_key_service: '@odr.search_key_service'
+            $theme_info_service: '@odr.theme_info_service'
+            $site_baseurl: '%site_baseurl%'
+        tags: ['controller.service_arguments']
+
     odr.tracked_path_service:
         public: true
         class: ODR\OpenRepository\UserBundle\Component\Service\TrackedPathService

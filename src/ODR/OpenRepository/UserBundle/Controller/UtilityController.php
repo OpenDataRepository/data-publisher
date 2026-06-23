@@ -21,15 +21,29 @@ use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use ODR\OpenRepository\UserBundle\Component\Service\TrackedPathService;
 // Symfony
-use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\Routing\Router;
+use Symfony\Component\Routing\RouterInterface;
 
 
-class UtilityController extends \Symfony\Bundle\FrameworkBundle\Controller\AbstractController
+/**
+ * Not extending AbstractController on purpose: every dependency is injected via the constructor,
+ * so the controller needs no container. Extending AbstractController would re-trigger the
+ * "auto-injection of the container" deprecation (removed in Symfony 5.0).
+ */
+class UtilityController
 {
+
+    public function __construct(
+        private readonly TrackedPathService $tracked_path_service,
+        private readonly RouterInterface $router,
+        private readonly SearchKeyService $search_key_service,
+        private readonly ThemeInfoService $theme_info_service,
+        private readonly string $site_baseurl
+    ) {
+    }
+
 
     /**
      * This action is called when the "Login" button in the upper-right corner of the screen is
@@ -47,7 +61,6 @@ class UtilityController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
     {
         // Going to need these...
         $session = $request->getSession();
-//        $router = $this->get('router');
 
         // Ensure query was correctly formed
         if (!$request->query->has('url') )
@@ -55,7 +68,7 @@ class UtilityController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
 
         // Ensure the requested url to save is of this domain
         $url = $request->query->get('url');
-        $site_baseurl = $this->container->getParameter('site_baseurl').'/';    // need to add a trailing slash...
+        $site_baseurl = $this->site_baseurl.'/';    // need to add a trailing slash...
 
         // Generate a bare baseurl from the site_baseurl
         $bare_url = preg_replace('/^(\/\/)/', '', $site_baseurl);
@@ -76,7 +89,7 @@ class UtilityController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
 
         // Ensure all target paths are cleared before saving
         /** @var TrackedPathService $tracked_path_service */
-        $tracked_path_service = $this->container->get('odr.tracked_path_service');
+        $tracked_path_service = $this->tracked_path_service;
         $tracked_path_service->clearTargetPaths();
 
          // No issues, save the URL base
@@ -99,8 +112,7 @@ class UtilityController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
     {
         // Going to need these...
         $session = $request->getSession();
-        /** @var Router $router */
-        $router = $this->get('router');
+        $router = $this->router;
 
         // Ensure query was correctly formed
         if (!$request->query->has('fragment') )
@@ -123,7 +135,7 @@ class UtilityController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
         if ( $route['_route'] === 'odr_search_render' && isset($route['search_key']) ) {
             // ...then there's a chance that they have a preferred theme for the current datatype
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
             $search_params = $search_key_service->decodeSearchKey($route['search_key']);
             $datatype_id = $search_params['dt_id'];
 
@@ -132,7 +144,7 @@ class UtilityController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
             // This should only happen when the search results theme that the user was using is
             //  the datatype's default theme...don't want to override a previous selection.
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
             $default_search_theme = $theme_info_service->getDatatypeDefaultTheme($datatype_id, 'search_results');
 
             $search_theme_id = intval($route['search_theme_id']);
@@ -156,7 +168,7 @@ class UtilityController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
         // Ensure target paths except for "_security.main.target_path" are cleared before saving
         // If that path was cleared, users would always get redirected to the dashboard
         /** @var TrackedPathService $tracked_path_service */
-        $tracked_path_service = $this->container->get('odr.tracked_path_service');
+        $tracked_path_service = $this->tracked_path_service;
         $tracked_path_service->clearTargetPaths(false);
 
         // No issues, save the URL fragment
@@ -214,7 +226,7 @@ class UtilityController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
 
         // Ensure all target paths in the user's session are deleted prior to redirecting
         /** @var TrackedPathService $tracked_path_service */
-        $tracked_path_service = $this->container->get('odr.tracked_path_service');
+        $tracked_path_service = $this->tracked_path_service;
         $tracked_path_service->clearTargetPaths();
 
         if ($url !== '') {
@@ -223,7 +235,7 @@ class UtilityController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
         }
         else {
             // Otherwise, no desired redirect found...just redirect to the dashboard
-            return new RedirectResponse($this->get('router')->generate('odr_admin_homepage'));
+            return new RedirectResponse($this->router->generate('odr_admin_homepage'));
         }
     }
 }
