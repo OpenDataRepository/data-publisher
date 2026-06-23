@@ -79,7 +79,7 @@ class RRUFFInstrumentUsageController extends ODRCustomController
 
 
             /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($datarecord_id);
             if ($datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
 

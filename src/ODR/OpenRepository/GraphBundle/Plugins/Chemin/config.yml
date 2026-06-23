@@ -12,56 +12,56 @@ services:
         public: true
         class: '%odr_plugin_base_classpath%\Chemin\CheminED1Plugin'
         arguments:
-            $templating: "@templating"
+            $templating: "@twig"
             $logger: "@logger"
     odr_plugins.chemin.chemineda:
         public: true
         class: '%odr_plugin_base_classpath%\Chemin\CheminEDAPlugin'
         arguments:
-            $templating: "@templating"
+            $templating: "@twig"
             $logger: "@logger"
     odr_plugins.chemin.chemineds:
         public: true
         class: '%odr_plugin_base_classpath%\Chemin\CheminEDSPlugin'
         arguments:
-            $templating: "@templating"
+            $templating: "@twig"
             $logger: "@logger"
     odr_plugins.chemin.cheminee1:
         public: true
         class: '%odr_plugin_base_classpath%\Chemin\CheminEE1Plugin'
         arguments:
-            $templating: "@templating"
+            $templating: "@twig"
             $logger: "@logger"
     odr_plugins.chemin.chemineea:
         public: true
         class: '%odr_plugin_base_classpath%\Chemin\CheminEEAPlugin'
         arguments:
-            $templating: "@templating"
+            $templating: "@twig"
             $logger: "@logger"
     odr_plugins.chemin.cheminees:
         public: true
         class: '%odr_plugin_base_classpath%\Chemin\CheminEESPlugin'
         arguments:
-            $templating: "@templating"
+            $templating: "@twig"
             $logger: "@logger"
     odr_plugins.chemin.cheminefm:
         public: true
         class: '%odr_plugin_base_classpath%\Chemin\CheminEFMPlugin'
         arguments:
-            $templating: "@templating"
+            $templating: "@twig"
             $logger: "@logger"
     odr_plugins.chemin.cheminetr:
         public: true
         class: '%odr_plugin_base_classpath%\Chemin\CheminETRPlugin'
         arguments:
-            $templating: "@templating"
+            $templating: "@twig"
             $logger: "@logger"
 
     odr_plugins.chemin.qanalyze:
         public: true
         class: '%odr_plugin_base_classpath%\Chemin\QanalyzePlugin'
         arguments:
-            $templating: "@templating"
+            $templating: "@twig"
             $logger: "@logger"
 
 
@@ -74,5 +74,5 @@ services:
             $lock_service: "@odr.lock_service"
             $event_dispatcher: "@event_dispatcher"
             $token_manager: "@security.csrf.token_manager"
-            $templating: "@templating"
+            $templating: "@twig"
             $logger: "@logger"

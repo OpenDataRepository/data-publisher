@@ -207,7 +207,7 @@ class StatisticsService
             if ($granularity === 'hourly') {
                 $query = $this->em->createQueryBuilder()
                     ->select('s')
-                    ->from('ODRAdminBundle:StatisticsHourly', 's')
+                    ->from('ODR\AdminBundle\Entity\StatisticsHourly', 's')
                     ->where('s.dataType = :datatype_id')
                     ->andWhere('s.hourTimestamp >= :start_date')
                     ->andWhere('s.hourTimestamp <= :end_date')
@@ -231,7 +231,7 @@ class StatisticsService
                 // Daily granularity
                 $query = $this->em->createQueryBuilder()
                     ->select('s')
-                    ->from('ODRAdminBundle:StatisticsDaily', 's')
+                    ->from('ODR\AdminBundle\Entity\StatisticsDaily', 's')
                     ->where('s.dataType = :datatype_id')
                     ->andWhere('s.dayDate >= :start_date')
                     ->andWhere('s.dayDate <= :end_date')
@@ -280,7 +280,7 @@ class StatisticsService
         try {
             // Get the datarecord and all its descendants
             /** @var DataRecord $datarecord */
-            $datarecord = $this->em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            $datarecord = $this->em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($datarecord_id);
             if (!$datarecord) {
                 return [];
             }
@@ -292,7 +292,7 @@ class StatisticsService
             // Query daily statistics for these records
             $query = $this->em->createQueryBuilder()
                 ->select('s')
-                ->from('ODRAdminBundle:StatisticsDaily', 's')
+                ->from('ODR\AdminBundle\Entity\StatisticsDaily', 's')
                 ->where('s.dataRecord IN (:record_ids)')
                 ->andWhere('s.dayDate >= :start_date')
                 ->andWhere('s.dayDate <= :end_date')
@@ -336,7 +336,7 @@ class StatisticsService
             // Get direct children
             $children = $this->em->createQueryBuilder()
                 ->select('dr.id')
-                ->from('ODRAdminBundle:DataRecord', 'dr')
+                ->from('ODR\AdminBundle\Entity\DataRecord', 'dr')
                 ->where('dr.parent = :parent_id')
                 ->andWhere('dr.deletedAt IS NULL')
                 ->setParameter('parent_id', $datarecord_id)
@@ -381,7 +381,7 @@ class StatisticsService
         try {
             $query = $this->em->createQueryBuilder()
                 ->select('s.country, s.province, SUM(s.viewCount) as total_views, SUM(s.downloadCount) as total_downloads')
-                ->from('ODRAdminBundle:StatisticsDaily', 's')
+                ->from('ODR\AdminBundle\Entity\StatisticsDaily', 's')
                 ->where('s.dayDate >= :start_date')
                 ->andWhere('s.dayDate <= :end_date')
                 ->andWhere('s.deletedAt IS NULL');
@@ -572,7 +572,7 @@ class StatisticsService
         try {
             $query = $this->em->createQueryBuilder()
                 ->select('IDENTITY(s.dataType) as datatype_id, SUM(s.viewCount) as total_views, SUM(s.downloadCount) as total_downloads')
-                ->from('ODRAdminBundle:StatisticsDaily', 's')
+                ->from('ODR\AdminBundle\Entity\StatisticsDaily', 's')
                 ->where('s.dayDate >= :start_date')
                 ->andWhere('s.dayDate <= :end_date')
                 ->andWhere('s.deletedAt IS NULL')

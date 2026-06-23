@@ -86,7 +86,7 @@ class ThemeController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ( is_null($datatype) )
                 throw new ODRNotFoundException('Datatype');
 
@@ -292,12 +292,12 @@ class ThemeController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
             /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            $theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($theme_id);
             if ($theme == null)
                 throw new ODRNotFoundException('Theme');
 
@@ -370,7 +370,7 @@ class ThemeController extends ODRCustomController
 
 
             /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            $theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($theme_id);
             if ($theme == null)
                 throw new ODRNotFoundException('Theme');
 
@@ -491,7 +491,7 @@ class ThemeController extends ODRCustomController
 
 
             /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            $theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($theme_id);
             if ($theme == null)
                 throw new ODRNotFoundException('Theme');
 
@@ -601,7 +601,7 @@ class ThemeController extends ODRCustomController
 
 
             /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            $theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($theme_id);
             if ($theme == null)
                 throw new ODRNotFoundException('Theme');
 
@@ -653,7 +653,7 @@ class ThemeController extends ODRCustomController
                 $t_id = $result['id'];
                 if ( $theme->getId() !== $t_id ) {
                     /** @var Theme $t */
-                    $t = $em->getRepository('ODRAdminBundle:Theme')->find($t_id);
+                    $t = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($t_id);
                     $new_defaults = $t->getDefaultFor() - $page_type_id;
                     $properties = [
                         'defaultFor' => $new_defaults
@@ -722,7 +722,7 @@ class ThemeController extends ODRCustomController
 
 
             /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            $theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($theme_id);
             if ($theme == null)
                 throw new ODRNotFoundException('Theme');
 
@@ -814,7 +814,7 @@ class ThemeController extends ODRCustomController
 
 
             /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            $theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($theme_id);
             if ($theme == null)
                 throw new ODRNotFoundException('Theme');
 
@@ -846,7 +846,7 @@ class ThemeController extends ODRCustomController
 
             // Only do stuff if the user has a themePreference involving this theme and page type...
             /** @var ThemePreferences $tp */
-            $tp = $em->getRepository('ODRAdminBundle:ThemePreferences')->findOneBy(
+            $tp = $em->getRepository('ODR\AdminBundle\Entity\ThemePreferences')->findOneBy(
                 [
                     'theme' => $theme->getId(),
                     'createdBy' => $user->getId(),
@@ -914,7 +914,7 @@ class ThemeController extends ODRCustomController
 
 
             /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            $theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($theme_id);
             if ($theme == null)
                 throw new ODRNotFoundException('Theme');
 
@@ -961,7 +961,7 @@ class ThemeController extends ODRCustomController
             // ----------------------------------------
             // Ensure users no longer have this Theme as their "personal default"
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:ThemePreferences AS tp
+               'UPDATE ODR\AdminBundle\Entity\ThemePreferences AS tp
                 SET tp.deletedAt = :now
                 WHERE tp.theme = :theme_id
                 AND tp.deletedAt IS NULL'
@@ -975,7 +975,7 @@ class ThemeController extends ODRCustomController
 
             // Delete this Theme and all of its "children"
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:Theme AS t
+               'UPDATE ODR\AdminBundle\Entity\Theme AS t
                 SET t.deletedAt = :now
                 WHERE t.parentTheme = :theme_id
                 AND t.deletedAt IS NULL'
@@ -1036,7 +1036,7 @@ class ThemeController extends ODRCustomController
 
 
             /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            $theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($theme_id);
             if ($theme == null)
                 throw new ODRNotFoundException('Theme');
 
@@ -1120,7 +1120,7 @@ class ThemeController extends ODRCustomController
 
 
             /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            $theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($theme_id);
             if ($theme == null)
                 throw new ODRNotFoundException('Theme');
 
@@ -1208,7 +1208,7 @@ class ThemeController extends ODRCustomController
 
             // Grab the theme element from the repository
             /** @var ThemeElement $theme_element */
-            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            $theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement')->find($theme_element_id);
             if ($theme_element == null)
                 throw new ODRNotFoundException('ThemeElement');
             $em->refresh($theme_element);   // TODO - why did this exist again?
@@ -1302,7 +1302,7 @@ class ThemeController extends ODRCustomController
 
 
             /** @var ThemeElement $theme_element */
-            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            $theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement')->find($theme_element_id);
             if ($theme_element == null)
                 throw new ODRNotFoundException('ThemeElement');
 
@@ -1421,7 +1421,7 @@ class ThemeController extends ODRCustomController
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement');
+            $repo_theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement');
 
             /** @var EntityMetaModifyService $entity_modify_service */
             $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
@@ -1521,7 +1521,7 @@ class ThemeController extends ODRCustomController
 
 
             /** @var ThemeElement $theme_element */
-            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            $theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement')->find($theme_element_id);
             if ( is_null($theme_element) )
                 throw new ODRNotFoundException('ThemeElement');
 
@@ -1611,7 +1611,7 @@ class ThemeController extends ODRCustomController
 
 
             /** @var ThemeElement $theme_element */
-            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            $theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement')->find($theme_element_id);
             if ( is_null($theme_element) )
                 throw new ODRNotFoundException('ThemeElement');
 
@@ -1695,7 +1695,7 @@ class ThemeController extends ODRCustomController
 
 
             /** @var ThemeElement $theme_element */
-            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            $theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement')->find($theme_element_id);
             if ($theme_element == null)
                 throw new ODRNotFoundException('ThemeElement');
 
@@ -1770,17 +1770,17 @@ class ThemeController extends ODRCustomController
 
 
             /** @var ThemeElement $theme_element */
-            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            $theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement')->find($theme_element_id);
             if ( is_null($theme_element) )
                 throw new ODRNotFoundException('ThemeElement');
 
             /** @var DataType $child_datatype */
-            $child_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $child_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ( is_null($child_datatype) )
                 throw new ODRNotFoundException('Datatype');
 
             /** @var ThemeDataType $theme_datatype */
-            $theme_datatype = $em->getRepository('ODRAdminBundle:ThemeDataType')->findOneBy(
+            $theme_datatype = $em->getRepository('ODR\AdminBundle\Entity\ThemeDataType')->findOneBy(
                 ['themeElement' => $theme_element->getId(), 'dataType' => $child_datatype->getId()]
             );
             if ( is_null($theme_datatype) )
@@ -1799,7 +1799,7 @@ class ThemeController extends ODRCustomController
 
             // Also need this in order to render the form, though it can't be changed from here
             /** @var DataTree $datatree */
-            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
+            $datatree = $em->getRepository('ODR\AdminBundle\Entity\DataTree')->findOneBy(
                 ['ancestor' => $parent_datatype->getId(), 'descendant' => $child_datatype->getId()]
             );
             if ( $datatree == null )
@@ -1891,17 +1891,17 @@ class ThemeController extends ODRCustomController
 
 
             /** @var ThemeElement $theme_element */
-            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            $theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement')->find($theme_element_id);
             if ( is_null($theme_element) )
                 throw new ODRNotFoundException('ThemeElement');
 
             /** @var DataType $child_datatype */
-            $child_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $child_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ( is_null($child_datatype) )
                 throw new ODRNotFoundException('Datatype');
 
             /** @var ThemeDataType $theme_datatype */
-            $theme_datatype = $em->getRepository('ODRAdminBundle:ThemeDataType')->findOneBy(
+            $theme_datatype = $em->getRepository('ODR\AdminBundle\Entity\ThemeDataType')->findOneBy(
                 ['themeElement' => $theme_element->getId(), 'dataType' => $child_datatype->getId()]
             );
             if ( is_null($theme_datatype) )
@@ -1937,7 +1937,7 @@ class ThemeController extends ODRCustomController
 
             // Check if multiple child/linked datarecords are allowed for datatype
             /** @var DataTree $datatree */
-            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
+            $datatree = $em->getRepository('ODR\AdminBundle\Entity\DataTree')->findOneBy(
                 ['ancestor' => $parent_datatype->getId(), 'descendant' => $child_datatype->getId()]
             );
 
@@ -2019,18 +2019,18 @@ class ThemeController extends ODRCustomController
 
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ( is_null($datafield) )
                 throw new ODRNotFoundException('Datafield');
 
             /** @var ThemeElement $theme_element */
-            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            $theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement')->find($theme_element_id);
             if ( is_null($theme_element) )
                 throw new ODRNotFoundException('ThemeElement');
 
             // Locate the ThemeDatafield entity
             /** @var ThemeDataField $theme_datafield */
-            $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy(
+            $theme_datafield = $em->getRepository('ODR\AdminBundle\Entity\ThemeDataField')->findOneBy(
                 ['dataField' => $datafield->getId(), 'themeElement' => $theme_element->getId()]
             );
             if ( is_null($theme_datafield) )
@@ -2129,17 +2129,17 @@ class ThemeController extends ODRCustomController
 
 
             /** @var ThemeElement $theme_element */
-            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            $theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement')->find($theme_element_id);
             if ( is_null($theme_element) )
                 throw new ODRNotFoundException('ThemeElement');
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ( is_null($datafield) )
                 throw new ODRNotFoundException('Datafield');
 
             /** @var ThemeDataField $theme_datafield */
-            $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy(
+            $theme_datafield = $em->getRepository('ODR\AdminBundle\Entity\ThemeDataField')->findOneBy(
                 ['themeElement' => $theme_element->getId(), 'dataField' => $datafield->getId()]
             );
             if ( is_null($theme_datafield) )
@@ -2254,17 +2254,17 @@ class ThemeController extends ODRCustomController
 
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ( is_null($datafield) )
                 throw new ODRNotFoundException('Datafield');
 
             /** @var ThemeElement $theme_element */
-            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            $theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement')->find($theme_element_id);
             if ( is_null($theme_element) )
                 throw new ODRNotFoundException('ThemeElement');
 
             /** @var ThemeDataField $theme_datafield */
-            $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy(
+            $theme_datafield = $em->getRepository('ODR\AdminBundle\Entity\ThemeDataField')->findOneBy(
                 [
                     'themeElement' => $theme_element_id,
                     'dataField' => $datafield_id,
@@ -2356,17 +2356,17 @@ class ThemeController extends ODRCustomController
 
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ( is_null($datafield) )
                 throw new ODRNotFoundException('Datafield');
 
             /** @var ThemeElement $theme_element */
-            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            $theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement')->find($theme_element_id);
             if ( is_null($theme_element) )
                 throw new ODRNotFoundException('ThemeElement');
 
             /** @var ThemeDataField $theme_datafield */
-            $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy(
+            $theme_datafield = $em->getRepository('ODR\AdminBundle\Entity\ThemeDataField')->findOneBy(
                 [
                     'themeElement' => $theme_element_id,
                     'dataField' => $datafield_id,
@@ -2463,17 +2463,17 @@ class ThemeController extends ODRCustomController
 
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ( is_null($datafield) )
                 throw new ODRNotFoundException('Datafield');
 
             /** @var ThemeElement $theme_element */
-            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            $theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement')->find($theme_element_id);
             if ( is_null($theme_element) )
                 throw new ODRNotFoundException('ThemeElement');
 
             /** @var ThemeDataField $theme_datafield */
-            $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy(
+            $theme_datafield = $em->getRepository('ODR\AdminBundle\Entity\ThemeDataField')->findOneBy(
                 [
                     'themeElement' => $theme_element_id,
                     'dataField' => $datafield_id,
@@ -2564,7 +2564,7 @@ class ThemeController extends ODRCustomController
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement');
+            $repo_theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement');
 
             /** @var EntityMetaModifyService $entity_modify_service */
             $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
@@ -2616,8 +2616,8 @@ class ThemeController extends ODRCustomController
             // Ensure all the datafields in the $post belong to a single datatype
             $query = $em->createQuery(
                'SELECT dt.id AS dt_id
-                FROM ODRAdminBundle:DataFields AS df
-                JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
+                FROM ODR\AdminBundle\Entity\DataFields AS df
+                JOIN ODR\AdminBundle\Entity\DataType AS dt WITH df.dataType = dt
                 WHERE df.id IN (:datafields)
                 AND df.deletedAt IS NULL AND dt.deletedAt IS NULL
                 GROUP BY dt.id'
@@ -2634,7 +2634,7 @@ class ThemeController extends ODRCustomController
             // Load all theme_datafield entries currently in the destination theme element
             $query = $em->createQuery(
                'SELECT tdf
-                FROM ODRAdminBundle:ThemeDataField tdf
+                FROM ODR\AdminBundle\Entity\ThemeDataField tdf
                 WHERE tdf.themeElement = :theme_element_id
                 AND tdf.deletedAt IS NULL'
             )->setParameters( ['theme_element_id' => $ending_theme_element->getId()] );
@@ -2666,7 +2666,7 @@ class ThemeController extends ODRCustomController
                     //  it got moved into the ending theme_element from somewhere else
 
                     /** @var ThemeDataField $old_tdf_entry */
-                    $old_tdf_entry = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy(
+                    $old_tdf_entry = $em->getRepository('ODR\AdminBundle\Entity\ThemeDataField')->findOneBy(
                         [
                             'dataField' => $df_id,
                             'themeElement' => $initial_theme_element->getId()

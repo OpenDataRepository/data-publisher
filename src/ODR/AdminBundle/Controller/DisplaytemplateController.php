@@ -108,7 +108,7 @@ class DisplaytemplateController extends ODRCustomController
 
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ($datafield == null)
                 throw new ODRNotFoundException('Datafield');
 
@@ -178,7 +178,7 @@ class DisplaytemplateController extends ODRCustomController
             $permissions_service = $this->container->get('odr.permissions_management_service');
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -239,7 +239,7 @@ class DisplaytemplateController extends ODRCustomController
             $templating = $this->get('templating');
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -342,7 +342,7 @@ class DisplaytemplateController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -435,7 +435,7 @@ class DisplaytemplateController extends ODRCustomController
 
 
             /** @var ThemeElement $theme_element */
-            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            $theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement')->find($theme_element_id);
             if ($theme_element == null)
                 throw new ODRNotFoundException('ThemeElement');
 
@@ -488,7 +488,7 @@ class DisplaytemplateController extends ODRCustomController
 
             // Grab objects required to create a datafield entity
             /** @var FieldType $fieldtype */
-            $fieldtype = $em->getRepository('ODRAdminBundle:FieldType')->findOneBy( ['typeName' => 'Short Text'] );
+            $fieldtype = $em->getRepository('ODR\AdminBundle\Entity\FieldType')->findOneBy( ['typeName' => 'Short Text'] );
 
             // Create the datafield...works the same whether it's for a local or a linked datatype
             $datafield = $entity_create_service->createDatafield($user, $datatype, $fieldtype, true);    // Don't flush immediately...
@@ -520,7 +520,7 @@ class DisplaytemplateController extends ODRCustomController
                                 //  has datafields, or at least is not being used for a child/linked
                                 //  datatype
                                 /** @var ThemeElement $linked_theme_element */
-                                $linked_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find( $te['id'] );
+                                $linked_theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement')->find( $te['id'] );
 
                                 // Create a ThemeDatafield entry so the new datafield shows up in
                                 //  the ThemeElement that was just located
@@ -674,7 +674,7 @@ class DisplaytemplateController extends ODRCustomController
 
 
             /** @var ThemeElement $theme_element */
-            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            $theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement')->find($theme_element_id);
             if ($theme_element == null)
                 throw new ODRNotFoundException('ThemeElement');
 
@@ -687,12 +687,12 @@ class DisplaytemplateController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             /** @var DataFields $old_datafield */
-            $old_datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $old_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ($old_datafield == null)
                 throw new ODRNotFoundException('Datafield');
 
             /** @var ThemeDataField $old_theme_datafield */
-            $old_theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy(
+            $old_theme_datafield = $em->getRepository('ODR\AdminBundle\Entity\ThemeDataField')->findOneBy(
                 [
                     'dataField' => $old_datafield->getId(),
                     'themeElement' => $theme_element->getId()
@@ -807,7 +807,7 @@ class DisplaytemplateController extends ODRCustomController
                         foreach ($te['themeDataFields'] as $tdf_num => $tdf) {
                             if ( $tdf['dataField']['id'] === $old_datafield->getId() ) {
                                 /** @var ThemeDataField $linked_tdf */
-                                $linked_tdf = $em->getRepository('ODRAdminBundle:ThemeDataField')->find( $tdf['id'] );
+                                $linked_tdf = $em->getRepository('ODR\AdminBundle\Entity\ThemeDataField')->find( $tdf['id'] );
 
                                 $new_linked_tdf = clone $linked_tdf;
                                 $new_linked_tdf->setDataField($new_df);
@@ -979,7 +979,7 @@ class DisplaytemplateController extends ODRCustomController
 
 
             /** @var ThemeElement $theme_element */
-            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            $theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement')->find($theme_element_id);
             if ($theme_element == null)
                 throw new ODRNotFoundException('ThemeElement');
 
@@ -1236,7 +1236,7 @@ class DisplaytemplateController extends ODRCustomController
 
 
             /** @var ThemeElement $theme_element */
-            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            $theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement')->find($theme_element_id);
             if ($theme_element == null)
                 throw new ODRNotFoundException('ThemeElement');
 
@@ -1325,17 +1325,17 @@ class DisplaytemplateController extends ODRCustomController
 
 
             /** @var DataType $source_datatype */
-            $source_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($source_datatype_id);
+            $source_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($source_datatype_id);
             if ($source_datatype == null)
                 throw new ODRNotFoundException('Source Datatype');
 
             /** @var ThemeElement $theme_element */
-            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            $theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement')->find($theme_element_id);
             if ($theme_element == null)
                 throw new ODRNotFoundException('ThemeElement');
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ($datafield == null)
                 throw new ODRNotFoundException('Datafield');
 
@@ -1427,14 +1427,14 @@ class DisplaytemplateController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ( is_null($datatype) )
                 throw new ODRNotFoundException('Datatype');
 
             /** @var ThemeElement|null $theme_element */
             $theme_element = null;
             if ( $theme_element_id !== '' ) {
-                $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+                $theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement')->find($theme_element_id);
                 if ( is_null($theme_element) )
                     throw new ODRNotFoundException('ThemeElement');
             }
@@ -1499,7 +1499,7 @@ class DisplaytemplateController extends ODRCustomController
             $theme_element = null;
 
             if ($parent_datatype_id !== '') {
-                $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
+                $datatree = $em->getRepository('ODR\AdminBundle\Entity\DataTree')->findOneBy(
                     [
                         'ancestor' => $parent_datatype_id,
                         'descendant' => $datatype_id
@@ -1512,7 +1512,7 @@ class DisplaytemplateController extends ODRCustomController
                 if ($datatree_meta->getDeletedAt() != null)
                     throw new ODRNotFoundException('DatatreeMeta');
 
-                $theme_datatype = $em->getRepository('ODRAdminBundle:ThemeDatatype')->findOneBy(
+                $theme_datatype = $em->getRepository('ODR\AdminBundle\Entity\ThemeDataType')->findOneBy(
                     [
                         'themeElement' => $theme_element_id,
                         'dataType' => $datatype_id,    // the id of the child/linked datatype
@@ -1607,7 +1607,7 @@ class DisplaytemplateController extends ODRCustomController
                     // ...check that the new search slug doesn't collide with an existing search slug
                     $query = $em->createQuery(
                        'SELECT dtm.id
-                        FROM ODRAdminBundle:DataTypeMeta AS dtm
+                        FROM ODR\AdminBundle\Entity\DataTypeMeta AS dtm
                         WHERE dtm.searchSlug = :search_slug
                         AND dtm.deletedAt IS NULL'
                     )->setParameters(['search_slug' => $submitted_data->getSearchSlug()]);
@@ -1801,8 +1801,8 @@ class DisplaytemplateController extends ODRCustomController
                         //  datatree must remain true
                         $query = $em->createQuery(
                            'SELECT parent.id AS ancestor_id, child.id AS descendant_id
-                            FROM ODRAdminBundle:DataRecord AS parent
-                            JOIN ODRAdminBundle:DataRecord AS child WITH child.parent = parent
+                            FROM ODR\AdminBundle\Entity\DataRecord AS parent
+                            JOIN ODR\AdminBundle\Entity\DataRecord AS child WITH child.parent = parent
                             WHERE parent.dataType = :parent_datatype AND child.dataType = :child_datatype AND parent.id != child.id
                             AND parent.deletedAt IS NULL AND child.deletedAt IS NULL'
                         )->setParameters(
@@ -1819,9 +1819,9 @@ class DisplaytemplateController extends ODRCustomController
                         //  must remain true
                         $query = $em->createQuery(
                            'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
-                            FROM ODRAdminBundle:DataRecord AS ancestor
-                            JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
-                            JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+                            FROM ODR\AdminBundle\Entity\DataRecord AS ancestor
+                            JOIN ODR\AdminBundle\Entity\LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
+                            JOIN ODR\AdminBundle\Entity\DataRecord AS descendant WITH ldt.descendant = descendant
                             WHERE ancestor.dataType = :ancestor_datatype AND descendant.dataType = :descendant_datatype
                             AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
                         )->setParameters(
@@ -1997,7 +1997,7 @@ class DisplaytemplateController extends ODRCustomController
 
 
             /** @var DataTree $datatree */
-            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->find($datatree_id);
+            $datatree = $em->getRepository('ODR\AdminBundle\Entity\DataTree')->find($datatree_id);
             if ($datatree == null)
                 throw new ODRNotFoundException('Datatree');
 
@@ -2028,8 +2028,8 @@ class DisplaytemplateController extends ODRCustomController
                 // Determine whether a datarecord of this datatype has multiple child datarecords...if so, then require the "multiple allowed" property of the datatree to remain true
                 $query = $em->createQuery(
                    'SELECT parent.id AS ancestor_id, child.id AS descendant_id
-                    FROM ODRAdminBundle:DataRecord AS parent
-                    JOIN ODRAdminBundle:DataRecord AS child WITH child.parent = parent
+                    FROM ODR\AdminBundle\Entity\DataRecord AS parent
+                    JOIN ODR\AdminBundle\Entity\DataRecord AS child WITH child.parent = parent
                     WHERE parent.dataType = :parent_datatype AND child.dataType = :child_datatype AND parent.id != child.id
                     AND parent.deletedAt IS NULL AND child.deletedAt IS NULL'
                 )->setParameters( ['parent_datatype' => $parent_datatype_id, 'child_datatype' => $child_datatype_id] );
@@ -2039,9 +2039,9 @@ class DisplaytemplateController extends ODRCustomController
                 // Determine whether a datarecord of this datatype is linked to multiple datarecords...if so, then require the "multiple allowed" property of the datatree to remain true
                 $query = $em->createQuery(
                    'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
-                    FROM ODRAdminBundle:DataRecord AS ancestor
-                    JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
-                    JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+                    FROM ODR\AdminBundle\Entity\DataRecord AS ancestor
+                    JOIN ODR\AdminBundle\Entity\LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
+                    JOIN ODR\AdminBundle\Entity\DataRecord AS descendant WITH ldt.descendant = descendant
                     WHERE ancestor.dataType = :ancestor_datatype AND descendant.dataType = :descendant_datatype
                     AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
                 )->setParameters( ['ancestor_datatype' => $parent_datatype_id, 'descendant_datatype' => $child_datatype_id] );
@@ -2119,9 +2119,9 @@ class DisplaytemplateController extends ODRCustomController
                         //  datatypes...
                         $query = $em->createQuery(
                            'SELECT dtsf
-                            FROM ODRAdminBundle:DataTypeSpecialFields dtsf
-                            JOIN ODRAdminBundle:DataFields df WITH dtsf.dataField = df
-                            JOIN ODRAdminBundle:DataType dt WITH df.dataType = dt
+                            FROM ODR\AdminBundle\Entity\DataTypeSpecialFields dtsf
+                            JOIN ODR\AdminBundle\Entity\DataFields df WITH dtsf.dataField = df
+                            JOIN ODR\AdminBundle\Entity\DataType dt WITH df.dataType = dt
                             WHERE dtsf.dataType = :ancestor_datatype_id AND dt = :descendant_datatype_id
                             AND dtsf.deletedAt IS NULL AND df.deletedAt IS NULL AND dt.deletedAt IS NULL'
                         )->setParameters(
@@ -2146,7 +2146,7 @@ class DisplaytemplateController extends ODRCustomController
                             }
 
                             $query = $em->createQuery(
-                               'UPDATE ODRAdminBundle:DataTypeSpecialFields AS dtsf
+                               'UPDATE ODR\AdminBundle\Entity\DataTypeSpecialFields AS dtsf
                                 SET dtsf.deletedBy = :user, dtsf.deletedAt = :now
                                 WHERE dtsf.dataType = :datatype_id AND dtsf.dataField IN (:datafield_ids)
                                 AND dtsf.deletedAt IS NULL'
@@ -2190,7 +2190,7 @@ class DisplaytemplateController extends ODRCustomController
                     //  cached theme entries, so they need to get rebuilt as well
                     $query = $em->createQuery(
                        'SELECT t.id AS theme_id
-                        FROM ODRAdminBundle:Theme AS t
+                        FROM ODR\AdminBundle\Entity\Theme AS t
                         WHERE t.dataType = :datatype_id
                         AND t.deletedAt IS NULL'
                     )->setParameters( ['datatype_id' => $ancestor_datatype->getGrandparent()->getId()] );
@@ -2271,7 +2271,7 @@ class DisplaytemplateController extends ODRCustomController
 
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ( is_null($datafield) )
                 throw new ODRNotFoundException('Datafield');
 
@@ -2881,7 +2881,7 @@ class DisplaytemplateController extends ODRCustomController
             $datatype = $datafield->getDataType();
             $query = $em->createQuery(
                'SELECT dr.id
-                FROM ODRAdminBundle:DataRecord AS dr
+                FROM ODR\AdminBundle\Entity\DataRecord AS dr
                 WHERE dr.dataType = :dataType AND dr.deletedAt IS NULL'
             )->setParameters( ['dataType' => $datatype] );
             $results = $query->getResult();
@@ -2999,7 +2999,7 @@ class DisplaytemplateController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -3018,7 +3018,7 @@ class DisplaytemplateController extends ODRCustomController
 
             $query = $em->createQuery(
                'SELECT df
-                FROM ODRAdminBundle:DataFields AS df
+                FROM ODR\AdminBundle\Entity\DataFields AS df
                 WHERE df.dataType = :datatype AND df.deletedAt IS NOT NULL'
             )->setParameters( ['datatype' => $datatype] );
             $results = $query->getResult();
@@ -3107,7 +3107,7 @@ $debug = false;
             // need to do checking that stuff won't crash
             $query = $em->createQuery(
                'SELECT df
-                FROM ODRAdminBundle:DataFields AS df
+                FROM ODR\AdminBundle\Entity\DataFields AS df
                 WHERE df.id = :datafield_id'
             )->setParameters( ['datafield_id' => $datafield_id] );
             $results = $query->getResult();
@@ -3161,7 +3161,7 @@ $debug = false;
 
             // Step 1.5: re-activate theme_datafield entries for theme 1
             /** @var ThemeDataField $theme_datafield */
-            $theme_datafield = $em->getRepository('ODRAdminBundle:ThemeDataField')->findOneBy( ['dataFields' => $datafield->getId(), 'theme' => 1] );
+            $theme_datafield = $em->getRepository('ODR\AdminBundle\Entity\ThemeDataField')->findOneBy( ['dataFields' => $datafield->getId(), 'theme' => 1] );
             $theme_datafield->setActive(1);
             $em->persist($theme_datafield);
 
@@ -3171,8 +3171,8 @@ if ($debug)
             // Step 2: undelete the datarecordfield entries associated with this datafield to recover the data
             $query = $em->createQuery(
                'SELECT drf
-                FROM ODRAdminBundle:DataRecordFields AS drf
-                JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+                FROM ODR\AdminBundle\Entity\DataRecordFields AS drf
+                JOIN ODR\AdminBundle\Entity\DataRecord AS dr WITH drf.dataRecord = dr
                 WHERE drf.dataField = :datafield AND dr.deletedAt IS NULL'
             )->setParameters( ['datafield' => $datafield] );
             $results = $query->getResult();
@@ -3267,7 +3267,7 @@ if ($debug)
             $query = $em->createQuery(
                'SELECT te
                 FROM ODRAdminBundle:ThemeElementField AS tef
-                JOIN ODRAdminBundle:ThemeElement te WITH tef.themeElement = te
+                JOIN ODR\AdminBundle\Entity\ThemeElement te WITH tef.themeElement = te
                 WHERE tef.dataFields = :datafield AND te.theme = :theme'
             )->setParameters( ['datafield' => $datafield->getId(), 'theme' => 1] );
             $results = $query->getResult();
@@ -3364,7 +3364,7 @@ if ($debug)
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -3457,7 +3457,7 @@ if ($debug)
 
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ($datafield == null)
                 throw new ODRNotFoundException('Datafield');
 
@@ -3622,7 +3622,7 @@ if ($debug)
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -3702,7 +3702,7 @@ if ($debug)
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -3814,7 +3814,7 @@ if ($debug)
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -3927,7 +3927,7 @@ if ($debug)
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -3959,7 +3959,7 @@ if ($debug)
             // Going to also need a list of all fieldtypes, and which datafields can have their
             //  fieldtypes changed
             /** @var FieldType[] $all_fieldtypes */
-            $all_fieldtypes = $em->getRepository('ODRAdminBundle:FieldType')->findAll();
+            $all_fieldtypes = $em->getRepository('ODR\AdminBundle\Entity\FieldType')->findAll();
             $fieldtype_map = [];
             foreach ($all_fieldtypes as $ft)
                 $fieldtype_map[$ft->getId()] = $ft->getTypeName();
@@ -4059,7 +4059,7 @@ if ($debug)
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -4078,14 +4078,14 @@ if ($debug)
             // Going to need hydrated arrays of datafields and fieldtypes to be able to correctly
             //  migrate data between fieldtypes
             /** @var FieldType[] $tmp */
-            $tmp = $em->getRepository('ODRAdminBundle:FieldType')->findAll();
+            $tmp = $em->getRepository('ODR\AdminBundle\Entity\FieldType')->findAll();
             $fieldtype_map = [];
             foreach ($tmp as $ft)
                 $fieldtype_map[$ft->getId()] = $ft;
             /** @var FieldType[] $fieldtype_map */
 
             /** @var DataFields[] $tmp */
-            $tmp = $em->getRepository('ODRAdminBundle:DataFields')->findBy( ['dataType' => $datatype->getId()] );
+            $tmp = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->findBy( ['dataType' => $datatype->getId()] );
             $datafield_map = [];
             foreach ($tmp as $df)
                 $datafield_map[$df->getId()] = $df;
@@ -4337,7 +4337,7 @@ if ($debug)
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -4463,7 +4463,7 @@ if ($debug)
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -4518,7 +4518,7 @@ if ($debug)
             // Now that the given data is valid, load what's already in the database
             $query = $em->createQuery(
                'SELECT df
-                FROM ODRAdminBundle:DataFields df
+                FROM ODR\AdminBundle\Entity\DataFields df
                 WHERE df IN (:datafield_ids)
                 AND df.deletedAt IS NULL'
             )->setParameters( ['datafield_ids' => array_keys($df_list)] );
@@ -4536,7 +4536,7 @@ if ($debug)
 
             $query = $em->createQuery(
                'SELECT dtsf
-                FROM ODRAdminBundle:DataTypeSpecialFields dtsf
+                FROM ODR\AdminBundle\Entity\DataTypeSpecialFields dtsf
                 WHERE dtsf.dataType = :datatype_id AND dtsf.field_purpose = :purpose
                 AND dtsf.deletedAt IS NULL'
             )->setParameters( ['datatype_id' => $datatype->getId(), 'purpose' => $field_purpose] );
@@ -4655,7 +4655,7 @@ if ($debug)
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
             if ( $datatype->getId() !== $datatype->getParent()->getId() )
@@ -4866,7 +4866,7 @@ if ($debug)
 
             /** @var DataType $datatype */
             $dt_id = $search_params['dt_id'];
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($dt_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($dt_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
             if ( $datatype->getId() !== $datatype->getParent()->getId() )
@@ -4985,7 +4985,7 @@ if ($debug)
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
             if ( $datatype->getId() !== $datatype->getParent()->getId() )

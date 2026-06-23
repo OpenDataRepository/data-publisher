@@ -162,8 +162,8 @@ class ODROAuthUserProvider implements UserProviderInterface, OAuthAwareUserProvi
         // Attempt to locate the correct user based off the provided criteria
         $query = $this->em->createQuery(
            'SELECT u
-            FROM ODROpenRepositoryUserBundle:User AS u
-            JOIN ODROpenRepositoryOAuthClientBundle:UserLink AS ul WITH ul.user = u
+            FROM ODR\OpenRepository\UserBundle\Entity\User AS u
+            JOIN ODR\OpenRepository\OAuthClientBundle\Entity\UserLink AS ul WITH ul.user = u
             WHERE ul.providerName = :provider_name AND ul.providerId = :provider_id
             AND u.enabled = 1'
         )->setParameters( ['provider_name' => $provider_name, 'provider_id' => $provider_id] );
@@ -197,13 +197,13 @@ class ODROAuthUserProvider implements UserProviderInterface, OAuthAwareUserProvi
 
         // Don't continue if a user is already connected to this criteria
         // TODO - do something more comphrehensive than just refusing to connect?
-        $user_link = $this->em->getRepository("ODROpenRepositoryOAuthClientBundle:UserLink")->findOneBy( ['providerName' => $provider_name, 'providerId' => $provider_id] );
+        $user_link = $this->em->getRepository("ODR\OpenRepository\OAuthClientBundle\Entity\UserLink")->findOneBy( ['providerName' => $provider_name, 'providerId' => $provider_id] );
         if ($user_link)
             throw new \RuntimeException("Unable to connect account", 0xd92a78ec);
 
         /** @var ODRUser $user */
         // Load the user and its associated UserLink entry
-        $user = $this->em->getRepository("ODROpenRepositoryUserBundle:User")->find($user_id);
+        $user = $this->em->getRepository("ODR\OpenRepository\UserBundle\Entity\User")->find($user_id);
         if (!$user)
             throw new \RuntimeException("Invalid User", 0xd92a78ec);
 

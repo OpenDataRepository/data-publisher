@@ -84,7 +84,7 @@ class RemoteController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             $top_level_datatypes = $datatree_info_service->getTopLevelDatatypes();
             $query = $em->createQuery(
                'SELECT dt, dtm, dt_cb
-                FROM ODRAdminBundle:DataType AS dt
+                FROM ODR\AdminBundle\Entity\DataType AS dt
                 LEFT JOIN dt.dataTypeMeta AS dtm
                 LEFT JOIN dt.createdBy AS dt_cb
 
@@ -185,7 +185,7 @@ class RemoteController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -345,7 +345,7 @@ class RemoteController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 

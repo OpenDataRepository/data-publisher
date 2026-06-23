@@ -65,7 +65,7 @@ class ThemeElementToNumberTransformer implements DataTransformerInterface
             return null;
         }
 
-        $theme_element = $this->om->getRepository('ODRAdminBundle:ThemeElement')->find($number);
+        $theme_element = $this->om->getRepository('ODR\AdminBundle\Entity\ThemeElement')->find($number);
         if ($theme_element == null) {
             throw new TransformationFailedException(sprintf(
                 'A ThemeElement with ID "%s" does not exist!',

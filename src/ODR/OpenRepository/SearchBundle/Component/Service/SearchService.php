@@ -2485,9 +2485,9 @@ class SearchService
             // Define the base query
             $query = $this->em->createQuery(
                'SELECT dr.id AS id, dr.unique_id AS unique_id
-                FROM ODRAdminBundle:DataRecord AS dr
-                JOIN ODRAdminBundle:DataRecord AS parent WITH dr.parent = parent
-                JOIN ODRAdminBundle:DataRecord AS grandparent WITH dr.grandparent = grandparent
+                FROM ODR\AdminBundle\Entity\DataRecord AS dr
+                JOIN ODR\AdminBundle\Entity\DataRecord AS parent WITH dr.parent = parent
+                JOIN ODR\AdminBundle\Entity\DataRecord AS grandparent WITH dr.grandparent = grandparent
                 WHERE dr.dataType = :datatype_id
                 AND dr.deletedAt IS NULL
                 AND parent.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
@@ -2523,9 +2523,9 @@ class SearchService
             // ...doesn't exist, need to rebuild
             $query = $this->em->createQuery(
                'SELECT dt.id AS dt_id, dr.id AS dr_id
-                FROM ODRAdminBundle:DataType AS mdt
-                JOIN ODRAdminBundle:DataType AS dt WITH dt.masterDataType = mdt
-                LEFT JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
+                FROM ODR\AdminBundle\Entity\DataType AS mdt
+                JOIN ODR\AdminBundle\Entity\DataType AS dt WITH dt.masterDataType = mdt
+                LEFT JOIN ODR\AdminBundle\Entity\DataRecord AS dr WITH dr.dataType = dt
                 WHERE mdt.unique_id = :template_uuid
                 AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL
                 AND (dr.deletedAt IS NULL OR dr.id IS NULL)'
@@ -2604,11 +2604,11 @@ class SearchService
                         dfm.searchable, dfm.merge_by_AND, ft.typeClass,
                         dtm.publicDate AS dt_public_date
                 
-                    FROM ODRAdminBundle:DataType AS dt
-                    JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
-                    LEFT JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
-                    LEFT JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
-                    LEFT JOIN ODRAdminBundle:FieldType AS ft WITH dfm.fieldType = ft
+                    FROM ODR\AdminBundle\Entity\DataType AS dt
+                    JOIN ODR\AdminBundle\Entity\DataTypeMeta AS dtm WITH dtm.dataType = dt
+                    LEFT JOIN ODR\AdminBundle\Entity\DataFields AS df WITH df.dataType = dt
+                    LEFT JOIN ODR\AdminBundle\Entity\DataFieldsMeta AS dfm WITH dfm.dataField = df
+                    LEFT JOIN ODR\AdminBundle\Entity\FieldType AS ft WITH dfm.fieldType = ft
                     WHERE dt.id = :datatype_id
                     AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL 
                     AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL AND ft.deletedAt IS NULL'
@@ -2709,10 +2709,10 @@ class SearchService
                    'SELECT
                         df.id AS df_id, df.fieldUuid AS df_uuid, dfm.searchable, ft.typeClass,
                         dt.id AS dt_id
-                    FROM ODRAdminBundle:DataType AS dt
-                    LEFT JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
-                    LEFT JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
-                    LEFT JOIN ODRAdminBundle:FieldType AS ft WITH dfm.fieldType = ft
+                    FROM ODR\AdminBundle\Entity\DataType AS dt
+                    LEFT JOIN ODR\AdminBundle\Entity\DataFields AS df WITH df.dataType = dt
+                    LEFT JOIN ODR\AdminBundle\Entity\DataFieldsMeta AS dfm WITH dfm.dataField = df
+                    LEFT JOIN ODR\AdminBundle\Entity\FieldType AS ft WITH dfm.fieldType = ft
                     WHERE dt.unique_id = :datatype_uuid
                     AND dt.deletedAt IS NULL AND df.deletedAt IS NULL
                     AND dfm.deletedAt IS NULL AND ft.deletedAt IS NULL'
@@ -2776,7 +2776,7 @@ class SearchService
         // ...then get the uuids of all the related datatypes
         $query = $this->em->createQuery(
            'SELECT dt.unique_id AS dt_uuid
-            FROM ODRAdminBundle:DataType dt
+            FROM ODR\AdminBundle\Entity\DataType dt
             WHERE dt.id IN (:datatype_ids) AND dt.is_master_type = 1
             AND dt.deletedAt IS NULL'
         )->setParameters(
@@ -2807,7 +2807,7 @@ class SearchService
     {
         // Convert the template uuid into a datatype id if possible...
         /** @var DataType $datatype */
-        $datatype = $this->em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+        $datatype = $this->em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
             [
                 'unique_id' => $template_uuid,
                 'is_master_type' => 1

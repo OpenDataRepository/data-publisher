@@ -65,7 +65,7 @@ class DataFieldToNumberTransformer implements DataTransformerInterface
             return null;
         }
 
-        $datafield = $this->om->getRepository('ODRAdminBundle:DataFields')->find($number);
+        $datafield = $this->om->getRepository('ODR\AdminBundle\Entity\DataFields')->find($number);
         if ($datafield == null) {
             throw new TransformationFailedException(sprintf(
                 'A DataField with ID "%s" does not exist!',

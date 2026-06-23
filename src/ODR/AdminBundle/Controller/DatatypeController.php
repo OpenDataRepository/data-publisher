@@ -102,7 +102,7 @@ class DatatypeController extends ODRCustomController
             if ($form->isSubmitted()) {
                 if ($form->isValid()) {
                     // Get datatype by looking up meta ...
-                    $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+                    $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
 
                     /** @var DataType $datatype */
                     $datatype = $repo_datatype->find($datatype_id);
@@ -219,7 +219,7 @@ class DatatypeController extends ODRCustomController
             $templating = $this->get('templating');
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -268,7 +268,7 @@ class DatatypeController extends ODRCustomController
 
 
                 // Retrieve what should be the first and only datarecord...
-                $results = $em->getRepository('ODRAdminBundle:DataRecord')->findBy(
+                $results = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->findBy(
                     [
                         'dataType' => $properties_datatype->getId()
                     ]
@@ -397,7 +397,7 @@ class DatatypeController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
             $grandparent_datatype = $datatype->getGrandparent();
@@ -449,7 +449,7 @@ class DatatypeController extends ODRCustomController
                 // ...so basic information about all of them can be loaded from the database
                 $query = $em->createQuery(
                    'SELECT dt, dtm, partial gp.{id}, md, mf, dt_cb, dt_ub
-                    FROM ODRAdminBundle:DataType AS dt
+                    FROM ODR\AdminBundle\Entity\DataType AS dt
                     LEFT JOIN dt.dataTypeMeta AS dtm
                     LEFT JOIN dt.grandparent AS gp
                     LEFT JOIN dt.metadata_datatype AS md
@@ -724,7 +724,7 @@ class DatatypeController extends ODRCustomController
 
             $query_sql =
                'SELECT dt, dtm, md, mf, dt_cb, dt_ub
-                FROM ODRAdminBundle:DataType AS dt
+                FROM ODR\AdminBundle\Entity\DataType AS dt
                 LEFT JOIN dt.dataTypeMeta AS dtm
                 LEFT JOIN dt.metadata_datatype AS md
                 LEFT JOIN dt.metadata_for AS mf
@@ -824,7 +824,7 @@ class DatatypeController extends ODRCustomController
         // We need to get true database name for this datatype
         $query_sql =
            'SELECT dt, mf, dr, drm, drf, drf_df, drf_drm, e_lt, e_lvc, e_mvc, e_svc
-            FROM ODRAdminBundle:DataType dt
+            FROM ODR\AdminBundle\Entity\DataType dt
             LEFT JOIN dt.metadata_for AS mf
             LEFT JOIN dt.dataRecords AS dr
             LEFT JOIN dr.dataRecordMeta AS drm
@@ -925,7 +925,7 @@ class DatatypeController extends ODRCustomController
             // Master Templates must have Dataset Properties/metadata
             $query = $em->createQuery(
                'SELECT dt, dtm, md, dt_cb, dt_ub
-                FROM ODRAdminBundle:DataType AS dt
+                FROM ODR\AdminBundle\Entity\DataType AS dt
                 LEFT JOIN dt.dataTypeMeta AS dtm
                 LEFT JOIN dt.metadata_datatype AS md
                 LEFT JOIN dt.createdBy AS dt_cb
@@ -1002,7 +1002,7 @@ class DatatypeController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -1034,7 +1034,7 @@ class DatatypeController extends ODRCustomController
             // Master Templates must have Dataset Properties/metadata
             $query = $em->createQuery(
                'SELECT dt, dtm, md, dt_cb, dt_ub
-                FROM ODRAdminBundle:DataType AS dt
+                FROM ODR\AdminBundle\Entity\DataType AS dt
                 LEFT JOIN dt.dataTypeMeta AS dtm
                 LEFT JOIN dt.metadata_datatype AS md
                 LEFT JOIN dt.createdBy AS dt_cb
@@ -1144,7 +1144,7 @@ class DatatypeController extends ODRCustomController
                 // Get the master templates
                 $query = $em->createQuery(
                     'SELECT dt, dtm, dt_cb, dt_ub
-                    FROM ODRAdminBundle:DataType AS dt
+                    FROM ODR\AdminBundle\Entity\DataType AS dt
                     JOIN dt.dataTypeMeta AS dtm
                     JOIN dt.createdBy AS dt_cb
                     JOIN dt.updatedBy AS dt_ub
@@ -1213,7 +1213,7 @@ class DatatypeController extends ODRCustomController
             // TODO - verifies this works properly
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -1430,7 +1430,7 @@ class DatatypeController extends ODRCustomController
                     // If the user decided to create this datatype from a master template...
                     if ($form['master_type_id']->getData() > 0) {
                         // ...locate the master template datatype and store that it's the "source" for this new datatype
-                        $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+                        $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
                         /** @var DataType $master_datatype */
                         $master_datatype = $repo_datatype->find($form['master_type_id']->getData());
                         if ($master_datatype == null)
@@ -1751,7 +1751,7 @@ class DatatypeController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -1903,7 +1903,7 @@ class DatatypeController extends ODRCustomController
             $query = $em->createQuery(
                'SELECT dt, dtm, dt_cb,
                         master_dt, meta_dt, meta_master_dt
-                FROM ODRAdminBundle:DataType AS dt
+                FROM ODR\AdminBundle\Entity\DataType AS dt
                 LEFT JOIN dt.dataTypeMeta AS dtm
                 LEFT JOIN dt.createdBy AS dt_cb
 
@@ -2014,7 +2014,7 @@ class DatatypeController extends ODRCustomController
 
 
             /** @var DataType $source_datatype */
-            $source_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $source_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ( is_null($source_datatype) )
                 throw new ODRNotFoundException('Datatype');
 

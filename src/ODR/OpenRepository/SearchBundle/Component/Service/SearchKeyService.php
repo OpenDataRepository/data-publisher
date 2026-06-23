@@ -726,7 +726,7 @@ class SearchKeyService
                     if ( is_null($sortable_typenames) ) {
                         $query = $this->em->createQuery(
                            'SELECT ft.typeName
-                            FROM ODRAdminBundle:FieldType ft
+                            FROM ODR\AdminBundle\Entity\FieldType ft
                             WHERE ft.canBeSortField = 1
                             AND ft.deletedAt IS NULL'
                         );

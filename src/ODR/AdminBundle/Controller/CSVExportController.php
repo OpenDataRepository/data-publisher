@@ -94,7 +94,7 @@ class CSVExportController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -114,7 +114,7 @@ class CSVExportController extends ODRCustomController
             if ($search_theme_id != 0) {
                 // ...require the referenced theme to exist
                 /** @var Theme $search_theme */
-                $search_theme = $em->getRepository('ODRAdminBundle:Theme')->find($search_theme_id);
+                $search_theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($search_theme_id);
                 if ($search_theme == null)
                     throw new ODRNotFoundException('Search Theme');
 
@@ -199,7 +199,7 @@ class CSVExportController extends ODRCustomController
             // More useful if the CSVExport page matches whatever theme the user prefers
             $theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'display');
             /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            $theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($theme_id);
 
             // Get the CSVExport page rendered
             $page_html = $odr_render_service->getCSVExportHTML($user, $datatype, $odr_tab_id, $theme, $csvexport_shows_all_fields);
@@ -289,7 +289,7 @@ class CSVExportController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
             if ($datatype->getId() !== $datatype->getGrandparent()->getId())
@@ -647,7 +647,7 @@ class CSVExportController extends ODRCustomController
 
 
             /** @var TrackedJob $tracked_job */
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+            $tracked_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob')->find($tracked_job_id);
             if ($tracked_job == null)
                 throw new ODRNotFoundException('Job');
             $job_type = $tracked_job->getJobType();
@@ -658,7 +658,7 @@ class CSVExportController extends ODRCustomController
             $tmp = explode('_', $target_entity);
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find( $tmp[1] );
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find( $tmp[1] );
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 

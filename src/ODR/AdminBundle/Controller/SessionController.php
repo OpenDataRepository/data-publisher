@@ -193,7 +193,7 @@ class SessionController extends ODRCustomController
             $cookies = $request->cookies;
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ( is_null($datatype) )
                 throw new ODRNotFoundException('Datatype');
 
@@ -263,7 +263,7 @@ class SessionController extends ODRCustomController
             $cookies = $request->cookies;
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ( is_null($datatype) )
                 throw new ODRNotFoundException('Datatype');
 
@@ -333,7 +333,7 @@ class SessionController extends ODRCustomController
             $cookies = $request->cookies;
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ( is_null($datatype) )
                 throw new ODRNotFoundException('Datatype');
 
@@ -400,12 +400,12 @@ class SessionController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
             /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            $theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($theme_id);
             if ($theme == null)
                 throw new ODRNotFoundException('Theme');
 
@@ -498,7 +498,7 @@ class SessionController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -506,7 +506,7 @@ class SessionController extends ODRCustomController
             /** @var SidebarLayout|null $sidebar_layout */
             $sidebar_layout = null;
             if ( $sidebar_layout_id != 0 ) {
-                $sidebar_layout = $em->getRepository('ODRAdminBundle:SidebarLayout')->find($sidebar_layout_id);
+                $sidebar_layout = $em->getRepository('ODR\AdminBundle\Entity\SidebarLayout')->find($sidebar_layout_id);
                 if ($sidebar_layout == null)
                     throw new ODRNotFoundException('Sidebar Layout');
 
@@ -626,7 +626,7 @@ class SessionController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
             if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )

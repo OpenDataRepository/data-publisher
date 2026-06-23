@@ -146,9 +146,9 @@ class ODREventSubscriber implements EventSubscriberInterface
             // Need to determine which of the render plugins currently in use listen to the given event
             $query = $this->em->createQuery(
                'SELECT DISTINCT(rp.pluginClassName) AS pluginClassName, rpe.eventCallable
-                FROM ODRAdminBundle:RenderPluginEvents rpe
-                JOIN ODRAdminBundle:RenderPlugin rp WITH rpe.renderPlugin = rp
-                LEFT JOIN ODRAdminBundle:RenderPluginInstance rpi WITH rpi.renderPlugin = rp
+                FROM ODR\AdminBundle\Entity\RenderPluginEvents rpe
+                JOIN ODR\AdminBundle\Entity\RenderPlugin rp WITH rpe.renderPlugin = rp
+                LEFT JOIN ODR\AdminBundle\Entity\RenderPluginInstance rpi WITH rpi.renderPlugin = rp
                 WHERE rpe.eventName = :event_name
                 AND (rpi.dataType = :datatype_id OR rpi.dataField = :datafield_id)
                 AND rp.deletedAt IS NULL AND rpe.deletedAt IS NULL AND rpi.deletedAt IS NULL'
@@ -165,9 +165,9 @@ class ODREventSubscriber implements EventSubscriberInterface
             //  specific plugin...provided that it's actually in use
             $query = $this->em->createQuery(
                'SELECT DISTINCT(rp.pluginClassName) AS pluginClassName, rpe.eventCallable
-                FROM ODRAdminBundle:RenderPluginEvents rpe
-                JOIN ODRAdminBundle:RenderPlugin rp WITH rpe.renderPlugin = rp
-                LEFT JOIN ODRAdminBundle:RenderPluginInstance rpi WITH rpi.renderPlugin = rp
+                FROM ODR\AdminBundle\Entity\RenderPluginEvents rpe
+                JOIN ODR\AdminBundle\Entity\RenderPlugin rp WITH rpe.renderPlugin = rp
+                LEFT JOIN ODR\AdminBundle\Entity\RenderPluginInstance rpi WITH rpi.renderPlugin = rp
                 WHERE rpe.eventName = :event_name AND rp.pluginClassName = :plugin_classname
                 AND (rpi.dataType = :datatype_id OR rpi.dataField = :datafield_id)
                 AND rp.deletedAt IS NULL AND rpe.deletedAt IS NULL AND rpi.deletedAt IS NULL'
@@ -603,9 +603,9 @@ class ODREventSubscriber implements EventSubscriberInterface
             //  as a sort field...
             $query = $this->em->createQuery(
                'SELECT DISTINCT(l_dt.id) AS dt_id
-                FROM ODRAdminBundle:DataFields AS df
-                LEFT JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
-                LEFT JOIN ODRAdminBundle:DataType AS l_dt WITH dtsf.dataType = l_dt
+                FROM ODR\AdminBundle\Entity\DataFields AS df
+                LEFT JOIN ODR\AdminBundle\Entity\DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
+                LEFT JOIN ODR\AdminBundle\Entity\DataType AS l_dt WITH dtsf.dataType = l_dt
                 WHERE df.dataType IN (:datatype_id)
                 AND df.deletedAt IS NULL AND dtsf.deletedAt IS NULL AND l_dt.deletedAt IS NULL'
             )->setParameters(
@@ -969,8 +969,8 @@ class ODREventSubscriber implements EventSubscriberInterface
             //  'children' section of their cache entries
             $query = $this->em->createQuery(
                'SELECT grandparent.unique_id
-                FROM ODRAdminBundle:DataRecord dr
-                JOIN ODRAdminBundle:DataRecord grandparent WITH dr.grandparent = grandparent
+                FROM ODR\AdminBundle\Entity\DataRecord dr
+                JOIN ODR\AdminBundle\Entity\DataRecord grandparent WITH dr.grandparent = grandparent
                 WHERE dr.id IN (:datarecord_ids)
                 AND grandparent.deletedAt IS NULL'
             )->setParameters( ['datarecord_ids' => $datarecord_ids] );
@@ -1029,10 +1029,10 @@ class ODREventSubscriber implements EventSubscriberInterface
             //  naming/sorting...
             $query = $this->em->createQuery(
                'SELECT DISTINCT(dt.id) AS dt_id
-                FROM ODRAdminBundle:DataFields AS df
-                JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
-                JOIN ODRAdminBundle:DataType dt WITH dtsf.dataType = dt
-                JOIN ODRAdminBundle:DataRecord dr WITH dr.dataType = dt
+                FROM ODR\AdminBundle\Entity\DataFields AS df
+                JOIN ODR\AdminBundle\Entity\DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
+                JOIN ODR\AdminBundle\Entity\DataType dt WITH dtsf.dataType = dt
+                JOIN ODR\AdminBundle\Entity\DataRecord dr WITH dr.dataType = dt
                 WHERE df.dataType = :descendant_datatype AND dr IN (:datarecord_ids)
                 AND df.deletedAt IS NULL AND dtsf.deletedAt IS NULL
                 AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL'

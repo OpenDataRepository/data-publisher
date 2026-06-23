@@ -86,7 +86,7 @@ class DatatypeCreateService
 
             // A master datatype is required
             // ...locate the master template datatype and store that it's the "source" for this new datatype
-            $repo_datatype = $this->em->getRepository('ODRAdminBundle:DataType');
+            $repo_datatype = $this->em->getRepository('ODR\AdminBundle\Entity\DataType');
             /** @var DataType $master_datatype */
             $master_datatype = $repo_datatype->find($master_datatype_id);
             if ($master_datatype == null)

@@ -654,11 +654,11 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
         // Need to locate the "reference_id" field for this render plugin...
         $query = $this->em->createQuery(
            'SELECT df
-            FROM ODRAdminBundle:RenderPlugin rp
-            JOIN ODRAdminBundle:RenderPluginInstance rpi WITH rpi.renderPlugin = rp
-            JOIN ODRAdminBundle:RenderPluginMap rpm WITH rpm.renderPluginInstance = rpi
-            JOIN ODRAdminBundle:DataFields df WITH rpm.dataField = df
-            JOIN ODRAdminBundle:RenderPluginFields rpf WITH rpm.renderPluginFields = rpf
+            FROM ODR\AdminBundle\Entity\RenderPlugin rp
+            JOIN ODR\AdminBundle\Entity\RenderPluginInstance rpi WITH rpi.renderPlugin = rp
+            JOIN ODR\AdminBundle\Entity\RenderPluginMap rpm WITH rpm.renderPluginInstance = rpi
+            JOIN ODR\AdminBundle\Entity\DataFields df WITH rpm.dataField = df
+            JOIN ODR\AdminBundle\Entity\RenderPluginFields rpf WITH rpm.renderPluginFields = rpf
             WHERE rp.pluginClassName = :plugin_classname AND rpi.dataType = :datatype
             AND rpf.fieldName = :field_name
             AND rp.deletedAt IS NULL AND rpi.deletedAt IS NULL AND rpm.deletedAt IS NULL
@@ -1063,7 +1063,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
 
                 $query = $this->em->createQuery(
                    'SELECT f
-                    FROM ODRAdminBundle:File f
+                    FROM ODR\AdminBundle\Entity\File f
                     WHERE f.dataRecordFields = :drf
                     AND f.deletedAt IS NULL'
                 )->setParameters( ['drf' => $drf->getId()] );

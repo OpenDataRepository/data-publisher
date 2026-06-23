@@ -85,7 +85,7 @@ class ODRUserGroupMangementService
         // ----------------------------------------
         // Determine whether the user is already a member of one of this datatype's default groups
         /** @var Group $group */
-        $group = $this->em->getRepository('ODRAdminBundle:Group')->findOneBy(
+        $group = $this->em->getRepository('ODR\AdminBundle\Entity\Group')->findOneBy(
             [
                 'dataType' => $datatype->getId(),
                 'purpose' => $default_group_purpose,
@@ -95,7 +95,7 @@ class ODRUserGroupMangementService
             throw new ODRNotFoundException('Group');
 
         /** @var UserGroup $user_group */
-        $user_group = $this->em->getRepository('ODRAdminBundle:UserGroup')->findOneBy(
+        $user_group = $this->em->getRepository('ODR\AdminBundle\Entity\UserGroup')->findOneBy(
             [
                 'group' => $group,
                 'user' => $user,
@@ -112,8 +112,8 @@ class ODRUserGroupMangementService
         //  only supposed to be a member of a single default group per datatype
         $query = $this->em->createQuery(
            'SELECT ug
-            FROM ODRAdminBundle:Group AS g
-            JOIN ODRAdminBundle:UserGroup AS ug WITH ug.group = g
+            FROM ODR\AdminBundle\Entity\Group AS g
+            JOIN ODR\AdminBundle\Entity\UserGroup AS ug WITH ug.group = g
             WHERE ug.user = :user_id AND g.purpose != :purpose AND g.dataType = :datatype_id
             AND ug.deletedAt IS NULL AND g.deletedAt IS NULL'
         )->setParameters( ['user_id' => $user->getId(), 'purpose' => '', 'datatype_id' => $datatype->getId()] );
@@ -193,8 +193,8 @@ class ODRUserGroupMangementService
         // Determine all default groups the user is a member of, so they can be removed from them
         $query = $this->em->createQuery(
            'SELECT ug
-            FROM ODRAdminBundle:Group AS g
-            JOIN ODRAdminBundle:UserGroup AS ug WITH ug.group = g
+            FROM ODR\AdminBundle\Entity\Group AS g
+            JOIN ODR\AdminBundle\Entity\UserGroup AS ug WITH ug.group = g
             WHERE ug.user = :user_id AND g.purpose != :purpose AND g.dataType = :datatype_id
             AND ug.deletedAt IS NULL AND g.deletedAt IS NULL'
         )->setParameters( ['user_id' => $user->getId(), 'purpose' => '', 'datatype_id' => $datatype->getId()] );
@@ -278,7 +278,7 @@ class ODRUserGroupMangementService
         // ----------------------------------------
         // Determine whether the user is already a member of this group
         /** @var UserGroup $user_group */
-        $user_group = $this->em->getRepository('ODRAdminBundle:UserGroup')->findOneBy(
+        $user_group = $this->em->getRepository('ODR\AdminBundle\Entity\UserGroup')->findOneBy(
             [
                 'group' => $group,
                 'user' => $user,
@@ -346,7 +346,7 @@ class ODRUserGroupMangementService
         // ----------------------------------------
         // Determine whether the user is already a member of this group
         /** @var UserGroup $user_group */
-        $user_group = $this->em->getRepository('ODRAdminBundle:UserGroup')->findOneBy(
+        $user_group = $this->em->getRepository('ODR\AdminBundle\Entity\UserGroup')->findOneBy(
             [
                 'group' => $group,
                 'user' => $user,

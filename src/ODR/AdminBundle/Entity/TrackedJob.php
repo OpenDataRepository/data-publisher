@@ -530,7 +530,7 @@ class TrackedJob
         // Grab what the new value is, so it can be returned
         $query = $em->createQuery(
            'SELECT tj.current AS current, tj.started AS started
-            FROM ODRAdminBundle:TrackedJob AS tj
+            FROM ODR\AdminBundle\Entity\TrackedJob AS tj
             WHERE tj.id = :id'
         )->setParameters($params);
         $results = $query->getArrayResult();

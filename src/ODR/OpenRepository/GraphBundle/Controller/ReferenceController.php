@@ -71,7 +71,7 @@ class ReferenceController extends ODRCustomController
 
 
             /** @var DataRecord $request_datarecord */
-            $request_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($request_datarecord_id);
+            $request_datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($request_datarecord_id);
             if ($request_datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
 

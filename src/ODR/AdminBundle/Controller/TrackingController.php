@@ -100,7 +100,7 @@ class TrackingController extends ODRCustomController
 
 
             /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($datarecord_id);
             if ($datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
 
@@ -248,7 +248,7 @@ class TrackingController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
             $grandparent_datatype = $datatype->getGrandparent();
@@ -394,7 +394,7 @@ class TrackingController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
             $grandparent_datatype = $datatype->getGrandparent();
@@ -512,7 +512,7 @@ class TrackingController extends ODRCustomController
 
 
             /** @var ODRUser $target_user */
-            $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($target_user_id);
+            $target_user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find($target_user_id);
             if ($target_user == null)
                 throw new ODRNotFoundException('User');
 
@@ -701,7 +701,7 @@ class TrackingController extends ODRCustomController
             $grandparent_datarecord = null;
 
             if ( !is_null($target_datarecord_id) ) {
-                $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($target_datarecord_id);
+                $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($target_datarecord_id);
                 if ($datarecord == null)
                     throw new ODRNotFoundException('Datarecord');
                 $grandparent_datarecord = $datarecord->getGrandparent();
@@ -718,7 +718,7 @@ class TrackingController extends ODRCustomController
                 $dt_id = $search_params['dt_id'];
 
                 /** @var DataType $datatype */
-                $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($dt_id);
+                $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($dt_id);
                 if ($datatype == null)
                     throw new ODRNotFoundException('Datatype');
                 $grandparent_datatype = $datatype->getGrandparent();
@@ -2385,10 +2385,10 @@ class TrackingController extends ODRCustomController
         $query = $em->createQuery(
            'SELECT dt.id AS dt_id, dtm.longName AS dt_name,
                 gdt.id AS gdt_id, gdtm.longName AS gdt_name
-            FROM ODRAdminBundle:DataType AS dt
-            JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
-            JOIN ODRAdminBundle:DataType AS gdt WITH dt.grandparent = gdt
-            JOIN ODRAdminBundle:DataTypeMeta AS gdtm WITH gdtm.dataType = gdt
+            FROM ODR\AdminBundle\Entity\DataType AS dt
+            JOIN ODR\AdminBundle\Entity\DataTypeMeta AS dtm WITH dtm.dataType = dt
+            JOIN ODR\AdminBundle\Entity\DataType AS gdt WITH dt.grandparent = gdt
+            JOIN ODR\AdminBundle\Entity\DataTypeMeta AS gdtm WITH gdtm.dataType = gdt
             WHERE dt IN (:datatype_ids)
             AND dtm.deletedAt IS NULL AND gdtm.deletedAt IS NULL'
         )->setParameters( ['datatype_ids' => array_keys($ids['dt_ids'])] );
@@ -2412,8 +2412,8 @@ class TrackingController extends ODRCustomController
         // datafields...
         $query = $em->createQuery(
            'SELECT df.id AS df_id, dfm.fieldName AS df_name
-            FROM ODRAdminBundle:DataFields AS df
-            JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
+            FROM ODR\AdminBundle\Entity\DataFields AS df
+            JOIN ODR\AdminBundle\Entity\DataFieldsMeta AS dfm WITH dfm.dataField = df
             WHERE df IN (:datafield_ids) AND dfm.deletedAt IS NULL'
         )->setParameters( ['datafield_ids' => array_keys($ids['df_ids'])] );
         $results = $query->getArrayResult();
@@ -2427,7 +2427,7 @@ class TrackingController extends ODRCustomController
         // users...
         $query = $em->createQuery(
            'SELECT u
-            FROM ODROpenRepositoryUserBundle:User AS u
+            FROM ODR\OpenRepository\UserBundle\Entity\User AS u
             WHERE u IN (:user_ids)'
         )->setParameters( ['user_ids' => array_keys($ids['user_ids'])] );
         $results = $query->getResult();    // intentionally NOT getArrayResult()
@@ -2531,7 +2531,7 @@ class TrackingController extends ODRCustomController
             /** @var DataType|null $datatype_restriction */
             $datatype_restriction = null;
             if ( $datatype_id_restriction !== '' ) {
-                $datatype_restriction = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id_restriction);
+                $datatype_restriction = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id_restriction);
                 if ($datatype_restriction == null)
                     throw new ODRNotFoundException('Datatype');
             }

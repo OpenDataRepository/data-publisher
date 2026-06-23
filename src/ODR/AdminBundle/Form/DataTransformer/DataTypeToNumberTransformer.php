@@ -65,7 +65,7 @@ class DataTypeToNumberTransformer implements DataTransformerInterface
             return null;
         }
 
-        $datatype = $this->om->getRepository('ODRAdminBundle:DataType')->find($number);
+        $datatype = $this->om->getRepository('ODR\AdminBundle\Entity\DataType')->find($number);
         if ($datatype == null) {
             throw new TransformationFailedException(sprintf(
                 'A Datatype with ID "%s" does not exist!',

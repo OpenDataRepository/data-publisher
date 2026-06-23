@@ -428,10 +428,10 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
         //  and convert it into a format that my brain can use to solve this problem
         $query = $this->em->createQuery(
            'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id, dtm.multiple_allowed
-            FROM ODRAdminBundle:DataType AS ancestor
-            JOIN ODRAdminBundle:DataTree AS dt WITH dt.ancestor = ancestor
-            JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
-            JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
+            FROM ODR\AdminBundle\Entity\DataType AS ancestor
+            JOIN ODR\AdminBundle\Entity\DataTree AS dt WITH dt.ancestor = ancestor
+            JOIN ODR\AdminBundle\Entity\DataType AS descendant WITH dt.descendant = descendant
+            JOIN ODR\AdminBundle\Entity\DataTreeMeta AS dtm WITH dtm.dataTree = dt
             WHERE ancestor.deletedAt IS NULL AND dt.deletedAt IS NULL
             AND descendant.deletedAt IS NULL AND dtm.deletedAt IS NULL'
         );
@@ -537,7 +537,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
         // ----------------------------------------
         // Now that there's a list of valid datatypes, need to determine which fields are available
         /** @var FieldType[] $all_fieldtypes */
-        $all_fieldtypes = $this->em->getRepository('ODRAdminBundle:FieldType')->findAll();
+        $all_fieldtypes = $this->em->getRepository('ODR\AdminBundle\Entity\FieldType')->findAll();
 
         // Only datafields with certain fieldtypes are valid for this application
         $valid_fieldtypes = [];
@@ -573,8 +573,8 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
         //  to use a database query to determine the names of the relevant datatypes...
         $query = $this->em->createQuery(
            'SELECT dt.id AS dt_id, dtm.shortName AS dt_name
-            FROM ODRAdminBundle:DataType dt
-            JOIN ODRAdminBundle:DataTypeMeta dtm WITH dtm.dataType = dt
+            FROM ODR\AdminBundle\Entity\DataType dt
+            JOIN ODR\AdminBundle\Entity\DataTypeMeta dtm WITH dtm.dataType = dt
             WHERE dt.id IN (:datatype_ids)
             AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
         )->setParameters( ['datatype_ids' => $all_valid_datatypes] );
@@ -594,9 +594,9 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
         // Non-public datafields are not allowed to be used
         $query = $this->em->createQuery(
            'SELECT dt.id AS dt_id, df.id AS df_id, dfm.fieldName
-            FROM ODRAdminBundle:DataType dt
-            JOIN ODRAdminBundle:DataFields df WITH df.dataType = dt
-            JOIN ODRAdminBundle:DataFieldsMeta dfm WITH dfm.dataField = df
+            FROM ODR\AdminBundle\Entity\DataType dt
+            JOIN ODR\AdminBundle\Entity\DataFields df WITH df.dataType = dt
+            JOIN ODR\AdminBundle\Entity\DataFieldsMeta dfm WITH dfm.dataField = df
             WHERE dt.id IN (:datatype_ids) AND dfm.fieldType IN (:fieldtype_ids)
             AND dfm.publicDate != :public_date
             AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL'
@@ -916,8 +916,8 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
         //  need to get its grandparent id to load all relevant data from a cached array
         $query = $this->em->createQuery(
            'SELECT gp.id
-            FROM ODRAdminBundle:DataRecord dr
-            JOIN ODRAdminBundle:DataRecord gp WITH dr.grandparent = gp
+            FROM ODR\AdminBundle\Entity\DataRecord dr
+            JOIN ODR\AdminBundle\Entity\DataRecord gp WITH dr.grandparent = gp
             WHERE dr.id = :datarecord_id
             AND dr.deletedAt IS NULL AND gp.deletedAt IS NULL'
         )->setParameters( ['datarecord_id' => $ancestor_dr_id] );
@@ -937,7 +937,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
         // That means it's up to this function to actually do the verification.  The first issue
         //  is simple enough to check...
         /** @var FieldType[] $fieldtypes */
-        $fieldtypes = $this->em->getRepository('ODRAdminBundle:FieldType')->findAll();
+        $fieldtypes = $this->em->getRepository('ODR\AdminBundle\Entity\FieldType')->findAll();
         $valid_fieldtypes = [];
         foreach ($fieldtypes as $ft) {
             switch ($ft->getTypeName()) {
@@ -984,8 +984,8 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
         //  for keeping things looking similar to how the FileRenamer plugin works
         $query = $this->em->createQuery(
            'SELECT df.id, dfm.fieldName
-            FROM ODRAdminBundle:DataFields df
-            LEFT JOIN ODRAdminBundle:DataFieldsMeta dfm WITH dfm.dataField = df
+            FROM ODR\AdminBundle\Entity\DataFields df
+            LEFT JOIN ODR\AdminBundle\Entity\DataFieldsMeta dfm WITH dfm.dataField = df
             WHERE df.dataType IN (:datatype_ids) AND df.id IN (:datafield_ids)
             AND dfm.fieldType IN (:fieldtype_ids) AND dfm.publicDate != :public_date
             AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL'
@@ -1363,7 +1363,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
         // Hydrate all the files uploaded to this drf
         $query = $this->em->createQuery(
            'SELECT f
-            FROM ODRAdminBundle:File f
+            FROM ODR\AdminBundle\Entity\File f
             WHERE f.dataRecordFields = :drf
             AND f.deletedAt IS NULL'
         )->setParameters( ['drf' => $drf->getId()] );

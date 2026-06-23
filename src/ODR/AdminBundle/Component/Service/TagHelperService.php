@@ -76,11 +76,11 @@ class TagHelperService
                     c_t.id AS child_tag_id, p_t.id AS parent_tag_id,
                     c_t.tagUuid AS child_tag_uuid, p_t.tagUuid AS parent_tag_uuid
 
-                FROM ODRAdminBundle:DataType AS dt
-                JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
-                JOIN ODRAdminBundle:Tags AS c_t WITH c_t.dataField = df
-                JOIN ODRAdminBundle:TagTree AS tt WITH tt.child = c_t
-                JOIN ODRAdminBundle:Tags AS p_t WITH tt.parent = p_t
+                FROM ODR\AdminBundle\Entity\DataType AS dt
+                JOIN ODR\AdminBundle\Entity\DataFields AS df WITH df.dataType = dt
+                JOIN ODR\AdminBundle\Entity\Tags AS c_t WITH c_t.dataField = df
+                JOIN ODR\AdminBundle\Entity\TagTree AS tt WITH tt.child = c_t
+                JOIN ODR\AdminBundle\Entity\Tags AS p_t WITH tt.parent = p_t
                 WHERE dt.grandparent = :grandparent_datatype_id
                 AND dt.deletedAt IS NULL AND df.deletedAt IS NULL
                 AND c_t.deletedAt IS NULL AND tt.deletedAt IS NULL AND p_t.deletedAt IS NULL'
@@ -498,8 +498,8 @@ class TagHelperService
         // Need to determine what the current tag selections are...
         $query = $this->em->createQuery(
            'SELECT t.id AS t_id, ts.id AS ts_id, ts.selected AS ts_value
-            FROM ODRAdminBundle:TagSelection ts
-            JOIN ODRAdminBundle:Tags t WITH ts.tag = t
+            FROM ODR\AdminBundle\Entity\TagSelection ts
+            JOIN ODR\AdminBundle\Entity\Tags t WITH ts.tag = t
             WHERE ts.dataRecordFields = :drf_id
             AND ts.deletedAt IS NULL AND t.deletedAt IS NULL'
         )->setParameters( ['drf_id' => $drf->getId()] );
@@ -694,7 +694,7 @@ class TagHelperService
             $tag_ids = array_keys($new_selections);
             $query = $this->em->createQuery(
                'SELECT t
-                FROM ODRAdminBundle:Tags t
+                FROM ODR\AdminBundle\Entity\Tags t
                 WHERE t.id IN (:tag_ids)
                 AND t.deletedAt IS NULL'
             )->setParameters( ['tag_ids' => $tag_ids ] );
@@ -722,8 +722,8 @@ class TagHelperService
             $tag_ids = array_keys($changed_selections);
             $query = $this->em->createQuery(
                'SELECT ts
-                FROM ODRAdminBundle:Tags t
-                JOIN ODRAdminBundle:TagSelection ts WITH ts.tag = t
+                FROM ODR\AdminBundle\Entity\Tags t
+                JOIN ODR\AdminBundle\Entity\TagSelection ts WITH ts.tag = t
                 WHERE t.id IN (:tag_ids) AND ts.dataRecordFields = :drf_id
                 AND t.deletedAt IS NULL AND ts.deletedAt IS NULL'
             )->setParameters(

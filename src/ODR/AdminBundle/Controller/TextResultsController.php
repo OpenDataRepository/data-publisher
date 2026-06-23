@@ -131,12 +131,12 @@ class TextResultsController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
             /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            $theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($theme_id);
             if ($theme == null)
                 throw new ODRNotFoundException('Theme');
 
@@ -680,8 +680,8 @@ class TextResultsController extends ODRCustomController
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
+            $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
+            $repo_datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord');
 
             /** @var DatatreeInfoService $datatree_info_service */
             $datatree_info_service = $this->container->get('odr.datatree_info_service');
@@ -715,7 +715,7 @@ class TextResultsController extends ODRCustomController
                 throw new ODRNotFoundException('Descendant Datatype');
 
             // Ensure a link exists from ancestor to descendant datatype
-            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
+            $datatree = $em->getRepository('ODR\AdminBundle\Entity\DataTree')->findOneBy(
                 [
                     'ancestor' => $ancestor_datatype->getId(),
                     'descendant' => $descendant_datatype->getId()
@@ -726,7 +726,7 @@ class TextResultsController extends ODRCustomController
 
 
             /** @var Theme $remote_theme */
-            $remote_theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            $remote_theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($theme_id);
             if ($remote_theme == null)
                 throw new ODRNotFoundException('Theme');
 
@@ -781,9 +781,9 @@ class TextResultsController extends ODRCustomController
                 // local_datarecord is on the ancestor side of the link
                 $query = $em->createQuery(
                    'SELECT descendant.id AS descendant_id
-                    FROM ODRAdminBundle:DataRecord AS ancestor
-                    JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
-                    JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+                    FROM ODR\AdminBundle\Entity\DataRecord AS ancestor
+                    JOIN ODR\AdminBundle\Entity\LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
+                    JOIN ODR\AdminBundle\Entity\DataRecord AS descendant WITH ldt.descendant = descendant
                     WHERE ancestor = :local_datarecord AND descendant.dataType = :remote_datatype
                     AND descendant.provisioned = false
                     AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL'
@@ -807,9 +807,9 @@ class TextResultsController extends ODRCustomController
                 // local_datarecord is on the descendant side of the link
                 $query = $em->createQuery(
                    'SELECT ancestor.id AS ancestor_id
-                    FROM ODRAdminBundle:DataRecord AS descendant
-                    JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.descendant = descendant
-                    JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
+                    FROM ODR\AdminBundle\Entity\DataRecord AS descendant
+                    JOIN ODR\AdminBundle\Entity\LinkedDataTree AS ldt WITH ldt.descendant = descendant
+                    JOIN ODR\AdminBundle\Entity\DataRecord AS ancestor WITH ldt.ancestor = ancestor
                     WHERE descendant = :local_datarecord AND ancestor.dataType = :remote_datatype
                     AND ancestor.provisioned = false
                     AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'

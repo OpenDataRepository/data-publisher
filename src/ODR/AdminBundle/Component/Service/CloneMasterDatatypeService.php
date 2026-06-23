@@ -205,7 +205,7 @@ class CloneMasterDatatypeService
                 throw new ODRNotFoundException('User');
 
             // Get the DataType to work with
-            $repo_datatype = $this->em->getRepository('ODRAdminBundle:DataType');
+            $repo_datatype = $this->em->getRepository('ODR\AdminBundle\Entity\DataType');
             /** @var DataType $datatype */
             $datatype = $repo_datatype->find($datatype_id);
             if ( is_null($datatype) )
@@ -252,7 +252,7 @@ class CloneMasterDatatypeService
             // Load all children of these grandparent datatypes
             $query = $this->em->createQuery(
                'SELECT dt.id AS dt_id
-                FROM ODRAdminBundle:DataType AS dt
+                FROM ODR\AdminBundle\Entity\DataType AS dt
                 WHERE dt.grandparent IN (:grandparent_ids)
                 AND dt.deletedAt IS NULL'
             )->setParameters( ['grandparent_ids' => $grandparent_datatype_ids] );
@@ -509,7 +509,7 @@ class CloneMasterDatatypeService
             //  cleared too
             $query = $this->em->createQuery(
                'SELECT u.id AS user_id
-                FROM ODROpenRepositoryUserBundle:User AS u
+                FROM ODR\OpenRepository\UserBundle\Entity\User AS u
                 WHERE u.roles LIKE :role'
             )->setParameters( ['role' => '%ROLE_SUPER_ADMIN%'] );
             $results = $query->getArrayResult();
@@ -903,9 +903,9 @@ class CloneMasterDatatypeService
             // Run a query to get all tag tree entities for this datafield...
             $query = $this->em->createQuery(
                'SELECT parent.id AS parent_tag_id, child.id AS child_tag_id
-                FROM ODRAdminBundle:TagTree AS tt
-                JOIN ODRAdminBundle:Tags AS parent WITH tt.parent = parent
-                JOIN ODRAdminBundle:Tags AS child WITH tt.child = child
+                FROM ODR\AdminBundle\Entity\TagTree AS tt
+                JOIN ODR\AdminBundle\Entity\Tags AS parent WITH tt.parent = parent
+                JOIN ODR\AdminBundle\Entity\Tags AS child WITH tt.child = child
                 WHERE parent.dataField = :df_id OR child.dataField = :df_id
                 AND parent.deletedAt IS NULL AND child.deletedAt IS NULL AND tt.deletedAt IS NULL'
             )->setParameters( ['df_id' => $parent_df->getId()] );
@@ -956,7 +956,7 @@ class CloneMasterDatatypeService
         $this->logger->info('CloneMasterDatatypeService: attempting to clone datatree entries for datatype '.$parent_datatype->getId().' "'.$parent_datatype->getShortName().'"...');
 
         /** @var DataTree[] $datatree_array */
-        $datatree_array = $this->em->getRepository('ODRAdminBundle:DataTree')
+        $datatree_array = $this->em->getRepository('ODR\AdminBundle\Entity\DataTree')
             ->findBy( ['ancestor' => $parent_datatype->getId()] );
 
         if ( empty($datatree_array) )
@@ -1010,7 +1010,7 @@ class CloneMasterDatatypeService
         //  grandparent datatype's groups instead of having their own
 
         /** @var DataTree[] $datatree_array */
-        $datatree_array = $this->em->getRepository('ODRAdminBundle:DataTree')->findBy( ['descendant' => $datatype->getId()] );
+        $datatree_array = $this->em->getRepository('ODR\AdminBundle\Entity\DataTree')->findBy( ['descendant' => $datatype->getId()] );
         foreach ($datatree_array as $datatree) {
             if ($datatree->getDataTreeMeta()->getIsLink() == 0) {
                 // This datatype is a child of some other datatype...do NOT create any groups for it
@@ -1121,7 +1121,7 @@ class CloneMasterDatatypeService
         //  functional, and this datatype is currently still incomplete
 
         // Going to need this datatype's grandparent...
-        $repo_datatree = $this->em->getRepository('ODRAdminBundle:DataTree');
+        $repo_datatree = $this->em->getRepository('ODR\AdminBundle\Entity\DataTree');
         $grandparent_datatype_id = $datatype->getId();
 
         $datatree_array = [];
@@ -1149,7 +1149,7 @@ class CloneMasterDatatypeService
 
         // Get all groups for this datatype's grandparent
         /** @var Group[] $grandparent_groups */
-        $grandparent_groups = $this->em->getRepository('ODRAdminBundle:Group')->findBy( ['dataType' => $grandparent_datatype_id] );
+        $grandparent_groups = $this->em->getRepository('ODR\AdminBundle\Entity\Group')->findBy( ['dataType' => $grandparent_datatype_id] );
         if ( is_null($grandparent_groups) )
             throw new ODRException('CloneMasterDatatypeService: Grandparent Datatype '.$grandparent_datatype_id.' has no group entries');
 
@@ -1204,7 +1204,7 @@ class CloneMasterDatatypeService
 
         // Going to need this datatype's grandparent...
         $datatype = $datafield->getDataType();
-        $repo_datatree = $this->em->getRepository('ODRAdminBundle:DataTree');
+        $repo_datatree = $this->em->getRepository('ODR\AdminBundle\Entity\DataTree');
         $grandparent_datatype_id = $datatype->getId();
 
         $datatree_array = [];
@@ -1231,7 +1231,7 @@ class CloneMasterDatatypeService
 
         // Get all groups for this datatype's grandparent
         /** @var Group[] $grandparent_groups */
-        $grandparent_groups = $this->em->getRepository('ODRAdminBundle:Group')->findBy( ['dataType' => $grandparent_datatype_id] );
+        $grandparent_groups = $this->em->getRepository('ODR\AdminBundle\Entity\Group')->findBy( ['dataType' => $grandparent_datatype_id] );
         if ( is_null($grandparent_groups) )
             throw new ODRException('CloneMasterDatatypeService: Grandparent Datatype '.$grandparent_datatype_id.' has no group entries');
 

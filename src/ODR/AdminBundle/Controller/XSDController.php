@@ -72,7 +72,7 @@ class XSDController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -141,7 +141,7 @@ class XSDController extends ODRCustomController
 
         // These should already exist
         /** @var DataType $datatype */
-        $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+        $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
         $theme = $theme_service->getDatatypeMasterTheme($datatype->getId());
 
         $redis = $this->container->get('snc_redis.default');;

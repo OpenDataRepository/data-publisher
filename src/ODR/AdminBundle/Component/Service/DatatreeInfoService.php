@@ -77,10 +77,10 @@ class DatatreeInfoService
         $query = $this->em->createQuery(
            'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id,
                     dtm.is_link AS is_link, dtm.multiple_allowed AS multiple_allowed, dtm.edit_behavior AS edit_behavior
-            FROM ODRAdminBundle:DataType AS ancestor
-            JOIN ODRAdminBundle:DataTree AS dt WITH ancestor = dt.ancestor
-            JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
-            JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
+            FROM ODR\AdminBundle\Entity\DataType AS ancestor
+            JOIN ODR\AdminBundle\Entity\DataTree AS dt WITH ancestor = dt.ancestor
+            JOIN ODR\AdminBundle\Entity\DataTreeMeta AS dtm WITH dtm.dataTree = dt
+            JOIN ODR\AdminBundle\Entity\DataType AS descendant WITH dt.descendant = descendant
             WHERE ancestor.setup_step IN (:setup_step) AND descendant.setup_step IN (:setup_step)
             AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
             AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
@@ -162,8 +162,8 @@ class DatatreeInfoService
         // TODO - cut out metadata datatypes from this?
         $query = $this->em->createQuery(
            'SELECT dt.id AS datatype_id
-            FROM ODRAdminBundle:DataType AS dt
-            JOIN ODRAdminBundle:DataType AS grandparent WITH dt.grandparent = grandparent
+            FROM ODR\AdminBundle\Entity\DataType AS dt
+            JOIN ODR\AdminBundle\Entity\DataType AS grandparent WITH dt.grandparent = grandparent
             WHERE dt.setup_step IN (:setup_steps) AND dt.id = grandparent.id
             AND dt.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
         )->setParameters( ['setup_steps' => DataType::STATE_VIEWABLE] );
@@ -200,8 +200,8 @@ class DatatreeInfoService
         // Otherwise, rebuild the list of top-level templates
         $query = $this->em->createQuery(
            'SELECT dt.id AS datatype_id
-            FROM ODRAdminBundle:DataType AS dt
-            JOIN ODRAdminBundle:DataType AS grandparent WITH dt.grandparent = grandparent
+            FROM ODR\AdminBundle\Entity\DataType AS dt
+            JOIN ODR\AdminBundle\Entity\DataType AS grandparent WITH dt.grandparent = grandparent
             WHERE dt.setup_step IN (:setup_steps) AND dt.id = grandparent.id
             AND dt.is_master_type = 1
             AND dt.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
@@ -612,10 +612,10 @@ class DatatreeInfoService
 
         $query = $this->em->createQuery(
            'SELECT ldr.id AS ldr_id
-            FROM ODRAdminBundle:DataRecord dr
-            JOIN ODRAdminBundle:DataRecord cdr WITH cdr.grandparent = dr
-            JOIN ODRAdminBundle:LinkedDataTree ldt WITH ldt.ancestor = cdr
-            JOIN ODRAdminBundle:DataRecord ldr WITH ldt.descendant = ldr
+            FROM ODR\AdminBundle\Entity\DataRecord dr
+            JOIN ODR\AdminBundle\Entity\DataRecord cdr WITH cdr.grandparent = dr
+            JOIN ODR\AdminBundle\Entity\LinkedDataTree ldt WITH ldt.ancestor = cdr
+            JOIN ODR\AdminBundle\Entity\DataRecord ldr WITH ldt.descendant = ldr
             WHERE dr.id IN (:datarecord_ids)
             AND dr.deletedAt IS NULL AND cdr.deletedAt IS NULL
             AND ldt.deletedAt IS NULL AND ldr.deletedAt IS NULL'
@@ -652,11 +652,11 @@ class DatatreeInfoService
     {
         $query = $this->em->createQuery(
            'SELECT d_dt.id AS d_dt_id
-            FROM ODRAdminBundle:DataRecord a_dr
-            JOIN ODRAdminBundle:DataType a_dt WITH a_dr.dataType = a_dt
-            JOIN ODRAdminBundle:DataTree dt WITH dt.ancestor = a_dt
-            JOIN ODRAdminBundle:DataTreeMeta dtm WITH dtm.dataTree = dt
-            JOIN ODRAdminBundle:DataType d_dt WITH dt.descendant = d_dt
+            FROM ODR\AdminBundle\Entity\DataRecord a_dr
+            JOIN ODR\AdminBundle\Entity\DataType a_dt WITH a_dr.dataType = a_dt
+            JOIN ODR\AdminBundle\Entity\DataTree dt WITH dt.ancestor = a_dt
+            JOIN ODR\AdminBundle\Entity\DataTreeMeta dtm WITH dtm.dataTree = dt
+            JOIN ODR\AdminBundle\Entity\DataType d_dt WITH dt.descendant = d_dt
             WHERE a_dr.id IN (:datarecord_ids) AND dtm.multiple_allowed = 0
             AND a_dr.deletedAt IS NULL AND a_dt.deletedAt IS NULL
             AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
@@ -678,10 +678,10 @@ class DatatreeInfoService
 
         $query = $this->em->createQuery(
            'SELECT ldr.id AS ldr_id
-            FROM ODRAdminBundle:DataRecord dr
-            JOIN ODRAdminBundle:DataRecord cdr WITH cdr.grandparent = dr
-            JOIN ODRAdminBundle:LinkedDataTree ldt WITH ldt.ancestor = cdr
-            JOIN ODRAdminBundle:DataRecord ldr WITH ldt.descendant = ldr
+            FROM ODR\AdminBundle\Entity\DataRecord dr
+            JOIN ODR\AdminBundle\Entity\DataRecord cdr WITH cdr.grandparent = dr
+            JOIN ODR\AdminBundle\Entity\LinkedDataTree ldt WITH ldt.ancestor = cdr
+            JOIN ODR\AdminBundle\Entity\DataRecord ldr WITH ldt.descendant = ldr
             WHERE dr.id IN (:datarecord_ids) AND ldr.dataType IN (:single_allowed_datatype_ids)
             AND dr.deletedAt IS NULL AND cdr.deletedAt IS NULL
             AND ldt.deletedAt IS NULL AND ldr.deletedAt IS NULL'

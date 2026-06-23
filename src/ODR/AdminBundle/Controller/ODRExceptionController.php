@@ -20,7 +20,7 @@ use Symfony\Bundle\TwigBundle\Controller\ExceptionController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Log\DebugLoggerInterface;
-use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Debug\Exception\FlattenException;
 //? Twig
 use Twig\Environment;
@@ -35,7 +35,7 @@ class ODRExceptionController extends ExceptionController
     protected $accepted_formats;
 
     /**
-     * @var TokenStorage
+     * @var TokenStorageInterface
      */
     protected $token_storage;
 
@@ -43,7 +43,7 @@ class ODRExceptionController extends ExceptionController
     /**
      * @inheritdoc
      */
-    public function __construct(Environment $twig, $debug, TokenStorage $token_storage)
+    public function __construct(Environment $twig, $debug, TokenStorageInterface $token_storage)
     {
         $this->token_storage = $token_storage;
         parent::__construct($twig, $debug);

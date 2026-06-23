@@ -80,7 +80,7 @@ class CloneAndLinkDatatypeCommand extends \Symfony\Component\Console\Command\Com
                 $em = $container->get('doctrine')->getEntityManager();
 
                 // Complete job
-                $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
+                $repo_tracked_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob');
                 /** @var TrackedJob $tracked_job */
                 $tracked_job = $repo_tracked_job->find($data->tracked_job_id);
                 $tracked_job->setCompleted(new \DateTime());

@@ -75,7 +75,7 @@ class CloneDatatypePreloaderCommand extends \Symfony\Component\Console\Command\C
 
                 // Check how many preloaded databases are in the system
                 $output->writeln('Checking for preload databases');
-                $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+                $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
                 /** @var DataType $master_datatype */
                 $master_datatype = $repo_datatype->find(670);
 
@@ -87,7 +87,7 @@ class CloneDatatypePreloaderCommand extends \Symfony\Component\Console\Command\C
                 /*
                 // Delete old revisions that are not issued
                 $query = $em->createQuery("
-                        SELECT dt FROM ODRAdminBundle:DataType dt 
+                        SELECT dt FROM ODR\AdminBundle\Entity\DataType dt 
                         WHERE 
                         dt.masterDatatypeId = :master_datatype_id
                         and dt.preloadStatus LIKE :preload_term
@@ -149,7 +149,7 @@ class CloneDatatypePreloaderCommand extends \Symfony\Component\Console\Command\C
                     $output->writeln('Datatype creation complete.');
 
                     /** @var DataRecord $metadata_record */
-                    $actual_data_record = $em->getRepository('ODRAdminBundle:DataRecord')
+                    $actual_data_record = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')
                         ->findOneBy(['dataType' => $datatype->getId()]);
 
                     if (!$actual_data_record) {

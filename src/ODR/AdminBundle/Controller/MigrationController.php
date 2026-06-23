@@ -128,7 +128,7 @@ class MigrationController extends ODRCustomController
             $em->getFilters()->disable('softdeleteable');
 
             $query = $em->createQuery(
-               'DELETE FROM ODRAdminBundle:UserGroup AS ug
+               'DELETE FROM ODR\AdminBundle\Entity\UserGroup AS ug
                 WHERE ug.user IN (:user_list)'
             )->setParameters( ['user_list' => $super_admins] );
             $rows = $query->execute();
@@ -154,7 +154,7 @@ class MigrationController extends ODRCustomController
             //  groups beforehand...
             $query = $em->createQuery(
                'SELECT g.id
-                FROM ODRAdminBundle:Group AS g
+                FROM ODR\AdminBundle\Entity\Group AS g
                 WHERE g.purpose IN (:groups)'
             )->setParameters( ['groups' => ['admin', 'edit_all']] );
             $results = $query->getArrayResult();
@@ -166,7 +166,7 @@ class MigrationController extends ODRCustomController
             // Update each of the GroupDatatypePermission entries for every "Edit" and "Admin" group
             //  to give them the "can_change_public_status" permission
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:GroupDatatypePermissions AS gdtp
+               'UPDATE ODR\AdminBundle\Entity\GroupDatatypePermissions AS gdtp
                 SET gdtp.can_change_public_status = 1
                 WHERE gdtp.group IN (:groups)'
             )->setParameters( ['groups' => $groups] );
@@ -193,7 +193,7 @@ class MigrationController extends ODRCustomController
             // Doctrine can't do multi-table updates, so need to find all the "Edit" groups beforehand...
             $query = $em->createQuery(
                'SELECT g.id
-                FROM ODRAdminBundle:Group AS g
+                FROM ODR\AdminBundle\Entity\Group AS g
                 WHERE g.purpose IN (:groups)'
             )->setParameters( ['groups' => ['edit_all']] );
             $results = $query->getArrayResult();
@@ -205,7 +205,7 @@ class MigrationController extends ODRCustomController
             // Update the meta entries for every "Edit" group to have a description that mentions
             //  they're able to change public status now
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:GroupMeta AS gm
+               'UPDATE ODR\AdminBundle\Entity\GroupMeta AS gm
                 SET gm.groupDescription = :new_description
                 WHERE gm.group IN (:groups)'
             )->setParameters(
@@ -234,8 +234,8 @@ class MigrationController extends ODRCustomController
             //  "hidden" themeDatatypes beforehand...
             $query = $em->createQuery(
                'SELECT te.id
-                FROM ODRAdminBundle:ThemeDataType AS tdt
-                JOIN ODRAdminBundle:ThemeElement AS te WITH tdt.themeElement = te
+                FROM ODR\AdminBundle\Entity\ThemeDataType AS tdt
+                JOIN ODR\AdminBundle\Entity\ThemeElement AS te WITH tdt.themeElement = te
                 WHERE tdt.hidden = 1
                 AND tdt.deletedAt IS NULL AND te.deletedAt IS NULL'
             );
@@ -247,7 +247,7 @@ class MigrationController extends ODRCustomController
 
             // Update the meta entries for each themeElement to make them "hidden" now
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:ThemeElementMeta AS tem
+               'UPDATE ODR\AdminBundle\Entity\ThemeElementMeta AS tem
                 SET tem.hidden = 1
                 WHERE tem.themeElement IN (:theme_elements)
                 AND tem.deletedAt IS NULL'
@@ -303,7 +303,7 @@ class MigrationController extends ODRCustomController
             // 7) Change the chemin references plugin classname to "odr_plugins.chemin.chemin_references"
             $ret .= '<div>Updating "Chemin References" plugin:<br>';
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:RenderPlugin rp
+               'UPDATE ODR\AdminBundle\Entity\RenderPlugin rp
                 SET rp.pluginClassName = :new_classname
                 WHERE rp.pluginClassName = :old_classname'
             );
@@ -388,7 +388,7 @@ class MigrationController extends ODRCustomController
             // ----------------------------------------
             // 1) Delete the database entry for the default render plugin
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:RenderPlugin rp
+               'UPDATE ODR\AdminBundle\Entity\RenderPlugin rp
                 SET rp.deletedAt = :now
                 WHERE rp.pluginClassName = :classname AND rp.deletedAt IS NULL'
             )->setParameters(
@@ -413,7 +413,7 @@ class MigrationController extends ODRCustomController
             // Ensure there's already stuff in the new RenderPluginOptionsDef table
             $query = $em->createQuery(
                'SELECT rpod
-                FROM ODRAdminBundle:RenderPluginOptionsDef rpod'
+                FROM ODR\AdminBundle\Entity\RenderPluginOptionsDef rpod'
             );
             $results = $query->getArrayResult();
             if ( empty($results) ) {
@@ -489,7 +489,7 @@ class MigrationController extends ODRCustomController
             //  RenderPluginOptionsMap entries
             $query = $em->createQuery(
                'SELECT partial rpom.{id}, partial rpi.{id}, partial rpo.{id}
-                FROM ODRAdminBundle:RenderPluginOptionsMap rpom
+                FROM ODR\AdminBundle\Entity\RenderPluginOptionsMap rpom
                 JOIN rpom.renderPluginInstance rpi
                 JOIN rpom.renderPluginOptionsDef rpo'
             );
@@ -518,7 +518,7 @@ class MigrationController extends ODRCustomController
                         partial df_dt.{id}, partial df_dtm.{id, shortName},
                             partial df_gdt.{id}, partial df_gdt_dtm.{id, shortName}
 
-                FROM ODRAdminBundle:RenderPluginInstance rpi
+                FROM ODR\AdminBundle\Entity\RenderPluginInstance rpi
 
                 LEFT JOIN rpi.dataType AS dt
                 LEFT JOIN dt.dataTypeMeta AS dtm
@@ -547,7 +547,7 @@ class MigrationController extends ODRCustomController
             // 2b) ...hydrate all the ODR entities found in step 1a...
             $query = $em->createQuery(
                'SELECT rpi
-                FROM ODRAdminBundle:RenderPluginInstance rpi
+                FROM ODR\AdminBundle\Entity\RenderPluginInstance rpi
                 WHERE rpi IN (:rpi_ids)'
             )->setParameters(['rpi_ids' => $rpi_ids]);
             $results = $query->getResult();
@@ -561,7 +561,7 @@ class MigrationController extends ODRCustomController
             $user_ids = array_keys($user_ids);
             $query = $em->createQuery(
                'SELECT u
-                FROM ODROpenRepositoryUserBundle:User u
+                FROM ODR\OpenRepository\UserBundle\Entity\User u
                 WHERE u IN (:user_ids)'
             )->setParameters(['user_ids' => $user_ids]);
             $results = $query->getResult();
@@ -574,7 +574,7 @@ class MigrationController extends ODRCustomController
             // ...and hydrate all the existing RenderPluginOptionDefs too
             $query = $em->createQuery(
                'SELECT rpod
-                FROM ODRAdminBundle:RenderPluginOptionsDef rpod'
+                FROM ODR\AdminBundle\Entity\RenderPluginOptionsDef rpod'
             );
             $results = $query->getResult();
 
@@ -663,7 +663,7 @@ class MigrationController extends ODRCustomController
             $ret .= '<div>Clearing the datatype_id from all RenderPluginInstances that mention both datatypes and datafields:<br>';
 
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:RenderPluginInstance rpi
+               'UPDATE ODR\AdminBundle\Entity\RenderPluginInstance rpi
                 SET rpi.dataType = NULL
                 WHERE rpi.dataField IS NOT NULL AND rpi.dataType IS NOT NULL'
             );
@@ -740,7 +740,7 @@ class MigrationController extends ODRCustomController
             $templating = $this->get('templating');
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -834,13 +834,13 @@ class MigrationController extends ODRCustomController
             $templating = $this->get('templating');
 
             /** @var DataFields $src_datafield */
-            $src_datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($src_datafield_id);
+            $src_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($src_datafield_id);
             if ($src_datafield == null)
                 throw new ODRNotFoundException('Source Datafield');
             $src_dt_id = $src_datafield->getDatatype()->getId();
 
             /** @var DataFields $dest_datafield */
-            $dest_datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($dest_datafield_id);
+            $dest_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($dest_datafield_id);
             if ($dest_datafield == null)
                 throw new ODRNotFoundException('Dest Datafield');
             $dest_dt_id = $dest_datafield->getDatatype()->getId();
@@ -1022,8 +1022,8 @@ class MigrationController extends ODRCustomController
             // Get the names of all of these datatypes
             $query = $em->createQuery(
                'SELECT dt.id AS dt_id, dtm.shortName
-                FROM ODRAdminBundle:DataType dt
-                JOIN ODRAdminBundle:DataTypeMeta dtm WITH dtm.dataType = dt
+                FROM ODR\AdminBundle\Entity\DataType dt
+                JOIN ODR\AdminBundle\Entity\DataTypeMeta dtm WITH dtm.dataType = dt
                 WHERE dt.id IN (:datatype_ids) OR dt.id IN (:template_ids)
                 AND dt.metadata_for IS NULL
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
@@ -1128,12 +1128,12 @@ class MigrationController extends ODRCustomController
             $database_info_service = $this->container->get('odr.database_info_service');
 
             /** @var DataType $src_datatype */
-            $src_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($src_dt_id);
+            $src_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($src_dt_id);
             if ($src_datatype == null)
                 throw new ODRNotFoundException('Source Datatype');
 
             /** @var DataType $dest_datatype */
-            $dest_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($dest_dt_id);
+            $dest_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($dest_dt_id);
             if ($dest_datatype == null)
                 throw new ODRNotFoundException('Destination Datatype');
 
@@ -1234,7 +1234,7 @@ class MigrationController extends ODRCustomController
 
             $query = $em->createQuery(
                'SELECT df.id AS df_id, df.fieldUuid AS df_uuid
-                FROM ODRAdminBundle:DataFields df
+                FROM ODR\AdminBundle\Entity\DataFields df
                 WHERE df.id IN (:datafield_ids)
                 AND df.deletedAt IS NULL'
             )->setParameters( ['datafield_ids' => $dest_df_ids] );
@@ -1250,7 +1250,7 @@ class MigrationController extends ODRCustomController
 
             $query = $em->createQuery(
                'SELECT ro.id AS ro_id, ro.radioOptionUuid AS ro_uuid
-                FROM ODRAdminBundle:RadioOptions ro
+                FROM ODR\AdminBundle\Entity\RadioOptions ro
                 WHERE ro.id IN (:radio_option_ids)
                 AND ro.deletedAt IS NULL'
             )->setParameters( ['radio_option_ids' => $dest_ro_ids] );
@@ -1352,8 +1352,8 @@ class MigrationController extends ODRCustomController
             // ...and then run another query to get their names for ease of use
             $query = $em->createQuery(
                'SELECT dt.id AS dt_id, dtm.shortName
-                FROM ODRAdminBundle:DataType dt
-                JOIN ODRAdminBundle:DataTypeMeta dtm WITH dtm.dataType = dt
+                FROM ODR\AdminBundle\Entity\DataType dt
+                JOIN ODR\AdminBundle\Entity\DataTypeMeta dtm WITH dtm.dataType = dt
                 WHERE dt.id IN (:datatype_ids) AND dt.is_master_type = 0
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
                 ORDER BY dtm.shortName'
@@ -1439,12 +1439,12 @@ class MigrationController extends ODRCustomController
             $database_info_service = $this->container->get('odr.database_info_service');
 
             /** @var DataType $src_datatype */
-            $src_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($src_dt_id);
+            $src_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($src_dt_id);
             if ($src_datatype == null)
                 throw new ODRNotFoundException('Source Datatype');
 
             /** @var DataType $dest_datatype */
-            $dest_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($dest_dt_id);
+            $dest_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($dest_dt_id);
             if ($dest_datatype == null)
                 throw new ODRNotFoundException('Destination Datatype');
 
@@ -1535,7 +1535,7 @@ class MigrationController extends ODRCustomController
             $src_datatype_ids = array_keys($datatypes);
             $query = $em->createQuery(
                'SELECT dt.id
-                FROM ODRAdminBundle:DataType dt
+                FROM ODR\AdminBundle\Entity\DataType dt
                 WHERE dt.id IN (:datatype_ids) OR dt.metadata_for IN (:datatype_ids) OR dt.grandparent IN (:datatype_ids)'
             ) ->setParameters( ['datatype_ids' => $src_datatype_ids] );
             $results = $query->getArrayResult();
@@ -1548,7 +1548,7 @@ class MigrationController extends ODRCustomController
             // datafield ids
             $query = $em->createQuery(
                'SELECT df.id
-                FROM ODRAdminBundle:DataFields df
+                FROM ODR\AdminBundle\Entity\DataFields df
                 WHERE df.dataType IN (:datatype_ids)'
             ) ->setParameters( ['datatype_ids' => $src_datatype_ids] );
             $results = $query->getArrayResult();
@@ -1561,7 +1561,7 @@ class MigrationController extends ODRCustomController
             // radio options
             $query = $em->createQuery(
                'SELECT ro.id
-                FROM ODRAdminBundle:RadioOptions ro
+                FROM ODR\AdminBundle\Entity\RadioOptions ro
                 WHERE ro.dataField IN (:datafield_ids)'
             ) ->setParameters( ['datafield_ids' => $src_datafield_ids] );
             $results = $query->getArrayResult();
@@ -1574,7 +1574,7 @@ class MigrationController extends ODRCustomController
             // render plugin instances
             $query = $em->createQuery(
                'SELECT rpi.id
-                FROM ODRAdminBundle:RenderPluginInstance rpi
+                FROM ODR\AdminBundle\Entity\RenderPluginInstance rpi
                 WHERE rpi.dataType IN (:datatype_ids)'
             ) ->setParameters( ['datatype_ids' => $src_datatype_ids] );
             $results = $query->getArrayResult();
@@ -1587,7 +1587,7 @@ class MigrationController extends ODRCustomController
             // groups
             $query = $em->createQuery(
                'SELECT g.id
-                FROM ODRAdminBundle:Group g
+                FROM ODR\AdminBundle\Entity\Group g
                 WHERE g.dataType IN (:datatype_ids)'
             ) ->setParameters( ['datatype_ids' => $src_datatype_ids] );
             $results = $query->getArrayResult();
@@ -1600,7 +1600,7 @@ class MigrationController extends ODRCustomController
             // datatree entries
             $query = $em->createQuery(
                'SELECT dt.id
-                FROM ODRAdminBundle:DataTree dt
+                FROM ODR\AdminBundle\Entity\DataTree dt
                 WHERE dt.ancestor IN (:datatype_ids) OR dt.descendant IN (:datatype_ids)'
             ) ->setParameters( ['datatype_ids' => $src_datatype_ids] );
             $results = $query->getArrayResult();
@@ -1613,7 +1613,7 @@ class MigrationController extends ODRCustomController
             // sidebar layouts
             $query = $em->createQuery(
                'SELECT sl.id
-                FROM ODRAdminBundle:SidebarLayout sl
+                FROM ODR\AdminBundle\Entity\SidebarLayout sl
                 WHERE sl.dataType IN (:datatype_ids)'
             ) ->setParameters( ['datatype_ids' => $src_datatype_ids] );
             $results = $query->getArrayResult();
@@ -1626,7 +1626,7 @@ class MigrationController extends ODRCustomController
             // themes
             $query = $em->createQuery(
                'SELECT t.id
-                FROM ODRAdminBundle:Theme t
+                FROM ODR\AdminBundle\Entity\Theme t
                 WHERE t.dataType IN (:datatype_ids)'
             ) ->setParameters( ['datatype_ids' => $src_datatype_ids] );
             $results = $query->getArrayResult();
@@ -1639,7 +1639,7 @@ class MigrationController extends ODRCustomController
             // themeelements
             $query = $em->createQuery(
                'SELECT te.id
-                FROM ODRAdminBundle:ThemeElement te
+                FROM ODR\AdminBundle\Entity\ThemeElement te
                 WHERE te.theme IN (:theme_ids)'
             ) ->setParameters( ['theme_ids' => $src_theme_ids] );
             $results = $query->getArrayResult();
@@ -1855,8 +1855,8 @@ class MigrationController extends ODRCustomController
             $all_datatype_ids = array_keys($all_datatype_ids);
             $query = $em->createQuery(
                'SELECT dt.id AS dt_id, dtm.shortName
-                FROM ODRAdminBundle:DataType dt
-                JOIN ODRAdminBundle:DataTypeMeta dtm WITH dtm.dataType = dt
+                FROM ODR\AdminBundle\Entity\DataType dt
+                JOIN ODR\AdminBundle\Entity\DataTypeMeta dtm WITH dtm.dataType = dt
                 WHERE dt.id IN (:datatype_ids)
                 AND dt.metadata_for IS NULL
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
@@ -1945,7 +1945,7 @@ class MigrationController extends ODRCustomController
             $router = $this->get('router');
 
             /** @var DataType $target_datatype */
-            $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($target_dt_id);
+            $target_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($target_dt_id);
             if ($target_datatype == null)
                 throw new ODRNotFoundException('Target Datatype');
 
@@ -1957,14 +1957,14 @@ class MigrationController extends ODRCustomController
             $ancestor_dt_id = $datatree_array['linked_from'][$target_dt_id][0];
 
             /** @var DataType $ancestor_datatype */
-            $ancestor_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($ancestor_dt_id);
+            $ancestor_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($ancestor_dt_id);
             if ($ancestor_datatype == null)
                 throw new ODRNotFoundException('Ancestor Datatype');
             $ancestor_grandparent_id = $ancestor_datatype->getGrandparent()->getId();
             $ancestor_template_group = $ancestor_datatype->getGrandparent()->getTemplateGroup();
 
             /** @var DataTree $datatree */
-            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
+            $datatree = $em->getRepository('ODR\AdminBundle\Entity\DataTree')->findOneBy(
                 [
                     'ancestor' => $ancestor_datatype,
                     'descendant' => $target_datatype
@@ -1981,7 +1981,7 @@ class MigrationController extends ODRCustomController
             // Get all descendants of this target datatype
             $query = $em->createQuery(
                'SELECT dt.id AS dt_id
-                FROM ODRAdminBundle:DataType dt
+                FROM ODR\AdminBundle\Entity\DataType dt
                 WHERE dt.grandparent = :target_datatype_id
                 AND dt.deletedAt IS NULL'
             )->setParameters( ['target_datatype_id' => $target_dt_id] );
@@ -1996,7 +1996,7 @@ class MigrationController extends ODRCustomController
             // Locate their metadata datatypes
             $query = $em->createQuery(
                'SELECT dt.id AS dt_id
-                FROM ODRAdminBundle:DataType dt
+                FROM ODR\AdminBundle\Entity\DataType dt
                 WHERE dt.metadata_for IN (:target_datatype_ids)
                 AND dt.deletedAt IS NULL'
             )->setParameters( ['target_datatype_ids' => $target_descendant_ids] );
@@ -2100,7 +2100,7 @@ class MigrationController extends ODRCustomController
 
             $query = $em->createQuery(
                'SELECT te.id AS te_id
-                FROM ODRAdminBundle:ThemeElement te
+                FROM ODR\AdminBundle\Entity\ThemeElement te
                 WHERE te.theme IN (:theme_ids)
                 AND te.deletedAt IS NULL'
             )->setParameters( ['theme_ids' => $all_themes_to_delete] );
@@ -2298,8 +2298,8 @@ class MigrationController extends ODRCustomController
             $all_datatype_ids = array_keys($all_datatype_ids);
             $query = $em->createQuery(
                'SELECT dt.id AS dt_id, dtm.shortName
-                FROM ODRAdminBundle:DataType dt
-                JOIN ODRAdminBundle:DataTypeMeta dtm WITH dtm.dataType = dt
+                FROM ODR\AdminBundle\Entity\DataType dt
+                JOIN ODR\AdminBundle\Entity\DataTypeMeta dtm WITH dtm.dataType = dt
                 WHERE dt.id IN (:datatype_ids)
                 AND dt.metadata_for IS NULL
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
@@ -2384,17 +2384,17 @@ class MigrationController extends ODRCustomController
             $conn = $em->getConnection();
 
             /** @var DataType $original_parent_dt */
-            $original_parent_dt = $em->getRepository('ODRAdminBundle:DataType')->find($original_parent_dt_id);
+            $original_parent_dt = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($original_parent_dt_id);
             if ($original_parent_dt == null)
                 throw new ODRNotFoundException('parent datatype');
 
             /** @var DataType $new_top_level_dt */
-            $new_top_level_dt = $em->getRepository('ODRAdminBundle:DataType')->find($new_top_level_dt_id);
+            $new_top_level_dt = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($new_top_level_dt_id);
             if ($new_top_level_dt == null)
                 throw new ODRNotFoundException('child datatype');
 
             /** @var DataTree $datatree_entry */
-            $datatree_entry = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
+            $datatree_entry = $em->getRepository('ODR\AdminBundle\Entity\DataTree')->findOneBy(
                 [
                     'ancestor' => $original_parent_dt_id,
                     'descendant' => $new_top_level_dt_id,

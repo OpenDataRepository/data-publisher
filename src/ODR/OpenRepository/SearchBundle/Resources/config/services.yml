@@ -98,6 +98,6 @@ services:
         arguments:
             $tab_helper_service: "@odr.tab_helper_service"
             $router: "@router"
-            $templating: "@templating"
+            $templating: "@twig"
             $logger: "@logger"
 

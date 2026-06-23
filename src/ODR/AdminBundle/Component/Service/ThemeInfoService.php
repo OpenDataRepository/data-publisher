@@ -96,7 +96,7 @@ class ThemeInfoService
         $query = $this->em->createQuery(
            'SELECT t, tm, tp,
                 partial t_cb.{id, username, email, firstName, lastName}
-            FROM ODRAdminBundle:Theme AS t
+            FROM ODR\AdminBundle\Entity\Theme AS t
             JOIN t.createdBy AS t_cb
             JOIN t.themeMeta AS tm
             LEFT JOIN t.themePreferences AS tp WITH (tp.createdBy = :user_id)
@@ -388,7 +388,7 @@ class ThemeInfoService
             $tp_id = $result['id'];
 
             /** @var ThemePreferences $tp */
-            $tp = $this->em->getRepository('ODRAdminBundle:ThemePreferences')->find($tp_id);
+            $tp = $this->em->getRepository('ODR\AdminBundle\Entity\ThemePreferences')->find($tp_id);
             return $tp;
         }
 
@@ -443,7 +443,7 @@ class ThemeInfoService
             $tp_id = $result['id'];
 
             /** @var ThemePreferences $tp */
-            $tp = $this->em->getRepository('ODRAdminBundle:ThemePreferences')->find($tp_id);
+            $tp = $this->em->getRepository('ODR\AdminBundle\Entity\ThemePreferences')->find($tp_id);
 
             // Unset the bit for this page_type and save it back into the field
             $bitfield_value = $tp->getDefaultFor();
@@ -456,7 +456,7 @@ class ThemeInfoService
 
         // ----------------------------------------
         // Attempt to locate the ThemePreferences entry for the given Theme/User pair
-        $tp = $this->em->getRepository('ODRAdminBundle:ThemePreferences')->findOneBy(
+        $tp = $this->em->getRepository('ODR\AdminBundle\Entity\ThemePreferences')->findOneBy(
             [
                 'theme' => $theme->getId(),
                 'createdBy' => $user->getId(),
@@ -525,7 +525,7 @@ class ThemeInfoService
             $t_id = $result['id'];
 
             /** @var Theme $t */
-            $t = $this->em->getRepository('ODRAdminBundle:Theme')->find($t_id);
+            $t = $this->em->getRepository('ODR\AdminBundle\Entity\Theme')->find($t_id);
             return $t;
         }
 
@@ -546,8 +546,8 @@ class ThemeInfoService
         // Query the database to get this datatype's master theme
         $query = $this->em->createQuery(
            'SELECT t
-            FROM ODRAdminBundle:Theme AS t
-            JOIN ODRAdminBundle:ThemeMeta AS tm WITH tm.theme = t
+            FROM ODR\AdminBundle\Entity\Theme AS t
+            JOIN ODR\AdminBundle\Entity\ThemeMeta AS tm WITH tm.theme = t
             WHERE t.dataType = :datatype_id AND t.themeType = :theme_type
             AND t = t.sourceTheme
             AND t.deletedAt IS NULL AND tm.deletedAt IS NULL'
@@ -622,7 +622,7 @@ class ThemeInfoService
                 trpi, partial rpi.{id},
                 partial rptom.{id, value}, partial rptom_rpi.{id}, partial rptom_rpod.{id, name}
 
-            FROM ODRAdminBundle:Theme AS t
+            FROM ODR\AdminBundle\Entity\Theme AS t
             LEFT JOIN t.themeMeta AS tm
             LEFT JOIN t.createdBy AS t_cb
             LEFT JOIN t.updatedBy AS t_ub
@@ -876,7 +876,7 @@ class ThemeInfoService
 
         $query = $this->em->createQuery(
            'SELECT t.id AS theme_id
-            FROM ODRAdminBundle:Theme AS t
+            FROM ODR\AdminBundle\Entity\Theme AS t
             WHERE t.dataType IN (:datatype_ids) AND t = t.parentTheme
             AND t.deletedAt IS NULL'
         )->setParameters( ['datatype_ids' => $top_level_datatypes] );

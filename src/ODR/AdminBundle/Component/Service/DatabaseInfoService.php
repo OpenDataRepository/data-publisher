@@ -62,7 +62,7 @@ class DatabaseInfoService
             throw new ODRBadRequestException('Invalid unique_id: "'.$unique_id.'"', 0xaf067bda);
 
         /** @var DataType $dt */
-        $dt = $this->em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+        $dt = $this->em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
             ['unique_id' => $unique_id]
         );
         if ( is_null($dt) )
@@ -207,7 +207,7 @@ class DatabaseInfoService
 
                 partial df_rpi.{id}
 
-            FROM ODRAdminBundle:DataType AS dt
+            FROM ODR\AdminBundle\Entity\DataType AS dt
             LEFT JOIN dt.createdBy AS dt_cb
             LEFT JOIN dt.updatedBy AS dt_ub
             LEFT JOIN dt.metadata_datatype AS md
@@ -443,7 +443,7 @@ class DatabaseInfoService
            'SELECT
                 partial dt.{id}, partial mdt.{id, unique_id}, partial mdt_dtm.{id, shortName},
                 partial df.{id}, partial mdf.{id}
-            FROM ODRAdminBundle:DataType AS dt
+            FROM ODR\AdminBundle\Entity\DataType AS dt
             LEFT JOIN dt.masterDataType AS mdt
             LEFT JOIN mdt.dataTypeMeta AS mdt_dtm
             LEFT JOIN dt.dataFields AS df
@@ -504,7 +504,7 @@ class DatabaseInfoService
     {
         $query = $this->em->createQuery(
            'SELECT partial dt.{id}, partial df.{id}, ro, rom
-            FROM ODRAdminBundle:DataType AS dt
+            FROM ODR\AdminBundle\Entity\DataType AS dt
             LEFT JOIN dt.dataFields AS df
             LEFT JOIN df.radioOptions AS ro
             LEFT JOIN ro.radioOptionMeta AS rom
@@ -554,7 +554,7 @@ class DatabaseInfoService
     {
         $query = $this->em->createQuery(
            'SELECT partial dt.{id}, partial df.{id}, t, tm
-            FROM ODRAdminBundle:DataType AS dt
+            FROM ODR\AdminBundle\Entity\DataType AS dt
             LEFT JOIN dt.dataFields AS df
             LEFT JOIN df.tags AS t
             LEFT JOIN t.tagMeta AS tm
@@ -603,9 +603,9 @@ class DatabaseInfoService
     {
         $query = $this->em->createQuery(
            'SELECT dt.id AS dt_id, dtsf.field_purpose, dtsf.displayOrder, df.id AS df_id
-            FROM ODRAdminBundle:DataType AS dt
-            LEFT JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataType = dt
-            LEFT JOIN ODRAdminBundle:DataFields AS df WITH dtsf.dataField = df
+            FROM ODR\AdminBundle\Entity\DataType AS dt
+            LEFT JOIN ODR\AdminBundle\Entity\DataTypeSpecialFields AS dtsf WITH dtsf.dataType = dt
+            LEFT JOIN ODR\AdminBundle\Entity\DataFields AS df WITH dtsf.dataField = df
             WHERE dt.grandparent = :grandparent_datatype_id
             AND dt.deletedAt IS NULL AND dtsf.deletedAt IS NULL AND df.deletedAt IS NULL
             ORDER BY dt.id, dtsf.field_purpose, dtsf.displayOrder, df.id'
@@ -645,8 +645,8 @@ class DatabaseInfoService
     {
         $query = $this->em->createQuery(
            'SELECT dt.id AS dt_id, ssk.searchKey
-            FROM ODRAdminBundle:DataType AS dt
-            LEFT JOIN ODRAdminBundle:StoredSearchKey AS ssk WITH ssk.dataType = dt
+            FROM ODR\AdminBundle\Entity\DataType AS dt
+            LEFT JOIN ODR\AdminBundle\Entity\StoredSearchKey AS ssk WITH ssk.dataType = dt
             WHERE dt.grandparent = :grandparent_datatype_id AND ssk.isDefault = 1
             AND dt.deletedAt IS NULL AND ssk.deletedAt IS NULL'
         )->setParameters( ['grandparent_datatype_id' => $grandparent_datatype_id] );
@@ -686,7 +686,7 @@ class DatabaseInfoService
                 partial rpf.{id, fieldName, allowedFieldtypes, must_be_unique, single_uploads_only, no_user_edits, autogenerate_values, is_derived, is_optional},
                 rpm_df
 
-            FROM ODRAdminBundle:DataType AS dt
+            FROM ODR\AdminBundle\Entity\DataType AS dt
 
             LEFT JOIN dt.renderPluginInstances AS rpi
             LEFT JOIN rpi.renderPlugin AS rp
@@ -729,7 +729,7 @@ class DatabaseInfoService
                 partial rpf.{id, fieldName, allowedFieldtypes, must_be_unique, single_uploads_only, no_user_edits, autogenerate_values, is_derived, is_optional},
                 rpm_df
 
-            FROM ODRAdminBundle:DataFields AS df
+            FROM ODR\AdminBundle\Entity\DataFields AS df
             LEFT JOIN df.dataType AS dt
 
             LEFT JOIN df.renderPluginInstances AS rpi
@@ -929,8 +929,8 @@ class DatabaseInfoService
         if ( count($can_view_nonpublic_datarecords) > 0 ) {
             $query = $this->em->createQuery(
                'SELECT dt.id AS dt_id, COUNT(dr.id) AS datarecord_count
-                FROM ODRAdminBundle:DataType AS dt
-                JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
+                FROM ODR\AdminBundle\Entity\DataType AS dt
+                JOIN ODR\AdminBundle\Entity\DataRecord AS dr WITH dr.dataType = dt
                 WHERE dt IN (:datatype_ids) AND dr.provisioned = FALSE
                 AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL
                 GROUP BY dt.id'
@@ -951,9 +951,9 @@ class DatabaseInfoService
         if ( count($can_view_public_datarecords) > 0 ) {
             $query = $this->em->createQuery(
                'SELECT dt.id AS dt_id, COUNT(dr.id) AS datarecord_count
-                FROM ODRAdminBundle:DataType AS dt
-                JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
-                JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
+                FROM ODR\AdminBundle\Entity\DataType AS dt
+                JOIN ODR\AdminBundle\Entity\DataRecord AS dr WITH dr.dataType = dt
+                JOIN ODR\AdminBundle\Entity\DataRecordMeta AS drm WITH drm.dataRecord = dr
                 WHERE dt IN (:datatype_ids) AND drm.publicDate != :public_date AND dr.provisioned = FALSE
                 AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL
                 GROUP BY dt.id'
@@ -1005,7 +1005,7 @@ class DatabaseInfoService
         // Both of these special fields only allow specific fieldtypes
         $query = $this->em->createQuery(
            'SELECT ft.typeName
-            FROM ODRAdminBundle:FieldType ft
+            FROM ODR\AdminBundle\Entity\FieldType ft
             WHERE ft.canBeSortField = 1
             AND ft.deletedAt IS NULL'
         );

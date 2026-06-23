@@ -144,7 +144,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
             $target_datatype = null;
 
             /** @var DataTypeMeta $meta_entry */
-            $meta_entry = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy(
+            $meta_entry = $em->getRepository('ODR\AdminBundle\Entity\DataTypeMeta')->findOneBy(
                 [
                     'searchSlug' => $search_slug
                 ]
@@ -152,7 +152,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
             if ( is_null($meta_entry) ) {
                 // Couldn't find a datatypeMeta entry with that search slug, so check whether the
                 //  search slug is actually a database uuid instead
-                $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                $target_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
                     [
                         'unique_id' => $search_slug
                     ]
@@ -274,7 +274,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
             // TODO - modify search page to allow users to select from available themes
 //            $available_themes = $theme_info_service->getAvailableThemes($admin_user, $target_datatype, 'search_results');
             $preferred_theme_id = $theme_info_service->getPreferredThemeId($admin_user, $target_datatype_id, 'search_results');
-            $preferred_theme = $em->getRepository('ODRAdminBundle:Theme')->find($preferred_theme_id);
+            $preferred_theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($preferred_theme_id);
 
 
             // ----------------------------------------
@@ -427,7 +427,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
             $target_datatype = null;
 
             /** @var DataTypeMeta $meta_entry */
-            $meta_entry = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy(
+            $meta_entry = $em->getRepository('ODR\AdminBundle\Entity\DataTypeMeta')->findOneBy(
                 [
                     'searchSlug' => $search_slug
                 ]
@@ -435,7 +435,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
             if ( is_null($meta_entry) ) {
                 // Couldn't find a datatypeMeta entry with that search slug, so check whether the
                 //  search slug is actually a database uuid instead
-                $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                $target_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
                     [
                         'unique_id' => $search_slug
                     ]
@@ -558,7 +558,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
             // TODO - modify search page to allow users to select from available themes
 //            $available_themes = $theme_info_service->getAvailableThemes($admin_user, $target_datatype, 'search_results');
             $preferred_theme_id = $theme_info_service->getPreferredThemeId($admin_user, $target_datatype_id, 'search_results');
-            $preferred_theme = $em->getRepository('ODRAdminBundle:Theme')->find($preferred_theme_id);
+            $preferred_theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($preferred_theme_id);
 
 
             // ----------------------------------------
@@ -798,7 +798,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
 
             /** @var DataType $datatype */
             $dt_id = $search_params['dt_id'];
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($dt_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($dt_id);
             if ( is_null($datatype) )
                 throw new ODRNotFoundException('Datatype');
 
@@ -989,7 +989,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -1022,7 +1022,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
 
             // Ensure the theme exists before attempting to use it
             /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($search_theme_id);
+            $theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($search_theme_id);
             if ($theme == null)
                 throw new ODRNotFoundException('Theme');
 
@@ -1124,7 +1124,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
             $search_key_service = $this->container->get('odr.search_key_service');
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -1202,7 +1202,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 

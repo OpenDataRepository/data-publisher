@@ -104,7 +104,7 @@ class CSVImportController extends ODRCustomController
             // Get necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+            $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
 
             /** @var DatatreeInfoService $datatree_info_service */
             $datatree_info_service = $this->container->get('odr.datatree_info_service');
@@ -299,7 +299,7 @@ class CSVImportController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             $session = $request->getSession();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+            $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
 
             /** @var DatabaseInfoService $database_info_service */
             $database_info_service = $this->container->get('odr.database_info_service');
@@ -416,7 +416,7 @@ class CSVImportController extends ODRCustomController
             uasort($datafields, self::name_sort(...));
 
             // Load the FieldTypes that the csv importer can read data into
-            $query = $em->createQuery('SELECT ft FROM ODRAdminBundle:FieldType ft ORDER BY ft.typeName');
+            $query = $em->createQuery('SELECT ft FROM ODR\AdminBundle\Entity\FieldType ft ORDER BY ft.typeName');
             /** @var FieldType[] $fieldtypes */
             $fieldtypes = $query->getResult();
             $allowed_fieldtypes = [];
@@ -1146,9 +1146,9 @@ class CSVImportController extends ODRCustomController
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-            $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
+            $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
+            $repo_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
+            $repo_fieldtype = $em->getRepository('ODR\AdminBundle\Entity\FieldType');
 
 
             /** @var CSVImportHelperService $csv_helper_service */
@@ -1737,11 +1737,11 @@ class CSVImportController extends ODRCustomController
             /** @var DatarecordInfoService $datarecord_info_service */
             $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
 
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-            $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
-            $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
-            $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
+            $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
+            $repo_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
+            $repo_fieldtype = $em->getRepository('ODR\AdminBundle\Entity\FieldType');
+            $repo_tracked_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob');
+            $repo_user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User');
 
             if ($api_key !== $beanstalk_api_key)
                 throw new ODRException('Invalid job data');
@@ -1907,7 +1907,7 @@ class CSVImportController extends ODRCustomController
             // For the purposes of checking files/images in a child datarecord...
             if ($external_id_field == null && $import_into_child_datatype) {
                 /** @var DataTree $datatree */
-                $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy( ['ancestor' => $parent_datatype->getId(), 'descendant' => $datatype->getId()] );
+                $datatree = $em->getRepository('ODR\AdminBundle\Entity\DataTree')->findOneBy( ['ancestor' => $parent_datatype->getId(), 'descendant' => $datatype->getId()] );
                 if ($datatree == null) {
                     $errors[] = [
                         'level' => 'Error',
@@ -2311,7 +2311,7 @@ class CSVImportController extends ODRCustomController
             // Update the job tracker even if an error occurred...right? TODO
             if ($tracked_job_id !== -1) {
                 $em = $this->getDoctrine()->getManager();
-                $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+                $tracked_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob')->find($tracked_job_id);
 
                 $total = $tracked_job->getTotal();
                 $count = $tracked_job->incrementCurrent($em);
@@ -2359,9 +2359,9 @@ class CSVImportController extends ODRCustomController
             // Get necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
-            $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
+            $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
+            $repo_fieldtype = $em->getRepository('ODR\AdminBundle\Entity\FieldType');
+            $repo_tracked_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob');
 
             /** @var DatabaseInfoService $database_info_service */
             $database_info_service = $this->container->get('odr.database_info_service');
@@ -2750,10 +2750,10 @@ class CSVImportController extends ODRCustomController
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
 
 
-            $repo_tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob');
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-            $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
+            $repo_tracked_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob');
+            $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
+            $repo_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
+            $repo_fieldtype = $em->getRepository('ODR\AdminBundle\Entity\FieldType');
 
             // ----------------------------------------
             // Load the data from the finished validation job
@@ -3061,7 +3061,7 @@ print_r($new_mapping);
                 //  properly create TagTree entries...
                 $query = $em->createQuery(
                    'SELECT t
-                    FROM ODRAdminBundle:Tags AS t
+                    FROM ODR\AdminBundle\Entity\Tags AS t
                     WHERE t.dataField = :datafield_id
                     AND t.deletedAt IS NULL'
                 )->setParameters( ['datafield_id' => $df->getId()] );
@@ -3370,9 +3370,9 @@ print_r($new_mapping);
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-            $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
+            $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
+            $repo_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
+            $repo_user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User');
 
             /** @var DatarecordInfoService $datarecord_info_service */
             $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
@@ -3460,7 +3460,7 @@ print_r($new_mapping);
                 // If importing into a child datatype, figure out whether multiple child datarecords are allowed
                 if ($import_into_child_datatype) {
                     /** @var DataTree $datatree */
-                    $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy( ['ancestor' => $parent_datatype->getId(), 'descendant' => $datatype->getId()] );
+                    $datatree = $em->getRepository('ODR\AdminBundle\Entity\DataTree')->findOneBy( ['ancestor' => $parent_datatype->getId(), 'descendant' => $datatype->getId()] );
                     if ($datatree == null)
                         throw new ODRException('Datatree entry does not exist');
 
@@ -3822,7 +3822,7 @@ exit();
                                     else {
                                         // Need to find the resized versions of the original image
                                         /** @var Image[] $old_images */
-                                        $old_images = $em->getRepository('ODRAdminBundle:Image')->findBy( ['parent' => $old_obj->getId()] );
+                                        $old_images = $em->getRepository('ODR\AdminBundle\Entity\Image')->findBy( ['parent' => $old_obj->getId()] );
                                         $old_images[] = $old_obj;
 
                                         foreach ($old_images as $img) {
@@ -4069,7 +4069,7 @@ exit();
 
                             // Attempt to load an existing radio option with this name
                             /** @var RadioOptions $radio_option */
-                            $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
+                            $radio_option = $em->getRepository('ODR\AdminBundle\Entity\RadioOptions')->findOneBy(
                                 [
                                     'optionName' => $option_name,
                                     'dataField' => $datafield->getId()
@@ -4104,7 +4104,7 @@ exit();
                             // If this field only allows a single selection...
                             if ($typename == 'Single Radio' || $typename == 'Single Select') {
                                 /** @var RadioSelection[] $radio_selections */
-                                $radio_selections = $em->getRepository('ODRAdminBundle:RadioSelection')->findBy(
+                                $radio_selections = $em->getRepository('ODR\AdminBundle\Entity\RadioSelection')->findBy(
                                     [
                                         'dataRecordFields' => $drf->getId()
                                     ]
@@ -4221,7 +4221,7 @@ exit();
             // ----------------------------------------
             // Load the job so it can be updated
             /** @var TrackedJob $tracked_job */
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+            $tracked_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob')->find($tracked_job_id);
 
             // Check whether any more "additional data" needs to be stored
             $additional_data = $tracked_job->getAdditionalData();
@@ -4273,7 +4273,7 @@ exit();
                 if ( isset($additional_data['datafields_needing_resort']) ) {
                     foreach ($additional_data['datafields_needing_resort'] as $df_id => $num) {
                         /** @var DataFields $df */
-                        $df = $em->getRepository('ODRAdminBundle:DataFields')->find($df_id);
+                        $df = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($df_id);
                         if ( $df != null ) {
                             if ( $df->getFieldType()->getTypeClass() === 'Radio' ) {
                                 $sort_service->sortRadioOptionsByName($user, $df);
@@ -4350,7 +4350,7 @@ exit();
             // Update the job tracker even if an error occurred...right? TODO
             if ($tracked_job_id !== -1) {
                 $em = $this->getDoctrine()->getManager();
-                $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+                $tracked_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob')->find($tracked_job_id);
 
                 $total = $tracked_job->getTotal();
                 $count = $tracked_job->incrementCurrent($em);
@@ -4491,8 +4491,8 @@ exit();
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_user = $em->getRepository('ODROpenRepositoryUserBundle:User');
+            $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
+            $repo_user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User');
 
             /** @var DatarecordInfoService $datarecord_info_service */
             $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
@@ -4524,7 +4524,7 @@ exit();
                 throw new ODRException('Invalid Form...Local Datatype is deleted');
 
             /** @var DataTree $datatree */
-            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
+            $datatree = $em->getRepository('ODR\AdminBundle\Entity\DataTree')->findOneBy(
                 [
                     'ancestor' => $parent_datatype->getId(),
                     'descendant' => $datatype->getId()
@@ -4641,7 +4641,7 @@ exit();
             // Update the job tracker if necessary
             if ($tracked_job_id !== -1) {
                 /** @var TrackedJob $tracked_job */
-                $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+                $tracked_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob')->find($tracked_job_id);
 
                 $total = $tracked_job->getTotal();
                 $count = $tracked_job->incrementCurrent($em);
@@ -4665,7 +4665,7 @@ exit();
             // Update the job tracker even if an error occurred...right? TODO
             if ($tracked_job_id !== -1) {
                 $em = $this->getDoctrine()->getManager();
-                $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+                $tracked_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob')->find($tracked_job_id);
 
                 $total = $tracked_job->getTotal();
                 $count = $tracked_job->incrementCurrent($em);

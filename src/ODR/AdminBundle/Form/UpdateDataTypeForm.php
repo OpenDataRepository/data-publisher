@@ -83,7 +83,7 @@ class UpdateDataTypeForm extends AbstractType
             [
                 'class' => \ODR\AdminBundle\Entity\DataFields::class,
                 'query_builder' => fn(EntityRepository $er) => $er->createQueryBuilder('df')
-                            ->leftJoin('ODRAdminBundle:DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
+                            ->leftJoin('ODR\AdminBundle\Entity\DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
                             ->where('dfm.is_unique = 1 AND df.dataType = ?1')
                             ->setParameter(1, $datatype_id),
 
@@ -101,8 +101,8 @@ class UpdateDataTypeForm extends AbstractType
             [
                 'class' => \ODR\AdminBundle\Entity\DataFields::class,
                 'query_builder' => fn(EntityRepository $er) => $er->createQueryBuilder('df')
-                            ->leftJoin('ODRAdminBundle:DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
-                            ->leftJoin('ODRAdminBundle:FieldType', 'ft', 'WITH', 'dfm.fieldType = ft')
+                            ->leftJoin('ODR\AdminBundle\Entity\DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
+                            ->leftJoin('ODR\AdminBundle\Entity\FieldType', 'ft', 'WITH', 'dfm.fieldType = ft')
                             ->where('ft.canBeSortField = 1 AND df.dataType IN (?1)')
                             ->setParameter(1, $single_linked_descendants),
 
@@ -128,8 +128,8 @@ class UpdateDataTypeForm extends AbstractType
             [
                 'class' => \ODR\AdminBundle\Entity\DataFields::class,
                 'query_builder' => fn(EntityRepository $er) => $er->createQueryBuilder('df')
-                            ->leftJoin('ODRAdminBundle:DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
-                            ->leftJoin('ODRAdminBundle:FieldType', 'ft', 'WITH', 'dfm.fieldType = ft')
+                            ->leftJoin('ODR\AdminBundle\Entity\DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
+                            ->leftJoin('ODR\AdminBundle\Entity\FieldType', 'ft', 'WITH', 'dfm.fieldType = ft')
                             ->where('ft.canBeSortField = 1 AND df.dataType IN (?1)')
                             ->setParameter(1, $single_linked_descendants),
 
@@ -157,8 +157,8 @@ class UpdateDataTypeForm extends AbstractType
                 [
                     'class' => \ODR\AdminBundle\Entity\DataFields::class,
                     'query_builder' => fn(EntityRepository $er) => $er->createQueryBuilder('df')
-                        ->leftJoin('ODRAdminBundle:DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
-                        ->leftJoin('ODRAdminBundle:FieldType', 'ft', 'WITH', 'dfm.fieldType = ft')
+                        ->leftJoin('ODR\AdminBundle\Entity\DataFieldsMeta', 'dfm', 'WITH', 'dfm.dataField = df')
+                        ->leftJoin('ODR\AdminBundle\Entity\FieldType', 'ft', 'WITH', 'dfm.fieldType = ft')
                         ->where('ft.typeName = ?1 AND df.dataType = ?2')
                         ->setParameter(1, 'Image')
                         ->setParameter(2, $datatype_id),

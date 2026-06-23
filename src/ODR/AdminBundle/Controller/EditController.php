@@ -157,7 +157,7 @@ class EditController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ( $datatype == null )
                 throw new ODRNotFoundException('Datatype');
 
@@ -185,7 +185,7 @@ class EditController extends ODRCustomController
                 // ...then don't create another datarecord if the datatype already has one
                 $query = $em->createQuery(
                    'SELECT dr.id AS dr_id
-                    FROM ODRAdminBundle:DataRecord AS dr
+                    FROM ODR\AdminBundle\Entity\DataRecord AS dr
                     WHERE dr.dataType = :datatype_id
                     AND dr.deletedAt IS NULL'
                 )->setParameters( ['datatype_id' => $datatype->getId()] );
@@ -281,12 +281,12 @@ class EditController extends ODRCustomController
 
             // Grab needed Entities from the repository
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ( $datatype == null )
                 throw new ODRNotFoundException('Datatype');
 
             /** @var DataRecord $parent_datarecord */
-            $parent_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($parent_id);
+            $parent_datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($parent_id);
             if ($parent_datarecord == null)
                 throw new ODRNotFoundException('DataRecord');
 
@@ -425,7 +425,7 @@ class EditController extends ODRCustomController
 
             // Grab the necessary entities
             /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($datarecord_id);
             if ($datarecord == null)
                 throw new ODRNotFoundException('DataRecord');
 
@@ -480,7 +480,7 @@ class EditController extends ODRCustomController
                 // Determine whether any datarecords of this datatype remain
                 $query = $em->createQuery(
                    'SELECT dr.id AS dr_id
-                    FROM ODRAdminBundle:DataRecord AS dr
+                    FROM ODR\AdminBundle\Entity\DataRecord AS dr
                     WHERE dr.deletedAt IS NULL AND dr.dataType = :datatype'
                 )->setParameters(['datatype' => $datatype->getId()]);
                 $remaining = $query->getArrayResult();
@@ -586,7 +586,7 @@ class EditController extends ODRCustomController
 
             // Grab the necessary entities
             /** @var File $file */
-            $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
+            $file = $em->getRepository('ODR\AdminBundle\Entity\File')->find($file_id);
             if ($file == null)
                 throw new ODRNotFoundException('File');
 
@@ -718,7 +718,7 @@ class EditController extends ODRCustomController
 
             // Grab the necessary entities
             /** @var Image $image */
-            $image = $em->getRepository('ODRAdminBundle:Image')->find($image_id);
+            $image = $em->getRepository('ODR\AdminBundle\Entity\Image')->find($image_id);
             if ($image == null)
                 throw new ODRNotFoundException('Image');
 
@@ -844,7 +844,7 @@ class EditController extends ODRCustomController
 
             // Grab the necessary entities
             /** @var File $file */
-            $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
+            $file = $em->getRepository('ODR\AdminBundle\Entity\File')->find($file_id);
             if ($file == null)
                 throw new ODRNotFoundException('File');
 
@@ -989,7 +989,7 @@ class EditController extends ODRCustomController
             // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_image = $em->getRepository('ODRAdminBundle:Image');
+            $repo_image = $em->getRepository('ODR\AdminBundle\Entity\Image');
 
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
@@ -1165,7 +1165,7 @@ class EditController extends ODRCustomController
 
             // Grab the necessary entities
             /** @var File $file */
-            $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
+            $file = $em->getRepository('ODR\AdminBundle\Entity\File')->find($file_id);
             if ($file == null)
                 throw new ODRNotFoundException('File');
 
@@ -1346,7 +1346,7 @@ class EditController extends ODRCustomController
             // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_image = $em->getRepository('ODRAdminBundle:Image');
+            $repo_image = $em->getRepository('ODR\AdminBundle\Entity\Image');
 
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
@@ -1534,7 +1534,7 @@ class EditController extends ODRCustomController
 
             // Grab the necessary entities
             /** @var File $file */
-            $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
+            $file = $em->getRepository('ODR\AdminBundle\Entity\File')->find($file_id);
             if ($file == null)
                 throw new ODRNotFoundException('File');
 
@@ -1619,7 +1619,7 @@ class EditController extends ODRCustomController
             // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_image = $em->getRepository('ODRAdminBundle:Image');
+            $repo_image = $em->getRepository('ODR\AdminBundle\Entity\Image');
 
             /** @var EntityDeletionService $entity_deletion_service */
             $entity_deletion_service = $this->container->get('odr.entity_deletion_service');
@@ -1719,7 +1719,7 @@ class EditController extends ODRCustomController
             // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_image = $em->getRepository('ODRAdminBundle:Image');
+            $repo_image = $em->getRepository('ODR\AdminBundle\Entity\Image');
 
             /** @var CryptoService $crypto_service */
             $crypto_service = $this->container->get('odr.crypto_service');
@@ -1794,7 +1794,7 @@ class EditController extends ODRCustomController
             // ----------------------------------------
             // Going to need an array of the original image and each of its resized children...
             /** @var Image[] $relevant_images */
-            $relevant_images = $em->getRepository('ODRAdminBundle:Image')->findBy(
+            $relevant_images = $em->getRepository('ODR\AdminBundle\Entity\Image')->findBy(
                 [
                     'parent' => $image->getId()
                 ]
@@ -1943,7 +1943,7 @@ class EditController extends ODRCustomController
             // Grab the first image just to check permissions
             $image = null;
             foreach ($post as $index => $image_id) {
-                $image = $em->getRepository('ODRAdminBundle:Image')->find($image_id);
+                $image = $em->getRepository('ODR\AdminBundle\Entity\Image')->find($image_id);
                 break;
             }
             /** @var Image $image */
@@ -1984,7 +1984,7 @@ class EditController extends ODRCustomController
             //  all images from that datarecordfield are listed in the post
             $query = $em->createQuery(
                'SELECT e
-                FROM ODRAdminBundle:Image AS e
+                FROM ODR\AdminBundle\Entity\Image AS e
                 WHERE e.dataRecordFields = :drf AND e.original = 1
                 AND e.deletedAt IS NULL'
             )->setParameters( ['drf' => $image->getDataRecordFields()->getId()] );
@@ -2084,7 +2084,7 @@ class EditController extends ODRCustomController
 
 
             /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($datarecord_id);
             if ($datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
 
@@ -2195,7 +2195,7 @@ class EditController extends ODRCustomController
 
 
             /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($datarecord_id);
             if ($datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
 
@@ -2312,7 +2312,7 @@ class EditController extends ODRCustomController
 
 
             /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($datarecord_id);
             if ($datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
 
@@ -2321,7 +2321,7 @@ class EditController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ($datafield == null)
                 throw new ODRNotFoundException('Datafield');
 
@@ -2625,7 +2625,7 @@ class EditController extends ODRCustomController
 
 
             /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($datarecord_id);
             if ($datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
 
@@ -2634,7 +2634,7 @@ class EditController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ($datafield == null)
                 throw new ODRNotFoundException('Datafield');
 
@@ -2758,7 +2758,7 @@ class EditController extends ODRCustomController
 
 
             /** @var ThemeElement $theme_element */
-            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            $theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement')->find($theme_element_id);
             if ($theme_element == null)
                 throw new ODRNotFoundException('ThemeElement');
 
@@ -2772,7 +2772,7 @@ class EditController extends ODRCustomController
 
 
             /** @var DataRecord $parent_datarecord */
-            $parent_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($parent_datarecord_id);
+            $parent_datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($parent_datarecord_id);
             if ($parent_datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
 
@@ -2781,7 +2781,7 @@ class EditController extends ODRCustomController
 
 
             /** @var DataRecord $top_level_datarecord */
-            $top_level_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($top_level_datarecord_id);
+            $top_level_datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($top_level_datarecord_id);
             if ($top_level_datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
 
@@ -2873,7 +2873,7 @@ class EditController extends ODRCustomController
 
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ($datafield == null)
                 throw new ODRNotFoundException('Datafield');
 
@@ -2882,7 +2882,7 @@ class EditController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($datarecord_id);
             if ($datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
 
@@ -2891,7 +2891,7 @@ class EditController extends ODRCustomController
 
 
             /** @var Datarecord $source_datarecord */
-            $source_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($source_datarecord_id);
+            $source_datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($source_datarecord_id);
             if ($source_datarecord == null)
                 throw new ODRNotFoundException('Source Datarecord');
 
@@ -2913,9 +2913,9 @@ class EditController extends ODRCustomController
             $master_theme = $theme_info_service->getDatatypeMasterTheme($datatype->getId());
             $query = $em->createQuery(
                'SELECT te
-                FROM ODRAdminBundle:Theme AS t
-                JOIN ODRAdminBundle:ThemeElement AS te WITH te.theme = t
-                JOIN ODRAdminBundle:ThemeDataField AS tdf WITH tdf.themeElement = te
+                FROM ODR\AdminBundle\Entity\Theme AS t
+                JOIN ODR\AdminBundle\Entity\ThemeElement AS te WITH te.theme = t
+                JOIN ODR\AdminBundle\Entity\ThemeDataField AS tdf WITH tdf.themeElement = te
                 WHERE t.id = :theme_id AND tdf.dataField = :datafield_id
                 AND t.deletedAt IS NULL AND te.deletedAt IS NULL AND tdf.deletedAt IS NULL'
             )->setParameters(
@@ -2936,10 +2936,10 @@ class EditController extends ODRCustomController
             //  the default template will automatically trigger execution of said datafield plugin
             $query = $em->createQuery(
                'SELECT rpi
-                FROM ODRAdminBundle:RenderPluginFields rpf
-                JOIN ODRAdminBundle:RenderPluginMap rpm WITH rpm.renderPluginFields = rpf
-                JOIN ODRAdminBundle:RenderPluginInstance rpi WITH rpm.renderPluginInstance = rpi
-                JOIN ODRAdminBundle:RenderPlugin rp WITH rpi.renderPlugin = rp
+                FROM ODR\AdminBundle\Entity\RenderPluginFields rpf
+                JOIN ODR\AdminBundle\Entity\RenderPluginMap rpm WITH rpm.renderPluginFields = rpf
+                JOIN ODR\AdminBundle\Entity\RenderPluginInstance rpi WITH rpm.renderPluginInstance = rpi
+                JOIN ODR\AdminBundle\Entity\RenderPlugin rp WITH rpi.renderPlugin = rp
                 WHERE rpi.dataType = :datatype_id AND rpm.dataField = :datafield_id
                 AND rp.overrideFieldReload = :override_field_reload
                 AND rp.deletedAt IS NULL AND rpi.deletedAt IS NULL
@@ -3060,7 +3060,7 @@ class EditController extends ODRCustomController
 
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ($datafield == null)
                 throw new ODRNotFoundException('Datafield');
 
@@ -3069,7 +3069,7 @@ class EditController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($datarecord_id);
             if ($datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
 
@@ -3108,7 +3108,7 @@ class EditController extends ODRCustomController
             // Load all files uploaded to this datafield
             $query = $em->createQuery(
                'SELECT f, fm, f_cb
-                FROM ODRAdminBundle:File AS f
+                FROM ODR\AdminBundle\Entity\File AS f
                 JOIN f.fileMeta AS fm
                 JOIN f.createdBy AS f_cb
                 WHERE f.dataRecord = :datarecord_id AND f.dataField = :datafield_id
@@ -3208,7 +3208,7 @@ class EditController extends ODRCustomController
             // ----------------------------------------
             // Get Record In Question
             /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($datarecord_id);
             if ( $datarecord == null )
                 throw new ODRNotFoundException('Datarecord');
 
@@ -3239,7 +3239,7 @@ class EditController extends ODRCustomController
 
                 // ...require the referenced theme to exist
                 /** @var Theme $search_theme */
-                $search_theme = $em->getRepository('ODRAdminBundle:Theme')->find($search_theme_id);
+                $search_theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($search_theme_id);
                 if ($search_theme == null)
                     throw new ODRNotFoundException('Search Theme');
 
@@ -3398,7 +3398,7 @@ class EditController extends ODRCustomController
 //            $theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'edit');    // NOTE: apparently differentiating between 'display' and 'edit' is...'confusing'
             $theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'display');
             /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            $theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($theme_id);
 
             // Render the edit page for this datarecord
             $page_html = $odr_render_service->getEditHTML($user, $datarecord, $search_key, $search_theme_id, $theme, $edit_shows_all_fields);
@@ -3454,12 +3454,12 @@ class EditController extends ODRCustomController
 
 
             /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($datarecord_id);
             if ($datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ($datafield == null)
                 throw new ODRNotFoundException('Datafield');
 
@@ -3504,9 +3504,9 @@ class EditController extends ODRCustomController
             $em->getFilters()->disable('softdeleteable');   // Temporarily disable the code that prevents the following query from returning deleted rows
             $query = $em->createQuery(
                'SELECT DISTINCT(ft.typeClass) AS type_class
-                FROM ODRAdminBundle:DataFields AS df
-                JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
-                JOIN ODRAdminBundle:FieldType AS ft WITH dfm.fieldType = ft
+                FROM ODR\AdminBundle\Entity\DataFields AS df
+                JOIN ODR\AdminBundle\Entity\DataFieldsMeta AS dfm WITH dfm.dataField = df
+                JOIN ODR\AdminBundle\Entity\FieldType AS ft WITH dfm.fieldType = ft
                 WHERE df = :df_id'
             )->setParameters( ['df_id' => $datafield->getId()] );
             $results = $query->getArrayResult();
@@ -3526,16 +3526,16 @@ class EditController extends ODRCustomController
                 $str =
                    'SELECT e.value AS value, ft.typeName AS typename, e.created AS created, created_by.firstName, created_by.lastName, created_by.username
                     FROM ODRAdminBundle:'.$typeclass.' AS e
-                    JOIN ODRAdminBundle:FieldType AS ft WITH e.fieldType = ft
-                    JOIN ODROpenRepositoryUserBundle:User AS created_by WITH e.createdBy = created_by
+                    JOIN ODR\AdminBundle\Entity\FieldType AS ft WITH e.fieldType = ft
+                    JOIN ODR\OpenRepository\UserBundle\Entity\User AS created_by WITH e.createdBy = created_by
                     WHERE e.dataRecord = :datarecord_id AND e.dataField = :datafield_id';
 
                 if ( $typeclass === 'DecimalValue' ) {
                     $str =
                        'SELECT e.original_value AS value, ft.typeName AS typename, e.created AS created, created_by.firstName, created_by.lastName, created_by.username
                         FROM ODRAdminBundle:'.$typeclass.' AS e
-                        JOIN ODRAdminBundle:FieldType AS ft WITH e.fieldType = ft
-                        JOIN ODROpenRepositoryUserBundle:User AS created_by WITH e.createdBy = created_by
+                        JOIN ODR\AdminBundle\Entity\FieldType AS ft WITH e.fieldType = ft
+                        JOIN ODR\OpenRepository\UserBundle\Entity\User AS created_by WITH e.createdBy = created_by
                         WHERE e.dataRecord = :datarecord_id AND e.dataField = :datafield_id';
                 }
 
@@ -3667,12 +3667,12 @@ class EditController extends ODRCustomController
 
 
             /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($datarecord_id);
             if ($datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ($datafield == null)
                 throw new ODRNotFoundException('Datafield');
 
@@ -3708,9 +3708,9 @@ class EditController extends ODRCustomController
                     ft.typeClass AS typeclass, ft.typeName AS typeName,
                     e.created AS created, created_by.firstName, created_by.lastName, created_by.username,
                     e.deletedAt AS deletedAt
-                FROM ODRAdminBundle:XYZData AS e
-                JOIN ODRAdminBundle:FieldType AS ft WITH e.fieldType = ft
-                JOIN ODROpenRepositoryUserBundle:User AS created_by WITH e.createdBy = created_by
+                FROM ODR\AdminBundle\Entity\XYZData AS e
+                JOIN ODR\AdminBundle\Entity\FieldType AS ft WITH e.fieldType = ft
+                JOIN ODR\OpenRepository\UserBundle\Entity\User AS created_by WITH e.createdBy = created_by
                 WHERE e.dataRecord = :datarecord_id AND e.dataField = :datafield_id'
             )->setParameters(
                 [

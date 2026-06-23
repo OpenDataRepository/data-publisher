@@ -741,8 +741,8 @@ class PermissionsManagementService
                 // Super admins have permissions for all undeleted datatypes and datafields by default
                 $query = $this->em->createQuery(
                    'SELECT dt.id AS dt_id, df.id AS df_id
-                    FROM ODRAdminBundle:DataType dt
-                    LEFT JOIN ODRAdminBundle:DataFields df WITH df.dataType = dt
+                    FROM ODR\AdminBundle\Entity\DataType dt
+                    LEFT JOIN ODR\AdminBundle\Entity\DataFields df WITH df.dataType = dt
                     WHERE (df.id IS NULL OR df.deletedAt IS NULL)
                     AND dt.deletedAt IS NULL'
                 );
@@ -778,10 +778,10 @@ class PermissionsManagementService
                 //  entries separately from the GroupDatafieldPermission entries
                 $query = $this->em->createQuery(
                    'SELECT dt.id AS dt_id, gdtp AS dt_permissions
-                    FROM ODRAdminBundle:UserGroup ug
-                    JOIN ODRAdminBundle:Group g WITH ug.group = g
-                    LEFT JOIN ODRAdminBundle:GroupDatatypePermissions gdtp WITH gdtp.group = g
-                    LEFT JOIN ODRAdminBundle:DataType dt WITH gdtp.dataType = dt
+                    FROM ODR\AdminBundle\Entity\UserGroup ug
+                    JOIN ODR\AdminBundle\Entity\Group g WITH ug.group = g
+                    LEFT JOIN ODR\AdminBundle\Entity\GroupDatatypePermissions gdtp WITH gdtp.group = g
+                    LEFT JOIN ODR\AdminBundle\Entity\DataType dt WITH gdtp.dataType = dt
                     WHERE ug.user = :user_id
                     AND ug.deletedAt IS NULL AND g.deletedAt IS NULL
                     AND gdtp.deletedAt IS NULL AND dt.deletedAt IS NULL'
@@ -822,10 +822,10 @@ class PermissionsManagementService
                 // Ensure that datarecord_restrictions get stored
                 $query = $this->em->createQuery(
                    'SELECT dt.id AS dt_id, gm.datarecord_restriction
-                    FROM ODRAdminBundle:UserGroup ug
-                    JOIN ODRAdminBundle:Group g WITH ug.group = g
-                    LEFT JOIN ODRAdminBundle:GroupMeta gm WITH gm.group = g
-                    LEFT JOIN ODRAdminBundle:DataType dt WITH g.dataType = dt
+                    FROM ODR\AdminBundle\Entity\UserGroup ug
+                    JOIN ODR\AdminBundle\Entity\Group g WITH ug.group = g
+                    LEFT JOIN ODR\AdminBundle\Entity\GroupMeta gm WITH gm.group = g
+                    LEFT JOIN ODR\AdminBundle\Entity\DataType dt WITH g.dataType = dt
                     WHERE ug.user = :user_id AND gm.datarecord_restriction IS NOT NULL
                     AND ug.deletedAt IS NULL AND g.deletedAt IS NULL AND gm.deletedAt IS NULL
                     AND dt.deletedAt IS NULL'
@@ -848,11 +848,11 @@ class PermissionsManagementService
                 //  entries separately from the GroupDatatypePermission entries
                 $query = $this->em->createQuery(
                    'SELECT dt.id AS dt_id, df.id AS df_id, gdfp AS df_permissions
-                    FROM ODRAdminBundle:UserGroup ug
-                    JOIN ODRAdminBundle:Group g WITH ug.group = g
-                    LEFT JOIN ODRAdminBundle:GroupDatafieldPermissions gdfp WITH gdfp.group = g
-                    LEFT JOIN ODRAdminBundle:DataFields df WITH gdfp.dataField = df
-                    LEFT JOIN ODRAdminBundle:DataType dt WITH df.dataType = dt
+                    FROM ODR\AdminBundle\Entity\UserGroup ug
+                    JOIN ODR\AdminBundle\Entity\Group g WITH ug.group = g
+                    LEFT JOIN ODR\AdminBundle\Entity\GroupDatafieldPermissions gdfp WITH gdfp.group = g
+                    LEFT JOIN ODR\AdminBundle\Entity\DataFields df WITH gdfp.dataField = df
+                    LEFT JOIN ODR\AdminBundle\Entity\DataType dt WITH df.dataType = dt
                     WHERE ug.user = :user_id
                     AND ug.deletedAt IS NULL AND g.deletedAt IS NULL
                     AND gdfp.deletedAt IS NULL AND df.deletedAt IS NULL AND dt.deletedAt IS NULL'
@@ -941,7 +941,7 @@ class PermissionsManagementService
             gdtp, partial dt.{id},
             gdfp, partial df.{id}, partial df_dt.{id}
 
-            FROM ODRAdminBundle:Group AS g
+            FROM ODR\AdminBundle\Entity\Group AS g
             JOIN g.groupMeta AS gm
             JOIN g.dataType AS g_dt
 

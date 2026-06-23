@@ -192,7 +192,7 @@ class ChildRRUFFIDPlugin implements DatafieldPluginInterface
 
         // Will only be one result, at this point
         /** @var DataFields $child_rruff_id_df */
-        $child_rruff_id_df = $this->em->getRepository('ODRAdminBundle:DataFields')->find($df_id);
+        $child_rruff_id_df = $this->em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($df_id);
         // Already guaranteed to not be deleted
 
 
@@ -222,7 +222,7 @@ class ChildRRUFFIDPlugin implements DatafieldPluginInterface
             throw new ODRException('The value for the "Parent RRUFF ID" field is not a datafield id');
 
         /** @var DataFields $parent_rruff_id_df */
-        $parent_rruff_id_df = $this->em->getRepository('ODRAdminBundle:DataFields')->find($options['parent_rruff_id_field']);
+        $parent_rruff_id_df = $this->em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($options['parent_rruff_id_field']);
         if ($parent_rruff_id_df == null)
             throw new ODRException('The "Parent RRUFF ID" field can not be found');
 

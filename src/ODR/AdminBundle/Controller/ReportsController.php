@@ -76,7 +76,7 @@ class ReportsController extends ODRCustomController
 
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ( $datafield == null )
                 throw new ODRNotFoundException('Datafield');
 
@@ -180,8 +180,8 @@ class ReportsController extends ODRCustomController
         $query = $em->createQuery(
            'SELECT dr.id AS dr_id, e.value AS datafield_value
             FROM ODRAdminBundle:'.$datafield->getFieldType()->getTypeClass().' AS e
-            JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
-            JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+            JOIN ODR\AdminBundle\Entity\DataRecordFields AS drf WITH e.dataRecordFields = drf
+            JOIN ODR\AdminBundle\Entity\DataRecord AS dr WITH drf.dataRecord = dr
             WHERE e.dataField = :datafield
             AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
         )->setParameters( ['datafield' => $datafield->getId()] );
@@ -245,10 +245,10 @@ class ReportsController extends ODRCustomController
                 dr.id AS dr_id, parent.id AS parent_id, grandparent.id AS grandparent_id,
                 e.value AS datafield_value
             FROM ODRAdminBundle:'.$datafield->getFieldType()->getTypeClass().' AS e
-            JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
-            JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-            JOIN ODRAdminBundle:DataRecord AS parent WITH dr.parent = parent
-            JOIN ODRAdminBundle:DataRecord AS grandparent WITH dr.grandparent = grandparent
+            JOIN ODR\AdminBundle\Entity\DataRecordFields AS drf WITH e.dataRecordFields = drf
+            JOIN ODR\AdminBundle\Entity\DataRecord AS dr WITH drf.dataRecord = dr
+            JOIN ODR\AdminBundle\Entity\DataRecord AS parent WITH dr.parent = parent
+            JOIN ODR\AdminBundle\Entity\DataRecord AS grandparent WITH dr.grandparent = grandparent
             WHERE e.dataField = :datafield
             AND e.deletedAt IS NULL AND drf.deletedAt IS NULL
             AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
@@ -343,7 +343,7 @@ class ReportsController extends ODRCustomController
 
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ( $datafield == null )
                 throw new ODRNotFoundException('Datafield');
 
@@ -376,10 +376,10 @@ class ReportsController extends ODRCustomController
             if ($typename == 'File') {
                 $query = $em->createQuery(
                    'SELECT dr.id AS dr_id, grandparent.id AS grandparent_id
-                    FROM ODRAdminBundle:File AS e
-                    JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
-                    JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-                    JOIN ODRAdminBundle:DataRecord AS grandparent WITH dr.grandparent = grandparent
+                    FROM ODR\AdminBundle\Entity\File AS e
+                    JOIN ODR\AdminBundle\Entity\DataRecordFields AS drf WITH e.dataRecordFields = drf
+                    JOIN ODR\AdminBundle\Entity\DataRecord AS dr WITH drf.dataRecord = dr
+                    JOIN ODR\AdminBundle\Entity\DataRecord AS grandparent WITH dr.grandparent = grandparent
                     WHERE e.dataField = :datafield
                     AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
                 )->setParameters( ['datafield' => $datafield_id] );
@@ -387,10 +387,10 @@ class ReportsController extends ODRCustomController
             else if ($typename == 'Image') {
                 $query = $em->createQuery(
                    'SELECT dr.id AS dr_id, grandparent.id AS grandparent_id
-                    FROM ODRAdminBundle:Image AS e
-                    JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
-                    JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-                    JOIN ODRAdminBundle:DataRecord AS grandparent WITH dr.grandparent = grandparent
+                    FROM ODR\AdminBundle\Entity\Image AS e
+                    JOIN ODR\AdminBundle\Entity\DataRecordFields AS drf WITH e.dataRecordFields = drf
+                    JOIN ODR\AdminBundle\Entity\DataRecord AS dr WITH drf.dataRecord = dr
+                    JOIN ODR\AdminBundle\Entity\DataRecord AS grandparent WITH dr.grandparent = grandparent
                     WHERE e.dataField = :datafield AND e.original = 1
                     AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
                 )->setParameters( ['datafield' => $datafield_id] );
@@ -487,7 +487,7 @@ class ReportsController extends ODRCustomController
 
 
             /** @var DataTree $datatree */
-            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->find($datatree_id);
+            $datatree = $em->getRepository('ODR\AdminBundle\Entity\DataTree')->find($datatree_id);
             if ($datatree == null)
                 throw new ODRNotFoundException('Datatree');
 
@@ -517,8 +517,8 @@ class ReportsController extends ODRCustomController
                 // Determine whether a datarecord of this datatype has multiple child datarecords
                 $query = $em->createQuery(
                    'SELECT parent.id AS ancestor_id, child.id AS descendant_id
-                    FROM ODRAdminBundle:DataRecord AS parent
-                    JOIN ODRAdminBundle:DataRecord AS child WITH child.parent = parent
+                    FROM ODR\AdminBundle\Entity\DataRecord AS parent
+                    JOIN ODR\AdminBundle\Entity\DataRecord AS child WITH child.parent = parent
                     WHERE parent.dataType = :parent_datatype AND child.dataType = :child_datatype AND parent.id != child.id
                     AND parent.deletedAt IS NULL AND child.deletedAt IS NULL'
                 )->setParameters( ['parent_datatype' => $parent_datatype->getId(), 'child_datatype' => $child_datatype->getId()] );
@@ -528,9 +528,9 @@ class ReportsController extends ODRCustomController
                 // Determine whether a datarecord of this datatype is linked to multiple datarecords
                 $query = $em->createQuery(
                    'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
-                    FROM ODRAdminBundle:DataRecord AS ancestor
-                    JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
-                    JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+                    FROM ODR\AdminBundle\Entity\DataRecord AS ancestor
+                    JOIN ODR\AdminBundle\Entity\LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
+                    JOIN ODR\AdminBundle\Entity\DataRecord AS descendant WITH ldt.descendant = descendant
                     WHERE ancestor.dataType = :ancestor_datatype AND descendant.dataType = :descendant_datatype
                     AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
                 )->setParameters( ['ancestor_datatype' => $parent_datatype->getId(), 'descendant_datatype' => $child_datatype->getId()] );
@@ -615,17 +615,17 @@ class ReportsController extends ODRCustomController
 
 
             /** @var DataType $local_datatype */
-            $local_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($local_datatype_id);
+            $local_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($local_datatype_id);
             if ($local_datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
             /** @var DataType $remote_datatype */
-            $remote_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($remote_datatype_id);
+            $remote_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($remote_datatype_id);
             if ($remote_datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
             /** @var DataTree $datatree */
-            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
+            $datatree = $em->getRepository('ODR\AdminBundle\Entity\DataTree')->findOneBy(
                 [
                     'ancestor' => $local_datatype->getId(),
                     'descendant' => $remote_datatype->getId(),
@@ -657,9 +657,9 @@ class ReportsController extends ODRCustomController
             // Locate any datarecords of the local datatype that link to datarecords of the remote datatype
             $query = $em->createQuery(
                'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
-                FROM ODRAdminBundle:DataRecord AS ancestor
-                JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
-                JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+                FROM ODR\AdminBundle\Entity\DataRecord AS ancestor
+                JOIN ODR\AdminBundle\Entity\LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
+                JOIN ODR\AdminBundle\Entity\DataRecord AS descendant WITH ldt.descendant = descendant
                 WHERE ancestor.dataType = :local_datatype_id AND descendant.dataType = :remote_datatype_id
                 AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
             )->setParameters(
@@ -743,7 +743,7 @@ class ReportsController extends ODRCustomController
 
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ( $datafield == null )
                 throw new ODRNotFoundException('Datafield');
 
@@ -904,7 +904,7 @@ class ReportsController extends ODRCustomController
 
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ($datafield == null)
                 throw new ODRNotFoundException('Datafield');
 
@@ -937,11 +937,11 @@ class ReportsController extends ODRCustomController
             // Find all selected radio options for this datafield
             $query = $em->createQuery(
                'SELECT dr.id AS dr_id, rom.optionName
-                FROM ODRAdminBundle:DataRecord AS dr
-                JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
-                JOIN ODRAdminBundle:RadioSelection AS rs WITH rs.dataRecordFields = drf
-                JOIN ODRAdminBundle:RadioOptions AS ro WITH rs.radioOption = ro
-                JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOption = ro
+                FROM ODR\AdminBundle\Entity\DataRecord AS dr
+                JOIN ODR\AdminBundle\Entity\DataRecordFields AS drf WITH drf.dataRecord = dr
+                JOIN ODR\AdminBundle\Entity\RadioSelection AS rs WITH rs.dataRecordFields = drf
+                JOIN ODR\AdminBundle\Entity\RadioOptions AS ro WITH rs.radioOption = ro
+                JOIN ODR\AdminBundle\Entity\RadioOptionsMeta AS rom WITH rom.radioOption = ro
                 WHERE ro.dataField = :datafield AND rs.selected = 1
                 AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL'
             )->setParameters( ['datafield' => $datafield_id] );
@@ -1026,7 +1026,7 @@ class ReportsController extends ODRCustomController
             /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
-            $repo_datafields = $em->getRepository('ODRAdminBundle:DataFields');
+            $repo_datafields = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
 
             /** @var DataFields $datafield */
             $datafield = $repo_datafields->find($datafield_id);
@@ -1051,7 +1051,7 @@ class ReportsController extends ODRCustomController
             // --------------------
 
             /** @var FieldType[] $fieldtypes */
-            $fieldtypes = $em->getRepository('ODRAdminBundle:FieldType')->findAll();
+            $fieldtypes = $em->getRepository('ODR\AdminBundle\Entity\FieldType')->findAll();
 
             /** @var string[] $fieldtype_list */
             $fieldtype_list = [];
@@ -1138,7 +1138,7 @@ class ReportsController extends ODRCustomController
             /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
-            $repo_datafields = $em->getRepository('ODRAdminBundle:DataFields');
+            $repo_datafields = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
 
             /** @var DataFields $datafield */
             $datafield = $repo_datafields->find($datafield_id);
@@ -1150,7 +1150,7 @@ class ReportsController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             /** @var FieldType $new_fieldtype */
-            $new_fieldtype = $em->getRepository('ODRAdminBundle:FieldType')->find($fieldtype_id);
+            $new_fieldtype = $em->getRepository('ODR\AdminBundle\Entity\FieldType')->find($fieldtype_id);
             if ($new_fieldtype == null)
                 throw new ODRNotFoundException('Fieldtype');
 
@@ -1181,7 +1181,7 @@ class ReportsController extends ODRCustomController
                 // If this is a master datafield, then the derived datafields need to be checked too
                 $query = $em->createQuery(
                    'SELECT df
-                    FROM ODRAdminBundle:DataFields df
+                    FROM ODR\AdminBundle\Entity\DataFields df
                     WHERE df.masterDataField = :df
                     AND df.deletedAt IS NULL'
                 )->setParameters( ['df' => $datafield->getId()] );
@@ -1962,7 +1962,7 @@ class ReportsController extends ODRCustomController
 
 
             /** @var File $file */
-            $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
+            $file = $em->getRepository('ODR\AdminBundle\Entity\File')->find($file_id);
             if ($file == null)
                 throw new ODRNotFoundException('File');
 
@@ -2097,7 +2097,7 @@ class ReportsController extends ODRCustomController
 
 
             /** @var File $file */
-            $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
+            $file = $em->getRepository('ODR\AdminBundle\Entity\File')->find($file_id);
             if ($file == null)
                 throw new ODRNotFoundException('File');
 
@@ -2233,7 +2233,7 @@ class ReportsController extends ODRCustomController
 
 
             /** @var File $file */
-            $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
+            $file = $em->getRepository('ODR\AdminBundle\Entity\File')->find($file_id);
             if ($file == null)
                 throw new ODRNotFoundException('File');
 

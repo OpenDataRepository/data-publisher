@@ -4,22 +4,22 @@ services:
         public: true
         class: '%odr_plugin_base_classpath%\AHED\OrganizationPlugin'
         arguments:
-            $templating: "@templating"
+            $templating: "@twig"
     odr_plugins.ahed.person:
         public: true
         class: '%odr_plugin_base_classpath%\AHED\PersonPlugin'
         arguments:
-            $templating: "@templating"
+            $templating: "@twig"
     odr_plugins.ahed.sample:
         public: true
         class: '%odr_plugin_base_classpath%\AHED\SamplePlugin'
         arguments:
-            $templating: "@templating"
+            $templating: "@twig"
     odr_plugins.ahed.site:
         public: true
         class: '%odr_plugin_base_classpath%\AHED\SitePlugin'
         arguments:
-            $templating: "@templating"
+            $templating: "@twig"
 
     # Datafield plugins
     odr_plugins.ahed.nanograin_url:

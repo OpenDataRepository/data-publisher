@@ -242,7 +242,7 @@ class SearchAPIServiceNoConflict
         $dt_query = $this->em->createQuery(
             'SELECT
             DISTINCT dt.id, dt.unique_id
-            FROM ODRAdminBundle:DataType AS dt
+            FROM ODR\AdminBundle\Entity\DataType AS dt
             LEFT JOIN dt.dataTypeMeta AS dtm
             WHERE 
                 dt.masterDataType = :master_datatype_id
@@ -325,7 +325,7 @@ class SearchAPIServiceNoConflict
         $query_base = 'SELECT
             distinct dr.unique_id, dr.id, par.id as parent_id, gp.id as grandparent_id
 
-            FROM ODRAdminBundle:DataRecord AS dr
+            FROM ODR\AdminBundle\Entity\DataRecord AS dr
             LEFT JOIN dr.dataRecordMeta AS drm
             LEFT JOIN dr.parent AS par
             LEFT JOIN dr.grandparent AS gp
@@ -677,7 +677,7 @@ class SearchAPIServiceNoConflict
         $qs = 'SELECT
             distinct dr.unique_id, dr.id, mdt.id 
 
-            FROM ODRAdminBundle:DataRecord AS dr
+            FROM ODR\AdminBundle\Entity\DataRecord AS dr
             LEFT JOIN dr.dataRecordMeta AS drm
             
             LEFT JOIN dr.dataType AS dt
@@ -730,14 +730,14 @@ class SearchAPIServiceNoConflict
 
         /** @var DataRecord $datarecord */
         $datarecord = $this->em
-            ->getRepository('ODRAdminBundle:DataRecord')
+            ->getRepository('ODR\AdminBundle\Entity\DataRecord')
             ->findOneBy(
                 ['unique_id' => $datarecord_uuid]
             );
 
         if ($datarecord == null) {
             $datarecord = $this->em
-                ->getRepository('ODRAdminBundle:DataRecord')
+                ->getRepository('ODR\AdminBundle\Entity\DataRecord')
                 ->findOneBy(
                     ['id' => $datarecord_uuid]
                 );
@@ -888,9 +888,9 @@ class SearchAPIServiceNoConflict
         // Need to get all datatypes that have the template datafields being searched on...
         $query = $this->em->createQuery(
            'SELECT dt.id AS dt_id
-            FROM ODRAdminBundle:DataFields AS mdf
-            JOIN ODRAdminBundle:DataType AS mdt WITH mdf.dataType = mdt
-            JOIN ODRAdminBundle:DataType AS dt WITH dt.masterDataType = mdt
+            FROM ODR\AdminBundle\Entity\DataFields AS mdf
+            JOIN ODR\AdminBundle\Entity\DataType AS mdt WITH mdf.dataType = mdt
+            JOIN ODR\AdminBundle\Entity\DataType AS dt WITH dt.masterDataType = mdt
             WHERE mdf.fieldUuid IN (:field_uuids)
             AND mdf.deletedAt IS NULL AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL'
         )->setParameters( ['field_uuids' => $affected_datafields] );
@@ -1211,7 +1211,7 @@ class SearchAPIServiceNoConflict
         // This really shouldn't be null, but just in case...
         if ( is_null($datatype) ) {
             $search_params = $this->search_key_service->decodeSearchKey($search_key);
-            $datatype = $this->em->getRepository('ODRAdminBundle:DataType')->find( $search_params['dt_id'] );
+            $datatype = $this->em->getRepository('ODR\AdminBundle\Entity\DataType')->find( $search_params['dt_id'] );
         }
 
 
@@ -1586,8 +1586,8 @@ class SearchAPIServiceNoConflict
 
             $query = $this->em->createQuery(
                'SELECT df
-                FROM ODRAdminBundle:DataFields AS df
-                JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
+                FROM ODR\AdminBundle\Entity\DataFields AS df
+                JOIN ODR\AdminBundle\Entity\DataType AS dt WITH df.dataType = dt
                 WHERE df.id IN (:datafield_ids)
                 AND df.deletedAt IS NULL AND dt.deletedAt IS NULL'
             )->setParameters($params);
@@ -1609,8 +1609,8 @@ class SearchAPIServiceNoConflict
 
             $query = $this->em->createQuery(
                'SELECT df
-                FROM ODRAdminBundle:DataFields AS df
-                JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
+                FROM ODR\AdminBundle\Entity\DataFields AS df
+                JOIN ODR\AdminBundle\Entity\DataType AS dt WITH df.dataType = dt
                 WHERE df.fieldUuid IN (:field_uuids) AND df.is_master_field = 1
                 AND df.deletedAt IS NULL AND dt.deletedAt IS NULL'
             )->setParameters($params);
@@ -1648,7 +1648,7 @@ class SearchAPIServiceNoConflict
 
             $query = $this->em->createQuery(
                'SELECT dt
-                FROM ODRAdminBundle:DataType AS dt
+                FROM ODR\AdminBundle\Entity\DataType AS dt
                 WHERE dt.id IN (:datatype_ids)
                 AND dt.deletedAt IS NULL'
             )->setParameters($params);
@@ -1663,9 +1663,9 @@ class SearchAPIServiceNoConflict
 
             $query = $this->em->createQuery(
                'SELECT dt
-                FROM ODRAdminBundle:DataType AS mdt
-                JOIN ODRAdminBundle:DataType AS dt WITH dt.masterDataType = mdt
-                JOIN ODRAdminBundle:DataType AS gp WITH dt.grandparent = gp
+                FROM ODR\AdminBundle\Entity\DataType AS mdt
+                JOIN ODR\AdminBundle\Entity\DataType AS dt WITH dt.masterDataType = mdt
+                JOIN ODR\AdminBundle\Entity\DataType AS gp WITH dt.grandparent = gp
                 WHERE mdt.unique_id IN (:template_uuids)
                 AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL AND gp.deletedAt IS NULL'
             )->setParameters($params);

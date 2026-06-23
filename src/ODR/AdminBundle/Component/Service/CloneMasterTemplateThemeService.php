@@ -101,7 +101,7 @@ class CloneMasterTemplateThemeService
         /** @var Theme[] $results */
         $query = $this->em->createQuery(
            'SELECT t
-            FROM ODRAdminBundle:Theme AS t
+            FROM ODR\AdminBundle\Entity\Theme AS t
             WHERE t.dataType IN (:datatype_ids) AND t.parentTheme = t
             AND t.deletedAt IS NULL'
         )->setParameters( ['datatype_ids' => $associated_datatypes] );

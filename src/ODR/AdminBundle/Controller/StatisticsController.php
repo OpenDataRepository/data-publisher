@@ -217,7 +217,7 @@ class StatisticsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var File $file */
-            $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
+            $file = $em->getRepository('ODR\AdminBundle\Entity\File')->find($file_id);
             if (!$file) {
                 throw new ODRNotFoundException('File not found');
             }
@@ -295,7 +295,7 @@ class StatisticsController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if (!$datatype) {
                 throw new ODRNotFoundException('Datatype not found');
             }
@@ -362,7 +362,7 @@ class StatisticsController extends ODRCustomController
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
             /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($datarecord_id);
             if (!$datarecord) {
                 throw new ODRNotFoundException('Datarecord not found');
             }
@@ -436,7 +436,7 @@ class StatisticsController extends ODRCustomController
             // If datatype_id specified, check permissions
             if ($datatype_id) {
                 /** @var DataType $datatype */
-                $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+                $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
                 if (!$datatype) {
                     throw new ODRNotFoundException('Datatype not found');
                 }
@@ -505,7 +505,7 @@ class StatisticsController extends ODRCustomController
                 throw new ODRForbiddenException();
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if (!$datatype) {
                 throw new ODRNotFoundException('Datatype not found');
             }
@@ -604,7 +604,7 @@ class StatisticsController extends ODRCustomController
             // Build query for detailed statistics
             $qb = $em->createQueryBuilder();
             $qb->select('s')
-                ->from('ODRAdminBundle:StatisticsDaily', 's')
+                ->from('ODR\AdminBundle\Entity\StatisticsDaily', 's')
                 ->where('s.dayDate >= :start_date')
                 ->andWhere('s.dayDate <= :end_date')
                 ->setParameter('start_date', $start_date)
@@ -880,7 +880,7 @@ class StatisticsController extends ODRCustomController
             // First, get distinct datatype IDs from the statistics tables
             $datatypeIdsWithStats = $em->createQueryBuilder()
                 ->select('DISTINCT IDENTITY(s.dataType) as dt_id')
-                ->from('ODRAdminBundle:StatisticsDaily', 's')
+                ->from('ODR\AdminBundle\Entity\StatisticsDaily', 's')
                 ->where('s.dataType IS NOT NULL')
                 ->andWhere('s.deletedAt IS NULL')
                 ->getQuery()
@@ -894,7 +894,7 @@ class StatisticsController extends ODRCustomController
             if (!empty($datatypeIds)) {
                 $qb = $em->createQueryBuilder();
                 $qb->select('dt')
-                    ->from('ODRAdminBundle:DataType', 'dt')
+                    ->from('ODR\AdminBundle\Entity\DataType', 'dt')
                     ->join('dt.dataTypeMeta', 'dtm')
                     ->join('dt.grandparent', 'gp')
                     ->where('dt.id IN (:ids)')
@@ -984,7 +984,7 @@ class StatisticsController extends ODRCustomController
 
             // Get the system user for created_by/updated_by
             /** @var ODRUser $user */
-            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->findOneBy(['id' => 1]);
+            $user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->findOneBy(['id' => 1]);
             if (!$user) {
                 // Fallback - try to get current user or use ID 1
                 $token = $this->container->get('security.token_storage')->getToken();
@@ -1017,21 +1017,21 @@ class StatisticsController extends ODRCustomController
 
                 // Set relationships
                 if (isset($stat['datatype_id']) && $stat['datatype_id']) {
-                    $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($stat['datatype_id']);
+                    $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($stat['datatype_id']);
                     if ($datatype) {
                         $hourly->setDataType($datatype);
                     }
                 }
 
                 if (isset($stat['datarecord_id']) && $stat['datarecord_id']) {
-                    $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($stat['datarecord_id']);
+                    $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($stat['datarecord_id']);
                     if ($datarecord) {
                         $hourly->setDataRecord($datarecord);
                     }
                 }
 
                 if (isset($stat['file_id']) && $stat['file_id']) {
-                    $file = $em->getRepository('ODRAdminBundle:File')->find($stat['file_id']);
+                    $file = $em->getRepository('ODR\AdminBundle\Entity\File')->find($stat['file_id']);
                     if ($file) {
                         $hourly->setFile($file);
                     }
@@ -1076,7 +1076,7 @@ class StatisticsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             // Get all active bot patterns
-            $bots = $em->getRepository('ODRAdminBundle:StatisticsBotList')
+            $bots = $em->getRepository('ODR\AdminBundle\Entity\StatisticsBotList')
                 ->createQueryBuilder('b')
                 ->where('b.isActive = true')
                 ->andWhere('b.deletedAt IS NULL')
@@ -1133,7 +1133,7 @@ class StatisticsController extends ODRCustomController
 
             // Get the system user
             /** @var ODRUser $user */
-            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->findOneBy(['id' => 1]);
+            $user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->findOneBy(['id' => 1]);
 
             // Query hourly statistics for this date
             $start_of_day = (clone $date)->setTime(0, 0, 0);
@@ -1141,7 +1141,7 @@ class StatisticsController extends ODRCustomController
 
             $hourly_stats = $em->createQueryBuilder()
                 ->select('s')
-                ->from('ODRAdminBundle:StatisticsHourly', 's')
+                ->from('ODR\AdminBundle\Entity\StatisticsHourly', 's')
                 ->where('s.hourTimestamp >= :start')
                 ->andWhere('s.hourTimestamp <= :end')
                 ->andWhere('s.deletedAt IS NULL')
@@ -1190,7 +1190,7 @@ class StatisticsController extends ODRCustomController
                 // Try to find existing daily entry for this combination
                 $qb = $em->createQueryBuilder();
                 $qb->select('d')
-                    ->from('ODRAdminBundle:StatisticsDaily', 'd')
+                    ->from('ODR\AdminBundle\Entity\StatisticsDaily', 'd')
                     ->where('d.dayDate = :date')
                     ->andWhere('d.deletedAt IS NULL')
                     ->setParameter('date', $date);
@@ -1326,7 +1326,7 @@ class StatisticsController extends ODRCustomController
 
             // Soft delete hourly statistics older than cutoff date
             $query = $em->createQueryBuilder()
-                ->update('ODRAdminBundle:StatisticsHourly', 's')
+                ->update('ODR\AdminBundle\Entity\StatisticsHourly', 's')
                 ->set('s.deletedAt', ':now')
                 ->where('s.hourTimestamp < :cutoff')
                 ->andWhere('s.deletedAt IS NULL')
@@ -1378,7 +1378,7 @@ class StatisticsController extends ODRCustomController
 
             // Get the system user
             /** @var ODRUser $user */
-            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->findOneBy(['id' => 1]);
+            $user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->findOneBy(['id' => 1]);
 
             $patterns = $post['patterns'];
             $added = 0;
@@ -1387,7 +1387,7 @@ class StatisticsController extends ODRCustomController
 
             // Get existing patterns
             $existing_patterns = [];
-            $existing_bots = $em->getRepository('ODRAdminBundle:StatisticsBotList')
+            $existing_bots = $em->getRepository('ODR\AdminBundle\Entity\StatisticsBotList')
                 ->createQueryBuilder('b')
                 ->where('b.deletedAt IS NULL')
                 ->getQuery()

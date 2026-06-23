@@ -108,7 +108,7 @@ class SortService
         $exception_code = 0x278dfcc6;
 
         /** @var DataType $datatype */
-        $datatype = $this->em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+        $datatype = $this->em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
         if ($datatype == null)
             throw new ODRNotFoundException('Datatype', false, $exception_code);
 
@@ -154,7 +154,7 @@ class SortService
         $exception_code = 0xc83ac445;
 
         /** @var DataType $datatype */
-        $datatype = $this->em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+        $datatype = $this->em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
         if ($datatype == null)
             throw new ODRNotFoundException('Datatype', false, $exception_code);
 
@@ -204,7 +204,7 @@ class SortService
             // Need a list of all datarecords for this datatype
             $query = $this->em->createQuery(
                'SELECT dr.id AS dr_id
-                FROM ODRAdminBundle:DataRecord AS dr
+                FROM ODR\AdminBundle\Entity\DataRecord AS dr
                 WHERE dr.dataType = :datatype AND dr.provisioned = false
                 AND dr.deletedAt IS NULL
                 ORDER BY dr.id'
@@ -401,7 +401,7 @@ class SortService
             throw new ODRBadRequestException('sortDatarecordsByDatafield() given a non-string $sort_dir', $exception_code);
 
         /** @var DataFields $datafield */
-        $datafield = $this->em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+        $datafield = $this->em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
         if ($datafield == null)
             throw new ODRNotFoundException('Datafield', false, $exception_code);
 
@@ -472,11 +472,11 @@ class SortService
             //  have to use the renderPluginMap table
             $query = $this->em->createQuery(
                'SELECT rp.pluginClassName AS plugin_classname, rpom.value AS rpom_value, rpod.name AS rpod_name
-                FROM ODRAdminBundle:RenderPlugin AS rp
-                JOIN ODRAdminBundle:RenderPluginInstance AS rpi WITH rpi.renderPlugin = rp
-                JOIN ODRAdminBundle:DataFields AS df WITH rpi.dataField = df
-                LEFT JOIN ODRAdminBundle:RenderPluginOptionsMap AS rpom WITH rpom.renderPluginInstance = rpi
-                LEFT JOIN ODRAdminBundle:RenderPluginOptionsDef AS rpod WITH rpom.renderPluginOptionsDef = rpod
+                FROM ODR\AdminBundle\Entity\RenderPlugin AS rp
+                JOIN ODR\AdminBundle\Entity\RenderPluginInstance AS rpi WITH rpi.renderPlugin = rp
+                JOIN ODR\AdminBundle\Entity\DataFields AS df WITH rpi.dataField = df
+                LEFT JOIN ODR\AdminBundle\Entity\RenderPluginOptionsMap AS rpom WITH rpom.renderPluginInstance = rpi
+                LEFT JOIN ODR\AdminBundle\Entity\RenderPluginOptionsDef AS rpod WITH rpom.renderPluginOptionsDef = rpod
                 WHERE rp.overrideSort = :override_sort AND rp.active = 1 AND df.id IN (:datafield_id)
                 AND rp.deletedAt IS NULL AND rpi.deletedAt IS NULL
                 AND rpom.deletedAt IS NULL AND rpod.deletedAt IS NULL
@@ -526,8 +526,8 @@ class SortService
                 //  id is required, but there may not always be a file uploaded
                 $query = $this->em->createQuery(
                    'SELECT em.originalFileName AS file_name, dr.id AS dr_id
-                    FROM ODRAdminBundle:DataRecord AS dr
-                    JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
+                    FROM ODR\AdminBundle\Entity\DataRecord AS dr
+                    JOIN ODR\AdminBundle\Entity\DataRecordFields AS drf WITH drf.dataRecord = dr
                     LEFT JOIN ODRAdminBundle:'.$typeclass.' AS e WITH e.dataRecordFields = drf
                     LEFT JOIN ODRAdminBundle:'.$typeclass.'Meta AS em WITH em.'.strtolower($typeclass).' = e
                     WHERE dr.dataType = :datatype AND drf.dataField = :datafield
@@ -552,11 +552,11 @@ class SortService
             else if ($typeclass == 'Radio') {
                 $query = $this->em->createQuery(
                    'SELECT rom.optionName AS option_name, dr.id AS dr_id
-                    FROM ODRAdminBundle:RadioOptions AS ro
-                    JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOption = ro
-                    JOIN ODRAdminBundle:RadioSelection AS rs WITH rs.radioOption = ro
-                    JOIN ODRAdminBundle:DataRecordFields AS drf WITH rs.dataRecordFields = drf
-                    JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+                    FROM ODR\AdminBundle\Entity\RadioOptions AS ro
+                    JOIN ODR\AdminBundle\Entity\RadioOptionsMeta AS rom WITH rom.radioOption = ro
+                    JOIN ODR\AdminBundle\Entity\RadioSelection AS rs WITH rs.radioOption = ro
+                    JOIN ODR\AdminBundle\Entity\DataRecordFields AS drf WITH rs.dataRecordFields = drf
+                    JOIN ODR\AdminBundle\Entity\DataRecord AS dr WITH drf.dataRecord = dr
                     WHERE dr.dataType = :datatype AND drf.dataField = :datafield AND rs.selected = 1
                     AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL AND rs.deletedAt IS NULL
                     AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
@@ -582,8 +582,8 @@ class SortService
                 if ( !$use_converted_value ) {
                     $query = $this->em->createQuery(
                        'SELECT dr.id AS dr_id, e.value AS sort_value
-                        FROM ODRAdminBundle:DataRecord AS dr
-                        JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
+                        FROM ODR\AdminBundle\Entity\DataRecord AS dr
+                        JOIN ODR\AdminBundle\Entity\DataRecordFields AS drf WITH drf.dataRecord = dr
                         JOIN ODRAdminBundle:'.$typeclass.' AS e WITH e.dataRecordFields = drf
                         WHERE dr.dataType = :datatype AND e.dataField = :datafield
                         AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL'
@@ -598,8 +598,8 @@ class SortService
                 else {
                     $query = $this->em->createQuery(
                        'SELECT dr.id AS dr_id, e.converted_value AS sort_value
-                        FROM ODRAdminBundle:DataRecord AS dr
-                        JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
+                        FROM ODR\AdminBundle\Entity\DataRecord AS dr
+                        JOIN ODR\AdminBundle\Entity\DataRecordFields AS drf WITH drf.dataRecord = dr
                         JOIN ODRAdminBundle:'.$typeclass.' AS e WITH e.dataRecordFields = drf
                         WHERE dr.dataType = :datatype AND e.dataField = :datafield
                         AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL'
@@ -684,7 +684,7 @@ class SortService
             throw new ODRBadRequestException('sortDatarecordsByTemplateDatafield() given a non-string $sort_dir', $exception_code);
 
         /** @var DataFields $template_datafield */
-        $template_datafield = $this->em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
+        $template_datafield = $this->em->getRepository('ODR\AdminBundle\Entity\DataFields')->findOneBy(
             [
                 'fieldUuid' => $datafield_uuid,
                 'is_master_field' => true,
@@ -769,10 +769,10 @@ class SortService
                 //  id is required, but there may not always be a file uploaded
                 $query = $this->em->createQuery(
                    'SELECT em.originalFileName AS file_name, dr.id AS dr_id
-                    FROM ODRAdminBundle:DataType AS dt
-                    JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
-                    JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
-                    JOIN ODRAdminBundle:DataFields AS df WITH drf.dataField = df
+                    FROM ODR\AdminBundle\Entity\DataType AS dt
+                    JOIN ODR\AdminBundle\Entity\DataRecord AS dr WITH dr.dataType = dt
+                    JOIN ODR\AdminBundle\Entity\DataRecordFields AS drf WITH drf.dataRecord = dr
+                    JOIN ODR\AdminBundle\Entity\DataFields AS df WITH drf.dataField = df
                     LEFT JOIN ODRAdminBundle:'.$typeclass.' AS e WITH e.dataRecordFields = drf
                     LEFT JOIN ODRAdminBundle:'.$typeclass.'Meta AS em WITH em.'.strtolower($typeclass).' = e
                     WHERE dt.masterDataType = :template_datatype AND df.masterDataField = :template_datafield
@@ -797,13 +797,13 @@ class SortService
             else if ($typeclass == 'Radio') {
                 $query = $this->em->createQuery(
                    'SELECT rom.optionName AS option_name, dr.id AS dr_id
-                    FROM ODRAdminBundle:RadioOptions AS ro
-                    JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOption = ro
-                    JOIN ODRAdminBundle:RadioSelection AS rs WITH rs.radioOption = ro
-                    JOIN ODRAdminBundle:DataRecordFields AS drf WITH rs.dataRecordFields = drf
-                    JOIN ODRAdminBundle:DataFields AS df WITH drf.dataField = df
-                    JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-                    JOIN ODRAdminBundle:DataType AS dt WITH dr.dataType = dt
+                    FROM ODR\AdminBundle\Entity\RadioOptions AS ro
+                    JOIN ODR\AdminBundle\Entity\RadioOptionsMeta AS rom WITH rom.radioOption = ro
+                    JOIN ODR\AdminBundle\Entity\RadioSelection AS rs WITH rs.radioOption = ro
+                    JOIN ODR\AdminBundle\Entity\DataRecordFields AS drf WITH rs.dataRecordFields = drf
+                    JOIN ODR\AdminBundle\Entity\DataFields AS df WITH drf.dataField = df
+                    JOIN ODR\AdminBundle\Entity\DataRecord AS dr WITH drf.dataRecord = dr
+                    JOIN ODR\AdminBundle\Entity\DataType AS dt WITH dr.dataType = dt
                     WHERE dt.masterDataType = :template_datatype AND df.masterDataField = :template_datafield AND rs.selected = 1
                     AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL AND rs.deletedAt IS NULL
                     AND drf.deletedAt IS NULL AND df.deletedAt IS NULL AND dr.deletedAt IS NULL
@@ -828,10 +828,10 @@ class SortService
                 // All other sortable fieldtypes have a value field that should be used
                 $query = $this->em->createQuery(
                    'SELECT dr.id AS dr_id, e.value AS sort_value
-                    FROM ODRAdminBundle:DataType AS dt
-                    JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
-                    JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = dr
-                    JOIN ODRAdminBundle:DataFields AS df WITH drf.dataField = df
+                    FROM ODR\AdminBundle\Entity\DataType AS dt
+                    JOIN ODR\AdminBundle\Entity\DataRecord AS dr WITH dr.dataType = dt
+                    JOIN ODR\AdminBundle\Entity\DataRecordFields AS drf WITH drf.dataRecord = dr
+                    JOIN ODR\AdminBundle\Entity\DataFields AS df WITH drf.dataField = df
                     JOIN ODRAdminBundle:'.$typeclass.' AS e WITH e.dataRecordFields = drf
                     WHERE dt.masterDataType = :template_datatype AND df.masterDataField = :template_datafield
                     AND e.deletedAt IS NULL AND drf.deletedAt IS NULL
@@ -916,7 +916,7 @@ class SortService
 
         // ----------------------------------------
         /** @var DataFields $linked_datafield */
-        $linked_datafield = $this->em->getRepository('ODRAdminBundle:DataFields')->find($linked_datafield_id);
+        $linked_datafield = $this->em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($linked_datafield_id);
         if ($linked_datafield == null)
             throw new ODRNotFoundException('Datafield', false, $exception_code);
         $typeclass = $linked_datafield->getDataFieldMeta()->getFieldType()->getTypeClass();
@@ -931,7 +931,7 @@ class SortService
 //            throw new ODRBadRequestException('sortDatarecordsByDatafield() called with master datafield', $exception_code);
 
         /** @var DataType $local_datatype */
-        $local_datatype = $this->em->getRepository('ODRAdminBundle:DataType')->find($local_datatype_id);
+        $local_datatype = $this->em->getRepository('ODR\AdminBundle\Entity\DataType')->find($local_datatype_id);
         if ($local_datatype == null)
             throw new ODRNotFoundException('Datatype', false, $exception_code);
 
@@ -1061,13 +1061,13 @@ class SortService
             return false;
 
         // Need to potentially look up radio options if their displayOrder gets changed
-        $repo_radio_options = $this->em->getRepository('ODRAdminBundle:RadioOptions');
+        $repo_radio_options = $this->em->getRepository('ODR\AdminBundle\Entity\RadioOptions');
         // NOTE - individually looking radio options up paradoxically reduces the number of queries made...thanks, doctrine's hydrator
 
         // Need the actual radio option names to sort on
         $query = $this->em->createQuery(
            'SELECT ro.id AS ro_id, rom.optionName, rom.displayOrder
-            FROM ODRAdminBundle:RadioOptions AS ro
+            FROM ODR\AdminBundle\Entity\RadioOptions AS ro
             JOIN ro.radioOptionMeta AS rom
             WHERE ro.dataField = :datafield_id
             AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL'
@@ -1135,16 +1135,16 @@ class SortService
             return false;
 
         // Need to potentially look up tags if their displayOrder gets changed
-        $repo_tags = $this->em->getRepository('ODRAdminBundle:Tags');
+        $repo_tags = $this->em->getRepository('ODR\AdminBundle\Entity\Tags');
         // NOTE - individually looking tags up paradoxically reduces the number of queries made...thanks, doctrine's hydrator
 
         // Need the actual tag names to sort on
         $query = $this->em->createQuery(
            'SELECT t.id AS tag_id, tm.tagName, tm.displayOrder, p_t.id AS parent_tag_id
-            FROM ODRAdminBundle:Tags AS t
-            JOIN ODRAdminBundle:TagMeta AS tm WITH tm.tag = t
-            LEFT JOIN ODRAdminBundle:TagTree AS tt WITH tt.child = t
-            LEFT JOIN ODRAdminBundle:Tags AS p_t WITH tt.parent = p_t
+            FROM ODR\AdminBundle\Entity\Tags AS t
+            JOIN ODR\AdminBundle\Entity\TagMeta AS tm WITH tm.tag = t
+            LEFT JOIN ODR\AdminBundle\Entity\TagTree AS tt WITH tt.child = t
+            LEFT JOIN ODR\AdminBundle\Entity\Tags AS p_t WITH tt.parent = p_t
             WHERE t.dataField = :datafield_id
             AND t.deletedAt IS NULL AND tm.deletedAt IS NULL
             AND tt.deletedAt IS NULL AND p_t.deletedAt IS NULL'

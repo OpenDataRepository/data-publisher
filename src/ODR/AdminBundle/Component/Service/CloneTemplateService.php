@@ -1083,9 +1083,9 @@ class CloneTemplateService
         // Locate all users and groups that have been modified by this
         $query = $this->em->createQuery(
            'SELECT u.id AS user_id
-            FROM ODRAdminBundle:Group AS g
-            LEFT JOIN ODRAdminBundle:UserGroup AS ug WITH ug.group = g
-            LEFT JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
+            FROM ODR\AdminBundle\Entity\Group AS g
+            LEFT JOIN ODR\AdminBundle\Entity\UserGroup AS ug WITH ug.group = g
+            LEFT JOIN ODR\OpenRepository\UserBundle\Entity\User AS u WITH ug.user = u
             WHERE g.dataType IN (:datatype_ids)
             AND g.deletedAt IS NULL AND ug.deletedAt IS NULL'
         )->setParameters(
@@ -1107,7 +1107,7 @@ class CloneTemplateService
         //  cleared too
         $query = $this->em->createQuery(
            'SELECT u.id AS user_id
-            FROM ODROpenRepositoryUserBundle:User AS u
+            FROM ODR\OpenRepository\UserBundle\Entity\User AS u
             WHERE u.roles LIKE :role'
         )->setParameters( ['role' => '%ROLE_SUPER_ADMIN%'] );
         $results = $query->getArrayResult();
@@ -1270,7 +1270,7 @@ class CloneTemplateService
 
         $query_str =
            'SELECT dt
-            FROM ODRAdminBundle:DataType AS dt
+            FROM ODR\AdminBundle\Entity\DataType AS dt
             WHERE dt.grandparent IN (:grandparent_ids) AND dt.id IN (:datatype_ids)
             AND dt.deletedAt IS NULL';
 
@@ -1278,7 +1278,7 @@ class CloneTemplateService
             // Ignore the ones that don't have a masterDatatype, they'll never be updated with this
             $query_str =
                'SELECT dt
-                FROM ODRAdminBundle:DataType AS dt
+                FROM ODR\AdminBundle\Entity\DataType AS dt
                 WHERE dt.grandparent IN (:grandparent_ids) AND dt.masterDataType IN (:datatype_ids)
                 AND dt.deletedAt IS NULL';
         }
@@ -1319,16 +1319,16 @@ class CloneTemplateService
 
         $query_str =
            'SELECT df
-            FROM ODRAdminBundle:DataType AS dt
-            JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
+            FROM ODR\AdminBundle\Entity\DataType AS dt
+            JOIN ODR\AdminBundle\Entity\DataFields AS df WITH df.dataType = dt
             WHERE dt.grandparent IN (:grandparent_ids) AND df.id IN (:datafield_ids)
             AND dt.deletedAt IS NULL AND df.deletedAt IS NULL';
 
         if ($type == 'derived') {
             $query_str =
                'SELECT df
-                FROM ODRAdminBundle:DataType AS dt
-                JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
+                FROM ODR\AdminBundle\Entity\DataType AS dt
+                JOIN ODR\AdminBundle\Entity\DataFields AS df WITH df.dataType = dt
                 WHERE dt.grandparent IN (:grandparent_ids) AND df.masterDataField IN (:datafield_ids)
                 AND dt.deletedAt IS NULL AND df.deletedAt IS NULL';
         }
@@ -1369,18 +1369,18 @@ class CloneTemplateService
 
         $query_str =
            'SELECT ro
-            FROM ODRAdminBundle:DataType AS dt
-            JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
-            JOIN ODRAdminBundle:RadioOptions AS ro WITH ro.dataField = df
+            FROM ODR\AdminBundle\Entity\DataType AS dt
+            JOIN ODR\AdminBundle\Entity\DataFields AS df WITH df.dataType = dt
+            JOIN ODR\AdminBundle\Entity\RadioOptions AS ro WITH ro.dataField = df
             WHERE dt.grandparent IN (:grandparent_ids) AND ro.radioOptionUuid IN (:ro_uuids)
             AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND ro.deletedAt IS NULL';
 
         if ($type == 'derived') {
             $query_str =
                'SELECT ro
-                FROM ODRAdminBundle:DataType AS dt
-                JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
-                JOIN ODRAdminBundle:RadioOptions AS ro WITH ro.dataField = df
+                FROM ODR\AdminBundle\Entity\DataType AS dt
+                JOIN ODR\AdminBundle\Entity\DataFields AS df WITH df.dataType = dt
+                JOIN ODR\AdminBundle\Entity\RadioOptions AS ro WITH ro.dataField = df
                 WHERE dt.grandparent IN (:grandparent_ids) AND ro.radioOptionUuid IN (:ro_uuids)
                 AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND ro.deletedAt IS NULL';
         }
@@ -1421,18 +1421,18 @@ class CloneTemplateService
 
         $query_str =
            'SELECT t
-            FROM ODRAdminBundle:DataType AS dt
-            JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
-            JOIN ODRAdminBundle:Tags AS t WITH t.dataField = df
+            FROM ODR\AdminBundle\Entity\DataType AS dt
+            JOIN ODR\AdminBundle\Entity\DataFields AS df WITH df.dataType = dt
+            JOIN ODR\AdminBundle\Entity\Tags AS t WITH t.dataField = df
             WHERE dt.grandparent IN (:grandparent_ids) AND t.tagUuid IN (:tag_uuids)
             AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND t.deletedAt IS NULL';
 
         if ($type == 'derived') {
             $query_str =
                'SELECT t
-                FROM ODRAdminBundle:DataType AS dt
-                JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
-                JOIN ODRAdminBundle:Tags AS t WITH t.dataField = df
+                FROM ODR\AdminBundle\Entity\DataType AS dt
+                JOIN ODR\AdminBundle\Entity\DataFields AS df WITH df.dataType = dt
+                JOIN ODR\AdminBundle\Entity\Tags AS t WITH t.dataField = df
                 WHERE dt.grandparent IN (:grandparent_ids) AND t.tagUuid IN (:tag_uuids)
                 AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND t.deletedAt IS NULL';
         }
@@ -1489,11 +1489,11 @@ class CloneTemplateService
 
             $query = $this->em->createQuery(
                'SELECT tt
-                FROM ODRAdminBundle:DataType AS dt
-                JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
-                JOIN ODRAdminBundle:Tags AS parent WITH parent.dataField = df
-                JOIN ODRAdminBundle:TagTree AS tt WITH tt.parent = parent
-                JOIN ODRAdminBundle:Tags AS child WITH tt.child = child
+                FROM ODR\AdminBundle\Entity\DataType AS dt
+                JOIN ODR\AdminBundle\Entity\DataFields AS df WITH df.dataType = dt
+                JOIN ODR\AdminBundle\Entity\Tags AS parent WITH parent.dataField = df
+                JOIN ODR\AdminBundle\Entity\TagTree AS tt WITH tt.parent = parent
+                JOIN ODR\AdminBundle\Entity\Tags AS child WITH tt.child = child
                 WHERE dt.grandparent IN (:grandparent_ids) AND
                 '.$pieces.'
                 AND parent.deletedAt IS NULL AND tt.deletedAt IS NULL AND child.deletedAt IS NULL'
@@ -1727,7 +1727,7 @@ class CloneTemplateService
 
                         // Delete all radio selections for this radio option
                         $query = $this->em->createQuery(
-                           'UPDATE ODRAdminBundle:RadioSelection AS rs
+                           'UPDATE ODR\AdminBundle\Entity\RadioSelection AS rs
                             SET rs.deletedAt = :now
                             WHERE rs.radioOption = :radio_option_id AND rs.deletedAt IS NULL'
                         )->setParameters(
@@ -1809,7 +1809,7 @@ class CloneTemplateService
 
                         // Delete all tag selections for this tag
                         $query = $this->em->createQuery(
-                           'UPDATE ODRAdminBundle:TagSelection AS ts
+                           'UPDATE ODR\AdminBundle\Entity\TagSelection AS ts
                             SET ts.deletedAt = :now
                             WHERE ts.tag = :tag_id AND ts.deletedAt IS NULL'
                         )->setParameters(
@@ -2026,10 +2026,10 @@ class CloneTemplateService
                         //  to be located and a couple properties copied from its meta entry...
                         $query = $this->em->createQuery(
                            'SELECT tem
-                            FROM ODRAdminBundle:Theme t
-                            JOIN ODRAdminBundle:ThemeElement te WITH te.theme = t
-                            JOIN ODRAdminBundle:ThemeElementMeta tem WITH tem.themeElement = te
-                            JOIN ODRAdminBundle:ThemeDataType tdt WITH tdt.themeElement = te
+                            FROM ODR\AdminBundle\Entity\Theme t
+                            JOIN ODR\AdminBundle\Entity\ThemeElement te WITH te.theme = t
+                            JOIN ODR\AdminBundle\Entity\ThemeElementMeta tem WITH tem.themeElement = te
+                            JOIN ODR\AdminBundle\Entity\ThemeDataType tdt WITH tdt.themeElement = te
                             WHERE t = :template_theme AND tdt.dataType = :template_datatype
                             AND t.deletedAt IS NULL AND te.deletedAt IS NULL
                             AND tem.deletedAt IS NULL AND tdt.deletedAt IS NULL'
@@ -2088,9 +2088,9 @@ class CloneTemplateService
                     //  should not be run.
                     $query = $this->em->createQuery(
                        'SELECT tdt
-                        FROM ODRAdminBundle:Theme AS t
-                        JOIN ODRAdminBundle:ThemeElement AS te WITH te.theme = t
-                        JOIN ODRAdminBundle:ThemeDataType AS tdt WITH tdt.themeElement = te
+                        FROM ODR\AdminBundle\Entity\Theme AS t
+                        JOIN ODR\AdminBundle\Entity\ThemeElement AS te WITH te.theme = t
+                        JOIN ODR\AdminBundle\Entity\ThemeDataType AS tdt WITH tdt.themeElement = te
                         WHERE t.id = :master_theme_id AND tdt.dataType = :linked_datatype_id
                         AND t.deletedAt IS NULL AND te.deletedAt IS NULL AND tdt.deletedAt IS NULL'
                     )->setParameters(

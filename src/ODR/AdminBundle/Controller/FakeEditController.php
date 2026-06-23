@@ -90,7 +90,7 @@ class FakeEditController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ( $datatype == null )
                 throw new ODRNotFoundException('Datatype');
 
@@ -245,7 +245,7 @@ class FakeEditController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
             $grandparent_datatype_id = $datatype->getGrandparent()->getId();
@@ -255,7 +255,7 @@ class FakeEditController extends ODRCustomController
 
             if ( !is_null($linked_ancestor_datarecord_id) ) {
                 /** @var DataRecord|null $linked_ancestor_datarecord */
-                $linked_ancestor_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($linked_ancestor_datarecord_id);
+                $linked_ancestor_datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($linked_ancestor_datarecord_id);
                 if ($linked_ancestor_datarecord == null)
                     throw new ODRNotFoundException('Linked Ancestor Datarecord');
 
@@ -428,8 +428,8 @@ class FakeEditController extends ODRCustomController
             // ----------------------------------------
             // Load datafield entities to prepare for entity creation, and to perform final
             //  permission checks
-            $repo_datafields = $em->getRepository('ODRAdminBundle:DataFields');
-            $repo_radio_options = $em->getRepository('ODRAdminBundle:RadioOptions');
+            $repo_datafields = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
+            $repo_radio_options = $em->getRepository('ODR\AdminBundle\Entity\RadioOptions');
 
             $df_mapping = [];
             foreach ($datafields as $df_id => $val) {
@@ -792,7 +792,7 @@ class FakeEditController extends ODRCustomController
 
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ($datafield == null)
                 throw new ODRNotFoundException('Datafield');
 
@@ -803,7 +803,7 @@ class FakeEditController extends ODRCustomController
             $datarecord = null;
             if ( $datarecord_id !== '' ) {
                 /** @var DataRecord $datarecord */
-                $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+                $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($datarecord_id);
                 if ($datarecord == null)
                     throw new ODRNotFoundException('Datarecord');
                 if ( $datarecord->getDataType()->getId() !== $datatype->getId() )
@@ -952,7 +952,7 @@ class FakeEditController extends ODRCustomController
 
 
             /** @var ThemeElement $theme_element */
-            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            $theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement')->find($theme_element_id);
             if ($theme_element == null)
                 throw new ODRNotFoundException('ThemeElement');
 
@@ -966,7 +966,7 @@ class FakeEditController extends ODRCustomController
 
 
             /** @var DataRecord $parent_datarecord */
-            $parent_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($parent_datarecord_id);
+            $parent_datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($parent_datarecord_id);
             if ($parent_datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
 
@@ -975,7 +975,7 @@ class FakeEditController extends ODRCustomController
 
 
             /** @var DataRecord $top_level_datarecord */
-            $top_level_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($top_level_datarecord_id);
+            $top_level_datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($top_level_datarecord_id);
             if ($top_level_datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
 

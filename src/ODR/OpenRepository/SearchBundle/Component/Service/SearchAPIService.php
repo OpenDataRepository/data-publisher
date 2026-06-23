@@ -211,11 +211,11 @@ class SearchAPIService
         //  a different method of loading the relevant data must be used
         $query = $this->em->createQuery(
            'SELECT dt.id AS dt_id, dtm.publicDate AS dt_public_date, df.id AS df_id, dfm.publicDate AS df_public_date
-            FROM ODRAdminBundle:DataFields mdf
-            JOIN ODRAdminBundle:DataFields df WITH df.masterDataField = mdf
-            LEFT JOIN ODRAdminBundle:DataFieldsMeta dfm WITH dfm.dataField = df
-            JOIN ODRAdminBundle:DataType dt WITH df.dataType = dt
-            LEFT JOIN ODRAdminBundle:DataTypeMeta dtm WITH dtm.dataType = dt
+            FROM ODR\AdminBundle\Entity\DataFields mdf
+            JOIN ODR\AdminBundle\Entity\DataFields df WITH df.masterDataField = mdf
+            LEFT JOIN ODR\AdminBundle\Entity\DataFieldsMeta dfm WITH dfm.dataField = df
+            JOIN ODR\AdminBundle\Entity\DataType dt WITH df.dataType = dt
+            LEFT JOIN ODR\AdminBundle\Entity\DataTypeMeta dtm WITH dtm.dataType = dt
             WHERE mdf.fieldUuid IN (:field_uuids)
             AND mdf.deletedAt IS NULL AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL
             AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
@@ -488,7 +488,7 @@ class SearchAPIService
             $search_params = $this->search_key_service->decodeSearchKey($search_key);
             if ( !isset($search_params['dt_id']) )
                 throw new ODRBadRequestException('SearchAPIService::performSearch() completely unable to find datatype');
-            $datatype = $this->em->getRepository('ODRAdminBundle:DataType')->find( $search_params['dt_id'] );
+            $datatype = $this->em->getRepository('ODR\AdminBundle\Entity\DataType')->find( $search_params['dt_id'] );
         }
 
         // Originally...ODR took the search keys it received, checked whether it contained anything
@@ -1035,8 +1035,8 @@ class SearchAPIService
         if ($return_as_list) {
             $str =
                'SELECT dr.id AS dr_id, dr.unique_id AS dr_uuid
-                FROM ODRAdminBundle:DataRecord AS dr
-                LEFT JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
+                FROM ODR\AdminBundle\Entity\DataRecord AS dr
+                LEFT JOIN ODR\AdminBundle\Entity\DataRecordMeta AS drm WITH drm.dataRecord = dr
                 WHERE dr.id IN (:datatype_ids)
                 AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL';
             $params = ['datatype_ids' => $sorted_datarecord_list];
@@ -1235,8 +1235,8 @@ class SearchAPIService
 
             $query = $this->em->createQuery(
                'SELECT df
-                FROM ODRAdminBundle:DataFields AS df
-                JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
+                FROM ODR\AdminBundle\Entity\DataFields AS df
+                JOIN ODR\AdminBundle\Entity\DataType AS dt WITH df.dataType = dt
                 WHERE df.id IN (:datafield_ids)
                 AND df.deletedAt IS NULL AND dt.deletedAt IS NULL'
             )->setParameters($params);
@@ -1258,8 +1258,8 @@ class SearchAPIService
 
             $query = $this->em->createQuery(
                'SELECT df
-                FROM ODRAdminBundle:DataFields AS df
-                JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
+                FROM ODR\AdminBundle\Entity\DataFields AS df
+                JOIN ODR\AdminBundle\Entity\DataType AS dt WITH df.dataType = dt
                 WHERE df.fieldUuid IN (:field_uuids) AND df.is_master_field = 1
                 AND df.deletedAt IS NULL AND dt.deletedAt IS NULL'
             )->setParameters($params);
@@ -1298,11 +1298,11 @@ class SearchAPIService
             //  on belong to a plugin that (possibly) wants to override searching...
             $query = $this->em->createQuery(
                'SELECT df.id AS df_id, rp.id AS rp_id, rpi.id AS rpi_id, rp.pluginClassName AS plugin_classname, rpf.fieldName
-                FROM ODRAdminBundle:RenderPlugin AS rp
-                JOIN ODRAdminBundle:RenderPluginInstance AS rpi WITH rpi.renderPlugin = rp
-                JOIN ODRAdminBundle:RenderPluginMap AS rpm WITH rpm.renderPluginInstance = rpi
-                JOIN ODRAdminBundle:RenderPluginFields AS rpf WITH rpm.renderPluginFields = rpf
-                JOIN ODRAdminBundle:DataFields AS df WITH rpm.dataField = df
+                FROM ODR\AdminBundle\Entity\RenderPlugin AS rp
+                JOIN ODR\AdminBundle\Entity\RenderPluginInstance AS rpi WITH rpi.renderPlugin = rp
+                JOIN ODR\AdminBundle\Entity\RenderPluginMap AS rpm WITH rpm.renderPluginInstance = rpi
+                JOIN ODR\AdminBundle\Entity\RenderPluginFields AS rpf WITH rpm.renderPluginFields = rpf
+                JOIN ODR\AdminBundle\Entity\DataFields AS df WITH rpm.dataField = df
                 WHERE rp.overrideSearch = :override_search AND rp.active = 1 AND df.id IN (:datafield_ids)
                 AND rp.deletedAt IS NULL AND rpi.deletedAt IS NULL AND rpm.deletedAt IS NULL
                 AND rpf.deletedAt IS NULL AND df.deletedAt IS NULL'
@@ -1379,9 +1379,9 @@ class SearchAPIService
             if ( !empty($render_plugin_instance_ids) ) {
                 $query = $this->em->createQuery(
                    'SELECT rpi.id AS rpi_id, rpom.value AS rpom_value, rpod.name AS rpod_name
-                    FROM ODRAdminBundle:RenderPluginInstance rpi
-                    LEFT JOIN ODRAdminBundle:RenderPluginOptionsMap AS rpom WITH rpom.renderPluginInstance = rpi
-                    LEFT JOIN ODRAdminBundle:RenderPluginOptionsDef AS rpod WITH rpom.renderPluginOptionsDef = rpod
+                    FROM ODR\AdminBundle\Entity\RenderPluginInstance rpi
+                    LEFT JOIN ODR\AdminBundle\Entity\RenderPluginOptionsMap AS rpom WITH rpom.renderPluginInstance = rpi
+                    LEFT JOIN ODR\AdminBundle\Entity\RenderPluginOptionsDef AS rpod WITH rpom.renderPluginOptionsDef = rpod
                     WHERE rpi.id IN (:render_plugin_instance_ids)
                     AND rpi.deletedAt IS NULL AND rpom.deletedAt IS NULL AND rpod.deletedAt IS NULL'
                 )->setParameters( ['render_plugin_instance_ids' => $render_plugin_instance_ids] );
@@ -1402,10 +1402,10 @@ class SearchAPIService
                 // When overriding datatype plugins, it's useful to have the renderPluginField list...
                 $query = $this->em->createQuery(
                    'SELECT rpi.id AS rpi_id, rpm_df.id AS df_id, rpf.fieldName AS rpf_name
-                    FROM ODRAdminBundle:RenderPluginInstance AS rpi
-                    LEFT JOIN ODRAdminBundle:RenderPluginMap AS rpm WITH rpm.renderPluginInstance = rpi
-                    LEFT JOIN ODRAdminBundle:RenderPluginFields AS rpf WITH rpm.renderPluginFields = rpf
-                    LEFT JOIN ODRAdminBundle:DataFields AS rpm_df WITH rpm.dataField = rpm_df
+                    FROM ODR\AdminBundle\Entity\RenderPluginInstance AS rpi
+                    LEFT JOIN ODR\AdminBundle\Entity\RenderPluginMap AS rpm WITH rpm.renderPluginInstance = rpi
+                    LEFT JOIN ODR\AdminBundle\Entity\RenderPluginFields AS rpf WITH rpm.renderPluginFields = rpf
+                    LEFT JOIN ODR\AdminBundle\Entity\DataFields AS rpm_df WITH rpm.dataField = rpm_df
                     WHERE rpi.id IN (:render_plugin_instance_ids)
                     AND rpi.deletedAt IS NULL AND rpm.deletedAt IS NULL
                     AND rpf.deletedAt IS NULL AND rpm_df.deletedAt IS NULL'
@@ -1481,7 +1481,7 @@ class SearchAPIService
 
             $query = $this->em->createQuery(
                'SELECT dt
-                FROM ODRAdminBundle:DataType AS dt
+                FROM ODR\AdminBundle\Entity\DataType AS dt
                 WHERE dt.id IN (:datatype_ids)
                 AND dt.deletedAt IS NULL'
             )->setParameters($params);
@@ -1496,9 +1496,9 @@ class SearchAPIService
 
             $query = $this->em->createQuery(
                'SELECT dt
-                FROM ODRAdminBundle:DataType AS mdt
-                JOIN ODRAdminBundle:DataType AS dt WITH dt.masterDataType = mdt
-                JOIN ODRAdminBundle:DataType AS gp WITH dt.grandparent = gp
+                FROM ODR\AdminBundle\Entity\DataType AS mdt
+                JOIN ODR\AdminBundle\Entity\DataType AS dt WITH dt.masterDataType = mdt
+                JOIN ODR\AdminBundle\Entity\DataType AS gp WITH dt.grandparent = gp
                 WHERE mdt.unique_id IN (:template_uuids)
                 AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL AND gp.deletedAt IS NULL'
             )->setParameters($params);
@@ -1553,7 +1553,7 @@ class SearchAPIService
         unset( $criteria['affected_datatypes'] );
 
         /** @var DataType $template_datatype */
-        $template_datatype = $this->em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+        $template_datatype = $this->em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
             ['unique_id' => $template_uuid]
         );
         if ( $template_datatype == null )
@@ -1592,7 +1592,7 @@ class SearchAPIService
         // ...because each of these template datafields needs to be hydrated for the search to work
         $query = $this->em->createQuery(
            'SELECT df
-            FROM ODRAdminBundle:DataFields AS df
+            FROM ODR\AdminBundle\Entity\DataFields AS df
             WHERE df.fieldUuid IN (:field_uuids)
             AND df.deletedAt IS NULL'
         )->setParameters( ['field_uuids' => $affected_datafields] );
@@ -1619,8 +1619,8 @@ class SearchAPIService
         //  guaranteed to be on a top-level datatype
         $query = $this->em->createQuery(
            'SELECT dt.id AS dt_id
-            FROM ODRAdminBundle:DataType AS mdt
-            JOIN ODRAdminBundle:DataType AS dt WITH dt.masterDataType = mdt
+            FROM ODR\AdminBundle\Entity\DataType AS mdt
+            JOIN ODR\AdminBundle\Entity\DataType AS dt WITH dt.masterDataType = mdt
             WHERE mdt.unique_id = :template_uuid AND dt = dt.grandparent
             AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL'
         )->setParameters( ['template_uuid' => $template_uuid] );
@@ -2405,7 +2405,7 @@ class SearchAPIService
         //  descendants they're actually derived from...
         $query = $this->em->createQuery(
            'SELECT dt.id
-            FROM ODRAdminBundle:DataType dt
+            FROM ODR\AdminBundle\Entity\DataType dt
             WHERE dt.unique_id = :template_uuid
             AND dt.deletedAt IS NULL'
         )->setParameters( ['template_uuid' => $template_uuid] );

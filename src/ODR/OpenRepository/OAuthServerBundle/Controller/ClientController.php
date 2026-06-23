@@ -58,7 +58,7 @@ class ClientController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
                 throw new ODRForbiddenException();
 
             /** @var Client[] $owned_clients */
-            $owned_clients = $em->getRepository('ODROpenRepositoryOAuthServerBundle:Client')->findBy( ['owner' => $user->getId()] );
+            $owned_clients = $em->getRepository('ODR\OpenRepository\OAuthServerBundle\Entity\Client')->findBy( ['owner' => $user->getId()] );
 
             // Don't allow if the user already has a client
             if (count($owned_clients) != 0)
@@ -124,7 +124,7 @@ class ClientController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
                 throw new ODRForbiddenException();
 
             /** @var Client[] $owned_clients */
-            $owned_clients = $em->getRepository('ODROpenRepositoryOAuthServerBundle:Client')->findBy( ['owner' => $user->getId()] );
+            $owned_clients = $em->getRepository('ODR\OpenRepository\OAuthServerBundle\Entity\Client')->findBy( ['owner' => $user->getId()] );
 
             // Don't allow if the user already has a client
             if (count($owned_clients) == 0)
@@ -137,13 +137,13 @@ class ClientController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             // ----------------------------------------
             // Due to foreign key constraints, going to need to ensure entries referencing this client are deleted prior to deleting the client itself
             $query = $em->createQuery(
-                'DELETE FROM ODROpenRepositoryOAuthServerBundle:RefreshToken AS e
+                'DELETE FROM ODR\OpenRepository\OAuthServerBundle\Entity\RefreshToken AS e
                 WHERE e.client = :client_id'
             )->setParameters( ['client_id' => $client_id] );
             $rows = $query->execute();
 
             $query = $em->createQuery(
-                'DELETE FROM ODROpenRepositoryOAuthServerBundle:AccessToken AS e
+                'DELETE FROM ODR\OpenRepository\OAuthServerBundle\Entity\AccessToken AS e
                 WHERE e.client = :client_id'
             )->setParameters( ['client_id' => $client_id] );
             $rows = $query->execute();

@@ -78,7 +78,7 @@ class SearchSidebarController extends ODRCustomController
             $permissions_service = $this->container->get('odr.permissions_management_service');
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ($datafield == null)
                 throw new ODRNotFoundException('Datafield');
 
@@ -174,7 +174,7 @@ class SearchSidebarController extends ODRCustomController
             $dt_id = intval( $search_params['dt_id'] );
 
             /** @var DataType $target_datatype */
-            $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($dt_id);
+            $target_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($dt_id);
             if ( $target_datatype->getDeletedAt() !== null )
                 throw new ODRNotFoundException('Datatype');
 
@@ -213,7 +213,7 @@ class SearchSidebarController extends ODRCustomController
                 $sidebar_layout_id = $search_sidebar_service->getPreferredSidebarLayoutId($user, $target_datatype->getId(), $intent);
                 if ( !is_null($sidebar_layout_id) && $inverse_target_datatype_id > -1 ) {
                     /** @var SidebarLayout $sidebar_layout */
-                    $sidebar_layout = $em->getRepository('ODRAdminBundle:SidebarLayout')->find($sidebar_layout_id);
+                    $sidebar_layout = $em->getRepository('ODR\AdminBundle\Entity\SidebarLayout')->find($sidebar_layout_id);
                     if ( is_null($sidebar_layout->getInverseDatatype()) || $sidebar_layout->getInverseDatatype()->getId() !== $inverse_target_datatype_id ) {
                         $sidebar_layout_id = null;
                         $search_sidebar_service->setSessionSidebarLayoutId($target_datatype->getId(), $intent, 0);
@@ -229,7 +229,7 @@ class SearchSidebarController extends ODRCustomController
 
             // ...and the preferred theme data
             $preferred_theme_id = $theme_info_service->getPreferredThemeId($user, $target_datatype->getId(), 'search_results');
-            $preferred_theme = $em->getRepository('ODRAdminBundle:Theme')->find($preferred_theme_id);
+            $preferred_theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($preferred_theme_id);
 
             $templating = $this->get('templating');
             $return['d'] = [
@@ -378,7 +378,7 @@ class SearchSidebarController extends ODRCustomController
             $inverse_datatype_id = intval($inverse_datatype_id);
 
             /** @var DataType $target_datatype */
-            $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $target_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ( $target_datatype->getDeletedAt() !== null )
                 throw new ODRNotFoundException('Datatype');
 
@@ -421,7 +421,7 @@ class SearchSidebarController extends ODRCustomController
             $inverse_dt_names = $search_sidebar_service->getSidebarInverseDatatypeNames($user, $target_datatype->getId());
 
             $preferred_theme_id = $theme_info_service->getPreferredThemeId($user, $target_datatype->getId(), 'linking');
-            $preferred_theme = $em->getRepository('ODRAdminBundle:Theme')->find($preferred_theme_id);
+            $preferred_theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($preferred_theme_id);
 
             $templating = $this->get('templating');
             $return['d'] = [
@@ -501,7 +501,7 @@ class SearchSidebarController extends ODRCustomController
             $inverse_datatype_id = intval($inverse_datatype_id);
 
             /** @var DataType $target_datatype */
-            $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $target_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ( $target_datatype->getDeletedAt() !== null )
                 throw new ODRNotFoundException('Datatype');
 
@@ -546,7 +546,7 @@ class SearchSidebarController extends ODRCustomController
             // Don't need to give a preferred theme id to the sidebar because of where it's going
             //  to be used
 //            $preferred_theme_id = $theme_info_service->getPreferredThemeId($user, $target_datatype->getId(), 'search_results');
-//            $preferred_theme = $em->getRepository('ODRAdminBundle:Theme')->find($preferred_theme_id);
+//            $preferred_theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($preferred_theme_id);
 
             $templating = $this->get('templating');
             $return['d'] = [
@@ -626,7 +626,7 @@ class SearchSidebarController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ( is_null($datatype) )
                 throw new ODRNotFoundException('Datatype');
 
@@ -777,7 +777,7 @@ class SearchSidebarController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -848,12 +848,12 @@ class SearchSidebarController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
             /** @var SidebarLayout $sidebar_layout */
-            $sidebar_layout = $em->getRepository('ODRAdminBundle:SidebarLayout')->find($sidebar_layout_id);
+            $sidebar_layout = $em->getRepository('ODR\AdminBundle\Entity\SidebarLayout')->find($sidebar_layout_id);
             if ($sidebar_layout == null)
                 throw new ODRNotFoundException('Sidebar Layout');
 
@@ -946,7 +946,7 @@ class SearchSidebarController extends ODRCustomController
 
 
             /** @var SidebarLayout $sidebar_layout */
-            $sidebar_layout = $em->getRepository('ODRAdminBundle:SidebarLayout')->find($sidebar_layout_id);
+            $sidebar_layout = $em->getRepository('ODR\AdminBundle\Entity\SidebarLayout')->find($sidebar_layout_id);
             if ($sidebar_layout == null)
                 throw new ODRNotFoundException('Sidebar Layout');
 
@@ -1064,7 +1064,7 @@ class SearchSidebarController extends ODRCustomController
             $permissions_service = $this->container->get('odr.permissions_management_service');
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ($datafield == null)
                 throw new ODRNotFoundException('Datafield');
 
@@ -1137,7 +1137,7 @@ class SearchSidebarController extends ODRCustomController
 
 
             /** @var SidebarLayout $sidebar_layout */
-            $sidebar_layout = $em->getRepository('ODRAdminBundle:SidebarLayout')->find($sidebar_layout_id);
+            $sidebar_layout = $em->getRepository('ODR\AdminBundle\Entity\SidebarLayout')->find($sidebar_layout_id);
             if ($sidebar_layout == null)
                 throw new ODRNotFoundException('Sidebar Layout');
 
@@ -1224,7 +1224,7 @@ class SearchSidebarController extends ODRCustomController
 
 
             /** @var SidebarLayout $sidebar_layout */
-            $sidebar_layout = $em->getRepository('ODRAdminBundle:SidebarLayout')->find($sidebar_layout_id);
+            $sidebar_layout = $em->getRepository('ODR\AdminBundle\Entity\SidebarLayout')->find($sidebar_layout_id);
             if ($sidebar_layout == null)
                 throw new ODRNotFoundException('Sidebar Layout');
 
@@ -1271,7 +1271,7 @@ class SearchSidebarController extends ODRCustomController
                 $sl_id = $result['id'];
                 if ( $sidebar_layout->getId() !== $sl_id ) {
                     /** @var SidebarLayout $sl */
-                    $sl = $em->getRepository('ODRAdminBundle:SidebarLayout')->find($sl_id);
+                    $sl = $em->getRepository('ODR\AdminBundle\Entity\SidebarLayout')->find($sl_id);
                     $new_defaults = $sl->getDefaultFor() - $intent_id;
                     $properties = [
                         'defaultFor' => $new_defaults
@@ -1333,7 +1333,7 @@ class SearchSidebarController extends ODRCustomController
 
 
             /** @var SidebarLayout $sidebar_layout */
-            $sidebar_layout = $em->getRepository('ODRAdminBundle:SidebarLayout')->find($sidebar_layout_id);
+            $sidebar_layout = $em->getRepository('ODR\AdminBundle\Entity\SidebarLayout')->find($sidebar_layout_id);
             if ($sidebar_layout == null)
                 throw new ODRNotFoundException('Sidebar Layout');
 
@@ -1418,7 +1418,7 @@ class SearchSidebarController extends ODRCustomController
 
 
             /** @var SidebarLayout $sidebar_layout */
-            $sidebar_layout = $em->getRepository('ODRAdminBundle:SidebarLayout')->find($sidebar_layout_id);
+            $sidebar_layout = $em->getRepository('ODR\AdminBundle\Entity\SidebarLayout')->find($sidebar_layout_id);
             if ($sidebar_layout == null)
                 throw new ODRNotFoundException('Sidebar Layout');
 
@@ -1448,7 +1448,7 @@ class SearchSidebarController extends ODRCustomController
 
             // Only do stuff if the user has a relevant sidebarLayoutPreferences entry...
             /** @var SidebarLayoutPreferences $slp */
-            $slp = $em->getRepository('ODRAdminBundle:SidebarLayoutPreferences')->findOneBy(
+            $slp = $em->getRepository('ODR\AdminBundle\Entity\SidebarLayoutPreferences')->findOneBy(
                 [
                     'sidebarLayout' => $sidebar_layout->getId(),
                     'createdBy' => $user->getId(),
@@ -1518,7 +1518,7 @@ class SearchSidebarController extends ODRCustomController
 
 
             /** @var SidebarLayout $sidebar_layout */
-            $sidebar_layout = $em->getRepository('ODRAdminBundle:SidebarLayout')->find($sidebar_layout_id);
+            $sidebar_layout = $em->getRepository('ODR\AdminBundle\Entity\SidebarLayout')->find($sidebar_layout_id);
             if ($sidebar_layout == null)
                 throw new ODRNotFoundException('Sidebar Layout');
 
@@ -1556,7 +1556,7 @@ class SearchSidebarController extends ODRCustomController
             // ----------------------------------------
             // Delete any datafield mappings tied to this SidebarLayout
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:SidebarLayoutMap AS slm
+               'UPDATE ODR\AdminBundle\Entity\SidebarLayoutMap AS slm
                 SET slm.deletedAt = :now
                 WHERE slm.sidebarLayout = :sidebar_layout_id
                 AND slm.deletedAt IS NULL'
@@ -1570,7 +1570,7 @@ class SearchSidebarController extends ODRCustomController
 
             // Ensure users no longer have this SidebarLayout as their "personal default"
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:SidebarLayoutPreferences AS slp
+               'UPDATE ODR\AdminBundle\Entity\SidebarLayoutPreferences AS slp
                 SET slp.deletedAt = :now
                 WHERE slp.sidebarLayout = :sidebar_layout_id
                 AND slp.deletedAt IS NULL'
@@ -1584,7 +1584,7 @@ class SearchSidebarController extends ODRCustomController
 
             // Delete the SidebarLayout's meta entry...
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:SidebarLayoutMeta AS slm
+               'UPDATE ODR\AdminBundle\Entity\SidebarLayoutMeta AS slm
                 SET slm.deletedAt = :now
                 WHERE slm.sidebarLayout = :sidebar_layout_id
                 AND slm.deletedAt IS NULL'
@@ -1598,7 +1598,7 @@ class SearchSidebarController extends ODRCustomController
 
             // ...and finally delete the SidebarLayout itself
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:SidebarLayout AS sl
+               'UPDATE ODR\AdminBundle\Entity\SidebarLayout AS sl
                 SET sl.deletedAt = :now, sl.deletedBy = :user
                 WHERE sl.id = :sidebar_layout_id
                 AND sl.deletedAt IS NULL'
@@ -1659,7 +1659,7 @@ class SearchSidebarController extends ODRCustomController
 
 
             /** @var SidebarLayout $sidebar_layout */
-            $sidebar_layout = $em->getRepository('ODRAdminBundle:SidebarLayout')->find($sidebar_layout_id);
+            $sidebar_layout = $em->getRepository('ODR\AdminBundle\Entity\SidebarLayout')->find($sidebar_layout_id);
             if ($sidebar_layout == null)
                 throw new ODRNotFoundException('Sidebar Layout');
 
@@ -1806,7 +1806,7 @@ class SearchSidebarController extends ODRCustomController
 
 
             /** @var SidebarLayout $sidebar_layout */
-            $sidebar_layout = $em->getRepository('ODRAdminBundle:SidebarLayout')->find($sidebar_layout_id);
+            $sidebar_layout = $em->getRepository('ODR\AdminBundle\Entity\SidebarLayout')->find($sidebar_layout_id);
             if ($sidebar_layout == null)
                 throw new ODRNotFoundException('Sidebar Layout');
 
@@ -1819,7 +1819,7 @@ class SearchSidebarController extends ODRCustomController
             $datafield = null;
             if ( !is_null($datafield_id) ) {
                 /** @var DataFields $datafield */
-                $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+                $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
                 if ($datafield == null)
                     throw new ODRNotFoundException('Datafield');
             }
@@ -1861,7 +1861,7 @@ class SearchSidebarController extends ODRCustomController
 
             // What to do depends on what state is desired...
             /** @var SidebarLayoutMap $sidebar_layout_map */
-            $sidebar_layout_map = $em->getRepository('ODRAdminBundle:SidebarLayoutMap')->findOneBy(
+            $sidebar_layout_map = $em->getRepository('ODR\AdminBundle\Entity\SidebarLayoutMap')->findOneBy(
                 [
                     'sidebarLayout' => $sidebar_layout,
                     'dataField' => $datafield,    // NOTE: could be null
@@ -1991,7 +1991,7 @@ class SearchSidebarController extends ODRCustomController
 
 
             /** @var SidebarLayout $sidebar_layout */
-            $sidebar_layout = $em->getRepository('ODRAdminBundle:SidebarLayout')->find($sidebar_layout_id);
+            $sidebar_layout = $em->getRepository('ODR\AdminBundle\Entity\SidebarLayout')->find($sidebar_layout_id);
             if ($sidebar_layout == null)
                 throw new ODRNotFoundException('Sidebar Layout');
 
@@ -2034,7 +2034,7 @@ class SearchSidebarController extends ODRCustomController
 
             // ----------------------------------------
             // Now that everything is valid, save any changes to the mapping
-            $repo_sidebar_layout_map = $em->getRepository('ODRAdminBundle:SidebarLayoutMap');
+            $repo_sidebar_layout_map = $em->getRepository('ODR\AdminBundle\Entity\SidebarLayoutMap');
 
             self::updateSidebarLayoutMap($repo_sidebar_layout_map, $entity_modify_service, $user, $sidebar_layout, $always_display, SidebarLayoutMap::ALWAYS_DISPLAY);
             self::updateSidebarLayoutMap($repo_sidebar_layout_map, $entity_modify_service, $user, $sidebar_layout, $extended_display, SidebarLayoutMap::EXTENDED_DISPLAY);

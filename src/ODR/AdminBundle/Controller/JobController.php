@@ -117,7 +117,7 @@ class JobController extends ODRCustomController
             $jobs = preg_split('/,/',$job_ids);
             foreach($jobs as $job_id) {
                 /** @var TrackedJob $tracked_job */
-                $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')
+                $tracked_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob')
                     ->findOneBy( [
                             'id' => $job_id,
                             'createdBy' => $user
@@ -166,7 +166,7 @@ class JobController extends ODRCustomController
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
 
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')
+            $tracked_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob')
                 ->findOneBy( [
                     'id' => $job_id,
                     'createdBy' => $user
@@ -318,7 +318,7 @@ class JobController extends ODRCustomController
             // ----------------------------------------
             // If the tracked job exists, then the user is only allowed to delete this job if they have permissions to the datatype
             /** @var TrackedJob $tracked_job */
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($job_id);
+            $tracked_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob')->find($job_id);
             if ($tracked_job == null) {
                 /* don't throw an error...carry on and ensure all TrackedError entries for this Job are deleted */
             }
@@ -340,7 +340,7 @@ class JobController extends ODRCustomController
 
                 // If the Datatype is deleted, there's no point to this job...skip the permissions check and delete the job
                 /** @var DataType $datatype */
-                $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+                $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
                 if ($datatype == null) {
                     /* don't throw an error...carry on and ensure all TrackedError entries for this Job are deleted */
                 }

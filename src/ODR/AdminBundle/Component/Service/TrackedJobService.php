@@ -75,7 +75,7 @@ class TrackedJobService
     {
         // Ensure the tracked job exists first
         /** @var TrackedJob $tracked_job */
-        $tracked_job = $this->em->getRepository('ODRAdminBundle:TrackedJob')->find($job_id);
+        $tracked_job = $this->em->getRepository('ODR\AdminBundle\Entity\TrackedJob')->find($job_id);
         if ($tracked_job == null)
             return null;
 
@@ -101,7 +101,7 @@ class TrackedJobService
         $qb = $this->em->createQueryBuilder();
 
         $qb->select('tj')
-            ->from('ODRAdminBundle:TrackedJob', 'tj')
+            ->from('ODR\AdminBundle\Entity\TrackedJob', 'tj')
             ->where($qb->expr()->isNotNull('tj.completed'))
             ->andWhere('tj.createdBy = :user_id')
             ->andWhere($qb->expr()->isNull('tj.deletedAt'))
@@ -140,7 +140,7 @@ class TrackedJobService
 
         // Load all tracked jobs of this job type
         /** @var TrackedJob[] $tracked_jobs */
-        $tracked_jobs = $this->em->getRepository('ODRAdminBundle:TrackedJob')->findBy( ['job_type' => $job_type] );
+        $tracked_jobs = $this->em->getRepository('ODR\AdminBundle\Entity\TrackedJob')->findBy( ['job_type' => $job_type] );
         if ($tracked_jobs == null)
             return null;
 
@@ -161,8 +161,8 @@ class TrackedJobService
     private function getJobData($tracked_jobs, $datatype_permissions)
     {
         // Going to need these repositories
-        $repo_datatype = $this->em->getRepository('ODRAdminBundle:DataType');
-        $repo_datafield = $this->em->getRepository('ODRAdminBundle:DataFields');
+        $repo_datatype = $this->em->getRepository('ODR\AdminBundle\Entity\DataType');
+        $repo_datafield = $this->em->getRepository('ODR\AdminBundle\Entity\DataFields');
 
         $jobs = [];
         foreach ($tracked_jobs as $tracked_job) {
@@ -387,10 +387,10 @@ class TrackedJobService
 
         // TODO - more flexible way of doing this?
         if ($reuse_existing)
-            $tracked_job = $this->em->getRepository('ODRAdminBundle:TrackedJob')
+            $tracked_job = $this->em->getRepository('ODR\AdminBundle\Entity\TrackedJob')
                 ->findOneBy( ['job_type' => $job_type, 'target_entity' => $target_entity] );
         else
-            $tracked_job = $this->em->getRepository('ODRAdminBundle:TrackedJob')
+            $tracked_job = $this->em->getRepository('ODR\AdminBundle\Entity\TrackedJob')
                 ->findOneBy(
                     [
                         'job_type' => $job_type,
@@ -440,7 +440,7 @@ class TrackedJobService
     {
         // Ensure the tracked job exists first
         /** @var TrackedJob $tracked_job */
-        $tracked_job = $this->em->getRepository('ODRAdminBundle:TrackedJob')->find($job_id);
+        $tracked_job = $this->em->getRepository('ODR\AdminBundle\Entity\TrackedJob')->find($job_id);
         if ($tracked_job == null)
             throw new ODRNotFoundException('Tracked Job');
 
@@ -474,7 +474,7 @@ class TrackedJobService
         self::deleteTrackedErrorsByJob($job_id);
 
         // Delete the job itself if it exists
-        $repo_tracked_job = $this->em->getRepository('ODRAdminBundle:TrackedJob');
+        $repo_tracked_job = $this->em->getRepository('ODR\AdminBundle\Entity\TrackedJob');
         /** @var TrackedJob $tracked_job */
         $tracked_job = $repo_tracked_job->find($job_id);
 
@@ -499,12 +499,12 @@ class TrackedJobService
     {
         $job_errors = [];
 
-        $tracked_job = $this->em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+        $tracked_job = $this->em->getRepository('ODR\AdminBundle\Entity\TrackedJob')->find($tracked_job_id);
         if ($tracked_job == null)
             throw new ODRNotFoundException('TrackedJob');
 
         /** @var TrackedError[] $tracked_errors */
-        $tracked_errors = $this->em->getRepository('ODRAdminBundle:TrackedError')->findBy( ['trackedJob' => $tracked_job_id] );
+        $tracked_errors = $this->em->getRepository('ODR\AdminBundle\Entity\TrackedError')->findBy( ['trackedJob' => $tracked_job_id] );
         foreach ($tracked_errors as $error)
             $job_errors[ $error->getId() ] = ['error_level' => $error->getErrorLevel(), 'error_body' => json_decode( $error->getErrorBody(), true )];
 
@@ -523,7 +523,7 @@ class TrackedJobService
     {
         // Because there could potentially be thousands of errors for this TrackedJob, do a mass DQL deletion
         $query = $this->em->createQuery(
-           'DELETE FROM ODRAdminBundle:TrackedError AS te
+           'DELETE FROM ODR\AdminBundle\Entity\TrackedError AS te
             WHERE te.trackedJob = :tracked_job'
         )->setParameters( ['tracked_job' => $tracked_job_id] );
         $rows = $query->execute();
@@ -671,7 +671,7 @@ class TrackedJobService
 
         // ----------------------------------------
         // Need a list of any job that's currently in progress
-        $current_jobs = $this->em->getRepository('ODRAdminBundle:TrackedJob')->findBy(
+        $current_jobs = $this->em->getRepository('ODR\AdminBundle\Entity\TrackedJob')->findBy(
             ['completed' => null]
         );
         /** @var TrackedJob[] $current_jobs */

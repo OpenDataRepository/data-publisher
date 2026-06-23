@@ -2743,9 +2743,9 @@ class SearchQueryService
         // Define the base query
         $query = $this->em->createQuery(
            'SELECT dr.id AS id, parent.id AS parent_id
-            FROM ODRAdminBundle:DataRecord AS dr
-            JOIN ODRAdminBundle:DataRecord AS parent WITH dr.parent = parent
-            JOIN ODRAdminBundle:DataRecord AS grandparent WITH dr.grandparent = grandparent
+            FROM ODR\AdminBundle\Entity\DataRecord AS dr
+            JOIN ODR\AdminBundle\Entity\DataRecord AS parent WITH dr.parent = parent
+            JOIN ODR\AdminBundle\Entity\DataRecord AS grandparent WITH dr.grandparent = grandparent
             WHERE dr.dataType = :datatype_id
             AND dr.deletedAt IS NULL
             AND parent.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
@@ -2776,9 +2776,9 @@ class SearchQueryService
         //  descendant datarecords that aren't linked to from some ancestor datarecord...
         $query = $this->em->createQuery(
            'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
-            FROM ODRAdminBundle:DataRecord AS ancestor
-            JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
-            JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+            FROM ODR\AdminBundle\Entity\DataRecord AS ancestor
+            JOIN ODR\AdminBundle\Entity\LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
+            JOIN ODR\AdminBundle\Entity\DataRecord AS descendant WITH ldt.descendant = descendant
             WHERE descendant.dataType = :datatype_id
             AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL
             AND ldt.deletedAt IS NULL'
@@ -2816,9 +2816,9 @@ class SearchQueryService
         //  descendant datarecords that aren't linked to from some ancestor datarecord...
         $query = $this->em->createQuery(
            'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
-            FROM ODRAdminBundle:DataRecord AS ancestor
-            JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
-            JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+            FROM ODR\AdminBundle\Entity\DataRecord AS ancestor
+            JOIN ODR\AdminBundle\Entity\LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
+            JOIN ODR\AdminBundle\Entity\DataRecord AS descendant WITH ldt.descendant = descendant
             WHERE ancestor.dataType = :datatype_id
             AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL
             AND ldt.deletedAt IS NULL'

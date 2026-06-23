@@ -118,7 +118,7 @@ class MassEditController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -142,7 +142,7 @@ class MassEditController extends ODRCustomController
             if ($search_theme_id != 0) {
                 // ...require the referenced theme to exist
                 /** @var Theme $search_theme */
-                $search_theme = $em->getRepository('ODRAdminBundle:Theme')->find($search_theme_id);
+                $search_theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($search_theme_id);
                 if ($search_theme == null)
                     throw new ODRNotFoundException('Search Theme');
 
@@ -352,7 +352,7 @@ class MassEditController extends ODRCustomController
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
+            $repo_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
 
             /** @var DatabaseInfoService $database_info_service */
             $database_info_service = $this->container->get('odr.database_info_service');
@@ -367,7 +367,7 @@ class MassEditController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -656,9 +656,9 @@ class MassEditController extends ODRCustomController
                 // Get all datarecords of this datatype
                 $query = $em->createQuery(
                    'SELECT dr.id AS dr_id
-                    FROM ODRAdminBundle:DataRecord AS dr
-                    JOIN ODRAdminBundle:DataRecord AS gp_dr WITH dr.grandparent = gp_dr
-                    JOIN ODRAdminBundle:DataRecordMeta AS gp_drm WITH gp_drm.dataRecord = gp_dr
+                    FROM ODR\AdminBundle\Entity\DataRecord AS dr
+                    JOIN ODR\AdminBundle\Entity\DataRecord AS gp_dr WITH dr.grandparent = gp_dr
+                    JOIN ODR\AdminBundle\Entity\DataRecordMeta AS gp_drm WITH gp_drm.dataRecord = gp_dr
                     WHERE dr.dataType = :datatype_id AND dr.provisioned = false
                     AND gp_drm.prevent_user_edits = 0
                     AND dr.deletedAt IS NULL
@@ -730,11 +730,11 @@ class MassEditController extends ODRCustomController
                 if ($can_view_datarecord) {
                     $query = $em->createQuery(
                        'SELECT dr.id AS dr_id
-                        FROM ODRAdminBundle:DataFields AS df
-                        JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
-                        JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
-                        JOIN ODRAdminBundle:DataRecord AS gp_dr WITH dr.grandparent = gp_dr
-                        JOIN ODRAdminBundle:DataRecordMeta AS gp_drm WITH gp_drm.dataRecord = gp_dr
+                        FROM ODR\AdminBundle\Entity\DataFields AS df
+                        JOIN ODR\AdminBundle\Entity\DataType AS dt WITH df.dataType = dt
+                        JOIN ODR\AdminBundle\Entity\DataRecord AS dr WITH dr.dataType = dt
+                        JOIN ODR\AdminBundle\Entity\DataRecord AS gp_dr WITH dr.grandparent = gp_dr
+                        JOIN ODR\AdminBundle\Entity\DataRecordMeta AS gp_drm WITH gp_drm.dataRecord = gp_dr
                         WHERE df.id = :datafield_id AND gp_drm.prevent_user_edits = 0
                         AND df.deletedAt IS NULL AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL
                         AND gp_dr.deletedAt IS NULL AND gp_drm.deletedAt IS NULL'
@@ -743,11 +743,11 @@ class MassEditController extends ODRCustomController
                 else {
                     $query = $em->createQuery(
                        'SELECT dr.id AS dr_id
-                        FROM ODRAdminBundle:DataFields AS df
-                        JOIN ODRAdminBundle:DataType AS dt WITH df.dataType = dt
-                        JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
-                        JOIN ODRAdminBundle:DataRecord AS gp_dr WITH dr.grandparent = gp_dr
-                        JOIN ODRAdminBundle:DataRecordMeta AS gp_drm WITH gp_drm.dataRecord = gp_dr
+                        FROM ODR\AdminBundle\Entity\DataFields AS df
+                        JOIN ODR\AdminBundle\Entity\DataType AS dt WITH df.dataType = dt
+                        JOIN ODR\AdminBundle\Entity\DataRecord AS dr WITH dr.dataType = dt
+                        JOIN ODR\AdminBundle\Entity\DataRecord AS gp_dr WITH dr.grandparent = gp_dr
+                        JOIN ODR\AdminBundle\Entity\DataRecordMeta AS gp_drm WITH gp_drm.dataRecord = gp_dr
                         WHERE df.id = :datafield_id AND gp_drm.publicDate != :public_date
                         AND gp_drm.prevent_user_edits = 0
                         AND df.deletedAt IS NULL AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL
@@ -807,7 +807,7 @@ class MassEditController extends ODRCustomController
 
             // TODO - better way of dealing with this?
             /** @var TrackedJob $tracked_job */
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+            $tracked_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob')->find($tracked_job_id);
             $tracked_job->setTotal($job_count);
             $em->persist($tracked_job);
             $em->flush();
@@ -959,7 +959,7 @@ class MassEditController extends ODRCustomController
 
 
             /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($datarecord_id);
             if ($datarecord == null)
                 throw new ODRNotFoundException('MassEditCommand.php: DataRecord '.$datarecord_id.' is deleted, skipping');
 
@@ -1024,7 +1024,7 @@ class MassEditController extends ODRCustomController
             // ----------------------------------------
             // Update the job tracker if necessary
             if ($tracked_job_id !== -1) {
-                $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+                $tracked_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob')->find($tracked_job_id);
 
                 $total = $tracked_job->getTotal();
                 $count = $tracked_job->incrementCurrent($em);
@@ -1113,8 +1113,8 @@ class MassEditController extends ODRCustomController
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_radio_option = $em->getRepository('ODRAdminBundle:RadioOptions');
-            $repo_radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection');
+            $repo_radio_option = $em->getRepository('ODR\AdminBundle\Entity\RadioOptions');
+            $repo_radio_selection = $em->getRepository('ODR\AdminBundle\Entity\RadioSelection');
 
             /** @var CryptoService $crypto_service */
             $crypto_service = $this->container->get('odr.crypto_service');
@@ -1143,12 +1143,12 @@ class MassEditController extends ODRCustomController
 
 
             /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($datarecord_id);
             if ($datarecord == null)
                 throw new ODRNotFoundException('MassEditCommand.php: Datarecord '.$datarecord_id.' is deleted, skipping');
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ($datafield == null)
                 throw new ODRNotFoundException('MassEditCommand.php: Datafield '.$datafield_id.' is deleted, skipping');
 
@@ -1294,7 +1294,7 @@ class MassEditController extends ODRCustomController
                 // Load all files associated with this entity
                 $query = $em->createQuery(
                    'SELECT file
-                    FROM ODRAdminBundle:File AS file
+                    FROM ODR\AdminBundle\Entity\File AS file
                     WHERE file.dataRecord = :dr_id AND file.dataField = :df_id
                     AND file.deletedAt IS NULL'
                 )->setParameters( ['dr_id' => $datarecord_id, 'df_id' => $datafield_id] );
@@ -1383,7 +1383,7 @@ class MassEditController extends ODRCustomController
                 // Load all images associated with this entity
                 $query = $em->createQuery(
                    'SELECT image
-                    FROM ODRAdminBundle:Image AS image
+                    FROM ODR\AdminBundle\Entity\Image AS image
                     WHERE image.dataRecord = :dr_id AND image.dataField = :df_id
                     AND image.original = 1 AND image.deletedAt IS NULL'
                 )->setParameters( ['dr_id' => $datarecord_id, 'df_id' => $datafield_id] );
@@ -1593,7 +1593,7 @@ class MassEditController extends ODRCustomController
             // Update the job tracker if necessary
             if ($tracked_job_id !== -1) {
                 /** @var TrackedJob $tracked_job */
-                $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+                $tracked_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob')->find($tracked_job_id);
 
                 $total = $tracked_job->getTotal();
                 $count = $tracked_job->incrementCurrent($em);
@@ -1685,7 +1685,7 @@ class MassEditController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -1750,7 +1750,7 @@ class MassEditController extends ODRCustomController
             // ----------------------------------------
             // Check whether any jobs that are currently running would interfere with the deletion
             //  of this datarecord
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find( $datarecords[0] );
+            $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find( $datarecords[0] );
             $new_job_data = [
                 'job_type' => 'delete_datarecord',
                 'target_entity' => $datarecord,
@@ -1777,10 +1777,10 @@ class MassEditController extends ODRCustomController
                 //  could be for a datarecord that isn't top-level
                 $query = $em->createQuery(
                    'SELECT dr.id AS dr_id
-                    FROM ODRAdminBundle:DataRecord AS parent_dr
-                    JOIN ODRAdminBundle:DataRecord AS dr WITH dr.parent = parent_dr
-                    JOIN ODRAdminBundle:DataRecord AS gp_dr WITH dr.grandparent = gp_dr
-                    JOIN ODRAdminBundle:DataRecordMeta AS gp_drm WITH gp_drm.dataRecord = gp_dr
+                    FROM ODR\AdminBundle\Entity\DataRecord AS parent_dr
+                    JOIN ODR\AdminBundle\Entity\DataRecord AS dr WITH dr.parent = parent_dr
+                    JOIN ODR\AdminBundle\Entity\DataRecord AS gp_dr WITH dr.grandparent = gp_dr
+                    JOIN ODR\AdminBundle\Entity\DataRecordMeta AS gp_drm WITH gp_drm.dataRecord = gp_dr
                     WHERE dr.id != parent_dr.id AND parent_dr.id IN (:parent_ids)
                     AND gp_drm.prevent_user_edits = 0
                     AND dr.deletedAt IS NULL AND parent_dr.deletedAt IS NULL
@@ -1802,8 +1802,8 @@ class MassEditController extends ODRCustomController
             //  they will need to have their cache entries rebuilt
             $query = $em->createQuery(
                'SELECT ancestor.id AS dr_id, ancestor.unique_id AS dr_uuid
-                FROM ODRAdminBundle:LinkedDataTree AS ldt
-                JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
+                FROM ODR\AdminBundle\Entity\LinkedDataTree AS ldt
+                JOIN ODR\AdminBundle\Entity\DataRecord AS ancestor WITH ldt.ancestor = ancestor
                 WHERE ldt.descendant IN (:datarecord_ids)
                 AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL'
             )->setParameters( ['datarecord_ids' => $datarecords_to_delete] );
@@ -1829,11 +1829,11 @@ class MassEditController extends ODRCustomController
             //  other datatypes, then need to clear the default sort order for those datatypes
             $query = $em->createQuery(
                'SELECT DISTINCT(l_dt.id) AS dt_id
-                FROM ODRAdminBundle:DataRecord AS dr
-                LEFT JOIN ODRAdminBundle:DataType AS dt WITH dr.dataType = dt
-                LEFT JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
-                LEFT JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
-                LEFT JOIN ODRAdminBundle:DataType AS l_dt WITH dtsf.dataType = l_dt
+                FROM ODR\AdminBundle\Entity\DataRecord AS dr
+                LEFT JOIN ODR\AdminBundle\Entity\DataType AS dt WITH dr.dataType = dt
+                LEFT JOIN ODR\AdminBundle\Entity\DataFields AS df WITH df.dataType = dt
+                LEFT JOIN ODR\AdminBundle\Entity\DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
+                LEFT JOIN ODR\AdminBundle\Entity\DataType AS l_dt WITH dtsf.dataType = l_dt
                 WHERE dr.id IN (:datarecords_to_delete)
                 AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL
                 AND dtsf.deletedAt IS NULL AND l_dt.deletedAt IS NULL'
@@ -1858,7 +1858,7 @@ class MassEditController extends ODRCustomController
 
             // ...delete all linked_datatree entries that reference these datarecords
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:LinkedDataTree AS ldt
+               'UPDATE ODR\AdminBundle\Entity\LinkedDataTree AS ldt
                 SET ldt.deletedAt = :now, ldt.deletedBy = :deleted_by
                 WHERE (ldt.ancestor IN (:datarecord_ids) OR ldt.descendant IN (:datarecord_ids))
                 AND ldt.deletedAt IS NULL'
@@ -1873,7 +1873,7 @@ class MassEditController extends ODRCustomController
 
             // ...delete each meta entry for the datarecords to be deleted
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:DataRecordMeta AS drm
+               'UPDATE ODR\AdminBundle\Entity\DataRecordMeta AS drm
                 SET drm.deletedAt = :now
                 WHERE drm.dataRecord IN (:datarecord_ids)
                 AND drm.deletedAt IS NULL'
@@ -1887,7 +1887,7 @@ class MassEditController extends ODRCustomController
 
             // ...delete all of the datarecords
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:DataRecord AS dr
+               'UPDATE ODR\AdminBundle\Entity\DataRecord AS dr
                 SET dr.deletedAt = :now, dr.deletedBy = :deleted_by
                 WHERE dr.id IN (:datarecord_ids)
                 AND dr.deletedAt IS NULL'
@@ -1963,7 +1963,7 @@ class MassEditController extends ODRCustomController
             // Determine whether any datarecords of this datatype remain
             $query = $em->createQuery(
                'SELECT dr.id AS dr_id
-                FROM ODRAdminBundle:DataRecord AS dr
+                FROM ODR\AdminBundle\Entity\DataRecord AS dr
                 WHERE dr.deletedAt IS NULL AND dr.dataType = :datatype'
             )->setParameters(['datatype' => $datatype->getId()]);
             $remaining = $query->getArrayResult();

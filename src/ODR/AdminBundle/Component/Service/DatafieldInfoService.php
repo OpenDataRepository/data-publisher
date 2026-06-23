@@ -294,8 +294,8 @@ class DatafieldInfoService
         $str =
            'SELECT COUNT(e.dataRecord)
             FROM ODRAdminBundle:'.$typeclass.' AS e
-            JOIN ODRAdminBundle:DataFields AS df WITH e.dataField = df
-            JOIN ODRAdminBundle:DataRecord AS dr WITH e.dataRecord = dr
+            JOIN ODR\AdminBundle\Entity\DataFields AS df WITH e.dataField = df
+            JOIN ODR\AdminBundle\Entity\DataRecord AS dr WITH e.dataRecord = dr
             WHERE e.deletedAt IS NULL AND dr.deletedAt IS NULL AND df.id = :datafield';
         if ($typeclass == 'Image')
             $str .= ' AND e.original = 1 ';
@@ -347,8 +347,8 @@ class DatafieldInfoService
             $query = $this->em->createQuery(
                'SELECT e.value
                 FROM ODRAdminBundle:'.$typeclass.' AS e
-                JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
-                JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+                JOIN ODR\AdminBundle\Entity\DataRecordFields AS drf WITH e.dataRecordFields = drf
+                JOIN ODR\AdminBundle\Entity\DataRecord AS dr WITH drf.dataRecord = dr
                 WHERE e.dataField = :datafield
                 AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
             )->setParameters( ['datafield' => $datafield->getId()] );
@@ -373,9 +373,9 @@ class DatafieldInfoService
             $query = $this->em->createQuery(
                'SELECT e.value, parent.id AS parent_id
                 FROM ODRAdminBundle:'.$typeclass.' AS e
-                JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
-                JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
-                JOIN ODRAdminBundle:DataRecord AS parent WITH dr.parent = parent
+                JOIN ODR\AdminBundle\Entity\DataRecordFields AS drf WITH e.dataRecordFields = drf
+                JOIN ODR\AdminBundle\Entity\DataRecord AS dr WITH drf.dataRecord = dr
+                JOIN ODR\AdminBundle\Entity\DataRecord AS parent WITH dr.parent = parent
                 WHERE e.dataField = :datafield
                 AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL'
             )->setParameters( ['datafield' => $datafield->getId()] );
@@ -459,7 +459,7 @@ class DatafieldInfoService
         $multiple_radio_fieldtype_ids = [];
 
         /** @var FieldType[] $tmp */
-        $tmp = $this->em->getRepository('ODRAdminBundle:FieldType')->findAll();
+        $tmp = $this->em->getRepository('ODR\AdminBundle\Entity\FieldType')->findAll();
         $all_fieldtypes = [];
         foreach ($tmp as $ft) {
             $all_fieldtypes[] = $ft->getId();
@@ -568,9 +568,9 @@ class DatafieldInfoService
         //  discouraged...the first is if it's being used as a name/sort field for any datatype
         $query = $this->em->createQuery(
            'SELECT df.id AS df_id, dt.id AS dt_id
-            FROM ODRAdminBundle:DataFields AS df
-            LEFT JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
-            LEFT JOIN ODRAdminBundle:DataType AS dt WITH dtsf.dataType = dt
+            FROM ODR\AdminBundle\Entity\DataFields AS df
+            LEFT JOIN ODR\AdminBundle\Entity\DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
+            LEFT JOIN ODR\AdminBundle\Entity\DataType AS dt WITH dtsf.dataType = dt
             WHERE df IN (:datafield_ids)
             AND df.deletedAt IS NULL AND dtsf.deletedAt IS NULL AND dt.deletedAt IS NULL'
         )->setParameters( ['datafield_ids' => $datafield_ids] );
@@ -661,8 +661,8 @@ class DatafieldInfoService
         // Prevent a datafield's fieldtype from changing if other fields are derived from it
         $query = $this->em->createQuery(
            'SELECT df.id AS df_id, d_df.id AS derived_df_id
-            FROM ODRAdminBundle:DataFields AS df
-            LEFT JOIN ODRAdminBundle:DataFields AS d_df WITH d_df.masterDataField = df
+            FROM ODR\AdminBundle\Entity\DataFields AS df
+            LEFT JOIN ODR\AdminBundle\Entity\DataFields AS d_df WITH d_df.masterDataField = df
             WHERE df IN (:datafield_ids)
             AND df.deletedAt IS NULL AND d_df.deletedAt IS NULL'
         )->setParameters( ['datafield_ids' => $datafield_ids] );

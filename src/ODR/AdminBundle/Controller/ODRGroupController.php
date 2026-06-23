@@ -81,7 +81,7 @@ class ODRGroupController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -156,7 +156,7 @@ class ODRGroupController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -183,7 +183,7 @@ class ODRGroupController extends ODRCustomController
             // Load all groups for this Datatype
             $query = $em->createQuery(
                'SELECT g, gm
-                FROM ODRAdminBundle:Group AS g
+                FROM ODR\AdminBundle\Entity\Group AS g
                 JOIN g.groupMeta AS gm
                 WHERE g.dataType = :datatype_id
                 AND g.deletedAt IS NULL AND gm.deletedAt IS NULL'
@@ -248,7 +248,7 @@ class ODRGroupController extends ODRCustomController
             $permissions_service = $this->container->get('odr.permissions_management_service');
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -321,7 +321,7 @@ class ODRGroupController extends ODRCustomController
             $permissions_service = $this->container->get('odr.permissions_management_service');
 
             /** @var Group $group */
-            $group = $em->getRepository('ODRAdminBundle:Group')->find($group_id);
+            $group = $em->getRepository('ODR\AdminBundle\Entity\Group')->find($group_id);
             if ($group == null)
                 throw new ODRNotFoundException('Group');
 
@@ -356,8 +356,8 @@ class ODRGroupController extends ODRCustomController
             // Get all users that are going to be affected by this
             $query = $em->createQuery(
                'SELECT DISTINCT(u.id) AS user_id
-                FROM ODROpenRepositoryUserBundle:User AS u
-                JOIN ODRAdminBundle:UserGroup AS ug WITH ug.user = u
+                FROM ODR\OpenRepository\UserBundle\Entity\User AS u
+                JOIN ODR\AdminBundle\Entity\UserGroup AS ug WITH ug.user = u
                 WHERE ug.group = :group_id
                 AND ug.deletedAt IS NULL'
             )->setParameters( ['group_id' => $group_id] );
@@ -372,7 +372,7 @@ class ODRGroupController extends ODRCustomController
 
             // Delete all UserGroup entities
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:UserGroup AS ug
+               'UPDATE ODR\AdminBundle\Entity\UserGroup AS ug
                 SET ug.deletedAt = :now, ug.deletedBy = :user_id
                 WHERE ug.group = :group_id AND ug.deletedAt IS NULL'
             )->setParameters(
@@ -386,7 +386,7 @@ class ODRGroupController extends ODRCustomController
 
             // Delete all GroupDatatypePermissions entities
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:GroupDatatypePermissions AS gdtp
+               'UPDATE ODR\AdminBundle\Entity\GroupDatatypePermissions AS gdtp
                 SET gdtp.deletedAt = :now
                 WHERE gdtp.group = :group_id AND gdtp.deletedAt IS NULL'
             )->setParameters( ['now' => new \DateTime(), 'group_id' => $group_id] );
@@ -394,7 +394,7 @@ class ODRGroupController extends ODRCustomController
 
             // Delete all GroupDatafieldPermissions entities
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:GroupDatafieldPermissions AS gdfp
+               'UPDATE ODR\AdminBundle\Entity\GroupDatafieldPermissions AS gdfp
                 SET gdfp.deletedAt = :now
                 WHERE gdfp.group = :group_id AND gdfp.deletedAt IS NULL'
             )->setParameters( ['now' => new \DateTime(), 'group_id' => $group_id] );
@@ -465,7 +465,7 @@ class ODRGroupController extends ODRCustomController
 
 
             /** @var Group $group */
-            $group = $em->getRepository('ODRAdminBundle:Group')->find($group_id);
+            $group = $em->getRepository('ODR\AdminBundle\Entity\Group')->find($group_id);
             if ($group == null)
                 throw new ODRNotFoundException('Group');
             $group_meta = $group->getGroupMeta();
@@ -544,8 +544,8 @@ class ODRGroupController extends ODRCustomController
                         //  permissions affected by this change
                         $query = $em->createQuery(
                            'SELECT DISTINCT(u.id) AS user_id
-                            FROM ODRAdminBundle:UserGroup AS ug
-                            JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
+                            FROM ODR\AdminBundle\Entity\UserGroup AS ug
+                            JOIN ODR\OpenRepository\UserBundle\Entity\User AS u WITH ug.user = u
                             WHERE ug.group = :group_id
                             AND ug.deletedAt IS NULL'
                         )->setParameters( ['group_id' => $group->getId()] );
@@ -637,7 +637,7 @@ class ODRGroupController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -665,7 +665,7 @@ class ODRGroupController extends ODRCustomController
             $query = $em->createQuery(
                'SELECT dt, g, gm, ug, u
 
-                FROM ODRAdminBundle:DataType AS dt
+                FROM ODR\AdminBundle\Entity\DataType AS dt
                 LEFT JOIN dt.groups AS g
                 LEFT JOIN g.groupMeta AS gm
                 LEFT JOIN g.userGroups AS ug
@@ -773,7 +773,7 @@ class ODRGroupController extends ODRCustomController
 
             // Verify the target user can have their permissions modified
             /** @var ODRUser $user */
-            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            $user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find($user_id);
             if ( $user == null || !$user->isEnabled() )
                 throw new ODRNotFoundException('User');
 
@@ -788,7 +788,7 @@ class ODRGroupController extends ODRCustomController
             $top_level_datatypes = $datatree_info_service->getTopLevelDatatypes();
             $query = $em->createQuery(
                'SELECT dt, dtm, g, g_cb, gm, dt_cb
-                FROM ODRAdminBundle:DataType AS dt
+                FROM ODR\AdminBundle\Entity\DataType AS dt
                 JOIN dt.dataTypeMeta AS dtm
                 JOIN dt.groups AS g
                 JOIN dt.createdBy AS dt_cb
@@ -867,7 +867,7 @@ class ODRGroupController extends ODRCustomController
             // ----------------------------------------
             // Also going to need which groups the target user is currently a member of
             /** @var UserGroup[] $user_groups */
-            $user_groups = $em->getRepository('ODRAdminBundle:UserGroup')->findBy( ['user' => $user->getId()] );
+            $user_groups = $em->getRepository('ODR\AdminBundle\Entity\UserGroup')->findBy( ['user' => $user->getId()] );
 
             $user_group_list = [];
             foreach ($user_groups as $user_group)
@@ -941,12 +941,12 @@ class ODRGroupController extends ODRCustomController
 
 
             /** @var ODRUser $user */
-            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            $user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find($user_id);
             if ($user == null || !$user->isEnabled())
                 throw new ODRNotFoundException('User');
 
             /** @var Group $group */
-            $group = $em->getRepository('ODRAdminBundle:Group')->find($group_id);
+            $group = $em->getRepository('ODR\AdminBundle\Entity\Group')->find($group_id);
             if ($group == null)
                 throw new ODRNotFoundException('Group');
 
@@ -996,8 +996,8 @@ class ODRGroupController extends ODRCustomController
             // Notify the AJAX handler whether the user is still in a group for this datatype or not
             $query = $em->createQuery(
                'SELECT g.id AS group_id
-                FROM ODRAdminBundle:UserGroup AS ug
-                JOIN ODRAdminBundle:Group AS g WITH ug.group = g
+                FROM ODR\AdminBundle\Entity\UserGroup AS ug
+                JOIN ODR\AdminBundle\Entity\Group AS g WITH ug.group = g
                 WHERE ug.user = :user_id AND g.dataType = :datatype_id
                 AND ug.deletedAt IS NULL AND g.deletedAt IS NULL'
             )->setParameters( ['user_id' => $user->getId(), 'datatype_id' => $datatype->getId()] );
@@ -1062,7 +1062,7 @@ class ODRGroupController extends ODRCustomController
 
 
             /** @var Group $group */
-            $group = $em->getRepository('ODRAdminBundle:Group')->find($group_id);
+            $group = $em->getRepository('ODR\AdminBundle\Entity\Group')->find($group_id);
             if ($group == null)
                 throw new ODRNotFoundException('Group');
 
@@ -1115,8 +1115,8 @@ class ODRGroupController extends ODRCustomController
             // ...second is the list of users assigned to this group
             $query = $em->createQuery(
                'SELECT u
-                FROM ODROpenRepositoryUserBundle:User AS u
-                JOIN ODRAdminBundle:UserGroup AS ug WITH ug.user = u
+                FROM ODR\OpenRepository\UserBundle\Entity\User AS u
+                JOIN ODR\AdminBundle\Entity\UserGroup AS ug WITH ug.user = u
                 WHERE ug.group = :group_id
                 AND u.enabled = 1 AND ug.deletedAt IS NULL'
             )->setParameters( ['group_id' => $group_id] );
@@ -1214,12 +1214,12 @@ class ODRGroupController extends ODRCustomController
             $permissions_service = $this->container->get('odr.permissions_management_service');
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
             /** @var Group $group */
-            $group = $em->getRepository('ODRAdminBundle:Group')->find($group_id);
+            $group = $em->getRepository('ODR\AdminBundle\Entity\Group')->find($group_id);
             if ($group == null)
                 throw new ODRNotFoundException('Group');
             if ($group->getPurpose() !== '')
@@ -1245,7 +1245,7 @@ class ODRGroupController extends ODRCustomController
                 throw new ODRBadRequestException('Datatype is not related to Group');
 
             /** @var GroupDatatypePermissions $gdtp */
-            $gdtp = $em->getRepository('ODRAdminBundle:GroupDatatypePermissions')->findOneBy(
+            $gdtp = $em->getRepository('ODR\AdminBundle\Entity\GroupDatatypePermissions')->findOneBy(
                 [
                     'group' => $group->getId(),
                     'dataType' => $datatype->getId()
@@ -1280,7 +1280,7 @@ class ODRGroupController extends ODRCustomController
                     // Ensure all datatypes affected by this group have all the permissions
                     $query = $em->createQuery(
                        'SELECT gdtp
-                        FROM ODRAdminBundle:GroupDatatypePermissions AS gdtp
+                        FROM ODR\AdminBundle\Entity\GroupDatatypePermissions AS gdtp
                         WHERE gdtp.group = :group_id
                         AND gdtp.deletedAt IS NULL'
                     )->setParameters( ['group_id' => $group->getId()] );
@@ -1304,8 +1304,8 @@ class ODRGroupController extends ODRCustomController
                     // Ensure all datafields are set to can-view/can-edit to avoid edge-cases
                     $query = $em->createQuery(
                        'SELECT gdfp
-                        FROM ODRAdminBundle:GroupDatafieldPermissions AS gdfp
-                        JOIN ODRAdminBundle:DataFields AS df WITH gdfp.dataField = df
+                        FROM ODR\AdminBundle\Entity\GroupDatafieldPermissions AS gdfp
+                        JOIN ODR\AdminBundle\Entity\DataFields AS df WITH gdfp.dataField = df
                         WHERE gdfp.group = :group_id
                         AND (gdfp.can_view_datafield = 0 OR gdfp.can_edit_datafield = 0)
                         AND gdfp.deletedAt IS NULL AND df.deletedAt IS NULL'
@@ -1326,7 +1326,7 @@ class ODRGroupController extends ODRCustomController
                     //  "is_datatype_admin" permission
                     $query = $em->createQuery(
                        'SELECT gdtp
-                        FROM ODRAdminBundle:GroupDatatypePermissions AS gdtp
+                        FROM ODR\AdminBundle\Entity\GroupDatatypePermissions AS gdtp
                         WHERE gdtp.group = :group_id
                         AND gdtp.deletedAt IS NULL'
                     )->setParameters( ['group_id' => $group->getId()] );
@@ -1390,8 +1390,8 @@ class ODRGroupController extends ODRCustomController
             //  permissions affected by this change
             $query = $em->createQuery(
                'SELECT DISTINCT(u.id) AS user_id
-                FROM ODRAdminBundle:UserGroup AS ug
-                JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
+                FROM ODR\AdminBundle\Entity\UserGroup AS ug
+                JOIN ODR\OpenRepository\UserBundle\Entity\User AS u WITH ug.user = u
                 WHERE ug.group = :group_id
                 AND ug.deletedAt IS NULL'
             )->setParameters( ['group_id' => $group->getId()] );
@@ -1453,7 +1453,7 @@ class ODRGroupController extends ODRCustomController
             $permissions_service = $this->container->get('odr.permissions_management_service');
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ($datafield == null)
                 throw new ODRNotFoundException('Datafield');
 
@@ -1462,7 +1462,7 @@ class ODRGroupController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             /** @var Group $group */
-            $group = $em->getRepository('ODRAdminBundle:Group')->find($group_id);
+            $group = $em->getRepository('ODR\AdminBundle\Entity\Group')->find($group_id);
             if ($group == null)
                 throw new ODRNotFoundException('Group');
             if ($group->getPurpose() !== '')
@@ -1488,7 +1488,7 @@ class ODRGroupController extends ODRCustomController
                 throw new ODRBadRequestException('Datatype is not related to Group');
 
             /** @var GroupDatafieldPermissions $gdfp */
-            $gdfp = $em->getRepository('ODRAdminBundle:GroupDatafieldPermissions')->findOneBy(
+            $gdfp = $em->getRepository('ODR\AdminBundle\Entity\GroupDatafieldPermissions')->findOneBy(
                 [
                     'group' => $group->getId(),
                     'dataField' => $datafield->getId()
@@ -1500,7 +1500,7 @@ class ODRGroupController extends ODRCustomController
             // If the group has the "is_datatype_admin" permission, then it must have all other
             //  permissions as well
             /** @var GroupDatatypePermissions $gdtp */
-            $gdtp = $em->getRepository('ODRAdminBundle:GroupDatatypePermissions')->findOneBy(
+            $gdtp = $em->getRepository('ODR\AdminBundle\Entity\GroupDatatypePermissions')->findOneBy(
                 [
                     'group' => $group->getId(),
                     'dataType' => $datatype->getId()
@@ -1549,8 +1549,8 @@ class ODRGroupController extends ODRCustomController
             // Load the list of users this will have been affected by this
             $query = $em->createQuery(
                'SELECT DISTINCT(u.id) AS user_id
-                FROM ODRAdminBundle:UserGroup AS ug
-                JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
+                FROM ODR\AdminBundle\Entity\UserGroup AS ug
+                JOIN ODR\OpenRepository\UserBundle\Entity\User AS u WITH ug.user = u
                 WHERE ug.group = :group_id
                 AND ug.deletedAt IS NULL'
             )->setParameters( ['group_id' => $group->getId()] );

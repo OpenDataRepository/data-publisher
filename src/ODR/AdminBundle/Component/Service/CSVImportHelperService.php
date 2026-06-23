@@ -73,7 +73,7 @@ class CSVImportHelperService
 
         // Going to need the datatype that's getting imported into
         /** @var DataType $dt */
-        $dt = $this->em->getRepository('ODRAdminBundle:DataType')->find( $data['import_datatype_id'] );
+        $dt = $this->em->getRepository('ODR\AdminBundle\Entity\DataType')->find( $data['import_datatype_id'] );
 
         if ( !isset($post['parent_datatype_id']) ) {
             // Importing into a top-level datatype
@@ -130,7 +130,7 @@ class CSVImportHelperService
                     $data['child_external_id_field'] = $dt->getExternalIdField()->getId();
 
                 /** @var DataType $ancestor_dt */
-                $ancestor_dt = $this->em->getRepository('ODRAdminBundle:DataType')->find( $data['parent_datatype_id'] );
+                $ancestor_dt = $this->em->getRepository('ODR\AdminBundle\Entity\DataType')->find( $data['parent_datatype_id'] );
                 if ( !is_null($ancestor_dt->getExternalIdField()) )
                     $data['top_level_external_id_field'] = $ancestor_dt->getExternalIdField()->getId();
             }
@@ -545,9 +545,9 @@ class CSVImportHelperService
 
         // May need the names of the ancestor/descendant datatypes for error reporting
         /** @var DataType $descendant_datatype */
-        $descendant_datatype = $this->em->getRepository('ODRAdminBundle:DataType')->find($descendant_datatype_id);
+        $descendant_datatype = $this->em->getRepository('ODR\AdminBundle\Entity\DataType')->find($descendant_datatype_id);
         /** @var DataType $ancestor_datatype */
-        $ancestor_datatype = $this->em->getRepository('ODRAdminBundle:DataType')->find($ancestor_datatype_id);
+        $ancestor_datatype = $this->em->getRepository('ODR\AdminBundle\Entity\DataType')->find($ancestor_datatype_id);
 
 
         // ----------------------------------------

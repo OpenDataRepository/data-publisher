@@ -16,7 +16,7 @@ services:
             $xyzdata_helper_service: "@odr.xyzdata_helper_service"
             $event_dispatcher: "@event_dispatcher"
             $token_manager: "@security.csrf.token_manager"
-            $templating: "@templating"
+            $templating: "@twig"
             $logger: "@logger"
 
     odr_plugins.rruff.cell_parameters:
@@ -32,7 +32,7 @@ services:
             $lock_service: "@odr.lock_service"
             $event_dispatcher: "@event_dispatcher"
             $token_manager: "@security.csrf.token_manager"
-            $templating: "@templating"
+            $templating: "@twig"
             $logger: "@logger"
 
     odr_plugins.rruff.ima:
@@ -48,7 +48,7 @@ services:
             $search_service: "@odr.search_service"
             $event_dispatcher: "@event_dispatcher"
             $token_manager: "@security.csrf.token_manager"
-            $templating: "@templating"
+            $templating: "@twig"
             $logger: "@logger"
 
     odr_plugins.rruff.ima_status_notes:
@@ -59,7 +59,7 @@ services:
             $entity_create_service: "@odr.entity_creation_service"
             $lock_service: "@odr.lock_service"
             $event_dispatcher: "@event_dispatcher"
-            $templating: "@templating"
+            $templating: "@twig"
             $logger: "@logger"
 
     odr_plugins.rruff.instrument_usage:
@@ -70,14 +70,14 @@ services:
             $site_baseurl: "%site_baseurl%"
             $database_info_service: "@odr.database_info_service"
             $router: "@router"
-            $templating: "@templating"
+            $templating: "@twig"
             $logger: "@logger"
 
     odr_plugins.rruff.pin_data:
         public: true
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFPinDataPlugin'
         arguments:
-            $templating: "@templating"
+            $templating: "@twig"
             $logger: "@logger"
 
     odr_plugins.rruff.rruff_references:
@@ -95,7 +95,7 @@ services:
             $sort_service: "@odr.sort_service"
             $event_dispatcher: "@event_dispatcher"
             $token_manager: "@security.csrf.token_manager"
-            $templating: "@templating"
+            $templating: "@twig"
             $logger: "@logger"
 
     odr_plugins.rruff.rruff_sample:
@@ -107,7 +107,7 @@ services:
             $lock_service: "@odr.lock_service"
             $event_dispatcher: "@event_dispatcher"
             $token_manager: "@security.csrf.token_manager"
-            $templating: "@templating"
+            $templating: "@twig"
             $logger: "@logger"
 
 
@@ -124,14 +124,14 @@ services:
             $database_info_service: '@odr.database_info_service'
             $search_key_service: "@odr.search_key_service"
             $router: "@router"
-            $templating: "@templating"
+            $templating: "@twig"
             $logger: "@logger"
 
     odr_plugins.rruff.rruff_special_reference:
         public: true
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFSpecialReferencePlugin'
         arguments:
-            $templating: "@templating"
+            $templating: "@twig"
             $logger: "@logger"
 
 
@@ -145,7 +145,7 @@ services:
             $cache_service: "@odr.cache_service"
             $search_service: "@odr.search_service"
             $sort_service: "@odr.sort_service"
-            $templating: "@templating"
+            $templating: "@twig"
             $logger: "@logger"
 
     odr_plugins.rruff.file_header_inserter:

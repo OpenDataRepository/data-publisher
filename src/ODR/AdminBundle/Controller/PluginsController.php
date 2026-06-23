@@ -87,7 +87,7 @@ class PluginsController extends ODRCustomController
     {
         $query = $em->createQuery(
            'SELECT ft.id AS ft_id, ft.typeClass, ft.typeName, ft.canBeUnique
-            FROM ODRAdminBundle:FieldType AS ft
+            FROM ODR\AdminBundle\Entity\FieldType AS ft
             WHERE ft.deletedAt IS NULL'
         );
         $results = $query->getArrayResult();
@@ -771,7 +771,7 @@ class PluginsController extends ODRCustomController
             // TODO - rename renderPluginOptionsDef to renderPluginOptions
             $query = $em->createQuery(
                'SELECT rp, rpe, rpf, rpi, rpo
-                FROM ODRAdminBundle:RenderPlugin AS rp
+                FROM ODR\AdminBundle\Entity\RenderPlugin AS rp
                 LEFT JOIN rp.renderPluginEvents AS rpe
                 LEFT JOIN rp.renderPluginFields AS rpf
                 LEFT JOIN rp.renderPluginInstance AS rpi
@@ -1371,7 +1371,7 @@ class PluginsController extends ODRCustomController
                 partial ft.{id, typeClass, typeName},
                 partial dt.{id}, partial dtm.{id, shortName}, partial gdt.{id}
 
-            FROM ODRAdminBundle:RenderPlugin rp
+            FROM ODR\AdminBundle\Entity\RenderPlugin rp
             JOIN rp.renderPluginInstance AS rpi
             JOIN rpi.renderPluginMap AS rpm
             JOIN rpm.renderPluginFields AS rpf
@@ -1694,7 +1694,7 @@ class PluginsController extends ODRCustomController
             // Ensure the requested plugin isn't already installed
             $query = $em->createQuery(
                'SELECT rp 
-                FROM ODRAdminBundle:RenderPlugin AS rp
+                FROM ODR\AdminBundle\Entity\RenderPlugin AS rp
                 WHERE rp.pluginClassName = :plugin_classname'
             )->setParameters( ['plugin_classname' => $plugin_classname] );
             $results = $query->getArrayResult();
@@ -1983,7 +1983,7 @@ class PluginsController extends ODRCustomController
             // Ensure the requested plugin is already installed
             $query = $em->createQuery(
                'SELECT rp
-                FROM ODRAdminBundle:RenderPlugin AS rp
+                FROM ODR\AdminBundle\Entity\RenderPlugin AS rp
                 WHERE rp.pluginClassName = :plugin_classname'
             )->setParameters( ['plugin_classname' => $plugin_classname] );
             $results = $query->getResult();
@@ -2003,7 +2003,7 @@ class PluginsController extends ODRCustomController
             // TODO - rename renderPluginOptionsDef to renderPluginOptions
             $query = $em->createQuery(
                'SELECT rp, rpe, rpf, rpi, rpo
-                FROM ODRAdminBundle:RenderPlugin AS rp
+                FROM ODR\AdminBundle\Entity\RenderPlugin AS rp
                 LEFT JOIN rp.renderPluginEvents AS rpe
                 LEFT JOIN rp.renderPluginFields AS rpf
                 LEFT JOIN rp.renderPluginInstance AS rpi
@@ -2092,7 +2092,7 @@ class PluginsController extends ODRCustomController
             // Ensure the requested plugin is already installed
             $query = $em->createQuery(
                'SELECT rp
-                FROM ODRAdminBundle:RenderPlugin AS rp
+                FROM ODR\AdminBundle\Entity\RenderPlugin AS rp
                 WHERE rp.pluginClassName = :plugin_classname'
             )->setParameters( ['plugin_classname' => $plugin_classname] );
             $results = $query->getResult();
@@ -2202,9 +2202,9 @@ class PluginsController extends ODRCustomController
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_render_plugin_fields = $em->getRepository('ODRAdminBundle:RenderPluginFields');
-            $repo_render_plugin_options = $em->getRepository('ODRAdminBundle:RenderPluginOptionsDef');    // TODO - rename to RenderPluginOptions
-            $repo_render_plugin_events = $em->getRepository('ODRAdminBundle:RenderPluginEvents');
+            $repo_render_plugin_fields = $em->getRepository('ODR\AdminBundle\Entity\RenderPluginFields');
+            $repo_render_plugin_options = $em->getRepository('ODR\AdminBundle\Entity\RenderPluginOptionsDef');    // TODO - rename to RenderPluginOptions
+            $repo_render_plugin_events = $em->getRepository('ODR\AdminBundle\Entity\RenderPluginEvents');
 
             /** @var CacheService $cache_service */
             $cache_service = $this->container->get('odr.cache_service');
@@ -2228,7 +2228,7 @@ class PluginsController extends ODRCustomController
             // Ensure the requested plugin is already installed
             $query = $em->createQuery(
                'SELECT rp
-                FROM ODRAdminBundle:RenderPlugin AS rp
+                FROM ODR\AdminBundle\Entity\RenderPlugin AS rp
                 WHERE rp.pluginClassName = :plugin_classname'
             )->setParameters( ['plugin_classname' => $plugin_classname] );
             $results = $query->getResult();
@@ -2251,7 +2251,7 @@ class PluginsController extends ODRCustomController
             // TODO - rename renderPluginOptionsDef to renderPluginOptions
             $query = $em->createQuery(
                'SELECT rp, rpe, rpf, rpi, rpo
-                FROM ODRAdminBundle:RenderPlugin AS rp
+                FROM ODR\AdminBundle\Entity\RenderPlugin AS rp
                 LEFT JOIN rp.renderPluginEvents AS rpe
                 LEFT JOIN rp.renderPluginFields AS rpf
                 LEFT JOIN rp.renderPluginInstance AS rpi
@@ -2645,7 +2645,7 @@ class PluginsController extends ODRCustomController
 
             if ( count($rpfs_to_delete) > 0 ) {
                 $query = $em->createQuery(
-                   'UPDATE ODRAdminBundle:RenderPluginFields rpf
+                   'UPDATE ODR\AdminBundle\Entity\RenderPluginFields rpf
                     SET rpf.deletedAt = :now
                     WHERE rpf IN (:render_plugin_fields)
                     AND rpf.deletedAt IS NULL'
@@ -2653,7 +2653,7 @@ class PluginsController extends ODRCustomController
                 $rowsAffected = $query->execute();
 
                 $query = $em->createQuery(
-                   'UPDATE ODRAdminBundle:RenderPluginMap rpm
+                   'UPDATE ODR\AdminBundle\Entity\RenderPluginMap rpm
                     SET rpm.deletedAt = :now
                     WHERE rpm.renderPluginFields IN (:render_plugin_fields)
                     AND rpm.deletedAt IS NULL'
@@ -2664,7 +2664,7 @@ class PluginsController extends ODRCustomController
             if ( count($options_to_delete) > 0 ) {
                 // TODO - rename to RenderPluginOptions
                 $query = $em->createQuery(
-                   'UPDATE ODRAdminBundle:RenderPluginOptionsDef rpo
+                   'UPDATE ODR\AdminBundle\Entity\RenderPluginOptionsDef rpo
                     SET rpo.deletedAt = :now
                     WHERE rpo IN (:render_plugin_options)
                     AND rpo.deletedAt IS NULL'
@@ -2672,7 +2672,7 @@ class PluginsController extends ODRCustomController
                 $rowsAffected = $query->execute();
 
                 $query = $em->createQuery(
-                   'UPDATE ODRAdminBundle:RenderPluginOptionsMap rpom
+                   'UPDATE ODR\AdminBundle\Entity\RenderPluginOptionsMap rpom
                     SET rpom.deletedAt = :now
                     WHERE rpom.renderPluginOptionsDef IN (:render_plugin_options)
                     AND rpom.deletedAt IS NULL'
@@ -2680,7 +2680,7 @@ class PluginsController extends ODRCustomController
                 $rowsAffected = $query->execute();
 
                 $query = $em->createQuery(
-                   'UPDATE ODRAdminBundle:RenderPluginThemeOptionsMap rptom
+                   'UPDATE ODR\AdminBundle\Entity\RenderPluginThemeOptionsMap rptom
                     SET rptom.deletedAt = :now
                     WHERE rptom.renderPluginOptionsDef IN (:render_plugin_options)
                     AND rptom.deletedAt IS NULL'
@@ -2690,7 +2690,7 @@ class PluginsController extends ODRCustomController
 
             if ( count($events_to_delete) > 0 ) {
                 $query = $em->createQuery(
-                   'UPDATE ODRAdminBundle:RenderPluginEvents rpe
+                   'UPDATE ODR\AdminBundle\Entity\RenderPluginEvents rpe
                     SET rpe.deletedAt = :now
                     WHERE rpe IN (:render_plugin_events)
                     AND rpe.deletedAt IS NULL'
@@ -2712,7 +2712,7 @@ class PluginsController extends ODRCustomController
             $query = $em->createQuery(
                'SELECT partial rpi.{id}, partial dt.{id}, partial gp_dt.{id},
                     partial df.{id}, partial df_dt.{id}, partial df_gp_dt.{id}
-                FROM ODRAdminBundle:RenderPluginInstance AS rpi
+                FROM ODR\AdminBundle\Entity\RenderPluginInstance AS rpi
                 LEFT JOIN rpi.dataType AS dt
                 LEFT JOIN dt.grandparent AS gp_dt
                 LEFT JOIN rpi.dataField AS df
@@ -2788,9 +2788,9 @@ class PluginsController extends ODRCustomController
 
 
             // Grab necessary objects
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-            $repo_render_plugin_instance = $em->getRepository('ODRAdminBundle:RenderPluginInstance');
+            $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
+            $repo_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
+            $repo_render_plugin_instance = $em->getRepository('ODR\AdminBundle\Entity\RenderPluginInstance');
 
 
             // Need to specify either a datafield or a datatype...
@@ -2844,7 +2844,7 @@ class PluginsController extends ODRCustomController
                 //  render plugins...
                 $query = $em->createQuery(
                    'SELECT rp
-                    FROM ODRAdminBundle:RenderPlugin AS rp
+                    FROM ODR\AdminBundle\Entity\RenderPlugin AS rp
                     WHERE rp.plugin_type IN (:plugin_types)
                     AND rp.deletedAt IS NULL
                     ORDER BY rp.category, rp.pluginName'
@@ -2873,7 +2873,7 @@ class PluginsController extends ODRCustomController
                 //  render plugins
                 $query = $em->createQuery(
                    'SELECT rp
-                    FROM ODRAdminBundle:RenderPlugin AS rp
+                    FROM ODR\AdminBundle\Entity\RenderPlugin AS rp
                     WHERE rp.plugin_type IN (:plugin_types)
                     AND rp.deletedAt IS NULL
                     ORDER BY rp.category, rp.pluginName'
@@ -3028,8 +3028,8 @@ class PluginsController extends ODRCustomController
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
+            $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
+            $repo_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
@@ -3065,7 +3065,7 @@ class PluginsController extends ODRCustomController
             }
 
             /** @var RenderPlugin $target_render_plugin */
-            $target_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find($render_plugin_id);
+            $target_render_plugin = $em->getRepository('ODR\AdminBundle\Entity\RenderPlugin')->find($render_plugin_id);
             if ( is_null($target_render_plugin) )
                 throw new ODRNotFoundException('RenderPlugin');
 
@@ -3099,7 +3099,7 @@ class PluginsController extends ODRCustomController
             // TODO - change renderPluginOptionsDef to RenderPluginOptions?
             $query = $em->createQuery(
                'SELECT rp, rpf, rpo
-                FROM ODRAdminBundle:RenderPlugin rp
+                FROM ODR\AdminBundle\Entity\RenderPlugin rp
                 LEFT JOIN rp.renderPluginFields rpf
                 LEFT JOIN rp.renderPluginOptionsDef rpo
                 WHERE rp.id = :render_plugin_id
@@ -3207,7 +3207,7 @@ class PluginsController extends ODRCustomController
             if ( is_null($datafield) ) {
                 $query = $em->createQuery(
                    'SELECT rpi, rp
-                    FROM ODRAdminBundle:RenderPluginInstance rpi
+                    FROM ODR\AdminBundle\Entity\RenderPluginInstance rpi
                     JOIN rpi.renderPlugin AS rp
                     WHERE rpi.dataType = :dataType
                     ORDER BY rpi.id ASC'
@@ -3220,7 +3220,7 @@ class PluginsController extends ODRCustomController
             else {
                 $query = $em->createQuery(
                    'SELECT rpi, rp
-                    FROM ODRAdminBundle:RenderPluginInstance rpi
+                    FROM ODR\AdminBundle\Entity\RenderPluginInstance rpi
                     JOIN rpi.renderPlugin AS rp
                     WHERE rpi.dataField = :dataField
                     ORDER BY rpi.id ASC'
@@ -3251,7 +3251,7 @@ class PluginsController extends ODRCustomController
                 // TODO - change renderPluginOptionsDef to RenderPluginOptions?
                 $query = $em->createQuery(
                    'SELECT rpi, rp, rpm, partial rpf.{id}, partial rpm_df.{id}, rpom, partial rpo.{id}, partial trpi.{id}
-                    FROM ODRAdminBundle:RenderPluginInstance rpi
+                    FROM ODR\AdminBundle\Entity\RenderPluginInstance rpi
                     LEFT JOIN rpi.renderPlugin rp
                     LEFT JOIN rpi.renderPluginMap rpm
                     LEFT JOIN rpm.renderPluginFields rpf
@@ -3398,7 +3398,7 @@ class PluginsController extends ODRCustomController
         if ( is_null($datafield) ) {
             $query = $em->createQuery(
                 'SELECT rpi, rp
-                    FROM ODRAdminBundle:RenderPluginInstance rpi
+                    FROM ODR\AdminBundle\Entity\RenderPluginInstance rpi
                     JOIN rpi.renderPlugin AS rp
                     WHERE rpi.dataType = :dataType
                     ORDER BY rpi.id ASC'
@@ -3411,7 +3411,7 @@ class PluginsController extends ODRCustomController
         else {
             $query = $em->createQuery(
                 'SELECT rpi, rp
-                    FROM ODRAdminBundle:RenderPluginInstance rpi
+                    FROM ODR\AdminBundle\Entity\RenderPluginInstance rpi
                     JOIN rpi.renderPlugin AS rp
                     WHERE rpi.dataField = :dataField
                     ORDER BY rpi.id ASC'
@@ -3638,13 +3638,13 @@ class PluginsController extends ODRCustomController
 
             if ($datafield_id == 0) {
                 // This is a render plugin for a datatype/themeElement/array
-                $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+                $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
                 if ( is_null($datatype) )
                     throw new ODRNotFoundException('Datatype');
             }
             else {
                 // This is a render plugin for a datafield
-                $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+                $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
                 if ( is_null($datafield) )
                     throw new ODRNotFoundException('Datafield');
 
@@ -3654,7 +3654,7 @@ class PluginsController extends ODRCustomController
             }
 
             /** @var RenderPlugin $target_render_plugin */
-            $target_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find($render_plugin_id);
+            $target_render_plugin = $em->getRepository('ODR\AdminBundle\Entity\RenderPlugin')->find($render_plugin_id);
             if ( is_null($target_render_plugin) )
                 throw new ODRNotFoundException('RenderPlugin');
 
@@ -3673,7 +3673,7 @@ class PluginsController extends ODRCustomController
             // There should be a RenderPluginInstance for this RenderPlugin and Datatype/Datafield
             $rpi_array = null;
             if ( is_null($datafield) ) {
-                $rpi_array = $em->getRepository('ODRAdminBundle:RenderPluginInstance')->findBy(
+                $rpi_array = $em->getRepository('ODR\AdminBundle\Entity\RenderPluginInstance')->findBy(
                     [
                         'dataType' => $datatype->getId(),
                         'renderPlugin' => $target_render_plugin->getId()
@@ -3681,7 +3681,7 @@ class PluginsController extends ODRCustomController
                 );
             }
             else {
-                $rpi_array = $em->getRepository('ODRAdminBundle:RenderPluginInstance')->findBy(
+                $rpi_array = $em->getRepository('ODR\AdminBundle\Entity\RenderPluginInstance')->findBy(
                     [
                         'dataField' => $datafield->getId(),
                         'renderPlugin' => $target_render_plugin->getId()
@@ -3736,7 +3736,7 @@ class PluginsController extends ODRCustomController
             if ( $target_render_plugin->getPluginType() === RenderPlugin::THEME_ELEMENT_PLUGIN ) {
                 $query = $em->createQuery(
                    'SELECT trpi
-                    FROM ODRAdminBundle:ThemeRenderPluginInstance trpi
+                    FROM ODR\AdminBundle\Entity\ThemeRenderPluginInstance trpi
                     WHERE trpi.renderPluginInstance = :rpi_id
                     AND trpi.deletedAt IS NULL'
                 )->setParameters(
@@ -3891,14 +3891,14 @@ class PluginsController extends ODRCustomController
             $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-            $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
-            $repo_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin');
-            $repo_render_plugin_fields = $em->getRepository('ODRAdminBundle:RenderPluginFields');
-            $repo_render_plugin_options = $em->getRepository('ODRAdminBundle:RenderPluginOptionsDef');    // TODO - rename RenderPluginOptionsDef to RenderPluginOptions?
-            $repo_render_plugin_map = $em->getRepository('ODRAdminBundle:RenderPluginMap');
-            $repo_render_plugin_options_map = $em->getRepository('ODRAdminBundle:RenderPluginOptionsMap');
-            $repo_render_plugin_instance = $em->getRepository('ODRAdminBundle:RenderPluginInstance');
+            $repo_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
+            $repo_fieldtype = $em->getRepository('ODR\AdminBundle\Entity\FieldType');
+            $repo_render_plugin = $em->getRepository('ODR\AdminBundle\Entity\RenderPlugin');
+            $repo_render_plugin_fields = $em->getRepository('ODR\AdminBundle\Entity\RenderPluginFields');
+            $repo_render_plugin_options = $em->getRepository('ODR\AdminBundle\Entity\RenderPluginOptionsDef');    // TODO - rename RenderPluginOptionsDef to RenderPluginOptions?
+            $repo_render_plugin_map = $em->getRepository('ODR\AdminBundle\Entity\RenderPluginMap');
+            $repo_render_plugin_options_map = $em->getRepository('ODR\AdminBundle\Entity\RenderPluginOptionsMap');
+            $repo_render_plugin_instance = $em->getRepository('ODR\AdminBundle\Entity\RenderPluginInstance');
 
             /** @var DataType|null $target_datatype */
             $target_datatype = null;    // the datatype that is getting its render plugin modified, or the datatype of the datafield getting its render plugin modified
@@ -3912,7 +3912,7 @@ class PluginsController extends ODRCustomController
 
             if ($local_datafield_id == 0) {
                 // Changing the render plugin for a datatype/themeElement/array...
-                $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($local_datatype_id);
+                $target_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($local_datatype_id);
                 if ( is_null($target_datatype) )
                     throw new ODRNotFoundException('Datatype');
 
@@ -4417,8 +4417,8 @@ class PluginsController extends ODRCustomController
             /** @var \Twig\Environment $templating */
             $templating = $this->get('templating');
 
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
+            $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
+            $repo_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
 
             // Need to specify either a datafield or a datatype...
             $datatype = null;
@@ -4474,9 +4474,9 @@ class PluginsController extends ODRCustomController
                 //  render plugins...
                 $query = $em->createQuery(
                    'SELECT rpi
-                    FROM ODRAdminBundle:RenderPluginInstance AS rpi
-                    LEFT JOIN ODRAdminBundle:RenderPlugin AS rp WITH rpi.renderPlugin = rp
-                    LEFT JOIN ODRAdminBundle:RenderPluginOptionsDef AS rpod WITH rpod.renderPlugin = rp
+                    FROM ODR\AdminBundle\Entity\RenderPluginInstance AS rpi
+                    LEFT JOIN ODR\AdminBundle\Entity\RenderPlugin AS rp WITH rpi.renderPlugin = rp
+                    LEFT JOIN ODR\AdminBundle\Entity\RenderPluginOptionsDef AS rpod WITH rpod.renderPlugin = rp
                     WHERE rp.plugin_type IN (:plugin_types) AND rpod.uses_layout_settings = :uses_layout_settings
                     AND rpi.dataType = :datatype
                     AND rp.deletedAt IS NULL AND rpod.deletedAt IS NULL AND rpi.deletedAt IS NULL
@@ -4505,9 +4505,9 @@ class PluginsController extends ODRCustomController
                 //  render plugins
                 $query = $em->createQuery(
                    'SELECT rpi
-                    FROM ODRAdminBundle:RenderPluginInstance AS rpi
-                    LEFT JOIN ODRAdminBundle:RenderPlugin AS rp WITH rpi.renderPlugin = rp
-                    LEFT JOIN ODRAdminBundle:RenderPluginOptionsDef AS rpod WITH rpod.renderPlugin = rp
+                    FROM ODR\AdminBundle\Entity\RenderPluginInstance AS rpi
+                    LEFT JOIN ODR\AdminBundle\Entity\RenderPlugin AS rp WITH rpi.renderPlugin = rp
+                    LEFT JOIN ODR\AdminBundle\Entity\RenderPluginOptionsDef AS rpod WITH rpod.renderPlugin = rp
                     WHERE rp.plugin_type IN (:plugin_types) AND rpod.uses_layout_settings = :uses_layout_settings
                     AND rpi.dataField = :datafield
                     AND rp.deletedAt IS NULL AND rpod.deletedAt IS NULL AND rpi.deletedAt IS NULL
@@ -4613,8 +4613,8 @@ class PluginsController extends ODRCustomController
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
+            $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
+            $repo_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->container->get('odr.permissions_management_service');
@@ -4646,12 +4646,12 @@ class PluginsController extends ODRCustomController
             }
 
             /** @var RenderPlugin $target_render_plugin */
-            $target_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin')->find($render_plugin_id);
+            $target_render_plugin = $em->getRepository('ODR\AdminBundle\Entity\RenderPlugin')->find($render_plugin_id);
             if ( is_null($target_render_plugin) )
                 throw new ODRNotFoundException('RenderPlugin');
 
             /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            $theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($theme_id);
             if ($theme == null)
                 throw new ODRNotFoundException('Theme');
 
@@ -4676,7 +4676,7 @@ class PluginsController extends ODRCustomController
             // TODO - change renderPluginOptionsDef to RenderPluginOptions?
             $query = $em->createQuery(
                'SELECT rp, rpo
-                FROM ODRAdminBundle:RenderPlugin rp
+                FROM ODR\AdminBundle\Entity\RenderPlugin rp
                 LEFT JOIN rp.renderPluginOptionsDef rpo
                 WHERE rp.id = :render_plugin_id
                 AND rp.deletedAt IS NULL AND rpo.deletedAt IS NULL'
@@ -4736,7 +4736,7 @@ class PluginsController extends ODRCustomController
             if ( is_null($datafield) ) {
                 $query = $em->createQuery(
                    'SELECT rpi, rp
-                    FROM ODRAdminBundle:RenderPluginInstance rpi
+                    FROM ODR\AdminBundle\Entity\RenderPluginInstance rpi
                     JOIN rpi.renderPlugin AS rp
                     WHERE rpi.dataType = :dataType
                     ORDER BY rpi.id ASC'
@@ -4749,7 +4749,7 @@ class PluginsController extends ODRCustomController
             else {
                 $query = $em->createQuery(
                    'SELECT rpi, rp
-                    FROM ODRAdminBundle:RenderPluginInstance rpi
+                    FROM ODR\AdminBundle\Entity\RenderPluginInstance rpi
                     JOIN rpi.renderPlugin AS rp
                     WHERE rpi.dataField = :dataField
                     ORDER BY rpi.id ASC'
@@ -4780,7 +4780,7 @@ class PluginsController extends ODRCustomController
                 // TODO - change renderPluginOptionsDef to RenderPluginOptions?
                 $query = $em->createQuery(
                    'SELECT rpi, rptom, partial rpo.{id}, partial t.{id}
-                    FROM ODRAdminBundle:RenderPluginInstance rpi
+                    FROM ODR\AdminBundle\Entity\RenderPluginInstance rpi
                     LEFT JOIN rpi.renderPluginThemeOptionsMap rptom
                     LEFT JOIN rptom.renderPluginOptionsDef rpo
                     LEFT JOIN rptom.theme t
@@ -4908,12 +4908,12 @@ class PluginsController extends ODRCustomController
             $theme_info_service = $this->container->get('odr.theme_info_service');
 
 
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-            $repo_render_plugin = $em->getRepository('ODRAdminBundle:RenderPlugin');
-            $repo_render_plugin_options = $em->getRepository('ODRAdminBundle:RenderPluginOptionsDef');    // TODO - rename RenderPluginOptionsDef to RenderPluginOptions?
-            $repo_render_plugin_instance = $em->getRepository('ODRAdminBundle:RenderPluginInstance');
-            $repo_render_plugin_theme_options_map = $em->getRepository('ODRAdminBundle:RenderPluginThemeOptionsMap');
-            $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
+            $repo_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
+            $repo_render_plugin = $em->getRepository('ODR\AdminBundle\Entity\RenderPlugin');
+            $repo_render_plugin_options = $em->getRepository('ODR\AdminBundle\Entity\RenderPluginOptionsDef');    // TODO - rename RenderPluginOptionsDef to RenderPluginOptions?
+            $repo_render_plugin_instance = $em->getRepository('ODR\AdminBundle\Entity\RenderPluginInstance');
+            $repo_render_plugin_theme_options_map = $em->getRepository('ODR\AdminBundle\Entity\RenderPluginThemeOptionsMap');
+            $repo_theme = $em->getRepository('ODR\AdminBundle\Entity\Theme');
 
             /** @var DataType|null $target_datatype */
             $target_datatype = null;    // the datatype that is getting its render plugin modified, or the datatype of the datafield getting its render plugin modified
@@ -4932,7 +4932,7 @@ class PluginsController extends ODRCustomController
 
             if ($local_datafield_id == 0) {
                 // Changing the render plugin for a datatype/themeElement/array...
-                $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($local_datatype_id);
+                $target_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($local_datatype_id);
                 if ( is_null($target_datatype) )
                     throw new ODRNotFoundException('Datatype');
 

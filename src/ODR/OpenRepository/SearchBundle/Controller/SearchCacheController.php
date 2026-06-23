@@ -44,13 +44,13 @@ class SearchCacheController extends \Symfony\Bundle\FrameworkBundle\Controller\A
         $em = $this->getDoctrine()->getManager();
 
         /** @var DataType $datatype */
-        $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+        $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
         if ($datatype == null)
             throw new ODRNotFoundException('Datatype');
 
         // Get a count of records
         // Retrieve what should be the first and only datarecord...
-        $results = $em->getRepository('ODRAdminBundle:DataRecord')->findBy(
+        $results = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->findBy(
             [
                 'dataType' => $datatype->getId()
             ]

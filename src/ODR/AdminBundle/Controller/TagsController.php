@@ -85,7 +85,7 @@ class TagsController extends ODRCustomController
 
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ($datafield == null)
                 throw new ODRNotFoundException('Datafield');
 
@@ -297,7 +297,7 @@ class TagsController extends ODRCustomController
 
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ($datafield == null)
                 throw new ODRNotFoundException('Datafield');
             // This should only work on a Tag field
@@ -366,7 +366,7 @@ class TagsController extends ODRCustomController
 
             if ( $parent_tag_id !== 0 ) {
                 /** @var Tags|null $parent_tag */
-                $parent_tag = $em->getRepository('ODRAdminBundle:Tags')->find($parent_tag_id);
+                $parent_tag = $em->getRepository('ODR\AdminBundle\Entity\Tags')->find($parent_tag_id);
                 if ($parent_tag == null)
                     throw new ODRNotFoundException('Parent Tag');
                 if ( $parent_tag->getDataField()->getId() != $datafield_id )
@@ -374,7 +374,7 @@ class TagsController extends ODRCustomController
 
                 if ( $is_derived_field ) {
                     /** @var Tags|null $master_parent_tag */
-                    $master_parent_tag = $em->getRepository('ODRAdminBundle:Tags')->findOneBy(
+                    $master_parent_tag = $em->getRepository('ODR\AdminBundle\Entity\Tags')->findOneBy(
                         [
                             'dataField' => $datafield->getMasterDataField()->getId(),
                             'tagUuid' => $parent_tag->getTagUuid(),
@@ -564,7 +564,7 @@ class TagsController extends ODRCustomController
 
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ($datafield == null)
                 throw new ODRNotFoundException('Datafield');
 
@@ -797,7 +797,7 @@ class TagsController extends ODRCustomController
 
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ($datafield == null)
                 throw new ODRNotFoundException('Datafield');
 
@@ -1068,7 +1068,7 @@ class TagsController extends ODRCustomController
                 if ( is_null($parent_tag) ) {
                     // ...but if it hasn't, then hydrate it directly
                     // NOTE - theoretically this should only get triggered on tags that haven't been created by this function
-                    $parent_tag = $em->getRepository('ODRAdminBundle:Tags')->findOneBy(
+                    $parent_tag = $em->getRepository('ODR\AdminBundle\Entity\Tags')->findOneBy(
                         [
                             'tagUuid' => $parent_tag_uuid,
                             'dataField' => $datafield_id,
@@ -1099,7 +1099,7 @@ class TagsController extends ODRCustomController
                     if ( is_null($parent_master_tag) ) {
                         // ...but if it hasn't, then hydrate it directly
                         // NOTE - theoretically this should only get triggered on tags that haven't been created by this function
-                        $parent_master_tag = $em->getRepository('ODRAdminBundle:Tags')->findOneBy(
+                        $parent_master_tag = $em->getRepository('ODR\AdminBundle\Entity\Tags')->findOneBy(
                             [
                                 'tagUuid' => $parent_tag_uuid,
                                 'dataField' => $master_datafield_id,
@@ -1196,7 +1196,7 @@ class TagsController extends ODRCustomController
 
             /** @var Tags $tag */
             $tag_id = intval($tag_id);
-            $tag = $em->getRepository('ODRAdminBundle:Tags')->find($tag_id);
+            $tag = $em->getRepository('ODR\AdminBundle\Entity\Tags')->find($tag_id);
             if ($tag == null)
                 throw new ODRNotFoundException('Tag');
 
@@ -1281,7 +1281,7 @@ class TagsController extends ODRCustomController
             // Determine whether this is a child tag or not
             $query = $em->createQuery(
                'SELECT tt.id
-                FROM ODRAdminBundle:TagTree AS tt
+                FROM ODR\AdminBundle\Entity\TagTree AS tt
                 WHERE tt.child IN (:child_tags)
                 AND tt.deletedAt IS NULL'
             )->setParameters(
@@ -1304,7 +1304,7 @@ class TagsController extends ODRCustomController
                 // ...if this is a request to delete a tag from a derived field, then its master
                 //  tag also needs to be deleted
                 /** @var Tags $master_tag */
-                $master_tag = $em->getRepository('ODRAdminBundle:Tags')->findOneBy(
+                $master_tag = $em->getRepository('ODR\AdminBundle\Entity\Tags')->findOneBy(
                     [
                         'dataField' => $datafield->getMasterDataField(),
                         'tagUuid' => $tag->getTagUuid(),
@@ -1326,7 +1326,7 @@ class TagsController extends ODRCustomController
             // Run a query to get all of the tag tree entries that are going to need deletion
             $query = $em->createQuery(
                'SELECT tt.id
-                FROM ODRAdminBundle:TagTree AS tt
+                FROM ODR\AdminBundle\Entity\TagTree AS tt
                 WHERE (tt.parent IN (:parent_tags) OR tt.child IN (:child_tags) )
                 AND tt.deletedAt IS NULL'
             )->setParameters(
@@ -1345,7 +1345,7 @@ class TagsController extends ODRCustomController
             // Do the same to get all of the tag selection entries that need deletion
             $query = $em->createQuery(
                'SELECT ts.id
-                FROM ODRAdminBundle:TagSelection AS ts
+                FROM ODR\AdminBundle\Entity\TagSelection AS ts
                 WHERE ts.tag IN (:tag_list) AND ts.deletedAt IS NULL'
             )->setParameters( ['tag_list' => $tags_to_delete] );
             $results = $query->getArrayResult();
@@ -1566,7 +1566,7 @@ class TagsController extends ODRCustomController
 
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ($datafield == null)
                 throw new ODRNotFoundException('Datafield');
 
@@ -1615,7 +1615,7 @@ class TagsController extends ODRCustomController
                 throw new ODRBadRequestException('Invalid tag id given');
 
             /** @var Tags $child_tag */
-            $child_tag = $em->getRepository('ODRAdminBundle:Tags')->find($child_tag_id);
+            $child_tag = $em->getRepository('ODR\AdminBundle\Entity\Tags')->find($child_tag_id);
             if ($child_tag == null)
                 throw new ODRNotFoundException('Child Tag');
 
@@ -1639,7 +1639,7 @@ class TagsController extends ODRCustomController
                     throw new ODRBadRequestException('Invalid tag id');
 
                 /** @var Tags $parent_tag */
-                $parent_tag = $em->getRepository('ODRAdminBundle:Tags')->find($parent_tag_id);
+                $parent_tag = $em->getRepository('ODR\AdminBundle\Entity\Tags')->find($parent_tag_id);
                 if ($parent_tag == null)
                     throw new ODRNotFoundException('Parent Tag');
 
@@ -1702,8 +1702,8 @@ class TagsController extends ODRCustomController
             // Should also verify that all tags in $tag_ordering belong to this datafield
             $query = $em->createQuery(
                'SELECT df.id AS df_id
-                FROM ODRAdminBundle:Tags t
-                JOIN ODRAdminBundle:DataFields df WITH t.dataField = df
+                FROM ODR\AdminBundle\Entity\Tags t
+                JOIN ODR\AdminBundle\Entity\DataFields df WITH t.dataField = df
                 WHERE t IN (:tags)
                 AND t.deletedAt IS NULL AND df.deletedAt IS NULL'
             )->setParameters( ['tags' => $tag_ordering] );
@@ -1771,11 +1771,11 @@ class TagsController extends ODRCustomController
             }
             else {
                 // Need to potentially look up tags if their displayOrder gets changed
-                $repo_tags = $em->getRepository('ODRAdminBundle:Tags');
+                $repo_tags = $em->getRepository('ODR\AdminBundle\Entity\Tags');
 
                 $query = $em->createQuery(
                    'SELECT t.id AS t_id, tm.displayOrder
-                    FROM ODRAdminBundle:Tags AS t
+                    FROM ODR\AdminBundle\Entity\Tags AS t
                     JOIN t.tagMeta AS tm
                     WHERE t.dataField = :datafield
                     AND t.deletedAt IS NULL AND tm.deletedAt IS NULL'
@@ -1911,7 +1911,7 @@ class TagsController extends ODRCustomController
     private function updateTagTrees($em, $entity_create_service, $user, $datafield, $child_tag_uuid, $parent_tag_uuid)
     {
         /** @var Tags $child_tag */
-        $child_tag = $em->getRepository('ODRAdminBundle:Tags')->findOneBy(
+        $child_tag = $em->getRepository('ODR\AdminBundle\Entity\Tags')->findOneBy(
             [
                 'dataField' => $datafield->getId(),
                 'tagUuid' => $child_tag_uuid
@@ -1921,7 +1921,7 @@ class TagsController extends ODRCustomController
         /** @var Tags|null $parent_tag */
         $parent_tag = null;
         if ( !is_null($parent_tag_uuid) ) {
-            $parent_tag = $em->getRepository('ODRAdminBundle:Tags')->findOneBy(
+            $parent_tag = $em->getRepository('ODR\AdminBundle\Entity\Tags')->findOneBy(
                 [
                     'dataField' => $datafield->getId(),
                     'tagUuid' => $parent_tag_uuid
@@ -1933,9 +1933,9 @@ class TagsController extends ODRCustomController
         //  self::sortTagsByName() relies on this relationship being set correctly
         $query = $em->createQuery(
            'SELECT tt
-            FROM ODRAdminBundle:Tags AS t_c
-            LEFT JOIN ODRAdminBundle:TagTree AS tt WITH tt.child = t_c
-            LEFT JOIN ODRAdminBundle:Tags AS t_p WITH tt.parent = t_p
+            FROM ODR\AdminBundle\Entity\Tags AS t_c
+            LEFT JOIN ODR\AdminBundle\Entity\TagTree AS tt WITH tt.child = t_c
+            LEFT JOIN ODR\AdminBundle\Entity\Tags AS t_p WITH tt.parent = t_p
             WHERE t_c = :tag_id
             AND t_c.deletedAt IS NULL AND tt.deletedAt IS NULL AND t_p.deletedAt IS NULL'
         )->setParameters( ['tag_id' => $child_tag->getId()] );
@@ -2034,7 +2034,7 @@ class TagsController extends ODRCustomController
         // Get a list of all datarecords with this datafield
         $query = $em->createQuery(
            'SELECT dr.id AS dr_id
-            FROM ODRAdminBundle:DataRecord dr
+            FROM ODR\AdminBundle\Entity\DataRecord dr
             WHERE dr.dataType = :datatype_id
             AND dr.deletedAt IS NULL'
         )->setParameters( ['datatype_id' => $datatype->getId()] );
@@ -2173,7 +2173,7 @@ class TagsController extends ODRCustomController
 
 
             /** @var Tags $tag */
-            $tag = $em->getRepository('ODRAdminBundle:Tags')->find($tag_id);
+            $tag = $em->getRepository('ODR\AdminBundle\Entity\Tags')->find($tag_id);
             if ($tag == null)
                 throw new ODRNotFoundException('Tag');
 
@@ -2260,7 +2260,7 @@ class TagsController extends ODRCustomController
                 // ...if this is a request to rename a tag from a derived field, then its master
                 //  tag also needs to be renamed
                 /** @var Tags $master_tag */
-                $master_tag = $em->getRepository('ODRAdminBundle:Tags')->findOneBy(
+                $master_tag = $em->getRepository('ODR\AdminBundle\Entity\Tags')->findOneBy(
                     [
                         'dataField' => $datafield->getMasterDataField(),
                         'tagUuid' => $tag->getTagUuid(),
@@ -2385,17 +2385,17 @@ class TagsController extends ODRCustomController
 
 
             /** @var Tags $tag */
-            $tag = $em->getRepository('ODRAdminBundle:Tags')->find($tag_id);
+            $tag = $em->getRepository('ODR\AdminBundle\Entity\Tags')->find($tag_id);
             if ($tag == null)
                 throw new ODRNotFoundException('Tag');
 
             /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($datarecord_id);
             if ($datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ($datafield == null)
                 throw new ODRNotFoundException('Datafield');
 

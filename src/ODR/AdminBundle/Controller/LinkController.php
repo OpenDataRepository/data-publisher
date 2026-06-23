@@ -92,12 +92,12 @@ class LinkController extends ODRCustomController
 
 
             /** @var DataType $local_datatype */
-            $local_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $local_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($local_datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
             /** @var ThemeElement $theme_element */
-            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            $theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement')->find($theme_element_id);
             if ($theme_element == null)
                 throw new ODRNotFoundException('ThemeElement');
 
@@ -140,7 +140,7 @@ class LinkController extends ODRCustomController
                     partial dtm.{id, shortName, description, publicDate},
                     partial dt_md.{id}
 
-                FROM ODRAdminBundle:DataType AS dt
+                FROM ODR\AdminBundle\Entity\DataType AS dt
                 JOIN dt.grandparent AS gp
                 JOIN dt.dataTypeMeta AS dtm
                 JOIN dt.createdBy AS dt_cb
@@ -260,19 +260,19 @@ class LinkController extends ODRCustomController
 
 
             /** @var DataType $local_datatype */
-            $local_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($local_datatype_id);
+            $local_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($local_datatype_id);
             if ( is_null($local_datatype) )
                 throw new ODRNotFoundException('Local Datatype');
 
             /** @var DataType $template_datatype */
-            $template_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($template_datatype_id);
+            $template_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($template_datatype_id);
             if ( is_null($template_datatype) )
                 throw new ODRNotFoundException('Template');
             if ( !$template_datatype->getIsMasterType() )
                 throw new ODRNotFoundException('Template');
 
             /** @var ThemeElement $theme_element */
-            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            $theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement')->find($theme_element_id);
             if ($theme_element == null)
                 throw new ODRNotFoundException('ThemeElement');
 
@@ -445,13 +445,13 @@ class LinkController extends ODRCustomController
 
 
             /** @var DataType $local_datatype */
-            $local_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $local_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($local_datatype == null)
                 throw new ODRNotFoundException('Datatype');
             $is_master_template = $local_datatype->getIsMasterType();
 
             /** @var ThemeElement $theme_element */
-            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            $theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement')->find($theme_element_id);
             if ($theme_element == null)
                 throw new ODRNotFoundException('ThemeElement');
 
@@ -499,9 +499,9 @@ class LinkController extends ODRCustomController
                 // Determine whether any datarecords of the local datatype link to datarecords of the remote datatype
                 $query = $em->createQuery(
                    'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
-                    FROM ODRAdminBundle:DataRecord AS ancestor
-                    JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
-                    JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+                    FROM ODR\AdminBundle\Entity\DataRecord AS ancestor
+                    JOIN ODR\AdminBundle\Entity\LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
+                    JOIN ODR\AdminBundle\Entity\DataRecord AS descendant WITH ldt.descendant = descendant
                     WHERE ancestor.dataType = :local_datatype_id AND descendant.dataType = :remote_datatype_id
                     AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
                 )->setParameters(
@@ -524,7 +524,7 @@ class LinkController extends ODRCustomController
             /** @var DataTree|null $current_datatree */
             $current_datatree = null;
             if ( !is_null($current_remote_datatype) ) {
-                $current_datatree = $em->getrepository('ODRAdminBundle:DataTree')->findOneBy(
+                $current_datatree = $em->getrepository('ODR\AdminBundle\Entity\DataTree')->findOneBy(
                     [
                         'ancestor' => $local_datatype,
                         'descendant' => $current_remote_datatype,
@@ -543,7 +543,7 @@ class LinkController extends ODRCustomController
                     partial dtm.{id, shortName, description, publicDate},
                     partial dt_md.{id}
 
-                FROM ODRAdminBundle:DataType AS dt
+                FROM ODR\AdminBundle\Entity\DataType AS dt
                 JOIN dt.grandparent AS gp
                 JOIN dt.dataTypeMeta AS dtm
                 JOIN dt.createdBy AS dt_cb
@@ -749,15 +749,15 @@ class LinkController extends ODRCustomController
                     dt.id AS datatype_id, dtm.shortName AS datatype_name,
                     ldt.id AS datatree_id, sldt.id AS secondary_datatree_id,
                     ddt.id AS descendant_datatype_id, ddtm.shortName AS descendant_datatype_name
-            FROM ODRAdminBundle:DataType AS gdt
-            JOIN ODRAdminBundle:DataTypeMeta AS gdtm WITH gdtm.dataType = gdt
-            JOIN ODRAdminBundle:DataType AS dt WITH dt.grandparent = gdt
-            JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
-            JOIN ODRAdminBundle:DataTree AS ldt WITH ldt.ancestor = dt
-            JOIN ODRAdminBundle:DataTreeMeta AS ldtm WITH ldtm.dataTree = ldt
-            LEFT JOIN ODRAdminBundle:DataTree AS sldt WITH (ldtm.secondaryDataTree = sldt AND sldt.deletedAt IS NULL)
-            JOIN ODRAdminBundle:DataType AS ddt WITH ldt.descendant = ddt
-            JOIN ODRAdminBundle:DataTypeMeta AS ddtm WITH ddtm.dataType = ddt
+            FROM ODR\AdminBundle\Entity\DataType AS gdt
+            JOIN ODR\AdminBundle\Entity\DataTypeMeta AS gdtm WITH gdtm.dataType = gdt
+            JOIN ODR\AdminBundle\Entity\DataType AS dt WITH dt.grandparent = gdt
+            JOIN ODR\AdminBundle\Entity\DataTypeMeta AS dtm WITH dtm.dataType = dt
+            JOIN ODR\AdminBundle\Entity\DataTree AS ldt WITH ldt.ancestor = dt
+            JOIN ODR\AdminBundle\Entity\DataTreeMeta AS ldtm WITH ldtm.dataTree = ldt
+            LEFT JOIN ODR\AdminBundle\Entity\DataTree AS sldt WITH (ldtm.secondaryDataTree = sldt AND sldt.deletedAt IS NULL)
+            JOIN ODR\AdminBundle\Entity\DataType AS ddt WITH ldt.descendant = ddt
+            JOIN ODR\AdminBundle\Entity\DataTypeMeta AS ddtm WITH ddtm.dataType = ddt
             WHERE gdt.id = :grandparent_datatype_id AND ldtm.is_link = 1
             AND gdt.deletedAt IS NULL AND gdtm.deletedAt IS NULL
             AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
@@ -844,7 +844,7 @@ class LinkController extends ODRCustomController
             $permissions_service = $this->container->get('odr.permissions_management_service');
 
             /** @var DataTree $local_datatree */
-            $local_datatree = $em->getRepository('ODRAdminBundle:DataTree')->find($datatree_id);
+            $local_datatree = $em->getRepository('ODR\AdminBundle\Entity\DataTree')->find($datatree_id);
             if ($local_datatree == null)
                 throw new ODRNotFoundException('Datatree');
 
@@ -863,7 +863,7 @@ class LinkController extends ODRCustomController
             /** @var DataTree|null $secondary_datatree */
             $secondary_datatree = null;
             if ( $secondary_datatree_id != 0 ) {
-                $secondary_datatree = $em->getRepository('ODRAdminBundle:DataTree')->find($secondary_datatree_id);
+                $secondary_datatree = $em->getRepository('ODR\AdminBundle\Entity\DataTree')->find($secondary_datatree_id);
                 if ($secondary_datatree == null)
                     throw new ODRNotFoundException('Secondary Datatree');
             }
@@ -1055,7 +1055,7 @@ class LinkController extends ODRCustomController
 
 
             /** @var ThemeElement $theme_element */
-            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            $theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement')->find($theme_element_id);
             if ($theme_element == null)
                 throw new ODRNotFoundException('ThemeElement');
 
@@ -1064,7 +1064,7 @@ class LinkController extends ODRCustomController
                 throw new ODRNotFoundException('Theme');
 
             /** @var DataType $local_datatype */
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+            $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
             $local_datatype = $repo_datatype->find($local_datatype_id);
             if ($local_datatype == null)
                 throw new ODRNotFoundException('Local Datatype');
@@ -1194,7 +1194,7 @@ class LinkController extends ODRCustomController
             if ( !is_null($previous_remote_datatype) ) {
                 // Locate the Datatree entry that tied the local and the remote datatype together
                 /** @var DataTree $previous_datatree */
-                $previous_datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
+                $previous_datatree = $em->getRepository('ODR\AdminBundle\Entity\DataTree')->findOneBy(
                     [
                         'ancestor' => $local_datatype_id,
                         'descendant' => $previous_remote_datatype_id
@@ -1231,8 +1231,8 @@ class LinkController extends ODRCustomController
                 //  datatype...
                 $query = $em->createQuery(
                    'SELECT dtsf.id
-                    FROM ODRAdminBundle:DataTypeSpecialFields AS dtsf
-                    LEFT JOIN ODRAdminBundle:DataFields AS remote_df WITH dtsf.dataField = remote_df
+                    FROM ODR\AdminBundle\Entity\DataTypeSpecialFields AS dtsf
+                    LEFT JOIN ODR\AdminBundle\Entity\DataFields AS remote_df WITH dtsf.dataField = remote_df
                     WHERE dtsf.dataType = :local_datatype_id AND dtsf.field_purpose = :field_purpose
                     AND remote_df.dataType = :remote_datatype_id
                     AND dtsf.deletedAt IS NULL AND remote_df.deletedAt IS NULL'
@@ -1248,7 +1248,7 @@ class LinkController extends ODRCustomController
                 // ...if so, then those entries need to get deleted
                 if ( !empty($dtsf_ids) ) {
                     $query = $em->createQuery(
-                       'UPDATE ODRAdminBundle:DataTypeSpecialFields AS dtsf
+                       'UPDATE ODR\AdminBundle\Entity\DataTypeSpecialFields AS dtsf
                         SET dtsf.deletedAt = :now, dtsf.deletedBy = :deleted_by
                         WHERE dtsf.id IN (:dtsf_ids)
                         AND dtsf.deletedAt IS NULL'
@@ -1271,8 +1271,8 @@ class LinkController extends ODRCustomController
                 //  in one of its sidebar layouts...
                 $query = $em->createQuery(
                    'SELECT sl_dfm.id AS sl_dfm_id
-                    FROM ODRAdminBundle:SidebarLayout AS sl
-                    JOIN ODRAdminBundle:SidebarLayoutMap AS sl_dfm WITH sl_dfm.sidebarLayout = sl
+                    FROM ODR\AdminBundle\Entity\SidebarLayout AS sl
+                    JOIN ODR\AdminBundle\Entity\SidebarLayoutMap AS sl_dfm WITH sl_dfm.sidebarLayout = sl
                     WHERE sl.dataType = :ancestor_datatype_id
                     AND sl_dfm.dataType = :descendant_datatype_id
                     AND sl.deletedAt IS NULL AND sl_dfm.deletedAt IS NULL'
@@ -1286,7 +1286,7 @@ class LinkController extends ODRCustomController
 
                 if ( !empty($sl_dfm_ids) ) {
                     $query = $em->createQuery(
-                       'UPDATE ODRAdminBundle:SidebarLayoutMap AS sl_dfm
+                       'UPDATE ODR\AdminBundle\Entity\SidebarLayoutMap AS sl_dfm
                         SET sl_dfm.deletedAt = :now
                         WHERE sl_dfm.id IN (:sl_dfm_ids)
                         AND sl_dfm.deletedAt IS NULL'
@@ -1312,8 +1312,8 @@ class LinkController extends ODRCustomController
                 //  no longer point to it
                 $query = $em->createQuery(
                    'SELECT dt
-                    FROM ODRAdminBundle:DataTree dt
-                    JOIN ODRAdminBundle:DataTreeMeta dtm WITH dtm.dataTree = dt
+                    FROM ODR\AdminBundle\Entity\DataTree dt
+                    JOIN ODR\AdminBundle\Entity\DataTreeMeta dtm WITH dtm.dataTree = dt
                     WHERE dtm.secondaryDataTree = :datatree_to_delete
                     AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
                 )->setParameters(
@@ -1548,9 +1548,9 @@ class LinkController extends ODRCustomController
         //  contains a link to $remote_datatype_id
         $query = $em->createQuery(
            'SELECT te.id AS theme_element_id
-            FROM ODRAdminBundle:ThemeDataType AS tdt
-            JOIN ODRAdminBundle:ThemeElement AS te WITH tdt.themeElement = te
-            JOIN ODRAdminBundle:Theme AS t WITH te.theme = t
+            FROM ODR\AdminBundle\Entity\ThemeDataType AS tdt
+            JOIN ODR\AdminBundle\Entity\ThemeElement AS te WITH tdt.themeElement = te
+            JOIN ODR\AdminBundle\Entity\Theme AS t WITH te.theme = t
             WHERE tdt.dataType = :remote_datatype_id AND t.dataType = :local_datatype_id
             AND tdt.deletedAt IS NULL AND te.deletedAt IS NULL AND t.deletedAt IS NULL'
         )->setParameters(
@@ -1574,8 +1574,8 @@ class LinkController extends ODRCustomController
         // Find all top-level themes that the soon-to-be-deleted themes belong to
         $query = $em->createQuery(
            'SELECT parent.id AS parent_id
-            FROM ODRAdminBundle:Theme AS t
-            JOIN ODRAdminBundle:Theme AS parent WITH t.parentTheme = parent
+            FROM ODR\AdminBundle\Entity\Theme AS t
+            JOIN ODR\AdminBundle\Entity\Theme AS parent WITH t.parentTheme = parent
             WHERE t.id IN (:theme_ids)
             AND t.deletedAt IS NULL AND parent.deletedAt IS NULL'
         )->setParameters( ['theme_ids' => $ids_to_delete['themes']] );
@@ -1593,7 +1593,7 @@ class LinkController extends ODRCustomController
         // There are six different entities to mark as deleted based on the prior criteria...
         // ...theme entries
         $query = $em->createQuery(
-           'UPDATE ODRAdminBundle:Theme AS t
+           'UPDATE ODR\AdminBundle\Entity\Theme AS t
             SET t.deletedAt = :now, t.deletedBy = :deleted_by
             WHERE t.id IN (:theme_ids) AND t.deletedAt IS NULL'
         )->setParameters(
@@ -1607,7 +1607,7 @@ class LinkController extends ODRCustomController
 
         // ...theme_meta entries
         $query = $em->createQuery(
-           'UPDATE ODRAdminBundle:ThemeMeta AS tm
+           'UPDATE ODR\AdminBundle\Entity\ThemeMeta AS tm
             SET tm.deletedAt = :now
             WHERE tm.theme IN (:theme_ids) AND tm.deletedAt IS NULL'
         )->setParameters(
@@ -1620,7 +1620,7 @@ class LinkController extends ODRCustomController
 
         // ...theme_element entries
         $query = $em->createQuery(
-           'UPDATE ODRAdminBundle:ThemeElement AS te
+           'UPDATE ODR\AdminBundle\Entity\ThemeElement AS te
             SET te.deletedAt = :now, te.deletedBy = :deleted_by
             WHERE te.id IN (:theme_element_ids) AND te.deletedAt IS NULL'
         )->setParameters(
@@ -1634,7 +1634,7 @@ class LinkController extends ODRCustomController
 
         // ...theme_element_meta entries
         $query = $em->createQuery(
-           'UPDATE ODRAdminBundle:ThemeElementMeta AS tem
+           'UPDATE ODR\AdminBundle\Entity\ThemeElementMeta AS tem
             SET tem.deletedAt = :now
             WHERE tem.themeElement IN (:theme_element_ids) AND tem.deletedAt IS NULL'
         )->setParameters(
@@ -1647,7 +1647,7 @@ class LinkController extends ODRCustomController
 
         // ...theme_datafield entries
         $query = $em->createQuery(
-           'UPDATE ODRAdminBundle:ThemeDataField AS tdf
+           'UPDATE ODR\AdminBundle\Entity\ThemeDataField AS tdf
             SET tdf.deletedAt = :now, tdf.deletedBy = :deleted_by
             WHERE tdf.id IN (:theme_datafield_ids) AND tdf.deletedAt IS NULL'
         )->setParameters(
@@ -1661,7 +1661,7 @@ class LinkController extends ODRCustomController
 
         // ...theme_datatype entries
         $query = $em->createQuery(
-           'UPDATE ODRAdminBundle:ThemeDataType AS tdt
+           'UPDATE ODR\AdminBundle\Entity\ThemeDataType AS tdt
             SET tdt.deletedAt = :now, tdt.deletedBy = :deleted_by
             WHERE tdt.id IN (:theme_datatype_ids) AND tdt.deletedAt IS NULL'
         )->setParameters(
@@ -1696,7 +1696,7 @@ class LinkController extends ODRCustomController
         $query = $em->createQuery(
            'SELECT partial te.{id}, partial tdt.{id},
                partial c_t.{id}, partial c_te.{id}, partial c_tdf.{id}, partial c_tdt.{id}
-            FROM ODRAdminBundle:ThemeElement AS te
+            FROM ODR\AdminBundle\Entity\ThemeElement AS te
             LEFT JOIN te.themeDataType AS tdt
             LEFT JOIN tdt.childTheme AS c_t
             LEFT JOIN c_t.themeElements AS c_te
@@ -1753,7 +1753,7 @@ class LinkController extends ODRCustomController
         // ----------------------------------------
         // Mark the relevant Datatree and DatatreeMeta entities as deleted
         $query = $em->createQuery(
-           'UPDATE ODRAdminBundle:DataTreeMeta AS dtm
+           'UPDATE ODR\AdminBundle\Entity\DataTreeMeta AS dtm
             SET dtm.deletedAt = :now
             WHERE dtm.id IN (:dtm_id) AND dtm.deletedAt IS NULL'
         )->setParameters(
@@ -1765,7 +1765,7 @@ class LinkController extends ODRCustomController
         $query->execute();
 
         $query = $em->createQuery(
-           'UPDATE ODRAdminBundle:DataTree AS dt
+           'UPDATE ODR\AdminBundle\Entity\DataTree AS dt
             SET dt.deletedAt = :now, dt.deletedBy = :user_id
             WHERE dt.id = (:dt_id) AND dt.deletedAt IS NULL'
         )->setParameters(
@@ -1782,9 +1782,9 @@ class LinkController extends ODRCustomController
         // Locate all LinkedDatatree entries between the local and the previous remote datatype
         $query = $em->createQuery(
            'SELECT ancestor.id AS ancestor_id, ldt.id AS ldt_id
-            FROM ODRAdminBundle:DataRecord AS ancestor
-            JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
-            JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+            FROM ODR\AdminBundle\Entity\DataRecord AS ancestor
+            JOIN ODR\AdminBundle\Entity\LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
+            JOIN ODR\AdminBundle\Entity\DataRecord AS descendant WITH ldt.descendant = descendant
             WHERE ancestor.dataType = :ancestor_datatype AND descendant.dataType = :descendant_datatype
             AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
         )->setParameters(
@@ -1812,7 +1812,7 @@ class LinkController extends ODRCustomController
         if ( count($ldt_ids) > 0 ) {
             // Perform a DQL mass update to soft-delete all the LinkedDatatree entries
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:LinkedDataTree AS ldt
+               'UPDATE ODR\AdminBundle\Entity\LinkedDataTree AS ldt
                 SET ldt.deletedAt = :now, ldt.deletedBy = :user_id
                 WHERE ldt.id IN (:ldt_ids) AND ldt.deletedAt IS NULL'
             )->setParameters(
@@ -1860,7 +1860,7 @@ class LinkController extends ODRCustomController
             $templating = $this->get('templating');
 
             /** @var DataRecord $local_datarecord */
-            $local_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($local_datarecord_id);
+            $local_datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($local_datarecord_id);
             if ($local_datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
 
@@ -2244,8 +2244,8 @@ class LinkController extends ODRCustomController
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
+            $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
+            $repo_datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord');
 
             /** @var DatatreeInfoService $datatree_info_service */
             $datatree_info_service = $this->container->get('odr.datatree_info_service');
@@ -2284,7 +2284,7 @@ class LinkController extends ODRCustomController
                 throw new ODRNotFoundException('Descendant Datatype');
 
             // Ensure a link exists from ancestor to descendant datatype
-            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
+            $datatree = $em->getRepository('ODR\AdminBundle\Entity\DataTree')->findOneBy(
                 [
                     'ancestor' => $ancestor_datatype->getId(),
                     'descendant' => $descendant_datatype->getId()
@@ -2301,7 +2301,7 @@ class LinkController extends ODRCustomController
 
                 // ...require the referenced theme to exist
                 /** @var Theme $search_theme */
-                $search_theme = $em->getRepository('ODRAdminBundle:Theme')->find($search_theme_id);
+                $search_theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($search_theme_id);
                 if ($search_theme == null)
                     throw new ODRNotFoundException('Search Theme');
 
@@ -2421,9 +2421,9 @@ class LinkController extends ODRCustomController
                 //  already have links to datarecords on the descendant side
                 $query = $em->createQuery(
                    'SELECT ancestor.id
-                    FROM ODRAdminBundle:DataRecord AS descendant
-                    JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.descendant = descendant
-                    JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
+                    FROM ODR\AdminBundle\Entity\DataRecord AS descendant
+                    JOIN ODR\AdminBundle\Entity\LinkedDataTree AS ldt WITH ldt.descendant = descendant
+                    JOIN ODR\AdminBundle\Entity\DataRecord AS ancestor WITH ldt.ancestor = ancestor
                     WHERE descendant.dataType = :descendant_datatype AND ancestor.dataType = :ancestor_datatype
                     AND descendant.deletedAt IS NULL AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL'
                 )->setParameters(
@@ -2568,8 +2568,8 @@ class LinkController extends ODRCustomController
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
+            $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
+            $repo_datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord');
 
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
@@ -2607,7 +2607,7 @@ class LinkController extends ODRCustomController
 
             // Ensure a link exists from ancestor to descendant datatype
             /** @var DataTree $datatree */
-            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
+            $datatree = $em->getRepository('ODR\AdminBundle\Entity\DataTree')->findOneBy(
                 [
                     'ancestor' => $ancestor_datatype->getId(),
                     'descendant' => $descendant_datatype->getId()
@@ -2658,8 +2658,8 @@ class LinkController extends ODRCustomController
                 // Determine whether there are any non-public datarecords in the list that the user wants to link...
                 $query = $em->createQuery(
                    'SELECT dr.id AS dr_id
-                    FROM ODRAdminBundle:DataRecord AS dr
-                    JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
+                    FROM ODR\AdminBundle\Entity\DataRecord AS dr
+                    JOIN ODR\AdminBundle\Entity\DataRecordMeta AS drm WITH drm.dataRecord = dr
                     WHERE dr.id IN (:datarecord_ids) AND drm.publicDate = :public_date
                     AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL'
                 )->setParameters(
@@ -2695,8 +2695,8 @@ class LinkController extends ODRCustomController
 
             $query = $em->createQuery(
                'SELECT ldt
-                FROM ODRAdminBundle:LinkedDataTree AS ldt
-                LEFT JOIN ODRAdminBundle:DataRecord AS remote_dr WITH ldt.'.$remote_relation.' = remote_dr
+                FROM ODR\AdminBundle\Entity\LinkedDataTree AS ldt
+                LEFT JOIN ODR\AdminBundle\Entity\DataRecord AS remote_dr WITH ldt.'.$remote_relation.' = remote_dr
                 WHERE ldt.'.$local_relation.' = :datarecord AND remote_dr.dataType = :remote_datatype_id
                 AND ldt.deletedAt IS NULL AND remote_dr.deletedAt IS NULL'
             )->setParameters(
@@ -2769,9 +2769,9 @@ class LinkController extends ODRCustomController
                     $ancestor_records = array_keys($datarecords);
                     $query = $em->createQuery(
                        'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
-                        FROM ODRAdminBundle:DataRecord AS ancestor
-                        LEFT JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
-                        LEFT JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+                        FROM ODR\AdminBundle\Entity\DataRecord AS ancestor
+                        LEFT JOIN ODR\AdminBundle\Entity\LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
+                        LEFT JOIN ODR\AdminBundle\Entity\DataRecord AS descendant WITH ldt.descendant = descendant
                         WHERE ancestor IN (:datarecords) AND descendant.dataType = :datatype_id
                         AND ancestor.deletedAt IS NULL AND ldt.deletedAt IS NULL AND descendant.deletedAt IS NULL'
                     )->setParameters(
@@ -2865,8 +2865,8 @@ class LinkController extends ODRCustomController
                 //  then need to wipe some cache entries in the local datatype
                 $query = $em->createQuery(
                    'SELECT dtsf.id
-                    FROM ODRAdminBundle:DataTypeSpecialFields AS dtsf
-                    LEFT JOIN ODRAdminBundle:DataFields AS remote_df WITH dtsf.dataField = remote_df
+                    FROM ODR\AdminBundle\Entity\DataTypeSpecialFields AS dtsf
+                    LEFT JOIN ODR\AdminBundle\Entity\DataFields AS remote_df WITH dtsf.dataField = remote_df
                     WHERE dtsf.dataType = :local_datatype_id AND remote_df.dataType = :remote_datatype_id
                     AND dtsf.deletedAt IS NULL AND remote_df.deletedAt IS NULL'
                 )->setParameters(
@@ -3036,8 +3036,8 @@ class LinkController extends ODRCustomController
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
+            $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
+            $repo_datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord');
 
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
@@ -3073,7 +3073,7 @@ class LinkController extends ODRCustomController
 
             // Ensure a link exists from ancestor to descendant datatype
             /** @var DataTree $datatree */
-            $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
+            $datatree = $em->getRepository('ODR\AdminBundle\Entity\DataTree')->findOneBy(
                 [
                     'ancestor' => $ancestor_datatype->getId(),
                     'descendant' => $descendant_datatype->getId()
@@ -3120,8 +3120,8 @@ class LinkController extends ODRCustomController
                 // Determine whether there are any non-public datarecords in the list that the user wants to link...
                 $query = $em->createQuery(
                    'SELECT dr.id AS dr_id
-                    FROM ODRAdminBundle:DataRecord AS dr
-                    JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
+                    FROM ODR\AdminBundle\Entity\DataRecord AS dr
+                    JOIN ODR\AdminBundle\Entity\DataRecordMeta AS drm WITH drm.dataRecord = dr
                     WHERE dr.id IN (:datarecord_ids) AND drm.publicDate = "2200-01-01 00:00:00"
                     AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL'
                 )->setParameters( ['datarecord_ids' => $remote_datarecord_ids] );
@@ -3149,7 +3149,7 @@ class LinkController extends ODRCustomController
 
             $query = $em->createQuery(
                'SELECT ldt
-                FROM ODRAdminBundle:LinkedDataTree AS ldt
+                FROM ODR\AdminBundle\Entity\LinkedDataTree AS ldt
                 WHERE ldt.'.$remote.' = :datarecord
                 AND ldt.deletedAt IS NULL'
             )->setParameters( ['datarecord' => $local_datarecord->getId()] );
@@ -3293,7 +3293,7 @@ class LinkController extends ODRCustomController
 
 
             /** @var ThemeElement $theme_element */
-            $theme_element = $em->getRepository('ODRAdminBundle:ThemeElement')->find($theme_element_id);
+            $theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement')->find($theme_element_id);
             if ($theme_element == null)
                 throw new ODRNotFoundException('ThemeElement');
 
@@ -3307,7 +3307,7 @@ class LinkController extends ODRCustomController
 
 
             /** @var DataRecord $parent_datarecord */
-            $parent_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($parent_datarecord_id);
+            $parent_datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($parent_datarecord_id);
             if ($parent_datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
 
@@ -3316,7 +3316,7 @@ class LinkController extends ODRCustomController
 
 
             /** @var DataRecord $top_level_datarecord */
-            $top_level_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($top_level_datarecord_id);
+            $top_level_datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($top_level_datarecord_id);
             if ($top_level_datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
 
@@ -3415,10 +3415,10 @@ class LinkController extends ODRCustomController
             // Figure out which datatypes link to others, or are linked to
             $query = $em->createQuery(
                'SELECT adt.id AS ancestor_id, ddt.id AS descendant_id
-                FROM ODRAdminBundle:DataTree AS dt
-                JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
-                JOIN ODRAdminBundle:DataType AS adt WITH dt.ancestor = adt
-                JOIN ODRAdminBundle:DataType AS ddt WITH dt.descendant = ddt
+                FROM ODR\AdminBundle\Entity\DataTree AS dt
+                JOIN ODR\AdminBundle\Entity\DataTreeMeta AS dtm WITH dtm.dataTree = dt
+                JOIN ODR\AdminBundle\Entity\DataType AS adt WITH dt.ancestor = adt
+                JOIN ODR\AdminBundle\Entity\DataType AS ddt WITH dt.descendant = ddt
                 WHERE dtm.is_link = 1
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
                 AND adt.deletedAt IS NULL AND ddt.deletedAt IS NULL'
@@ -3438,10 +3438,10 @@ class LinkController extends ODRCustomController
             // Get info about the datatypes in question
             $query = $em->createQuery(
                'SELECT dt.id AS dt_id, dtm.longName, df.id AS df_id, dfm.fieldName
-                FROM ODRAdminBundle:DataType AS dt
-                JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
-                LEFT JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
-                LEFT JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
+                FROM ODR\AdminBundle\Entity\DataType AS dt
+                JOIN ODR\AdminBundle\Entity\DataTypeMeta AS dtm WITH dtm.dataType = dt
+                LEFT JOIN ODR\AdminBundle\Entity\DataFields AS df WITH df.dataType = dt
+                LEFT JOIN ODR\AdminBundle\Entity\DataFieldsMeta AS dfm WITH dfm.dataField = df
                 WHERE dt IN (:datatype_ids) AND dtm.externalIdField = df
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
                 AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL
@@ -3548,7 +3548,7 @@ class LinkController extends ODRCustomController
             $templating = $this->get('templating');
 
             /** @var DataFields $external_id_field */
-            $external_id_field = $em->getRepository('ODRAdminBundle:DataFields')->find($external_id_field_id);
+            $external_id_field = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($external_id_field_id);
             if ($external_id_field == null)
                 throw new ODRNotFoundException('Datafield');
 
@@ -3650,9 +3650,9 @@ class LinkController extends ODRCustomController
         // Get all linked datatree entries where the datarecord in question is the ancestor...
         $query = $em->createQuery(
            'SELECT ldt
-            FROM ODRAdminBundle:DataRecord AS adr
-            JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = adr
-            JOIN ODRAdminBundle:DataRecord AS ddr WITH ldt.descendant = ddr
+            FROM ODR\AdminBundle\Entity\DataRecord AS adr
+            JOIN ODR\AdminBundle\Entity\LinkedDataTree AS ldt WITH ldt.ancestor = adr
+            JOIN ODR\AdminBundle\Entity\DataRecord AS ddr WITH ldt.descendant = ddr
             WHERE adr = :replaced_datarecord AND ddr.dataType IN (:datatype_ids)
             AND adr.deletedAt IS NULL AND ldt.deletedAt IS NULL AND ddr.deletedAt IS NULL'
         )->setParameters(
@@ -3667,9 +3667,9 @@ class LinkController extends ODRCustomController
         // ...and where the datarecord in question is the descendant
         $query = $em->createQuery(
            'SELECT ldt
-            FROM ODRAdminBundle:DataRecord AS adr
-            JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = adr
-            JOIN ODRAdminBundle:DataRecord AS ddr WITH ldt.descendant = ddr
+            FROM ODR\AdminBundle\Entity\DataRecord AS adr
+            JOIN ODR\AdminBundle\Entity\LinkedDataTree AS ldt WITH ldt.ancestor = adr
+            JOIN ODR\AdminBundle\Entity\DataRecord AS ddr WITH ldt.descendant = ddr
             WHERE ddr = :replaced_datarecord AND adr.dataType IN (:datatype_ids)
             AND adr.deletedAt IS NULL AND ldt.deletedAt IS NULL AND ddr.deletedAt IS NULL'
         )->setParameters(
@@ -3752,7 +3752,7 @@ class LinkController extends ODRCustomController
 
 
             /** @var DataFields $external_id_field */
-            $external_id_field = $em->getRepository('ODRAdminBundle:DataFields')->find($external_id_field_id);
+            $external_id_field = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($external_id_field_id);
             if ($external_id_field == null)
                 throw new ODRNotFoundException('External ID Field');
 

@@ -102,7 +102,7 @@ class WorkerController extends ODRCustomController
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
+            $repo_fieldtype = $em->getRepository('ODR\AdminBundle\Entity\FieldType');
 
 
             /** @var CacheService $cache_service */
@@ -118,9 +118,9 @@ class WorkerController extends ODRCustomController
 
             // Grab necessary objects
             /** @var ODRUser $user */
-            $user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User')->find( $user_id );
+            $user = $this->getDoctrine()->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find( $user_id );
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find( $datafield_id );
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find( $datafield_id );
             if ( is_null($datafield) )
                 throw new ODRNotFoundException('Datafield');
 
@@ -135,7 +135,7 @@ class WorkerController extends ODRCustomController
             $datarecord = null;
             if ( $datarecord_id != 0 ) {
                 /** @var DataRecord $datarecord */
-                $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find( $datarecord_id );
+                $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find( $datarecord_id );
                 if ( is_null($datarecord) )
                     throw new ODRNotFoundException('Datarecord');
             }
@@ -165,7 +165,7 @@ class WorkerController extends ODRCustomController
                 $query = $em->createQuery(
                    'SELECT drf, rs, ro, rom
 
-                    FROM ODRAdminBundle:DataRecordFields AS drf
+                    FROM ODR\AdminBundle\Entity\DataRecordFields AS drf
                     JOIN drf.radioSelection AS rs
                     JOIN rs.radioOption AS ro
                     JOIN ro.radioOptionMeta AS rom
@@ -503,7 +503,7 @@ class WorkerController extends ODRCustomController
             // ----------------------------------------
             // Update the job tracker if necessary
             if ($tracked_job_id !== -1) {
-                $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+                $tracked_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob')->find($tracked_job_id);
 
                 $total = $tracked_job->getTotal();
                 $count = $tracked_job->incrementCurrent($em);
@@ -595,9 +595,9 @@ $ret .= '  Set current to '.$count."\n";
 
             // Grab necessary objects
             /** @var ODRUser $user */
-            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            $user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find($user_id);
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
 
             if ($user == null)
                 throw new ODRException('User '.$user_id.' does not exist');
@@ -655,7 +655,7 @@ $ret .= '  Set current to '.$count."\n";
             $api_key = $this->container->getParameter('beanstalk_api_key');
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -680,8 +680,8 @@ $ret .= '  Set current to '.$count."\n";
             // Grab a list of all full-size images on the site
             $query = $em->createQuery(
                'SELECT e.id
-                FROM ODRAdminBundle:Image AS e
-                JOIN ODRAdminBundle:DataRecord AS dr WITH e.dataRecord = dr
+                FROM ODR\AdminBundle\Entity\Image AS e
+                JOIN ODR\AdminBundle\Entity\DataRecord AS dr WITH e.dataRecord = dr
                 WHERE dr.dataType = :datatype AND e.parent IS NULL
                 AND e.deletedAt IS NULL AND dr.deletedAt IS NULL'
             )->setParameters(['datatype' => $datatype_id]);
@@ -787,19 +787,19 @@ $ret .= '  Set current to '.$count."\n";
 
 
             /** @var Image $img */
-            $img = $em->getRepository('ODRAdminBundle:Image')->find($object_id);
+            $img = $em->getRepository('ODR\AdminBundle\Entity\Image')->find($object_id);
             if ($img == null)
                 throw new \Exception('Image '.$object_id.' has been deleted');
 
             /** @var ODRUser $user */
-            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find(2);    // TODO - need an actual system user...
+            $user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find(2);    // TODO - need an actual system user...
 
             // Ensure the full-size image exists on the server
             $crypto_service->decryptImage($object_id);
 
             // Ensure an ImageSizes entity exists for this image
             /** @var ImageSizes[] $image_sizes */
-            $image_sizes = $em->getRepository('ODRAdminBundle:ImageSizes')->findBy( ['dataField' => $img->getDataField()->getId()] );
+            $image_sizes = $em->getRepository('ODR\AdminBundle\Entity\ImageSizes')->findBy( ['dataField' => $img->getDataField()->getId()] );
             if ( count($image_sizes) == 0 ) {
                 // Create missing ImageSizes entities for this datafield
                 $ec_service->createImageSizes($user, $img->getDataField());
@@ -807,7 +807,7 @@ $ret .= '  Set current to '.$count."\n";
                 // Reload the newly created ImageSizes for this datafield
                 while ( count($image_sizes) == 0 ) {
                     sleep(1);   // wait a second so whichever process is creating the ImageSizes entities has time to finish
-                    $image_sizes = $em->getRepository('ODRAdminBundle:ImageSizes')->findBy( ['dataField' => $img->getDataField()->getId()] );
+                    $image_sizes = $em->getRepository('ODR\AdminBundle\Entity\ImageSizes')->findBy( ['dataField' => $img->getDataField()->getId()] );
                 }
 
                 // Set this image to point to the correct ImageSizes entity, since it didn't exist before
@@ -830,7 +830,7 @@ $ret .= '  Set current to '.$count."\n";
             // Update the job tracker if necessary
             if ($tracked_job_id !== -1) {
                 /** @var TrackedJob $tracked_job */
-                $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+                $tracked_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob')->find($tracked_job_id);
 
                 if ($tracked_job !== null) {
                     $total = $tracked_job->getTotal();
@@ -852,7 +852,7 @@ $ret .= '  Set current to '.$count."\n";
             if ($tracked_job_id !== -1) {
                 $em = $this->getDoctrine()->getManager();
                 /** @var TrackedJob $tracked_job */
-                $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+                $tracked_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob')->find($tracked_job_id);
 
                 if ($tracked_job !== null) {
                     $total = $tracked_job->getTotal();
@@ -943,9 +943,9 @@ $ret .= '  Set current to '.$count."\n";
 
             $base_obj = null;
             if ($object_type == 'file')
-                $base_obj = $em->getRepository('ODRAdminBundle:File')->find($object_id);
+                $base_obj = $em->getRepository('ODR\AdminBundle\Entity\File')->find($object_id);
             else if ($object_type == 'image')
-                $base_obj = $em->getRepository('ODRAdminBundle:Image')->find($object_id);
+                $base_obj = $em->getRepository('ODR\AdminBundle\Entity\Image')->find($object_id);
             else
                 throw new ODRBadRequestException('Invalid object_type');
 
@@ -1241,7 +1241,7 @@ $ret .= '  Set current to '.$count."\n";
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_datarecordfields = $em->getRepository('ODRAdminBundle:DataRecordFields');
+            $repo_datarecordfields = $em->getRepository('ODR\AdminBundle\Entity\DataRecordFields');
 
             /** @var TagHelperService $tag_helper_service */
             $tag_helper_service = $this->container->get('odr.tag_helper_service');
@@ -1255,10 +1255,10 @@ $ret .= '  Set current to '.$count."\n";
 
 
             /** @var ODRUser $user */
-            $user = $this->getDoctrine()->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            $user = $this->getDoctrine()->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find($user_id);
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ( is_null($datafield) )
                 throw new ODRNotFoundException('Datafield');
             if ( $datafield->getFieldType()->getTypeClass() !== 'Tag' )
@@ -1275,7 +1275,7 @@ $ret .= '  Set current to '.$count."\n";
                 throw new ODRNotFoundException('Grandparent Datatype');
 
             /** @var TrackedJob $tracked_job */
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+            $tracked_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob')->find($tracked_job_id);
             if ($tracked_job == null)
                 throw new ODRNotFoundException('TrackedJob');
 
@@ -1288,11 +1288,11 @@ $ret .= '  Set current to '.$count."\n";
             $datarecord_list = explode(',', $datarecord_list);
             $query = $em->createQuery(
                'SELECT dt.id AS dt_id, dr.id AS dr_id, ts.selected, t.id AS tag_id
-                FROM ODRAdminBundle:DataType dt
-                LEFT JOIN ODRAdminBundle:DataRecord dr WITH dr.dataType = dt
-                LEFT JOIN ODRAdminBundle:DataRecordFields drf WITH drf.dataRecord = dr
-                LEFT JOIN ODRAdminBundle:TagSelection ts WITH ts.dataRecordFields = drf
-                LEFT JOIN ODRAdminBundle:Tags t WITH ts.tag = t
+                FROM ODR\AdminBundle\Entity\DataType dt
+                LEFT JOIN ODR\AdminBundle\Entity\DataRecord dr WITH dr.dataType = dt
+                LEFT JOIN ODR\AdminBundle\Entity\DataRecordFields drf WITH drf.dataRecord = dr
+                LEFT JOIN ODR\AdminBundle\Entity\TagSelection ts WITH ts.dataRecordFields = drf
+                LEFT JOIN ODR\AdminBundle\Entity\Tags t WITH ts.tag = t
                 WHERE dr.id IN (:datarecord_ids) AND drf.dataField = :datafield_id
                 AND dt.deletedAt IS NULL AND dr.deletedAt IS NULL
                 AND drf.deletedAt IS NULL AND ts.deletedAt IS NULL AND t.deletedAt IS NULL'

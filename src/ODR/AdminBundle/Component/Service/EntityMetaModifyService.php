@@ -255,7 +255,7 @@ class EntityMetaModifyService
         // ----------------------------------------
         // Load the old meta entry
         /** @var DataFieldsMeta $old_meta_entry */
-        $old_meta_entry = $this->em->getRepository('ODRAdminBundle:DataFieldsMeta')->findOneBy(
+        $old_meta_entry = $this->em->getRepository('ODR\AdminBundle\Entity\DataFieldsMeta')->findOneBy(
             [
                 'dataField' => $datafield->getId()
             ]
@@ -545,8 +545,8 @@ class EntityMetaModifyService
             // ...because that means the field needs to have at most a single default radio option
             $query = $this->em->createQuery(
                'SELECT ro
-                FROM ODRAdminBundle:RadioOptionsMeta rom
-                JOIN ODRAdminBundle:RadioOptions ro WITH rom.radioOption = ro
+                FROM ODR\AdminBundle\Entity\RadioOptionsMeta rom
+                JOIN ODR\AdminBundle\Entity\RadioOptions ro WITH rom.radioOption = ro
                 WHERE ro.dataField = :datafield_id AND rom.isDefault = 1
                 AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL
                 ORDER BY rom.displayOrder'
@@ -582,7 +582,7 @@ class EntityMetaModifyService
         if ( $old_searchable !== $new_searchable && $new_searchable === DataFields::NOT_SEARCHABLE ) {
             // ...then need to forcibly remove it from all SidebarLayouts
             $query = $this->em->createQuery(
-               'UPDATE ODRAdminBundle:SidebarLayoutMap slm
+               'UPDATE ODR\AdminBundle\Entity\SidebarLayoutMap slm
                 SET slm.deletedAt = :now
                 WHERE slm.dataField = :datafield_id AND slm.deletedAt IS NULL'
             )->setParameters( ['now' => new \DateTime(), 'datafield_id' => $datafield->getId()] );
@@ -615,7 +615,7 @@ class EntityMetaModifyService
     {
         // Load the old meta entry
         /** @var DataRecordMeta $old_meta_entry */
-        $old_meta_entry = $this->em->getRepository('ODRAdminBundle:DataRecordMeta')->findOneBy(
+        $old_meta_entry = $this->em->getRepository('ODR\AdminBundle\Entity\DataRecordMeta')->findOneBy(
             [
                 'dataRecord' => $datarecord->getId()
             ]
@@ -715,7 +715,7 @@ class EntityMetaModifyService
         // ----------------------------------------
         // Load the old meta entry
         /** @var DataTreeMeta $old_meta_entry */
-        $old_meta_entry = $this->em->getRepository('ODRAdminBundle:DataTreeMeta')->findOneBy(
+        $old_meta_entry = $this->em->getRepository('ODR\AdminBundle\Entity\DataTreeMeta')->findOneBy(
             [
                 'dataTree' => $datatree->getId()
             ]
@@ -865,7 +865,7 @@ class EntityMetaModifyService
         // ----------------------------------------
         // Load the old meta entry
         /** @var DataTypeMeta $old_meta_entry */
-        $old_meta_entry = $this->em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy(
+        $old_meta_entry = $this->em->getRepository('ODR\AdminBundle\Entity\DataTypeMeta')->findOneBy(
             [
                 'dataType' => $datatype->getId()
             ]
@@ -1039,7 +1039,7 @@ class EntityMetaModifyService
                     //  their "master_revision" value updated
                     foreach ($linked_ancestors as $linked_ancestor_id) {
                         /** @var DataType $linked_ancestor */
-                        $linked_ancestor = $this->em->getRepository('ODRAdminBundle:DataType')->find($linked_ancestor_id);
+                        $linked_ancestor = $this->em->getRepository('ODR\AdminBundle\Entity\DataType')->find($linked_ancestor_id);
                         self::incrementDatatypeMasterRevision($user, $linked_ancestor, $delay_flush);
 
                         // Need to independently trigger a cache clear for each of these linked
@@ -1169,7 +1169,7 @@ class EntityMetaModifyService
     {
         // Load the old meta entry
         /** @var FileMeta $old_meta_entry */
-        $old_meta_entry = $this->em->getRepository('ODRAdminBundle:FileMeta')->findOneBy(
+        $old_meta_entry = $this->em->getRepository('ODR\AdminBundle\Entity\FileMeta')->findOneBy(
             [
                 'file' => $file->getId()
             ]
@@ -1454,7 +1454,7 @@ class EntityMetaModifyService
     {
         // Load the old meta entry
         /** @var GroupMeta $old_meta_entry */
-        $old_meta_entry = $this->em->getRepository('ODRAdminBundle:GroupMeta')->findOneBy(
+        $old_meta_entry = $this->em->getRepository('ODR\AdminBundle\Entity\GroupMeta')->findOneBy(
             [
                 'group' => $group->getId()
             ]
@@ -1550,7 +1550,7 @@ class EntityMetaModifyService
     {
         // Load the old meta entry
         /** @var ImageMeta $old_meta_entry */
-        $old_meta_entry = $this->em->getRepository('ODRAdminBundle:ImageMeta')->findOneBy(
+        $old_meta_entry = $this->em->getRepository('ODR\AdminBundle\Entity\ImageMeta')->findOneBy(
             [
                 'image' => $image->getId()
             ]
@@ -1673,7 +1673,7 @@ class EntityMetaModifyService
     {
         // Load the old meta entry
         /** @var RadioOptionsMeta $old_meta_entry */
-        $old_meta_entry = $this->em->getRepository('ODRAdminBundle:RadioOptionsMeta')->findOneBy(
+        $old_meta_entry = $this->em->getRepository('ODR\AdminBundle\Entity\RadioOptionsMeta')->findOneBy(
             [
                 'radioOption' => $radio_option->getId()
             ]
@@ -2116,7 +2116,7 @@ class EntityMetaModifyService
         // ----------------------------------------
         // Load the old meta entry
         /** @var SidebarLayoutMeta $old_meta_entry */
-        $old_meta_entry = $this->em->getRepository('ODRAdminBundle:SidebarLayoutMeta')->findOneBy(
+        $old_meta_entry = $this->em->getRepository('ODR\AdminBundle\Entity\SidebarLayoutMeta')->findOneBy(
             [
                 'sidebarLayout' => $sidebar_layout->getId()
             ]
@@ -2549,7 +2549,7 @@ class EntityMetaModifyService
     {
         // Load the old meta entry
         /** @var TagMeta $old_meta_entry */
-        $old_meta_entry = $this->em->getRepository('ODRAdminBundle:TagMeta')->findOneBy(
+        $old_meta_entry = $this->em->getRepository('ODR\AdminBundle\Entity\TagMeta')->findOneBy(
             [
                 'tag' => $tag->getId()
             ]
@@ -2904,7 +2904,7 @@ class EntityMetaModifyService
     {
         // Load the old meta entry
         /** @var ThemeElementMeta $old_meta_entry */
-        $old_meta_entry = $this->em->getRepository('ODRAdminBundle:ThemeElementMeta')->findOneBy(
+        $old_meta_entry = $this->em->getRepository('ODR\AdminBundle\Entity\ThemeElementMeta')->findOneBy(
             [
                 'themeElement' => $theme_element->getId()
             ]
@@ -3002,7 +3002,7 @@ class EntityMetaModifyService
     {
         // Load the old meta entry
         /** @var ThemeMeta $old_meta_entry */
-        $old_meta_entry = $this->em->getRepository('ODRAdminBundle:ThemeMeta')->findOneBy(
+        $old_meta_entry = $this->em->getRepository('ODR\AdminBundle\Entity\ThemeMeta')->findOneBy(
             [
                 'theme' => $theme->getId()
             ]

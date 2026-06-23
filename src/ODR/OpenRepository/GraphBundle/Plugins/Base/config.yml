@@ -170,5 +170,5 @@ services:
             $environment: "%kernel.environment%"
             $database_info_service: '@odr.database_info_service'
             $router: "@router"
-            $templating: "@templating"
+            $templating: "@twig"
             $logger: "@logger"

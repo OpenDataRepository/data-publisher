@@ -87,7 +87,7 @@ class CryptoService
     {
         // Load the file that needs decrypting
         /** @var File $file */
-        $file = $this->em->getRepository('ODRAdminBundle:File')->find($file_id);
+        $file = $this->em->getRepository('ODR\AdminBundle\Entity\File')->find($file_id);
         if ($file == null)
             throw new ODRNotFoundException('File');
         if ($file->getEncryptKey() === '')
@@ -129,7 +129,7 @@ class CryptoService
     {
         // Load the image that needs decrypting
         /** @var Image $image */
-        $image = $this->em->getRepository('ODRAdminBundle:Image')->find($image_id);
+        $image = $this->em->getRepository('ODR\AdminBundle\Entity\Image')->find($image_id);
         if ($image == null)
             throw new ODRNotFoundException('Image');
         if ($image->getEncryptKey() === '')
@@ -317,7 +317,7 @@ class CryptoService
     {
         // Load the file that needs encrypting
         /** @var File $file */
-        $file = $this->em->getRepository('ODRAdminBundle:File')->find($file_id);
+        $file = $this->em->getRepository('ODR\AdminBundle\Entity\File')->find($file_id);
         if ($file == null)
             throw new ODRNotFoundException('File');
 
@@ -418,7 +418,7 @@ class CryptoService
     {
         // Load the image that needs encrypting
         /** @var Image $image */
-        $image = $this->em->getRepository('ODRAdminBundle:Image')->find($image_id);
+        $image = $this->em->getRepository('ODR\AdminBundle\Entity\Image')->find($image_id);
         if ($image == null)
             throw new ODRNotFoundException('Image');
 
@@ -499,12 +499,12 @@ class CryptoService
         // Also want to create checksums of each piece of the encrypted file/image
         $results = [];
         if ($obj instanceof File) {
-            $results = $this->em->getRepository('ODRAdminBundle:FileChecksum')->findBy(
+            $results = $this->em->getRepository('ODR\AdminBundle\Entity\FileChecksum')->findBy(
                 [ 'file' => $obj->getId() ]
             );
         }
         else if ($obj instanceof Image) {
-            $results = $this->em->getRepository('ODRAdminBundle:ImageChecksum')->findBy(
+            $results = $this->em->getRepository('ODR\AdminBundle\Entity\ImageChecksum')->findBy(
                 [ 'image' => $obj->getId() ]
             );
         }

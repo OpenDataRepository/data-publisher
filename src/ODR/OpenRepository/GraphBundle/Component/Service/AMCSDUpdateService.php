@@ -70,7 +70,7 @@ class AMCSDUpdateService
     {
         // Determine user privileges
         /** @var ODRUser $user */
-        $user = $this->em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+        $user = $this->em->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find($user_id);
         if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
             throw new ODRForbiddenException();
 
@@ -196,7 +196,7 @@ class AMCSDUpdateService
     {
         // Determine user privileges
         /** @var ODRUser $user */
-        $user = $this->em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+        $user = $this->em->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find($user_id);
         if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
             throw new ODRForbiddenException();
 
@@ -460,11 +460,11 @@ class AMCSDUpdateService
      */
     public function computeDiff($user_id, $output)
     {
-        $datafield_repository = $this->em->getRepository('ODRAdminBundle:DataFields');
+        $datafield_repository = $this->em->getRepository('ODR\AdminBundle\Entity\DataFields');
 
         // Determine user privileges
         /** @var ODRUser $user */
-        $user = $this->em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+        $user = $this->em->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find($user_id);
         if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
             throw new ODRForbiddenException();
 
@@ -866,12 +866,12 @@ class AMCSDUpdateService
     {
         // Determine user privileges
         /** @var ODRUser $user */
-        $user = $this->em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+        $user = $this->em->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find($user_id);
         if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
             throw new ODRForbiddenException();
 
-        $datatype_repository = $this->em->getRepository('ODRAdminBundle:DataType');
-        $datafield_repository = $this->em->getRepository('ODRAdminBundle:DataFields');
+        $datatype_repository = $this->em->getRepository('ODR\AdminBundle\Entity\DataType');
+        $datafield_repository = $this->em->getRepository('ODR\AdminBundle\Entity\DataFields');
 
         $dir = $this->odr_tmp_directory.'/user_'.$user->getId().'/';
 
@@ -981,16 +981,16 @@ class AMCSDUpdateService
     {
         // Determine user privileges
         /** @var ODRUser $user */
-        $user = $this->em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+        $user = $this->em->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find($user_id);
         if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
             throw new ODRForbiddenException();
 
         $conn = $this->em->getConnection();
 
-        $datatype_repository = $this->em->getRepository('ODRAdminBundle:DataType');
-        $datafield_repository = $this->em->getRepository('ODRAdminBundle:DataFields');
-        $datarecord_repository = $this->em->getRepository('ODRAdminBundle:DataRecord');
-        $file_repository = $this->em->getRepository('ODRAdminBundle:File');
+        $datatype_repository = $this->em->getRepository('ODR\AdminBundle\Entity\DataType');
+        $datafield_repository = $this->em->getRepository('ODR\AdminBundle\Entity\DataFields');
+        $datarecord_repository = $this->em->getRepository('ODR\AdminBundle\Entity\DataRecord');
+        $file_repository = $this->em->getRepository('ODR\AdminBundle\Entity\File');
 
         $dir = $this->odr_tmp_directory.'/user_'.$user->getId().'/';
         $new_basedir = $dir.'amcsd/';

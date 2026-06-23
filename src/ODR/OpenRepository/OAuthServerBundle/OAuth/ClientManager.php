@@ -38,7 +38,7 @@ class ClientManager
      */
     public function getOwnedClients($user)
     {
-        $owned_clients = $this->em->getRepository('ODROpenRepositoryOAuthServerBundle:Client')->findBy(['owner' => $user->getId()]);
+        $owned_clients = $this->em->getRepository('ODR\OpenRepository\OAuthServerBundle\Entity\Client')->findBy(['owner' => $user->getId()]);
         if ($owned_clients == null)
             return [];
 

@@ -224,7 +224,7 @@ class CSVExportHelperService
         /** @var TrackedJob $tracked_job */
         $tracked_job = null;
         if ( $tracked_job_id !== -1 ) {
-            $tracked_job = $this->em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+            $tracked_job = $this->em->getRepository('ODR\AdminBundle\Entity\TrackedJob')->find($tracked_job_id);
             if ($tracked_job == null)
                 throw new ODRNotFoundException('Tracked Job');
 
@@ -267,7 +267,7 @@ class CSVExportHelperService
 
 
         /** @var DataType $datatype */
-        $datatype = $this->em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+        $datatype = $this->em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
         if ($datatype == null)
             throw new ODRNotFoundException('Datatype');
         if ( $datatype->getId() !== $datatype->getGrandparent()->getId() )
@@ -283,7 +283,7 @@ class CSVExportHelperService
         /** @var ODRUser|null $user */
         $user = null;
         if ( $user_id !== 0 )
-            $user = $this->em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            $user = $this->em->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find($user_id);
 
         // Ensure user has permissions to be doing this
         if ( !$this->permissions_service->canViewDatatype($user, $datatype) )
@@ -1192,13 +1192,13 @@ class CSVExportHelperService
 
         // Need to load the tracked job to determine the progress...
         /** @var TrackedJob $tracked_job */
-        $tracked_job = $this->em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+        $tracked_job = $this->em->getRepository('ODR\AdminBundle\Entity\TrackedJob')->find($tracked_job_id);
         if ($tracked_job == null)
             throw new ODRNotFoundException('Tracked Job');
 
         // Need to also load all the TrackedCSVExport entries of this job...
         /** @var TrackedCSVExport[] $tracked_csv_exports */
-        $tracked_csv_exports = $this->em->getRepository('ODRAdminBundle:TrackedCSVExport')->findBy(
+        $tracked_csv_exports = $this->em->getRepository('ODR\AdminBundle\Entity\TrackedCSVExport')->findBy(
             ['trackedJob' => $tracked_job_id]
         );
         if ( count($tracked_csv_exports) == 0 ) {

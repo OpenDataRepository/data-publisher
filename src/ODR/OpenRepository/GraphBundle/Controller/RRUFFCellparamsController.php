@@ -98,7 +98,7 @@ class RRUFFCellparamsController extends ODRCustomController
 
 
             /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($datarecord_id);
             if ($datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
 
@@ -173,7 +173,7 @@ class RRUFFCellparamsController extends ODRCustomController
             /** @var DataFields[] $df_lookup */
             $df_lookup = [];
             foreach ($values as $df_id => $df_value) {
-                $df = $em->getRepository('ODRAdminBundle:DataFields')->find($df_id);
+                $df = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($df_id);
                 if ($df == null)
                     throw new ODRNotFoundException('Datafield');
 

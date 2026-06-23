@@ -203,7 +203,7 @@ services:
             $dbi_service: "@odr.database_info_service"
             $dri_service: "@odr.datarecord_info_service"
             $pm_service: "@odr.permissions_management_service"
-            $templating: "@templating"
+            $templating: "@twig"
             $logger: "@logger"
 
     odr.datatype_export_service:
@@ -214,7 +214,7 @@ services:
             $dbi_service: "@odr.database_info_service"
             $pm_service: "@odr.permissions_management_service"
             $theme_service: "@odr.theme_info_service"
-            $templating: "@templating"
+            $templating: "@twig"
             $logger: "@logger"
 
     odr.datatree_info_service:
@@ -344,7 +344,7 @@ services:
             $search_sidebar_service: "@odr.search_sidebar_service"
 
             $form_factory: "@form.factory"
-            $templating: "@templating"
+            $templating: "@twig"
             $pheanstalk: "@pheanstalk"    # these two are needed for image decryption
             $router: "@router"
 

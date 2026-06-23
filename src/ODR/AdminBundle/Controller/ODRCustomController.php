@@ -139,7 +139,7 @@ class ODRCustomController extends \Symfony\Bundle\FrameworkBundle\Controller\Abs
 
                 // Find a theme they can use
                 $theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'search_results');
-                $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+                $theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($theme_id);
 
                 $display_theme_warning = true;
             }
@@ -693,9 +693,9 @@ class ODRCustomController extends \Symfony\Bundle\FrameworkBundle\Controller\Abs
 
         // TODO - more flexible way of doing this?
         if ($reuse_existing)
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( ['job_type' => $job_type, 'target_entity' => $target_entity] );
+            $tracked_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob')->findOneBy( ['job_type' => $job_type, 'target_entity' => $target_entity] );
         else
-            $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->findOneBy( ['job_type' => $job_type, 'target_entity' => $target_entity, 'completed' => null] );
+            $tracked_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob')->findOneBy( ['job_type' => $job_type, 'target_entity' => $target_entity, 'completed' => null] );
 
         if ($tracked_job == null) {
             $tracked_job = new TrackedJob();
@@ -740,12 +740,12 @@ class ODRCustomController extends \Symfony\Bundle\FrameworkBundle\Controller\Abs
     {
         $job_errors = [];
 
-        $tracked_job = $em->getRepository('ODRAdminBundle:TrackedJob')->find($tracked_job_id);
+        $tracked_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob')->find($tracked_job_id);
         if ($tracked_job == null)
             throw new ODRNotFoundException('TrackedJob');
 
         /** @var TrackedError[] $tracked_errors */
-        $tracked_errors = $em->getRepository('ODRAdminBundle:TrackedError')->findBy( ['trackedJob' => $tracked_job_id] );
+        $tracked_errors = $em->getRepository('ODR\AdminBundle\Entity\TrackedError')->findBy( ['trackedJob' => $tracked_job_id] );
         foreach ($tracked_errors as $error) {
             $job_errors[ $error->getId() ] = [
                 'error_level' => $error->getErrorLevel(),
@@ -770,7 +770,7 @@ class ODRCustomController extends \Symfony\Bundle\FrameworkBundle\Controller\Abs
     {
         // Because there could potentially be thousands of errors for this TrackedJob, do a mass DQL deletion
         $query = $em->createQuery(
-           'DELETE FROM ODRAdminBundle:TrackedError AS te
+           'DELETE FROM ODR\AdminBundle\Entity\TrackedError AS te
             WHERE te.trackedJob = :tracked_job'
         )->setParameters( ['tracked_job' => $tracked_job_id] );
         $rows = $query->execute();
@@ -846,7 +846,7 @@ class ODRCustomController extends \Symfony\Bundle\FrameworkBundle\Controller\Abs
         //  this theme as their parent...
         $query = $em->createQuery(
            'SELECT t
-            FROM ODRAdminBundle:Theme AS t
+            FROM ODR\AdminBundle\Entity\Theme AS t
             WHERE t.parentTheme = :theme_id
             AND t.deletedAt IS NULL'
         )->setParameters( ['theme_id' => $theme->getId()] );
@@ -890,8 +890,8 @@ class ODRCustomController extends \Symfony\Bundle\FrameworkBundle\Controller\Abs
             // Check if any of the added datafields are public...
             $query = $em->createQuery(
                'SELECT df.id, dfm.publicDate
-                FROM ODRAdminBundle:DataFields AS df
-                JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
+                FROM ODR\AdminBundle\Entity\DataFields AS df
+                JOIN ODR\AdminBundle\Entity\DataFieldsMeta AS dfm WITH dfm.dataField = df
                 WHERE df.id IN (:datafield_ids)
                 AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL'
             )->setParameters( ['datafield_ids' => $added_datafields] );
@@ -921,8 +921,8 @@ class ODRCustomController extends \Symfony\Bundle\FrameworkBundle\Controller\Abs
             // Check if any of the added datafields are public...
             $query = $em->createQuery(
                'SELECT dt.id, dtm.publicDate
-                FROM ODRAdminBundle:DataType AS dt
-                JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
+                FROM ODR\AdminBundle\Entity\DataType AS dt
+                JOIN ODR\AdminBundle\Entity\DataTypeMeta AS dtm WITH dtm.dataType = dt
                 WHERE dt.id IN (:datatype_ids)
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
             )->setParameters( ['datatype_ids' => $added_datatypes] );

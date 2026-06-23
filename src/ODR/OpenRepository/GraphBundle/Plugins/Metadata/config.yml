@@ -4,9 +4,9 @@ services:
         public: true
         class: '%odr_plugin_base_classpath%\Metadata\AHEDPropertiesCorePlugin'
         arguments:
-            $templating: "@templating"
+            $templating: "@twig"
     odr_plugins.metadata.ahed_properties_person:
         public: true
         class: '%odr_plugin_base_classpath%\Metadata\AHEDPropertiesPersonPlugin'
         arguments:
-            $templating: "@templating"
+            $templating: "@twig"

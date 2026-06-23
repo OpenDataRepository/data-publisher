@@ -158,7 +158,7 @@ class FlowController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 return self::flowAbort('Datatype does not exist');
 
@@ -167,12 +167,12 @@ class FlowController extends ODRCustomController
             $datafield = null;
             if ($datarecord_id != 0 && $datafield_id != 0) {
                 /** @var DataRecord $datarecord */
-                $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+                $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($datarecord_id);
                 if ($datarecord == null)
                     return self::flowAbort('Datarecord does not exist');
 
                 /** @var DataFields $datafield */
-                $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+                $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
                 if ($datafield == null)
                     return self::flowAbort('Datafield does not exist');
 
@@ -219,7 +219,7 @@ class FlowController extends ODRCustomController
 //                if ( !$datafield->getAllowMultipleUploads() ) {
 //                    // ...ensure the datafield doesn't already have a file/image uploaded
 //                    if ($upload_type == 'file') {
-//                        $files = $em->getRepository('ODRAdminBundle:File')->findBy(
+//                        $files = $em->getRepository('ODR\AdminBundle\Entity\File')->findBy(
 //                            array(
 //                                'dataRecord' => $datarecord->getId(),
 //                                'dataField' => $datafield->getId()
@@ -230,7 +230,7 @@ class FlowController extends ODRCustomController
 //                        }
 //                    }
 //                    else if ($upload_type == 'image') {
-//                        $images = $em->getRepository('ODRAdminBundle:Image')->findBy(
+//                        $images = $em->getRepository('ODR\AdminBundle\Entity\Image')->findBy(
 //                            array(
 //                                'dataRecord' => $datarecord->getId(),
 //                                'dataField' => $datafield->getId(),

@@ -164,7 +164,7 @@ class DisplayController extends ODRCustomController
 
             // ----------------------------------------
             /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($datarecord_id);
             if ($datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
 
@@ -186,7 +186,7 @@ class DisplayController extends ODRCustomController
 
                 // ...require the referenced theme to exist
                 /** @var Theme $search_theme */
-                $search_theme = $em->getRepository('ODRAdminBundle:Theme')->find($search_theme_id);
+                $search_theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($search_theme_id);
                 if ($search_theme == null)
                     throw new ODRNotFoundException('Search Theme');
 
@@ -328,7 +328,7 @@ class DisplayController extends ODRCustomController
             // Determine the user's preferred theme
             $theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'display');
             /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            $theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($theme_id);
 
             // Render the display page for this datarecord
             /** @var ODRRenderService $odr_render_service */
@@ -386,7 +386,7 @@ class DisplayController extends ODRCustomController
             $permissions_service = $this->container->get('odr.permissions_management_service');
 
             /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+            $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->findOneBy(
                 [ 'unique_id' => $datarecord_uuid]
             );
             if ($datarecord == null)
@@ -477,7 +477,7 @@ class DisplayController extends ODRCustomController
 
             // Locate the file in the database
             /** @var File $file */
-            $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
+            $file = $em->getRepository('ODR\AdminBundle\Entity\File')->find($file_id);
             if ($file == null)
                 throw new ODRNotFoundException('File');
 
@@ -629,7 +629,7 @@ class DisplayController extends ODRCustomController
             $em->getFilters()->disable('softdeleteable');
             $query = $em->createQuery(
                 'SELECT f
-                FROM ODRAdminBundle:File f
+                FROM ODR\AdminBundle\Entity\File f
                 JOIN f.fileMeta AS fm
                 JOIN f.dataField AS df
                 WHERE df.dataType = :data_type_id 
@@ -652,7 +652,7 @@ class DisplayController extends ODRCustomController
             foreach ($files as $file) {
                 // var_dump($file);
                 /** @var File $file */
-                $fileMeta = $em->getRepository('ODRAdminBundle:FileMeta')
+                $fileMeta = $em->getRepository('ODR\AdminBundle\Entity\FileMeta')
                     ->findBy(['file' => $file['id']]);
                 // var_dump($fileMeta);
                 // if(is_null($fileMeta)) { // what was this doing
@@ -682,7 +682,7 @@ class DisplayController extends ODRCustomController
                 throw new ODRNotFoundException('File');
 
             /** @var File $file */
-            $file = $em->getRepository('ODRAdminBundle:File')->find($output_file['id']);;
+            $file = $em->getRepository('ODR\AdminBundle\Entity\File')->find($output_file['id']);;
             if ($file == null)
                 throw new ODRNotFoundException('File');
 
@@ -792,7 +792,7 @@ class DisplayController extends ODRCustomController
 
             // Locate the file in the database
             /** @var File $file */
-            $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
+            $file = $em->getRepository('ODR\AdminBundle\Entity\File')->find($file_id);
             if ($file == null)
                 throw new ODRNotFoundException('File');
 
@@ -966,7 +966,7 @@ class DisplayController extends ODRCustomController
 
             // Locate the image object in the database
             /** @var Image $image */
-            $image = $em->getRepository('ODRAdminBundle:Image')->find($image_id);
+            $image = $em->getRepository('ODR\AdminBundle\Entity\Image')->find($image_id);
             if ($image == null)
                 throw new ODRNotFoundException('Image');
 
@@ -1149,7 +1149,7 @@ class DisplayController extends ODRCustomController
 
 
             /** @var DataRecord $grandparent_datarecord */
-            $grandparent_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($grandparent_datarecord_id);
+            $grandparent_datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($grandparent_datarecord_id);
             if ( is_null($grandparent_datarecord) )
                 throw new ODRNotFoundException('Grandparent Datarecord');
 
@@ -1518,7 +1518,7 @@ class DisplayController extends ODRCustomController
 
 
             /** @var DataRecord $grandparent_datarecord */
-            $grandparent_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($grandparent_datarecord_id);
+            $grandparent_datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($grandparent_datarecord_id);
             if ($grandparent_datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
 
@@ -1720,7 +1720,7 @@ class DisplayController extends ODRCustomController
             $search_params_dt_id = $search_params['dt_id'];
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($search_params_dt_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($search_params_dt_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -1852,7 +1852,7 @@ class DisplayController extends ODRCustomController
             $search_params_dt_id = intval($search_params['dt_id']);
 
             /** @var DataType $grandparent_datatype */
-            $grandparent_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($search_params_dt_id);
+            $grandparent_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($search_params_dt_id);
             if ($grandparent_datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -1865,7 +1865,7 @@ class DisplayController extends ODRCustomController
             $hydrated_datafields = [];
             foreach ($datafields as $num => $df_id) {
                 /** @var DataFields $df */
-                $df = $em->getRepository('ODRAdminBundle:DataFields')->find($df_id);
+                $df = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($df_id);
                 if ($df == null)
                     throw new ODRNotFoundException('Invalid datafield');
 
@@ -1930,7 +1930,7 @@ class DisplayController extends ODRCustomController
                     partial f.{id, ext, original_checksum},
                     partial fm.{id, originalFileName, publicDate},
                     partial df.{id}
-                FROM ODRAdminBundle:DataRecordFields drf
+                FROM ODR\AdminBundle\Entity\DataRecordFields drf
                 JOIN drf.file AS f
                 JOIN f.fileMeta AS fm
                 JOIN f.dataField AS df
@@ -1985,7 +1985,7 @@ class DisplayController extends ODRCustomController
                     partial ip.{id, ext, original_checksum},
                     partial ipm.{id, originalFileName, publicDate},
                     partial df.{id}
-                FROM ODRAdminBundle:DataRecordFields drf
+                FROM ODR\AdminBundle\Entity\DataRecordFields drf
                 JOIN drf.image AS i
                 JOIN i.parent AS ip
                 JOIN ip.imageMeta AS ipm
@@ -2341,7 +2341,7 @@ class DisplayController extends ODRCustomController
             $router = $this->get('router');
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -2358,7 +2358,7 @@ class DisplayController extends ODRCustomController
             if ( $permissions_service->canViewNonPublicDatarecords($user, $datatype) ) {
                 $query = $em->createQuery(
                    'SELECT dr.id AS dr_id
-                    FROM ODRAdminBundle:DataRecord dr
+                    FROM ODR\AdminBundle\Entity\DataRecord dr
                     WHERE dr.dataType = :datatype_id
                     AND dr.deletedAt IS NULL'
                 )->setParameters( ['datatype_id' => $datatype->getId()] );
@@ -2366,8 +2366,8 @@ class DisplayController extends ODRCustomController
             else {
                 $query = $em->createQuery(
                    'SELECT dr.id AS dr_id
-                    FROM ODRAdminBundle:DataRecord dr
-                    LEFT JOIN ODRAdminBundle:DataRecordMeta drm WITH drm.dataRecord = dr
+                    FROM ODR\AdminBundle\Entity\DataRecord dr
+                    LEFT JOIN ODR\AdminBundle\Entity\DataRecordMeta drm WITH drm.dataRecord = dr
                     WHERE dr.dataType = :datatype_id AND drm.publicDate != :non_public_date
                     AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL'
                 )->setParameters( ['datatype_id' => $datatype->getId(), 'non_public_date' => '2200-01-01 00:00:00'] );

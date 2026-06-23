@@ -122,7 +122,7 @@ class XMLImportController extends ODRCustomController
             $router = $this->get('router');
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -218,7 +218,7 @@ class XMLImportController extends ODRCustomController
             // ----------------------------------------
             // Determine the schema filename
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new \Exception('Invalid job data');
 
@@ -338,7 +338,7 @@ class XMLImportController extends ODRCustomController
             // ----------------------------------------
             // Determine the schema filename
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new \Exception('Invalid job data');
 
@@ -469,7 +469,7 @@ class XMLImportController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var User $user */
-            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            $user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find($user_id);
 
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid job data');
@@ -488,7 +488,7 @@ class XMLImportController extends ODRCustomController
 
 
             /** @var DataType $parent_datatype */
-            $parent_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $parent_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($parent_datatype)
                 throw new \Exception('Invalid job data');
 
@@ -533,7 +533,7 @@ if ($write) {
                     $created_objects = [$grandparent];
 }
 else {
-    $grandparent = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy( ["dataType" => $parent_datatype->getId()] );   // DEBUGGING
+    $grandparent = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->findOneBy( ["dataType" => $parent_datatype->getId()] );   // DEBUGGING
 }
 
                     $ret .= 'Creating new datarecord...'."\n";
@@ -755,7 +755,7 @@ if ($write) {
             // Grab all linked/child types that the importer might have to deal with
             $query = $em->createQuery(
                'SELECT dt
-                FROM ODRAdminBundle:DataTree AS dt
+                FROM ODR\AdminBundle\Entity\DataTree AS dt
                 WHERE dt.ancestor = :datatype OR dt.descendant = :datatype
                 AND dt.deletedAt IS NULL'
             )->setParameters( ['datatype' => $datatype] );
@@ -841,7 +841,7 @@ if ($write) {
                                     $created_objects = array_merge($created_objects, [$child_datarecord]);
 }
 else {
-    $child_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy( ["dataType" => $child_datatype->getId()] );   // DEBUGGING
+    $child_datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->findOneBy( ["dataType" => $child_datatype->getId()] );   // DEBUGGING
 }
                                 }
                                 else {
@@ -1027,8 +1027,8 @@ if ($write) {
             try {
                 // ----------------------------------------
                 // Going to need these
-                $repo_datarecordfields = $entity_manager->getRepository('ODRAdminBundle:DataRecordFields');
-                $repo_file = $entity_manager->getRepository('ODRAdminBundle:File');
+                $repo_datarecordfields = $entity_manager->getRepository('ODR\AdminBundle\Entity\DataRecordFields');
+                $repo_file = $entity_manager->getRepository('ODR\AdminBundle\Entity\File');
                 $drf = $repo_datarecordfields->findOneBy( ['dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()] );
 
                 // Store the files listed in the xml file
@@ -1159,8 +1159,8 @@ if ($write) {
             try {
                 // ----------------------------------------
                 // Going to need these
-                $repo_datarecordfields = $entity_manager->getRepository('ODRAdminBundle:DataRecordFields');
-                $repo_image = $entity_manager->getRepository('ODRAdminBundle:Image');
+                $repo_datarecordfields = $entity_manager->getRepository('ODR\AdminBundle\Entity\DataRecordFields');
+                $repo_image = $entity_manager->getRepository('ODR\AdminBundle\Entity\Image');
                 $drf = $repo_datarecordfields->findOneBy( ['dataField' => $datafield->getId(), 'dataRecord' => $datarecord->getId()] );
 
                 // Store the images listed in the xml file
@@ -1298,9 +1298,9 @@ if ($write) {
             try {
                 // ----------------------------------------
                 // Going to need these
-                $repo_datarecordfields = $entity_manager->getRepository('ODRAdminBundle:DataRecordFields');
-                $repo_radio_selection = $entity_manager->getRepository('ODRAdminBundle:RadioSelection');
-                $repo_radio_option = $entity_manager->getRepository('ODRAdminBundle:RadioOptions');
+                $repo_datarecordfields = $entity_manager->getRepository('ODR\AdminBundle\Entity\DataRecordFields');
+                $repo_radio_selection = $entity_manager->getRepository('ODR\AdminBundle\Entity\RadioSelection');
+                $repo_radio_option = $entity_manager->getRepository('ODR\AdminBundle\Entity\RadioOptions');
 
                 /** @var DataRecordFields $drf */
                 $drf = $repo_datarecordfields->findOneBy( ["dataField" => $datafield->getId(), "dataRecord" => $datarecord->getId()] );
@@ -1530,8 +1530,8 @@ if ($write) {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            $repo_file = $em->getRepository('ODRAdminBundle:File');
-            $repo_image = $em->getRepository('ODRAdminBundle:Image');
+            $repo_file = $em->getRepository('ODR\AdminBundle\Entity\File');
+            $repo_image = $em->getRepository('ODR\AdminBundle\Entity\Image');
 
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid Form');
@@ -1542,9 +1542,9 @@ $write = false;
             // ----------------------------------------
             // Grab necessary objects
             /** @var User $user */
-            $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            $user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find($user_id);
             /** @var DataRecordFields $drf */
-            $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->find($drf_id);
+            $drf = $em->getRepository('ODR\AdminBundle\Entity\DataRecordFields')->find($drf_id);
             $path_prefix = __DIR__.'/../../../../web/';
             $storage_path = 'uploads/xml/user_'.$user_id.'/storage/';
 

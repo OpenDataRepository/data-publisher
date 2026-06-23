@@ -458,7 +458,7 @@ class ODRUserController extends ODRCustomController
 
 
             /** @var ODRUser $target_user */
-            $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            $target_user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find($user_id);
             if ($target_user == null || !$target_user->isEnabled())
                 throw new ODRNotFoundException('User');
 
@@ -654,7 +654,7 @@ class ODRUserController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var ODRUser $target_user */
-            $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            $target_user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find($user_id);
             if ($target_user == null || !$target_user->isEnabled())
                 throw new ODRNotFoundException('User');
 
@@ -717,7 +717,7 @@ class ODRUserController extends ODRCustomController
         $user_manager = $this->container->get('fos_user.user_manager');
 
         /** @var ODRUser $target_user */
-        $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($target_user_id);
+        $target_user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find($target_user_id);
         if ($target_user == null)
             throw new ODRNotFoundException('User');     // theoretically shouldn't happen
 
@@ -786,7 +786,7 @@ class ODRUserController extends ODRCustomController
 
 
             /** @var ODRUser $target_user */
-            $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            $target_user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find($user_id);
             if ($target_user == null || !$target_user->isEnabled())
                 throw new ODRNotFoundException('User');
 
@@ -876,7 +876,7 @@ class ODRUserController extends ODRCustomController
             $user_manager = $this->container->get('fos_user.user_manager');
 
             /** @var ODRUser $target_user */
-            $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($target_user_id);
+            $target_user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find($target_user_id);
             if ($target_user == null)
                 throw new ODRNotFoundException('User');
 
@@ -1120,7 +1120,7 @@ class ODRUserController extends ODRCustomController
             $user_manager = $this->container->get('fos_user.user_manager');
 
             /** @var ODRUser $target_user */
-            $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            $target_user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find($user_id);
             if ($target_user == null || !$target_user->isEnabled())
                 throw new ODRNotFoundException('User');
 
@@ -1242,7 +1242,7 @@ class ODRUserController extends ODRCustomController
             $user_manager = $this->container->get('fos_user.user_manager');
 
             /** @var ODRUser $target_user */
-            $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            $target_user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find($user_id);
             if ( $target_user == null )
                 throw new ODRNotFoundException('User');
             if ( !$target_user->isEnabled() )
@@ -1340,7 +1340,7 @@ class ODRUserController extends ODRCustomController
             $user_manager = $this->container->get('fos_user.user_manager');
 
             /** @var ODRUser $target_user */
-            $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            $target_user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find($user_id);
             if ( $target_user == null )
                 throw new ODRNotFoundException('User');
             if ( $target_user->isEnabled() )
@@ -1408,12 +1408,12 @@ class ODRUserController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
             /** @var ODRUser $target_user */
-            $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            $target_user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find($user_id);
             if ($target_user == null || !$target_user->isEnabled())
                 throw new ODRNotFoundException('User');
 
@@ -1511,12 +1511,12 @@ class ODRUserController extends ODRCustomController
 
 
             /** @var ODRUser $target_user */
-            $target_user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($user_id);
+            $target_user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find($user_id);
             if ($target_user == null || !$target_user->isEnabled())
                 throw new ODRNotFoundException('User');
 
             /** @var Theme $theme */
-            $theme = $em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            $theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($theme_id);
             if ($theme == null)
                 throw new ODRNotFoundException('Theme');
 

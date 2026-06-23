@@ -112,7 +112,7 @@ class XYZDataHelperService
 
         // Now that the new data is valid, it makes sense to get the existing data...
         /** @var XYZData[] $xyz_data_values */
-        $xyz_data_values = $this->em->getRepository('ODRAdminBundle:XYZData')->findBy(
+        $xyz_data_values = $this->em->getRepository('ODR\AdminBundle\Entity\XYZData')->findBy(
             [
                 'dataRecord' => $datarecord->getId(),
                 'dataField' => $datafield->getId(),

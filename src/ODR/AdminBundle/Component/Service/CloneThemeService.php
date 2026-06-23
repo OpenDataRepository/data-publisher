@@ -118,10 +118,10 @@ class CloneThemeService
         $query = $this->em->createQuery(
            'SELECT ct.id AS current_theme_id, ctm.sourceSyncVersion AS current_version,
                    st.id AS source_theme_id, stm.sourceSyncVersion AS source_version
-            FROM ODRAdminBundle:Theme AS ct
-            JOIN ODRAdminBundle:ThemeMeta AS ctm WITH ctm.theme = ct
-            JOIN ODRAdminBundle:Theme AS st WITH ct.sourceTheme = st
-            JOIN ODRAdminBundle:ThemeMeta AS stm WITH stm.theme = st
+            FROM ODR\AdminBundle\Entity\Theme AS ct
+            JOIN ODR\AdminBundle\Entity\ThemeMeta AS ctm WITH ctm.theme = ct
+            JOIN ODR\AdminBundle\Entity\Theme AS st WITH ct.sourceTheme = st
+            JOIN ODR\AdminBundle\Entity\ThemeMeta AS stm WITH stm.theme = st
             WHERE ct.parentTheme = :theme_id
             AND ct.deletedAt IS NULL AND ctm.deletedAt IS NULL
             AND st.deletedAt IS NULL AND stm.deletedAt IS NULL'
@@ -218,7 +218,7 @@ class CloneThemeService
                 partial tdt.{id}, partial c_dt.{id}, partial c_t.{id}, partial c_s_t.{id},
                 partial trpi.{id}, partial rpi.{id}
 
-            FROM ODRAdminBundle:Theme AS t
+            FROM ODR\AdminBundle\Entity\Theme AS t
             LEFT JOIN t.themeElements AS te
 
             LEFT JOIN te.themeDataFields AS tdf
@@ -447,9 +447,9 @@ class CloneThemeService
 
         // ----------------------------------------
         // Going to need these repositories...
-        $repo_theme = $this->em->getRepository('ODRAdminBundle:Theme');
-        $repo_theme_datatype = $this->em->getRepository('ODRAdminBundle:ThemeDataType');
-        $repo_theme_render_plugin_instance = $this->em->getRepository('ODRAdminBundle:ThemeRenderPluginInstance');
+        $repo_theme = $this->em->getRepository('ODR\AdminBundle\Entity\Theme');
+        $repo_theme_datatype = $this->em->getRepository('ODR\AdminBundle\Entity\ThemeDataType');
+        $repo_theme_render_plugin_instance = $this->em->getRepository('ODR\AdminBundle\Entity\ThemeRenderPluginInstance');
 
         $this->logger->info('----------------------------------------');
         $this->logger->info('CloneThemeService: attempting to synchronize theme '.$theme->getId().' with its source theme '.$theme->getSourceTheme()->getId());
@@ -677,7 +677,7 @@ class CloneThemeService
             $indent_text .= ' --';
 
         // Going to need this for later...
-        $repo_theme_datafield = $this->em->getRepository('ODRAdminBundle:ThemeDataField');
+        $repo_theme_datafield = $this->em->getRepository('ODR\AdminBundle\Entity\ThemeDataField');
 
 
         // ----------------------------------------

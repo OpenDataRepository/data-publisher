@@ -702,11 +702,11 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
         // Need to locate the "cellparam_id" field for this render plugin...
         $query = $this->em->createQuery(
            'SELECT df
-            FROM ODRAdminBundle:RenderPlugin rp
-            JOIN ODRAdminBundle:RenderPluginInstance rpi WITH rpi.renderPlugin = rp
-            JOIN ODRAdminBundle:RenderPluginMap rpm WITH rpm.renderPluginInstance = rpi
-            JOIN ODRAdminBundle:DataFields df WITH rpm.dataField = df
-            JOIN ODRAdminBundle:RenderPluginFields rpf WITH rpm.renderPluginFields = rpf
+            FROM ODR\AdminBundle\Entity\RenderPlugin rp
+            JOIN ODR\AdminBundle\Entity\RenderPluginInstance rpi WITH rpi.renderPlugin = rp
+            JOIN ODR\AdminBundle\Entity\RenderPluginMap rpm WITH rpm.renderPluginInstance = rpi
+            JOIN ODR\AdminBundle\Entity\DataFields df WITH rpm.dataField = df
+            JOIN ODR\AdminBundle\Entity\RenderPluginFields rpf WITH rpm.renderPluginFields = rpf
             WHERE rp.pluginClassName = :plugin_classname AND rpi.dataType = :datatype
             AND rpf.fieldName = :field_name
             AND rp.deletedAt IS NULL AND rpi.deletedAt IS NULL AND rpm.deletedAt IS NULL
@@ -1163,7 +1163,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
 
         // Hydrate the destination datafield...it's guaranteed to exist
         /** @var DataFields $datafield */
-        $datafield = $this->em->getRepository('ODRAdminBundle:DataFields')->find($df_id);
+        $datafield = $this->em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($df_id);
 
         // Return the storage entity for this datarecord/datafield pair
         return $this->entity_create_service->createStorageEntity($user, $datarecord, $datafield);

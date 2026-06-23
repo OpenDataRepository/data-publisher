@@ -1395,7 +1395,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
         // Need to hydrate the file...
         /** @var File $file */
-        $file = $this->em->getRepository('ODRAdminBundle:File')->find($file_id);
+        $file = $this->em->getRepository('ODR\AdminBundle\Entity\File')->find($file_id);
         if ($file == null)
             throw new ODRNotFoundException('File');
 
@@ -1472,7 +1472,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     // Need to hydrate the RadiationElement datafield to be able to update the value...
                     $query = $this->em->createQuery(
                        'SELECT df
-                        FROM ODRAdminBundle:Datafields AS df
+                        FROM ODR\AdminBundle\Entity\DataFields AS df
                         WHERE df = :datafield_id
                         AND df.deletedAt IS NULL'
                     )->setParameter('datafield_id', $radiation_element_df_id);
@@ -1506,7 +1506,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 //  the query below should get it...
                 $query = $this->em->createQuery(
                    'SELECT f
-                    FROM ODRAdminBundle:File f
+                    FROM ODR\AdminBundle\Entity\File f
                     WHERE f.dataRecordFields = :drf
                     AND f.deletedAt IS NULL'
                 )->setParameters( ['drf' => $drf->getId()] );
@@ -2015,7 +2015,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 
         $query = $this->em->createQuery(
            'SELECT df
-            FROM ODRAdminBundle:Datafields AS df
+            FROM ODR\AdminBundle\Entity\DataFields AS df
             WHERE df IN (:datafield_ids)
             AND df.deletedAt IS NULL'
         )->setParameter('datafield_ids', $df_ids, \Doctrine\DBAL\Connection::PARAM_INT_ARRAY);
@@ -3172,11 +3172,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         // Need to locate the "database_code" field for this render plugin...
         $query = $this->em->createQuery(
            'SELECT df
-            FROM ODRAdminBundle:RenderPlugin rp
-            JOIN ODRAdminBundle:RenderPluginInstance rpi WITH rpi.renderPlugin = rp
-            JOIN ODRAdminBundle:RenderPluginMap rpm WITH rpm.renderPluginInstance = rpi
-            JOIN ODRAdminBundle:DataFields df WITH rpm.dataField = df
-            JOIN ODRAdminBundle:RenderPluginFields rpf WITH rpm.renderPluginFields = rpf
+            FROM ODR\AdminBundle\Entity\RenderPlugin rp
+            JOIN ODR\AdminBundle\Entity\RenderPluginInstance rpi WITH rpi.renderPlugin = rp
+            JOIN ODR\AdminBundle\Entity\RenderPluginMap rpm WITH rpm.renderPluginInstance = rpi
+            JOIN ODR\AdminBundle\Entity\DataFields df WITH rpm.dataField = df
+            JOIN ODR\AdminBundle\Entity\RenderPluginFields rpf WITH rpm.renderPluginFields = rpf
             WHERE rp.pluginClassName = :plugin_classname AND rpi.dataType = :datatype
             AND rpf.fieldName = :field_name
             AND rp.deletedAt IS NULL AND rpi.deletedAt IS NULL AND rpm.deletedAt IS NULL

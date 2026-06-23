@@ -59,9 +59,9 @@ class DatarecordExportService
         //  straight from the database...
         $query = $this->em->createQuery(
            'SELECT dt.id AS dt_id, t.id AS t_id, dr.id AS dr_id
-            FROM ODRAdminBundle:DataRecord AS dr
-            JOIN ODRAdminBundle:DataType AS dt WITH dr.dataType = dt
-            JOIN ODRAdminBundle:Theme AS t WITH t.dataType = dt
+            FROM ODR\AdminBundle\Entity\DataRecord AS dr
+            JOIN ODR\AdminBundle\Entity\DataType AS dt WITH dr.dataType = dt
+            JOIN ODR\AdminBundle\Entity\Theme AS t WITH t.dataType = dt
             WHERE dr.id IN (:datarecord_ids)
             AND t.themeType = :theme_type AND t = t.sourceTheme
             AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL AND t.deletedAt IS NULL'

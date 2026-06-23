@@ -71,9 +71,9 @@ class CloneThemeCommand extends \Symfony\Component\Console\Command\Command
                 $em = $container->get('doctrine')->getEntityManager();
 
                 /** @var ODRUser $user */
-                $user = $em->getRepository('ODROpenRepositoryUserBundle:User')->find($data->user_id);
+                $user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find($data->user_id);
                 /** @var Theme $source_theme */
-                $source_theme = $em->getRepository('ODRAdminBundle:Theme')->find($data->source_theme_id);
+                $source_theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($data->source_theme_id);
                 $dest_theme_type = $data->dest_theme_type;
 
                 /** @var CloneThemeService $clone_theme_service */

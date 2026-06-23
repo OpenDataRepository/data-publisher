@@ -215,11 +215,11 @@ class RRUFFSamplePlugin implements DatatypePluginInterface
         // Need to locate the "sample_id" and "rruff_id" fields for this render plugin...
         $query = $this->em->createQuery(
            'SELECT rpf.fieldName, df
-            FROM ODRAdminBundle:RenderPlugin rp
-            JOIN ODRAdminBundle:RenderPluginInstance rpi WITH rpi.renderPlugin = rp
-            JOIN ODRAdminBundle:RenderPluginMap rpm WITH rpm.renderPluginInstance = rpi
-            JOIN ODRAdminBundle:DataFields df WITH rpm.dataField = df
-            JOIN ODRAdminBundle:RenderPluginFields rpf WITH rpm.renderPluginFields = rpf
+            FROM ODR\AdminBundle\Entity\RenderPlugin rp
+            JOIN ODR\AdminBundle\Entity\RenderPluginInstance rpi WITH rpi.renderPlugin = rp
+            JOIN ODR\AdminBundle\Entity\RenderPluginMap rpm WITH rpm.renderPluginInstance = rpi
+            JOIN ODR\AdminBundle\Entity\DataFields df WITH rpm.dataField = df
+            JOIN ODR\AdminBundle\Entity\RenderPluginFields rpf WITH rpm.renderPluginFields = rpf
             WHERE rp.pluginClassName = :plugin_classname AND rpi.dataType = :datatype
             AND rpf.fieldName IN (:field_names)
             AND rp.deletedAt IS NULL AND rpi.deletedAt IS NULL AND rpm.deletedAt IS NULL
@@ -250,10 +250,10 @@ class RRUFFSamplePlugin implements DatatypePluginInterface
         // Need to run another query to figure out what the "prefix" for the RRUFF ID should be...
         $query = $this->em->createQuery(
            'SELECT rpod.name AS option_name, rpom.value AS option_value
-            FROM ODRAdminBundle:RenderPlugin rp
-            JOIN ODRAdminBundle:RenderPluginInstance rpi WITH rpi.renderPlugin = rp
-            JOIN ODRAdminBundle:RenderPluginOptionsMap rpom WITH rpom.renderPluginInstance = rpi
-            JOIN ODRAdminBundle:RenderPluginOptionsDef rpod WITH rpom.renderPluginOptionsDef = rpod
+            FROM ODR\AdminBundle\Entity\RenderPlugin rp
+            JOIN ODR\AdminBundle\Entity\RenderPluginInstance rpi WITH rpi.renderPlugin = rp
+            JOIN ODR\AdminBundle\Entity\RenderPluginOptionsMap rpom WITH rpom.renderPluginInstance = rpi
+            JOIN ODR\AdminBundle\Entity\RenderPluginOptionsDef rpod WITH rpom.renderPluginOptionsDef = rpod
             WHERE rp.pluginClassName = :plugin_classname AND rpi.dataType = :datatype
             AND rp.deletedAt IS NULL AND rpi.deletedAt IS NULL
             AND rpom.deletedAt IS NULL AND rpod.deletedAt IS NULL'

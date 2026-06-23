@@ -193,7 +193,7 @@ class SearchSidebarService
                 sl, slm, sl_map,
                 partial sl_map_df.{id}, partial sl_map_df_dt.{id},
                 partial sl_cb.{id}
-            FROM ODRAdminBundle:SidebarLayout AS sl
+            FROM ODR\AdminBundle\Entity\SidebarLayout AS sl
             LEFT JOIN sl.sidebarLayoutMeta AS slm
             LEFT JOIN sl.sidebarLayoutMap AS sl_map
             LEFT JOIN sl_map.dataField AS sl_map_df
@@ -600,8 +600,8 @@ class SearchSidebarService
 
             $query = $this->em->createQuery(
                'SELECT dt.id AS dt_id, dtm.shortName AS shortName, dtm.publicDate
-                FROM ODRAdminBundle:DataType dt
-                LEFT JOIN ODRAdminBundle:DataTypeMeta dtm WITH dtm.dataType = dt
+                FROM ODR\AdminBundle\Entity\DataType dt
+                LEFT JOIN ODR\AdminBundle\Entity\DataTypeMeta dtm WITH dtm.dataType = dt
                 WHERE dt.id IN (:datatype_ids)
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
             )->setParameters( ['datatype_ids' => $top_level_datatype_ids] );
@@ -772,7 +772,7 @@ class SearchSidebarService
         // Otherwise, rebuild the list of sidebar layouts
         $query = $this->em->createQuery(
            'SELECT sl.id AS layout_id
-            FROM ODRAdminBundle:SidebarLayout AS sl
+            FROM ODR\AdminBundle\Entity\SidebarLayout AS sl
             WHERE sl.deletedAt IS NULL'
         );
         $results = $query->getArrayResult();
@@ -809,7 +809,7 @@ class SearchSidebarService
            'SELECT sl, slm, slp, partial sl_dfm.{id},
                 partial slm_idt.{id}, partial slm_idtm.{id, shortName},
                 partial sl_cb.{id, username, email, firstName, lastName}
-            FROM ODRAdminBundle:SidebarLayout AS sl
+            FROM ODR\AdminBundle\Entity\SidebarLayout AS sl
             JOIN sl.createdBy AS sl_cb
             JOIN sl.sidebarLayoutMeta AS slm
             LEFT JOIN sl.sidebarLayoutMap AS sl_dfm
@@ -1015,7 +1015,7 @@ class SearchSidebarService
             $sl_id = $result['id'];
 
             /** @var SidebarLayout $sl */
-            $sl = $this->em->getRepository('ODRAdminBundle:SidebarLayout')->find($sl_id);
+            $sl = $this->em->getRepository('ODR\AdminBundle\Entity\SidebarLayout')->find($sl_id);
             return $sl;
         }
 
@@ -1160,7 +1160,7 @@ class SearchSidebarService
             $slp_id = $result['id'];
 
             /** @var SidebarLayoutPreferences $slp */
-            $slp = $this->em->getRepository('ODRAdminBundle:SidebarLayoutPreferences')->find($slp_id);
+            $slp = $this->em->getRepository('ODR\AdminBundle\Entity\SidebarLayoutPreferences')->find($slp_id);
             return $slp;
         }
 
@@ -1213,7 +1213,7 @@ class SearchSidebarService
             $slp_id = $result['id'];
 
             /** @var SidebarLayoutPreferences $slp */
-            $slp = $this->em->getRepository('ODRAdminBundle:SidebarLayoutPreferences')->find($slp_id);
+            $slp = $this->em->getRepository('ODR\AdminBundle\Entity\SidebarLayoutPreferences')->find($slp_id);
 
             // Unset the bit for this intent and save it back into the field
             $bitfield_value = $slp->getDefaultFor();
@@ -1226,7 +1226,7 @@ class SearchSidebarService
 
         // ----------------------------------------
         // Attempt to locate the sidebarLayoutPreferences entry for the given layout/User pair
-        $slp = $this->em->getRepository('ODRAdminBundle:SidebarLayoutPreferences')->findOneBy(
+        $slp = $this->em->getRepository('ODR\AdminBundle\Entity\SidebarLayoutPreferences')->findOneBy(
             [
                 'sidebarLayout' => $sidebar_layout->getId(),
                 'createdBy' => $user->getId(),
@@ -1293,7 +1293,7 @@ class SearchSidebarService
             $slp_id = $result['id'];
 
             /** @var SidebarLayoutPreferences $slp */
-            $slp = $this->em->getRepository('ODRAdminBundle:SidebarLayoutPreferences')->find($slp_id);
+            $slp = $this->em->getRepository('ODR\AdminBundle\Entity\SidebarLayoutPreferences')->find($slp_id);
 
             // Unset the bit for this intent and save it back into the field
             $bitfield_value = $slp->getDefaultFor();

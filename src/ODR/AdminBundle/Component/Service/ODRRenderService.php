@@ -94,14 +94,14 @@ class ODRRenderService
         // Need an array of fieldtype ids and typenames for notifications when changing fieldtypes
         $fieldtype_array = [];
         /** @var FieldType[] $fieldtypes */
-        $fieldtypes = $this->em->getRepository('ODRAdminBundle:FieldType')->findAll();
+        $fieldtypes = $this->em->getRepository('ODR\AdminBundle\Entity\FieldType')->findAll();
         foreach ($fieldtypes as $fieldtype)
             $fieldtype_array[ $fieldtype->getId() ] = $fieldtype->getTypeName();
 
         // Store whether this datatype has datarecords..affects warnings when changing fieldtypes
         $query = $this->em->createQuery(
            'SELECT COUNT(dr) AS dr_count
-            FROM ODRAdminBundle:DataRecord AS dr
+            FROM ODR\AdminBundle\Entity\DataRecord AS dr
             WHERE dr.dataType = :datatype_id'
         )->setParameters( ['datatype_id' => $datatype->getId()] );
         $results = $query->getArrayResult();
@@ -307,7 +307,7 @@ class ODRRenderService
         }
         else {
             $theme_id = $this->theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'display');
-            $theme = $this->em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            $theme = $this->em->getRepository('ODR\AdminBundle\Entity\Theme')->find($theme_id);
         }
 
         // Ensure all relevant themes are in sync before rendering the end result
@@ -373,7 +373,7 @@ class ODRRenderService
         else {
 //            $theme_id = $this->theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'edit');    // NOTE: apparently differentiating between 'display' and 'edit' is...'confusing'
             $theme_id = $this->theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'display');
-            $theme = $this->em->getRepository('ODRAdminBundle:Theme')->find($theme_id);
+            $theme = $this->em->getRepository('ODR\AdminBundle\Entity\Theme')->find($theme_id);
         }
 
         // Ensure all relevant themes are in sync before rendering the end result
@@ -810,7 +810,7 @@ class ODRRenderService
         //  this theme as their parent...
         $query = $this->em->createQuery(
            'SELECT t
-            FROM ODRAdminBundle:Theme AS t
+            FROM ODR\AdminBundle\Entity\Theme AS t
             WHERE t.parentTheme = :theme_id
             AND t.deletedAt IS NULL'
         )->setParameters( ['theme_id' => $theme->getId()] );
@@ -852,8 +852,8 @@ class ODRRenderService
             // Check if any of the added datafields are public...
             $query = $this->em->createQuery(
                'SELECT df.id, dfm.publicDate
-                FROM ODRAdminBundle:DataFields AS df
-                JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
+                FROM ODR\AdminBundle\Entity\DataFields AS df
+                JOIN ODR\AdminBundle\Entity\DataFieldsMeta AS dfm WITH dfm.dataField = df
                 WHERE df.id IN (:datafield_ids)
                 AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL'
             )->setParameters( ['datafield_ids' => $added_datafields] );
@@ -881,8 +881,8 @@ class ODRRenderService
             // Check if any of the added datafields are public...
             $query = $this->em->createQuery(
                'SELECT dt.id, dtm.publicDate
-                FROM ODRAdminBundle:DataType AS dt
-                JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
+                FROM ODR\AdminBundle\Entity\DataType AS dt
+                JOIN ODR\AdminBundle\Entity\DataTypeMeta AS dtm WITH dtm.dataType = dt
                 WHERE dt.id IN (:datatype_ids)
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
             )->setParameters( ['datatype_ids' => $added_datatypes] );

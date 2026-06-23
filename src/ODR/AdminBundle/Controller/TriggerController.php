@@ -69,7 +69,7 @@ class TriggerController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -146,7 +146,7 @@ class TriggerController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -215,7 +215,7 @@ class TriggerController extends ODRCustomController
 
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ($datafield == null)
                 throw new ODRNotFoundException('Datafield');
             if ( $datafield->getDataType()->getDeletedAt() !== null )
@@ -287,7 +287,7 @@ class TriggerController extends ODRCustomController
 
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ($datafield == null)
                 throw new ODRNotFoundException('Datafield');
             if ( $datafield->getFieldType()->getTypeClass() !== 'Tag' )
@@ -331,7 +331,7 @@ class TriggerController extends ODRCustomController
             // Get a list of all datarecords with this datafield
             $query = $em->createQuery(
                'SELECT dr.id AS dr_id
-                FROM ODRAdminBundle:DataRecord dr
+                FROM ODR\AdminBundle\Entity\DataRecord dr
                 WHERE dr.dataType = :datatype_id
                 AND dr.deletedAt IS NULL'
             )->setParameters( ['datatype_id' => $datatype->getId()] );

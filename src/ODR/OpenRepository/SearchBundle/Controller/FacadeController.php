@@ -63,7 +63,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             $em = $this->getDoctrine()->getManager();
 
             /** @var DataTypeMeta $datatype_meta */
-            $datatype_meta = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy(['searchSlug' => $search_slug]);
+            $datatype_meta = $em->getRepository('ODR\AdminBundle\Entity\DataTypeMeta')->findOneBy(['searchSlug' => $search_slug]);
             if ($datatype_meta == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -114,7 +114,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             $em = $this->getDoctrine()->getManager();
 
             /** @var DataTypeMeta $datatype_meta */
-            $datatype_meta = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy(['searchSlug' => $search_slug]);
+            $datatype_meta = $em->getRepository('ODR\AdminBundle\Entity\DataTypeMeta')->findOneBy(['searchSlug' => $search_slug]);
             if ($datatype_meta == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -163,7 +163,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             $em = $this->getDoctrine()->getManager();
 
             /** @var DataTypeMeta $datatype_meta */
-            $datatype_meta = $em->getRepository('ODRAdminBundle:DataTypeMeta')->findOneBy(['searchSlug' => $search_slug]);
+            $datatype_meta = $em->getRepository('ODR\AdminBundle\Entity\DataTypeMeta')->findOneBy(['searchSlug' => $search_slug]);
             if ($datatype_meta == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -175,7 +175,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
 
             /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($datarecord_id);
             if ($datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
 
@@ -255,7 +255,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             $dt_uuid = $params['template_uuid'];
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
                 [
                     'unique_id' => $dt_uuid
                 ]
@@ -357,7 +357,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
         $dt_uuid = $params['template_uuid'];
 
         /** @var DataType $datatype */
-        $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+        $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
             [
                 'unique_id' => $dt_uuid
             ]
@@ -413,7 +413,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
         // return new Response($output);
 
         /** @var DataType $datatype */
-        $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+        $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
                 [
                    'unique_id' => $dt_uuid
                 ]
@@ -496,7 +496,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
                 $logged_in = false;
 
             /** @var DataType $target_datatype */
-            $target_datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+            $target_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
                 [
                     'unique_id' => $dataset_uuid
                 ]
@@ -552,7 +552,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             $preferred_theme_id = $theme_info_service->getPreferredThemeId($admin_user, $target_datatype_id, 'search_results');
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
                 [
                     'unique_id' => $dataset_uuid
                 ]
@@ -699,7 +699,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
         $em = $this->getDoctrine()->getManager();
 
         /** @var DataRecord $record */
-        $record = $em->getRepository('ODRAdminBundle:DataRecord')
+        $record = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')
             ->findOneBy(
                 [
                     'unique_id' => $record_uuid
@@ -794,7 +794,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
         foreach($dataset_uuids as $dataset_uuid) {
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
                 [
                     'unique_id' => $dataset_uuid
                 ]
@@ -866,7 +866,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
             /** @var DataRecord[] $records */
             // TODO use "updated" to only update records modified within the last 24 hours
-            $records = $em->getRepository('ODRAdminBundle:DataRecord')
+            $records = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')
                 ->findBy(
                     [
                         'dataType' => $datatype
@@ -1392,7 +1392,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
         $params = json_decode(base64_decode((string) $search_key), true);
 
         /** @var DataType $datatype */
-        $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+        $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
             [
                 'id' => $params['dt_id']
             ]
@@ -1479,7 +1479,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
         $dt_uuid = $params['template_uuid'];
 
         /** @var DataType $datatype */
-        $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+        $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
             [
                 'unique_id' => $dt_uuid
             ]
@@ -1563,7 +1563,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             $dt_uuid = $params['template_uuid'];
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
                 [
                     'unique_id' => $dt_uuid
                 ]

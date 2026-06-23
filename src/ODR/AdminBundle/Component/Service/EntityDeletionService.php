@@ -143,9 +143,9 @@ class EntityDeletionService
             // Save which themes are going to get theme_datafield entries deleted
             $query = $this->em->createQuery(
                'SELECT t
-                FROM ODRAdminBundle:ThemeDataField AS tdf
-                JOIN ODRAdminBundle:ThemeElement AS te WITH tdf.themeElement = te
-                JOIN ODRAdminBundle:Theme AS t WITH te.theme = t
+                FROM ODR\AdminBundle\Entity\ThemeDataField AS tdf
+                JOIN ODR\AdminBundle\Entity\ThemeElement AS te WITH tdf.themeElement = te
+                JOIN ODR\AdminBundle\Entity\Theme AS t WITH te.theme = t
                 WHERE tdf.dataField = :datafield
                 AND tdf.deletedAt IS NULL AND te.deletedAt IS NULL AND t.deletedAt IS NULL'
             )->setParameters( ['datafield' => $datafield->getId()] );
@@ -155,8 +155,8 @@ class EntityDeletionService
             // Determine which groups will be affected by the deletion of this datafield
             $query = $this->em->createQuery(
                'SELECT g.id AS group_id
-                FROM ODRAdminBundle:GroupDatafieldPermissions AS gdfp
-                JOIN ODRAdminBundle:Group AS g WITH gdfp.group = g
+                FROM ODR\AdminBundle\Entity\GroupDatafieldPermissions AS gdfp
+                JOIN ODR\AdminBundle\Entity\Group AS g WITH gdfp.group = g
                 WHERE gdfp.dataField = :datafield
                 AND gdfp.deletedAt IS NULL AND g.deletedAt IS NULL'
             )->setParameters( ['datafield' => $datafield->getId()] );
@@ -167,9 +167,9 @@ class EntityDeletionService
             //  groups got modified
             $query = $this->em->createQuery(
                'SELECT u.id AS user_id
-                FROM ODRAdminBundle:Group AS g
-                JOIN ODRAdminBundle:UserGroup AS ug WITH ug.group = g
-                JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
+                FROM ODR\AdminBundle\Entity\Group AS g
+                JOIN ODR\AdminBundle\Entity\UserGroup AS ug WITH ug.group = g
+                JOIN ODR\OpenRepository\UserBundle\Entity\User AS u WITH ug.user = u
                 WHERE g.id IN (:groups)
                 AND g.deletedAt IS NULL AND ug.deletedAt IS NULL'
             )->setParameters( ['groups' => $all_affected_groups] );
@@ -180,7 +180,7 @@ class EntityDeletionService
             //  cleared too
             $query = $this->em->createQuery(
                'SELECT u.id AS user_id
-                FROM ODROpenRepositoryUserBundle:User AS u
+                FROM ODR\OpenRepository\UserBundle\Entity\User AS u
                 WHERE u.roles LIKE :role'
             )->setParameters( ['role' => '%ROLE_SUPER_ADMIN%'] );
             $all_super_admins = $query->getArrayResult();
@@ -192,9 +192,9 @@ class EntityDeletionService
             //  from the soon-to-be-deleted datafield
             $query = $this->em->createQuery(
                'SELECT ddt.id AS dt_id
-                FROM ODRAdminBundle:DataFields AS df
-                JOIN ODRAdminBundle:DataFields AS ddf WITH ddf.masterDataField = df
-                JOIN ODRAdminBundle:DataType AS ddt WITH ddf.dataType = ddt
+                FROM ODR\AdminBundle\Entity\DataFields AS df
+                JOIN ODR\AdminBundle\Entity\DataFields AS ddf WITH ddf.masterDataField = df
+                JOIN ODR\AdminBundle\Entity\DataType AS ddt WITH ddf.dataType = ddt
                 WHERE df.id = :datafield_to_delete
                 AND df.deletedAt IS NULL AND ddf.deletedAt IS NULL AND ddt.deletedAt IS NULL'
             )->setParameters( ['datafield_to_delete' => $datafield->getId()] );
@@ -219,7 +219,7 @@ class EntityDeletionService
 /*
             // ...datarecordfield entries
             $query = $this->em->createQuery(
-               'UPDATE ODRAdminBundle:DataRecordFields AS drf
+               'UPDATE ODR\AdminBundle\Entity\DataRecordFields AS drf
                 SET drf.deletedAt = :now
                 WHERE drf.dataField = :datafield AND drf.deletedAt IS NULL'
             )->setParameters(
@@ -233,7 +233,7 @@ class EntityDeletionService
 
             // ...theme_datafield entries
             $query = $this->em->createQuery(
-               'UPDATE ODRAdminBundle:ThemeDataField AS tdf
+               'UPDATE ODR\AdminBundle\Entity\ThemeDataField AS tdf
                 SET tdf.deletedAt = :now, tdf.deletedBy = :deleted_by
                 WHERE tdf.dataField = :datafield AND tdf.deletedAt IS NULL'
             )->setParameters(
@@ -247,7 +247,7 @@ class EntityDeletionService
 
             // ...datafield permissions
             $query = $this->em->createQuery(
-               'UPDATE ODRAdminBundle:GroupDatafieldPermissions AS gdfp
+               'UPDATE ODR\AdminBundle\Entity\GroupDatafieldPermissions AS gdfp
                 SET gdfp.deletedAt = :now
                 WHERE gdfp.dataField = :datafield AND gdfp.deletedAt IS NULL'
             )->setParameters(
@@ -260,7 +260,7 @@ class EntityDeletionService
 
             // ...render plugin instances
             $query = $this->em->createQuery(
-               'UPDATE ODRAdminBundle:RenderPluginInstance AS rpi
+               'UPDATE ODR\AdminBundle\Entity\RenderPluginInstance AS rpi
                 SET rpi.deletedAt = :now
                 WHERE rpi.dataField = :datafield AND rpi.deletedAt IS NULL'
             )->setParameters(
@@ -273,7 +273,7 @@ class EntityDeletionService
 
             // ...render plugin maps
             $query = $this->em->createQuery(
-               'UPDATE ODRAdminBundle:RenderPluginMap AS rpm
+               'UPDATE ODR\AdminBundle\Entity\RenderPluginMap AS rpm
                 SET rpm.deletedAt = :now
                 WHERE rpm.dataField = :datafield AND rpm.deletedAt IS NULL'
             )->setParameters(
@@ -286,7 +286,7 @@ class EntityDeletionService
 
             // ...derived datafields
             $query = $this->em->createQuery(
-               'UPDATE ODRAdminBundle:DataFields AS df
+               'UPDATE ODR\AdminBundle\Entity\DataFields AS df
                 SET df.templateFieldUuid = NULL, df.masterDataField = NULL
                 WHERE df.templateFieldUuid = :field_uuid'
             )->setParameters(
@@ -298,7 +298,7 @@ class EntityDeletionService
 
             // ...sidebar layout maps
             $query = $this->em->createQuery(
-               'UPDATE ODRAdminBundle:SidebarLayoutMap AS slm
+               'UPDATE ODR\AdminBundle\Entity\SidebarLayoutMap AS slm
                 SET slm.deletedAt = :now
                 WHERE slm.dataField = :datafield AND slm.deletedAt IS NULL'
             )->setParameters(
@@ -315,8 +315,8 @@ class EntityDeletionService
             //  as their name/sort field...
             $query = $this->em->createQuery(
                'SELECT dt
-                FROM ODRAdminBundle:DataTypeSpecialFields dtsf
-                LEFT JOIN ODRAdminBundle:DataType dt WITH dtsf.dataType = dt
+                FROM ODR\AdminBundle\Entity\DataTypeSpecialFields dtsf
+                LEFT JOIN ODR\AdminBundle\Entity\DataType dt WITH dtsf.dataType = dt
                 WHERE dtsf.dataField = :datafield_id AND dtsf.dataType != :datatype_id
                 AND dtsf.deletedAt IS NULL'
             )->setParameters( ['datafield_id' => $datafield->getId(), 'datatype_id' => $datatype->getId()] );
@@ -324,7 +324,7 @@ class EntityDeletionService
 
             // ...and delete any mention that this field was used for a special purpose
             $query = $this->em->createQuery(
-               'UPDATE ODRAdminBundle:DataTypeSpecialFields AS dtsf
+               'UPDATE ODR\AdminBundle\Entity\DataTypeSpecialFields AS dtsf
                 SET dtsf.deletedAt = :now, dtsf.deletedBy = :deleted_by
                 WHERE dtsf.dataField = :datafield
                 AND dtsf.deletedAt IS NULL'
@@ -402,7 +402,7 @@ class EntityDeletionService
             // Now that nothing references the datafield, and no other action requires it to still
             //  exist, delete the meta entry...
             $query = $this->em->createQuery(
-               'UPDATE ODRAdminBundle:DataFieldsMeta AS dfm
+               'UPDATE ODR\AdminBundle\Entity\DataFieldsMeta AS dfm
                 SET dfm.deletedAt = :now
                 WHERE dfm.dataField = :datafield AND dfm.deletedAt IS NULL'
             )->setParameters(
@@ -415,7 +415,7 @@ class EntityDeletionService
 
             // ...and finally the datafield entry
             $query = $this->em->createQuery(
-               'UPDATE ODRAdminBundle:DataFields AS df
+               'UPDATE ODR\AdminBundle\Entity\DataFields AS df
                 SET df.deletedAt = :now, df.deletedBy = :deleted_by
                 WHERE df = :datafield AND df.deletedAt IS NULL'
             )->setParameters(
@@ -565,8 +565,8 @@ class EntityDeletionService
                 //  could be for a datarecord that isn't top-level
                 $query = $this->em->createQuery(
                    'SELECT dr.id AS dr_id
-                    FROM ODRAdminBundle:DataRecord AS parent
-                    JOIN ODRAdminBundle:DataRecord AS dr WITH dr.parent = parent
+                    FROM ODR\AdminBundle\Entity\DataRecord AS parent
+                    JOIN ODR\AdminBundle\Entity\DataRecord AS dr WITH dr.parent = parent
                     WHERE dr.id != parent.id AND parent.id IN (:parent_ids)
                     AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL'
                 )->setParameters( ['parent_ids' => $parent_ids] );
@@ -586,8 +586,8 @@ class EntityDeletionService
             //  they will need to have their cache entries rebuilt
             $query = $this->em->createQuery(
                'SELECT DISTINCT(ancestor.id) AS ancestor_id
-                FROM ODRAdminBundle:LinkedDataTree AS ldt
-                JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
+                FROM ODR\AdminBundle\Entity\LinkedDataTree AS ldt
+                JOIN ODR\AdminBundle\Entity\DataRecord AS ancestor WITH ldt.ancestor = ancestor
                 WHERE ldt.descendant IN (:datarecord_ids)
                 AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL'
             )->setParameters( ['datarecord_ids' => $datarecords_to_delete] );
@@ -605,11 +605,11 @@ class EntityDeletionService
             //  other datatypes, then need to clear the default sort order for those datatypes
             $query = $this->em->createQuery(
                'SELECT DISTINCT(l_dt.id) AS dt_id
-                FROM ODRAdminBundle:DataRecord AS dr
-                LEFT JOIN ODRAdminBundle:DataType AS dt WITH dr.dataType = dt
-                LEFT JOIN ODRAdminBundle:DataFields AS df WITH df.dataType = dt
-                LEFT JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
-                LEFT JOIN ODRAdminBundle:DataType AS l_dt WITH dtsf.dataType = l_dt
+                FROM ODR\AdminBundle\Entity\DataRecord AS dr
+                LEFT JOIN ODR\AdminBundle\Entity\DataType AS dt WITH dr.dataType = dt
+                LEFT JOIN ODR\AdminBundle\Entity\DataFields AS df WITH df.dataType = dt
+                LEFT JOIN ODR\AdminBundle\Entity\DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
+                LEFT JOIN ODR\AdminBundle\Entity\DataType AS l_dt WITH dtsf.dataType = l_dt
                 WHERE dr.id IN (:datarecords_to_delete)
                 AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL
                 AND dtsf.deletedAt IS NULL AND l_dt.deletedAt IS NULL'
@@ -635,7 +635,7 @@ class EntityDeletionService
 
             // ...delete all linked_datatree entries that reference these datarecords
             $query = $this->em->createQuery(
-               'UPDATE ODRAdminBundle:LinkedDataTree AS ldt
+               'UPDATE ODR\AdminBundle\Entity\LinkedDataTree AS ldt
                 SET ldt.deletedAt = :now, ldt.deletedBy = :deleted_by
                 WHERE (ldt.ancestor IN (:datarecord_ids) OR ldt.descendant IN (:datarecord_ids))
                 AND ldt.deletedAt IS NULL'
@@ -650,7 +650,7 @@ class EntityDeletionService
 
             // ...delete each meta entry for the datarecords to be deleted
             $query = $this->em->createQuery(
-               'UPDATE ODRAdminBundle:DataRecordMeta AS drm
+               'UPDATE ODR\AdminBundle\Entity\DataRecordMeta AS drm
                 SET drm.deletedAt = :now
                 WHERE drm.dataRecord IN (:datarecord_ids)
                 AND drm.deletedAt IS NULL'
@@ -664,7 +664,7 @@ class EntityDeletionService
 
             // ...delete all of the datarecords
             $query = $this->em->createQuery(
-               'UPDATE ODRAdminBundle:DataRecord AS dr
+               'UPDATE ODR\AdminBundle\Entity\DataRecord AS dr
                 SET dr.deletedAt = :now, dr.deletedBy = :deleted_by
                 WHERE dr.id IN (:datarecord_ids)
                 AND dr.deletedAt IS NULL'
@@ -850,7 +850,7 @@ class EntityDeletionService
             // Need to also find which datafields are affected by this
             $query = $this->em->createQuery(
                'SELECT df.id AS df_id
-                FROM ODRAdminBundle:DataFields AS df
+                FROM ODR\AdminBundle\Entity\DataFields AS df
                 WHERE df.dataType IN (:datatype_ids)
                 AND df.deletedAt IS NULL'
             )->setParameters( ['datatype_ids' => $datatypes_to_delete] );
@@ -864,9 +864,9 @@ class EntityDeletionService
             //  datatypes, then need to clear two cache entries for those datatypes
             $query = $this->em->createQuery(
                'SELECT dt
-                FROM ODRAdminBundle:DataFields AS df
-                JOIN ODRAdminBundle:DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
-                JOIN ODRAdminBundle:DataType AS dt WITH dtsf.dataType = dt
+                FROM ODR\AdminBundle\Entity\DataFields AS df
+                JOIN ODR\AdminBundle\Entity\DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
+                JOIN ODR\AdminBundle\Entity\DataType AS dt WITH dtsf.dataType = dt
                 WHERE df.id IN (:datafields_to_delete)
                 AND df.deletedAt IS NULL AND dtsf.deletedAt IS NULL AND dt.deletedAt IS NULL'
             )->setParameters(
@@ -891,10 +891,10 @@ class EntityDeletionService
             // Need to locate any datatypes that link to any of the datatypes being deleted
             $query = $this->em->createQuery(
                'SELECT ancestor
-                FROM ODRAdminBundle:DataType AS descendant
-                JOIN ODRAdminBundle:DataTree AS dt WITH dt.descendant = descendant
-                JOIN ODRAdminBundle:DataType AS ancestor WITH dt.ancestor = ancestor
-                JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
+                FROM ODR\AdminBundle\Entity\DataType AS descendant
+                JOIN ODR\AdminBundle\Entity\DataTree AS dt WITH dt.descendant = descendant
+                JOIN ODR\AdminBundle\Entity\DataType AS ancestor WITH dt.ancestor = ancestor
+                JOIN ODR\AdminBundle\Entity\DataTreeMeta AS dtm WITH dtm.dataTree = dt
                 WHERE descendant.id IN (:datatypes_to_delete) AND dtm.is_link = 1
                 AND descendant.deletedAt IS NULL AND dt.deletedAt IS NULL
                 AND ancestor.deletedAt IS NULL'
@@ -920,10 +920,10 @@ class EntityDeletionService
             //  deleted
             $query = $this->em->createQuery(
                'SELECT descendant
-                FROM ODRAdminBundle:DataType AS ancestor
-                JOIN ODRAdminBundle:DataTree AS dt WITH dt.ancestor = ancestor
-                JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
-                JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
+                FROM ODR\AdminBundle\Entity\DataType AS ancestor
+                JOIN ODR\AdminBundle\Entity\DataTree AS dt WITH dt.ancestor = ancestor
+                JOIN ODR\AdminBundle\Entity\DataType AS descendant WITH dt.descendant = descendant
+                JOIN ODR\AdminBundle\Entity\DataTreeMeta AS dtm WITH dtm.dataTree = dt
                 WHERE ancestor.id IN (:datatypes_to_delete) AND dtm.is_link = 1
                 AND descendant.deletedAt IS NULL AND dt.deletedAt IS NULL
                 AND ancestor.deletedAt IS NULL'
@@ -948,9 +948,9 @@ class EntityDeletionService
             // Get the ids of all LinkedDataTree entries that need to be deleted
             $query = $this->em->createQuery(
                'SELECT ldt.id AS ldt_id
-                FROM ODRAdminBundle:LinkedDataTree AS ldt
-                JOIN ODRAdminBundle:DataRecord AS ancestor WITH ldt.ancestor = ancestor
-                JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
+                FROM ODR\AdminBundle\Entity\LinkedDataTree AS ldt
+                JOIN ODR\AdminBundle\Entity\DataRecord AS ancestor WITH ldt.ancestor = ancestor
+                JOIN ODR\AdminBundle\Entity\DataRecord AS descendant WITH ldt.descendant = descendant
                 WHERE (ancestor.dataType IN (:datatype_ids) OR descendant.dataType IN (:datatype_ids))
                 AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
             )->setParameters( ['datatype_ids' => $datatypes_to_delete] );
@@ -970,8 +970,8 @@ class EntityDeletionService
             //  which can't get deleted so long as they have a masterDataType
             $query = $this->em->createQuery(
                'SELECT dt
-                FROM ODRAdminBundle:DataType AS mdt
-                JOIN ODRAdminBundle:DataType AS dt WITH dt.masterDataType = mdt
+                FROM ODR\AdminBundle\Entity\DataType AS mdt
+                JOIN ODR\AdminBundle\Entity\DataType AS dt WITH dt.masterDataType = mdt
                 WHERE mdt.id IN (:datatypes_to_delete)
                 AND mdt.deletedAt IS NULL AND dt.deletedAt IS NULL'
             )->setParameters( ['datatypes_to_delete' => $datatypes_to_delete] );
@@ -986,7 +986,7 @@ class EntityDeletionService
             // Determine all Groups and all Users affected by this
             $query = $this->em->createQuery(
                'SELECT g.id AS group_id
-                FROM ODRAdminBundle:Group AS g
+                FROM ODR\AdminBundle\Entity\Group AS g
                 WHERE g.dataType IN (:datatype_ids)
                 AND g.deletedAt IS NULL'
             )->setParameters( ['datatype_ids' => $datatypes_to_delete] );
@@ -1001,8 +1001,8 @@ class EntityDeletionService
 
             $query = $this->em->createQuery(
                'SELECT u.id AS user_id
-                FROM ODRAdminBundle:UserGroup AS ug
-                JOIN ODROpenRepositoryUserBundle:User AS u WITH ug.user = u
+                FROM ODR\AdminBundle\Entity\UserGroup AS ug
+                JOIN ODR\OpenRepository\UserBundle\Entity\User AS u WITH ug.user = u
                 WHERE ug.group IN (:groups) AND ug.deletedAt IS NULL'
             )->setParameters( ['groups' => $groups_to_delete] );
             $group_members = $query->getArrayResult();
@@ -1011,7 +1011,7 @@ class EntityDeletionService
             //  cleared too
             $query = $this->em->createQuery(
                'SELECT u.id AS user_id
-                FROM ODROpenRepositoryUserBundle:User AS u
+                FROM ODR\OpenRepository\UserBundle\Entity\User AS u
                 WHERE u.roles LIKE :role'
             )->setParameters( ['role' => '%ROLE_SUPER_ADMIN%'] );
             $all_super_admins = $query->getArrayResult();
@@ -1027,9 +1027,9 @@ class EntityDeletionService
             // Locate all cached theme entries that need to be rebuilt...
             $query = $this->em->createQuery(
                'SELECT t.id AS theme_id
-                FROM ODRAdminBundle:Theme AS t
-                JOIN ODRAdminBundle:ThemeElement AS te WITH te.theme = t
-                JOIN ODRAdminBundle:ThemeDataType AS tdt WITH tdt.themeElement = te
+                FROM ODR\AdminBundle\Entity\Theme AS t
+                JOIN ODR\AdminBundle\Entity\ThemeElement AS te WITH te.theme = t
+                JOIN ODR\AdminBundle\Entity\ThemeDataType AS tdt WITH tdt.themeElement = te
                 WHERE tdt.dataType IN (:datatype_ids)
                 AND t.deletedAt IS NULL AND te.deletedAt IS NULL AND tdt.deletedAt IS NULL'
             )->setParameters( ['datatype_ids' => $datatypes_to_delete] );
@@ -1188,9 +1188,9 @@ class EntityDeletionService
             // Get the ids of all DataTree entries that need to be deleted
             $query = $this->em->createQuery(
                'SELECT dt.id AS dt_id
-                FROM ODRAdminBundle:DataTree AS dt
-                JOIN ODRAdminBundle:DataType AS ancestor WITH dt.ancestor = ancestor
-                JOIN ODRAdminBundle:DataType AS descendant WITH dt.descendant = descendant
+                FROM ODR\AdminBundle\Entity\DataTree AS dt
+                JOIN ODR\AdminBundle\Entity\DataType AS ancestor WITH dt.ancestor = ancestor
+                JOIN ODR\AdminBundle\Entity\DataType AS descendant WITH dt.descendant = descendant
                 WHERE (ancestor.id IN (:datatype_ids) OR descendant.id IN (:datatype_ids))
                 AND dt.deletedAt IS NULL AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL'
             )->setParameters( ['datatype_ids' => $datatypes_to_delete] );
@@ -1544,7 +1544,7 @@ class EntityDeletionService
             // Load all alternate sizes of the original image (currently just a thumbnail) and delete
             //  them
             /** @var Image[] $images */
-            $images = $this->em->getRepository('ODRAdminBundle:Image')->findBy(
+            $images = $this->em->getRepository('ODR\AdminBundle\Entity\Image')->findBy(
                 ['parent' => $image->getId()]
             );
             foreach ($images as $img) {

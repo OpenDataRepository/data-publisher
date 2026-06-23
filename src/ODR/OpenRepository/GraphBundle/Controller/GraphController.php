@@ -82,7 +82,7 @@ class GraphController extends ODRCustomController
 
 
             /** @var DataRecord $request_datarecord */
-            $request_datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($request_datarecord_id);
+            $request_datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($request_datarecord_id);
             if ($request_datarecord == null)
                 throw new \Exception('{ "message": "Item Deleted", "detail": "Requested Datarecord does not exist."}');
 
@@ -364,7 +364,7 @@ class GraphController extends ODRCustomController
             $permissions_service = $this->container->get('odr.permissions_management_service');
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
             if ($datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
@@ -376,7 +376,7 @@ class GraphController extends ODRCustomController
                 $datafield_id = $piece;
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ($datafield == null)
                 throw new ODRNotFoundException('Datafield');
 
@@ -445,7 +445,7 @@ class GraphController extends ODRCustomController
             $permissions_service = $this->container->get('odr.permissions_management_service');
 
             /** @var RenderPluginInstance $render_plugin_instance */
-            $render_plugin_instance = $em->getRepository('ODRAdminBundle:RenderPluginInstance')->find($render_plugin_instance_id);
+            $render_plugin_instance = $em->getRepository('ODR\AdminBundle\Entity\RenderPluginInstance')->find($render_plugin_instance_id);
             if ($render_plugin_instance != null) {
                 $plugin_classname = $render_plugin_instance->getRenderPlugin()->getPluginClassName();
                 if ( $plugin_classname === 'odr_plugins.base.graph' || $plugin_classname === 'odr_plugins.base.filter_graph' ) {

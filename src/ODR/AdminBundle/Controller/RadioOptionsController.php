@@ -80,7 +80,7 @@ class RadioOptionsController extends ODRCustomController
 
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ( is_null($datafield) )
                 throw new ODRNotFoundException('Datafield');
 
@@ -210,7 +210,7 @@ class RadioOptionsController extends ODRCustomController
 
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ( is_null($datafield) )
                 throw new ODRNotFoundException('Datafield');
 
@@ -415,7 +415,7 @@ class RadioOptionsController extends ODRCustomController
 
 
             /** @var RadioOptions $radio_option */
-            $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->find( $radio_option_id );
+            $radio_option = $em->getRepository('ODR\AdminBundle\Entity\RadioOptions')->find( $radio_option_id );
             if ( is_null($radio_option) )
                 throw new ODRNotFoundException('Radio Option');
 
@@ -487,7 +487,7 @@ class RadioOptionsController extends ODRCustomController
                 // ...if this is a request to delete a radio option from a derived field, then its
                 //  master radio option also needs to be deleted
                 /** @var RadioOptions $master_radio_option */
-                $master_radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
+                $master_radio_option = $em->getRepository('ODR\AdminBundle\Entity\RadioOptions')->findOneBy(
                     [
                         'dataField' => $datafield->getMasterDataField(),
                         'radioOptionUuid' => $radio_option->getRadioOptionUuid(),
@@ -501,7 +501,7 @@ class RadioOptionsController extends ODRCustomController
             // Run a query to get all of the radio selection entries that need deletion
             $query = $em->createQuery(
                'SELECT rs.id
-                FROM ODRAdminBundle:RadioSelection AS rs
+                FROM ODR\AdminBundle\Entity\RadioSelection AS rs
                 WHERE rs.radioOption IN (:radio_option_list) AND rs.deletedAt IS NULL'
             )->setParameters( ['radio_option_list' => $radio_options_to_delete] );
             $results = $query->getArrayResult();
@@ -663,7 +663,7 @@ class RadioOptionsController extends ODRCustomController
 
 
             /** @var RadioOptions $radio_option */
-            $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->find($radio_option_id);
+            $radio_option = $em->getRepository('ODR\AdminBundle\Entity\RadioOptions')->find($radio_option_id);
             if ( is_null($radio_option) )
                 throw new ODRNotFoundException('RadioOption');
 
@@ -738,7 +738,7 @@ class RadioOptionsController extends ODRCustomController
                 // ...if this is a request to rename a radio option from a derived field, then its
                 //  master radio option also needs to be renamed
                 /** @var RadioOptions $master_radio_option */
-                $master_radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
+                $master_radio_option = $em->getRepository('ODR\AdminBundle\Entity\RadioOptions')->findOneBy(
                     [
                         'dataField' => $datafield->getMasterDataField(),
                         'radioOptionUuid' => $radio_option->getRadioOptionUuid(),
@@ -862,7 +862,7 @@ class RadioOptionsController extends ODRCustomController
 
 
             /** @var RadioOptions $radio_option */
-            $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->find( $radio_option_id );
+            $radio_option = $em->getRepository('ODR\AdminBundle\Entity\RadioOptions')->find( $radio_option_id );
             if ( is_null($radio_option) )
                 throw new ODRNotFoundException('Radio Option');
 
@@ -918,7 +918,7 @@ class RadioOptionsController extends ODRCustomController
                 // ...if this request came from a derived field, then the relevant master radio option
                 //  also needs to be modified
                 /** @var RadioOptions $master_radio_option */
-                $master_radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
+                $master_radio_option = $em->getRepository('ODR\AdminBundle\Entity\RadioOptions')->findOneBy(
                     [
                         'dataField' => $datafield->getMasterDataField(),
                         'radioOptionUuid' => $radio_option->getRadioOptionUuid(),
@@ -1001,8 +1001,8 @@ class RadioOptionsController extends ODRCustomController
             //  the other option(s) where isDefault == true...
             $query = $em->createQuery(
                'SELECT ro
-                FROM ODRAdminBundle:RadioOptions AS ro
-                JOIN ODRAdminBundle:RadioOptionsMeta AS rom WITH rom.radioOption = ro
+                FROM ODR\AdminBundle\Entity\RadioOptions AS ro
+                JOIN ODR\AdminBundle\Entity\RadioOptionsMeta AS rom WITH rom.radioOption = ro
                 WHERE rom.isDefault = 1 AND ro.dataField = :datafield
                 AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL'
             )->setParameters( ['datafield' => $datafield->getId()] );
@@ -1075,7 +1075,7 @@ class RadioOptionsController extends ODRCustomController
 
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ( is_null($datafield) )
                 throw new ODRNotFoundException('Datafield');
 
@@ -1123,11 +1123,11 @@ class RadioOptionsController extends ODRCustomController
                 // ...if not, then the $_POST will have the new order
 
                 // Need to potentially look up radio options if their displayOrder gets changed
-                $repo_radio_options = $em->getRepository('ODRAdminBundle:RadioOptions');
+                $repo_radio_options = $em->getRepository('ODR\AdminBundle\Entity\RadioOptions');
 
                 $query = $em->createQuery(
                    'SELECT ro.id AS ro_id, rom.displayOrder
-                    FROM ODRAdminBundle:RadioOptions AS ro
+                    FROM ODR\AdminBundle\Entity\RadioOptions AS ro
                     JOIN ro.radioOptionMeta AS rom
                     WHERE ro.dataField = :datafield
                     AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL'
@@ -1245,7 +1245,7 @@ class RadioOptionsController extends ODRCustomController
 
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ( is_null($datafield) )
                 throw new ODRNotFoundException('Datafield');
 
@@ -1295,8 +1295,8 @@ class RadioOptionsController extends ODRCustomController
             // Want to prevent duplicate radio options from being created
             $query = $em->createQuery(
                'SELECT ro.id AS ro_id, rom.optionName
-                FROM ODRAdminBundle:RadioOptions ro
-                JOIN ODRAdminBundle:RadioOptionsMeta rom WITH rom.radioOption = ro
+                FROM ODR\AdminBundle\Entity\RadioOptions ro
+                JOIN ODR\AdminBundle\Entity\RadioOptionsMeta rom WITH rom.radioOption = ro
                 WHERE ro.dataField = :datafield_id
                 AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL'
             )->setParameters( ['datafield_id' => $datafield->getId()] );
@@ -1466,7 +1466,7 @@ class RadioOptionsController extends ODRCustomController
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $repo_radio_selection = $em->getRepository('ODRAdminBundle:RadioSelection');
+            $repo_radio_selection = $em->getRepository('ODR\AdminBundle\Entity\RadioSelection');
 
             /** @var EntityCreationService $entity_create_service */
             $entity_create_service = $this->container->get('odr.entity_creation_service');
@@ -1482,12 +1482,12 @@ class RadioOptionsController extends ODRCustomController
 
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($datafield_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
             if ($datafield == null)
                 throw new ODRNotFoundException('Datafield');
 
             /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($datarecord_id);
+            $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($datarecord_id);
             if ($datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
 
@@ -1499,7 +1499,7 @@ class RadioOptionsController extends ODRCustomController
             /** @var RadioOptions $radio_option */
             $radio_option = null;
             if ($radio_option_id != 0) {
-                $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->find($radio_option_id);
+                $radio_option = $em->getRepository('ODR\AdminBundle\Entity\RadioOptions')->find($radio_option_id);
                 if ($radio_option == null)
                     throw new ODRNotFoundException('RadioOption');
             }

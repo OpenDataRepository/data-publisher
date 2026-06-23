@@ -122,7 +122,7 @@ class APIController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
                 [
                     'unique_id' => $dataset_uuid,
                 ]
@@ -136,7 +136,7 @@ class APIController extends ODRCustomController
             }
 
             /** @var DataRecord $metadata_record */
-            $metadata_record = $em->getRepository('ODRAdminBundle:DataRecord')
+            $metadata_record = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')
                 ->findOneBy(['dataType' => $datatype->getId()]);
 
             // Now get the json record and update it with the correct user_id ant date times
@@ -439,9 +439,9 @@ class APIController extends ODRCustomController
                         dt.id AS database_id, dtm.shortName AS database_name, dtm.searchSlug AS search_slug,
                         dtm.description AS database_description, dtm.publicDate AS public_date,
                         dt.unique_id AS unique_id, mdt.unique_id AS template_id
-                    FROM ODRAdminBundle:DataType AS dt
-                    JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
-                    LEFT JOIN ODRAdminBundle:DataType AS mdt WITH dt.masterDataType = mdt
+                    FROM ODR\AdminBundle\Entity\DataType AS dt
+                    JOIN ODR\AdminBundle\Entity\DataTypeMeta AS dtm WITH dtm.dataType = dt
+                    LEFT JOIN ODR\AdminBundle\Entity\DataType AS mdt WITH dt.masterDataType = mdt
                     WHERE dt.setup_step IN (:setup_steps)
                     AND dt.is_master_type = :is_master_type AND dt.metadata_for IS NULL
                     AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
@@ -459,9 +459,9 @@ class APIController extends ODRCustomController
                         dt.id AS database_id, dtm.shortName AS database_name, dtm.searchSlug AS search_slug,
                         dtm.description AS database_description, dtm.publicDate AS public_date,
                         dt.unique_id AS unique_id, mdt.unique_id AS template_id
-                    FROM ODRAdminBundle:DataType AS dt
-                    JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
-                    LEFT JOIN ODRAdminBundle:DataType AS mdt WITH dt.masterDataType = mdt
+                    FROM ODR\AdminBundle\Entity\DataType AS dt
+                    JOIN ODR\AdminBundle\Entity\DataTypeMeta AS dtm WITH dtm.dataType = dt
+                    LEFT JOIN ODR\AdminBundle\Entity\DataType AS mdt WITH dt.masterDataType = mdt
                     WHERE dt.id IN (:datatype_ids) AND dt.setup_step IN (:setup_steps)
                     AND dt.is_master_type = :is_master_type AND dt.metadata_for IS NULL
                     AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
@@ -634,7 +634,7 @@ class APIController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
                 [
                     'unique_id' => $datatype_uuid,
                     'is_master_type' => $is_master_type
@@ -718,7 +718,7 @@ class APIController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
                 [
                     'unique_id' => $datatype_uuid
                 ]
@@ -767,8 +767,8 @@ class APIController extends ODRCustomController
             // Load all top-level datarecords of this datatype that the user can see
             $str =
                 'SELECT dr.id AS dr_id, dr.unique_id AS dr_uuid, dr.updated
-                FROM ODRAdminBundle:DataRecord AS dr
-                LEFT JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
+                FROM ODR\AdminBundle\Entity\DataRecord AS dr
+                LEFT JOIN ODR\AdminBundle\Entity\DataRecordMeta AS drm WITH drm.dataRecord = dr
                 WHERE dr.dataType = :datatype_id';
 
             $params = ['datatype_id' => $datatype_id];
@@ -856,12 +856,12 @@ class APIController extends ODRCustomController
                 di.id as di_id,
                 dim.id as dim_id,
                 dim.originalFileName as di_name
-                FROM ODRAdminBundle:DataRecord AS dr
-                LEFT JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
-                LEFT JOIN ODRAdminBundle:File AS df WITH df.dataRecord = dr
-                LEFT JOIN ODRAdminBundle:FileMeta AS dfm WITH dfm.file = df
-                LEFT JOIN ODRAdminBundle:Image AS di WITH di.dataRecord = dr
-                LEFT JOIN ODRAdminBundle:ImageMeta AS dim WITH dim.image = di
+                FROM ODR\AdminBundle\Entity\DataRecord AS dr
+                LEFT JOIN ODR\AdminBundle\Entity\DataRecordMeta AS drm WITH drm.dataRecord = dr
+                LEFT JOIN ODR\AdminBundle\Entity\File AS df WITH df.dataRecord = dr
+                LEFT JOIN ODR\AdminBundle\Entity\FileMeta AS dfm WITH dfm.file = df
+                LEFT JOIN ODR\AdminBundle\Entity\Image AS di WITH di.dataRecord = dr
+                LEFT JOIN ODR\AdminBundle\Entity\ImageMeta AS dim WITH dim.image = di
                 WHERE dr.id IN (:datarecord_ids)
             ';
 
@@ -962,7 +962,7 @@ class APIController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
                 [
                     'unique_id' => $datatype_uuid
                 ]
@@ -1010,8 +1010,8 @@ class APIController extends ODRCustomController
 
             $str =
                 'SELECT dr.id AS dr_id, dr.unique_id AS dr_uuid
-                FROM ODRAdminBundle:DataRecord AS dr
-                LEFT JOIN ODRAdminBundle:DataRecordMeta AS drm WITH drm.dataRecord = dr
+                FROM ODR\AdminBundle\Entity\DataRecord AS dr
+                LEFT JOIN ODR\AdminBundle\Entity\DataRecordMeta AS drm WITH drm.dataRecord = dr
                 WHERE dr.dataType = :datatype_id
                 AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL';
             $params = ['datatype_id' => $datatype_id];
@@ -1190,7 +1190,7 @@ class APIController extends ODRCustomController
 
 
             /** @var DataType $template_datatype */
-            $template_datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+            $template_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
                 [
                     'unique_id' => $datatype_uuid,
                     'is_master_type' => 1
@@ -1239,9 +1239,9 @@ class APIController extends ODRCustomController
                     dt.id AS database_id, dt.unique_id AS unique_id, dtm.shortName AS database_name,
                     dtm.description AS database_description, dtm.publicDate AS public_date,
                     dtm.searchSlug AS search_slug, mdt.unique_id AS template_id
-                FROM ODRAdminBundle:DataType AS dt
-                JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
-                JOIN ODRAdminBundle:DataType AS mdt WITH dt.masterDataType = mdt
+                FROM ODR\AdminBundle\Entity\DataType AS dt
+                JOIN ODR\AdminBundle\Entity\DataTypeMeta AS dtm WITH dtm.dataType = dt
+                JOIN ODR\AdminBundle\Entity\DataType AS mdt WITH dt.masterDataType = mdt
                 WHERE mdt.unique_id = :template_uuid
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND mdt.deletedAt IS NULL'
             )->setParameters(
@@ -1350,7 +1350,7 @@ class APIController extends ODRCustomController
             /** @var EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+            $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
             /** @var DataType $dataset_datatype */
             $dataset_datatype = $repo_datatype
                 ->findOneBy(['unique_id' => $dataset_uuid]);
@@ -1560,7 +1560,7 @@ class APIController extends ODRCustomController
             /** @var EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+            $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
             /** @var DataType $master_datatype */
             $master_datatype = $repo_datatype
                 ->findOneBy(['unique_id' => $template_uuid]);
@@ -1623,7 +1623,7 @@ class APIController extends ODRCustomController
                 }
 
                 /** @var DataRecord $metadata_record */
-                $metadata_record = $em->getRepository('ODRAdminBundle:DataRecord')
+                $metadata_record = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')
                     ->findOneBy(['dataType' => $metadata_datatype->getId()]);
 
                 $metadata_record->setCreated($date_value);
@@ -1708,7 +1708,7 @@ class APIController extends ODRCustomController
 
             // Retrieve first (and only) record ...
             /** @var DataRecord $metadata_record */
-            $metadata_record = $em->getRepository('ODRAdminBundle:DataRecord')
+            $metadata_record = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')
                 ->findOneBy(['dataType' => $datatype->getId()]);
 
             if (!$metadata_record) {
@@ -1747,7 +1747,7 @@ class APIController extends ODRCustomController
             if ($datatype->getMetadataFor()) {
 
                 /** @var DataRecord $metadata_record */
-                $actual_data_record = $em->getRepository('ODRAdminBundle:DataRecord')
+                $actual_data_record = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')
                     ->findOneBy(['dataType' => $datatype->getMetadataFor()->getId()]);
 
                 if (!$actual_data_record) {
@@ -1790,7 +1790,7 @@ class APIController extends ODRCustomController
 //            if ($name_field) {
 //                // We have a name field
 //                /** @var DataRecordFields $drf */
-//                $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
+//                $drf = $em->getRepository('ODR\AdminBundle\Entity\DataRecordFields')->findOneBy(
 //                    array(
 //                        'dataRecord' => $metadata_record->getId(),
 //                        'dataField' => $name_field->getId()
@@ -1926,7 +1926,7 @@ class APIController extends ODRCustomController
 
             if ( isset($dataset['record_uuid']) && $dataset['record_uuid'] !== '' ) {
                 // If a record_uuid is given, then it's supposed to refer to an existing record
-                $data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                $data_record = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->findOneBy(
                     [
                         'unique_id' => $dataset['record_uuid']
                     ]
@@ -1943,7 +1943,7 @@ class APIController extends ODRCustomController
             }
             else if ( isset($dataset['database_uuid']) && $dataset['database_uuid'] !== '' ) {
                 // If a record_uuid is not given, then it needs to have a database_uuid
-                $data_type = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                $data_type = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
                     [
                         'unique_id' => $dataset['database_uuid']
                     ]
@@ -1997,7 +1997,7 @@ class APIController extends ODRCustomController
                     ) {
             $logger->info('Template Field Section');
                         /** @var DataFields $data_field */
-                        $data_field = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
+                        $data_field = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->findOneBy(
                             [
                                 'templateFieldUuid' => $field['template_field_uuid'],
                                 'dataType' => $data_type->getId()
@@ -2014,7 +2014,7 @@ class APIController extends ODRCustomController
                     ) {
             $logger->info('Field Section');
                         /** @var DataFields $data_field */
-                        $data_field = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
+                        $data_field = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->findOneBy(
                             [
                                 'fieldUuid' => $field['field_uuid'],
                                 'dataType' => $data_type->getId()
@@ -2140,7 +2140,7 @@ class APIController extends ODRCustomController
                         // The dataset submitted by the user doesn't have a record that currently
                         //  exists...
                         /** @var DataRecord $del_record */
-                        $del_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                        $del_record = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->findOneBy(
                             [
                                 'unique_id' => $o_record['record_uuid']
                             ]
@@ -2234,7 +2234,7 @@ class APIController extends ODRCustomController
                             throw new ODRBadRequestException('New descendant Records must have a database_uuid set', $exception_source);
 
                         /** @var DataType $descendant_data_type */
-                        $descendant_data_type = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                        $descendant_data_type = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
                             [
                                 'unique_id' => $record['database_uuid']
                             ]
@@ -2245,7 +2245,7 @@ class APIController extends ODRCustomController
 
                         // Need to determine whether the descendant is a child or a link
                         /** @var DataTree $datatree */
-                        $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
+                        $datatree = $em->getRepository('ODR\AdminBundle\Entity\DataTree')->findOneBy(
                             [
                                 'ancestor' => $data_type->getId(),
                                 'descendant' => $descendant_data_type->getId()
@@ -2276,7 +2276,7 @@ class APIController extends ODRCustomController
                                 throw new ODRBadRequestException();
 
                             /** @var DataRecord $linked_data_record */
-                            $linked_data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                            $linked_data_record = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->findOneBy(
                                 [
                                     'unique_id' => $record['record_uuid'],
                                     'dataType' => $descendant_data_type->getId(),
@@ -2443,9 +2443,9 @@ class APIController extends ODRCustomController
         // Going to need these
         $selected_tags = $field['tags'];
 
-        $repo_dataRecordFields = $em->getRepository('ODRAdminBundle:DataRecordFields');
-        $repo_tags = $em->getRepository('ODRAdminBundle:Tags');
-        $repo_tagSelections = $em->getRepository('ODRAdminBundle:TagSelection');
+        $repo_dataRecordFields = $em->getRepository('ODR\AdminBundle\Entity\DataRecordFields');
+        $repo_tags = $em->getRepository('ODR\AdminBundle\Entity\Tags');
+        $repo_tagSelections = $em->getRepository('ODR\AdminBundle\Entity\TagSelection');
 
         $allow_multiple_levels = $datafield->getTagsAllowMultipleLevels();
         $allow_non_admin_tags_edits = $datafield->getTagsAllowNonAdminEdit();
@@ -2673,9 +2673,9 @@ class APIController extends ODRCustomController
         $selected_options = $field['values'];
         $exception_source = 0x4b879e27;
 
-        $repo_dataRecordFields = $em->getRepository('ODRAdminBundle:DataRecordFields');
-        $repo_radioOptions = $em->getRepository('ODRAdminBundle:RadioOptions');
-        $repo_radioSelections = $em->getRepository('ODRAdminBundle:RadioSelection');
+        $repo_dataRecordFields = $em->getRepository('ODR\AdminBundle\Entity\DataRecordFields');
+        $repo_radioOptions = $em->getRepository('ODR\AdminBundle\Entity\RadioOptions');
+        $repo_radioSelections = $em->getRepository('ODR\AdminBundle\Entity\RadioSelection');
 
         // ----------------------------------------
         /* Keys in the 'files' sub-array must be numeric...e.g.:
@@ -3077,7 +3077,7 @@ class APIController extends ODRCustomController
             // ----------------------------------------
             // Unlike self::checkUpdatePermissions(), the datarecord should always exist at this point
             /** @var DataRecord $data_record */
-            $data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+            $data_record = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->findOneBy(
                 [
                     'unique_id' => $dataset['record_uuid']
                 ]
@@ -3149,7 +3149,7 @@ class APIController extends ODRCustomController
                         && preg_match("/^[a-z0-9]{20,36}$/", $field['template_field_uuid'])
                     ) {
                         /** @var DataFields $data_field */
-                        $data_field = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
+                        $data_field = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->findOneBy(
                             [
                                 'templateFieldUuid' => $field['template_field_uuid'],
                                 'dataType' => $data_type->getId()
@@ -3158,7 +3158,7 @@ class APIController extends ODRCustomController
                     }
                     else {
                         /** @var DataFields $data_field */
-                        $data_field = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
+                        $data_field = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->findOneBy(
                             [
                                 'fieldUuid' => $field['field_uuid'],
                                 'dataType' => $data_type->getId()
@@ -3314,7 +3314,7 @@ class APIController extends ODRCustomController
                         // The dataset submitted by the user doesn't have a record that currently
                         //  exists...
                         /** @var DataRecord $del_record */
-                        $del_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                        $del_record = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->findOneBy(
                             [
                                 'unique_id' => $o_record['record_uuid']
                             ]
@@ -3338,7 +3338,7 @@ class APIController extends ODRCustomController
                                 //  instead of deleting it
                                 $query = $em->createQuery(
                                    'SELECT ldt
-                                    FROM ODRAdminBundle:LinkedDataTree AS ldt
+                                    FROM ODR\AdminBundle\Entity\LinkedDataTree AS ldt
                                     WHERE ldt.ancestor = :ancestor_datarecord
                                     AND ldt.descendant = :descendant_datarecord
                                     AND ldt.deletedAt IS NULL'
@@ -3404,7 +3404,7 @@ class APIController extends ODRCustomController
                         // User submitted a child/linked record that doesn't exist in the database...
                         // 'database_uuid' is guaranteed to exist due to self::checkUpdatePermissions()
                         /** @var DataType $descendant_data_type */
-                        $descendant_data_type = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                        $descendant_data_type = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
                             [
                                 'unique_id' => $record['database_uuid']
                             ]
@@ -3412,7 +3412,7 @@ class APIController extends ODRCustomController
 
                         // Need to determine whether the descendant is a child or a link
                         /** @var DataTree $datatree */
-                        $datatree = $em->getRepository('ODRAdminBundle:DataTree')->findOneBy(
+                        $datatree = $em->getRepository('ODR\AdminBundle\Entity\DataTree')->findOneBy(
                             [
                                 'ancestor' => $data_type->getId(),
                                 'descendant' => $descendant_data_type->getId()
@@ -3422,7 +3422,7 @@ class APIController extends ODRCustomController
                         // If the descendant is supposed to be a link...
                         if ( $datatree->getIsLink() ) {
                             /** @var DataRecord $linked_data_record */
-                            $linked_data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                            $linked_data_record = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->findOneBy(
                                 [
                                     'unique_id' => $record['record_uuid'],
                                     'dataType' => $descendant_data_type->getId(),
@@ -3663,7 +3663,7 @@ class APIController extends ODRCustomController
 
                 if ( $typeclass === 'File' ) {
                     /** @var File $file_obj */
-                    $file_obj = $em->getRepository('ODRAdminBundle:File')->findOneBy(
+                    $file_obj = $em->getRepository('ODR\AdminBundle\Entity\File')->findOneBy(
                         [
                             'unique_id' => $file['file_uuid'],
                             'dataRecord' => $datarecord->getId(),
@@ -3677,7 +3677,7 @@ class APIController extends ODRCustomController
                 }
                 else {
                     /** @var Image $file_obj */
-                    $file_obj = $em->getRepository('ODRAdminBundle:Image')->findOneBy(
+                    $file_obj = $em->getRepository('ODR\AdminBundle\Entity\Image')->findOneBy(
                         [
                             'unique_id' => $file['file_uuid'],
                             'dataRecord' => $datarecord->getId(),
@@ -3907,9 +3907,9 @@ class APIController extends ODRCustomController
         if ( isset($field['created']) )
             $created = $field['created'];
 
-        $repo_dataRecordFields = $em->getRepository('ODRAdminBundle:DataRecordFields');
-        $repo_tags = $em->getRepository('ODRAdminBundle:Tags');
-        $repo_tagSelections = $em->getRepository('ODRAdminBundle:TagSelection');
+        $repo_dataRecordFields = $em->getRepository('ODR\AdminBundle\Entity\DataRecordFields');
+        $repo_tags = $em->getRepository('ODR\AdminBundle\Entity\Tags');
+        $repo_tagSelections = $em->getRepository('ODR\AdminBundle\Entity\TagSelection');
 
         // This function shouldn't be throwing errors, otherwise the database gets left in some
         //  unknown state...it's up to checkTagFieldPermissions() to throw any errors
@@ -4130,7 +4130,7 @@ class APIController extends ODRCustomController
             // Need to convert tag uuids of this array into tag ids so the service can work
             $query = $em->createQuery(
                'SELECT t.id, t.tagUuid
-                FROM ODRAdminBundle:Tags t
+                FROM ODR\AdminBundle\Entity\Tags t
                 WHERE t.tagUuid IN (:unique_ids)
                 AND t.deletedAt IS NULL'
             )->setParameters( ['unique_ids' => array_keys($tag_selections) ] );
@@ -4186,8 +4186,8 @@ class APIController extends ODRCustomController
         //  tags
         $query = $em->createQuery(
            'SELECT ts
-            FROM ODRAdminBundle:TagSelection ts
-            JOIN ODRAdminBundle:Tags t WITH ts.tag = t
+            FROM ODR\AdminBundle\Entity\TagSelection ts
+            JOIN ODR\AdminBundle\Entity\Tags t WITH ts.tag = t
             WHERE ts.selected = 1
             AND ts.dataRecordFields = :drf_id
             AND ts.deletedAt IS NULL AND t.deletedAt IS NULL'
@@ -4306,9 +4306,9 @@ class APIController extends ODRCustomController
         if ( isset($field['created']) )
             $created = $field['created'];
 
-        $repo_dataRecordFields = $em->getRepository('ODRAdminBundle:DataRecordFields');
-        $repo_radioOptions = $em->getRepository('ODRAdminBundle:RadioOptions');
-        $repo_radioSelections = $em->getRepository('ODRAdminBundle:RadioSelection');
+        $repo_dataRecordFields = $em->getRepository('ODR\AdminBundle\Entity\DataRecordFields');
+        $repo_radioOptions = $em->getRepository('ODR\AdminBundle\Entity\RadioOptions');
+        $repo_radioSelections = $em->getRepository('ODR\AdminBundle\Entity\RadioSelection');
 
         // This function shouldn't be throwing errors, otherwise the database gets left in some
         //  unknown state...it's up to checkRadioFieldPermissions() to throw any errors
@@ -4513,8 +4513,8 @@ class APIController extends ODRCustomController
 
         $query = $em->createQuery(
            'SELECT rs
-            FROM ODRAdminBundle:RadioSelection rs
-            JOIN ODRAdminBundle:RadioOptions ro WITH rs.radioOption = ro
+            FROM ODR\AdminBundle\Entity\RadioSelection rs
+            JOIN ODR\AdminBundle\Entity\RadioOptions ro WITH rs.radioOption = ro
             WHERE rs.selected = 1
             AND rs.dataRecordFields = :drf_id
             AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL'
@@ -4624,7 +4624,7 @@ class APIController extends ODRCustomController
         if ($fields_updated) {
             // Changes are required or a field needs to be added.
             /** @var DataRecordFields $drf */
-            $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
+            $drf = $em->getRepository('ODR\AdminBundle\Entity\DataRecordFields')->findOneBy(
                 [
                     'dataRecord' => $datarecord->getId(),
                     'dataField' => $datafield->getId()
@@ -4862,7 +4862,7 @@ class APIController extends ODRCustomController
             $dispatcher = $this->get('event_dispatcher');
 
             /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+            $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->findOneBy(
                 ['unique_id' => $record_uuid]
             );
             if ($datarecord == null)
@@ -4962,7 +4962,7 @@ class APIController extends ODRCustomController
 
             // Find datatype for Dataset UUID
             /** @var DataType $data_type */
-            $data_type = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+            $data_type = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
                 [
                     'unique_id' => $dataset_uuid
                 ]
@@ -4985,7 +4985,7 @@ class APIController extends ODRCustomController
             if ($data_type->getIsMasterType()) {
                 // Find datarecord from dataset
                 /** @var DataRecord $data_record */
-                $data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                $data_record = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->findOneBy(
                     [
                         'dataType' => $data_type->getId()
                     ]
@@ -5010,13 +5010,13 @@ class APIController extends ODRCustomController
                 /** @var DataRecord[] $data_records */
                 $data_records = [];
                 if ($record_uuid == null) {
-                    $data_records = $em->getRepository('ODRAdminBundle:DataRecord')->findBy(
+                    $data_records = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->findBy(
                         [
                             'dataType' => $data_type->getId()
                         ]
                     );
                 } else {
-                    $data_records = $em->getRepository('ODRAdminBundle:DataRecord')->findBy(
+                    $data_records = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->findBy(
                         [
                             'dataType' => $data_type->getId(),
                             'unique_id' => $record_uuid
@@ -5109,7 +5109,7 @@ class APIController extends ODRCustomController
                     throw new ODRNotFoundException('unrecognized email: "' . $data['user_email'] . '"');
 
                 /** @var DataType $datatype */
-                $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
                     [
                         'unique_id' => $dataset_uuid
                     ]
@@ -5130,7 +5130,7 @@ class APIController extends ODRCustomController
                 // http://office_dev/app_dev.php/v3/dataset/quota/520cd6a
                 // Only check the datatype files
                 $query = $em->createQuery("
-                    SELECT SUM(odrf.filesize) FROM ODRAdminBundle:File AS odrf
+                    SELECT SUM(odrf.filesize) FROM ODR\AdminBundle\Entity\File AS odrf
                     join odrf.dataRecord as dr
                     join dr.dataType as dt
                     where dt.id = :datatype_id ")
@@ -5189,7 +5189,7 @@ class APIController extends ODRCustomController
                     throw new ODRNotFoundException('unrecognized email: "' . $data['user_email'] . '"');
 
                 /** @var DataType $datatype */
-                $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
                     [
                         'unique_id' => $dataset_uuid
                     ]
@@ -5341,14 +5341,14 @@ class APIController extends ODRCustomController
 
 
             /** @var File $file */
-            $file = $em->getRepository('ODRAdminBundle:File')->findOneBy(
+            $file = $em->getRepository('ODR\AdminBundle\Entity\File')->findOneBy(
                 [
                     'unique_id' => $file_uuid
                 ]
             );
             if ($file == null) {
                 // try image
-                $file = $em->getRepository('ODRAdminBundle:Image')->findOneBy(
+                $file = $em->getRepository('ODR\AdminBundle\Entity\Image')->findOneBy(
                     [
                         'unique_id' => $file_uuid
                     ]
@@ -5397,7 +5397,7 @@ class APIController extends ODRCustomController
                         }
 
                         /** @var Image[] $images */
-                        $images = $em->getRepository('ODRAdminBundle:Image')->findBy(
+                        $images = $em->getRepository('ODR\AdminBundle\Entity\Image')->findBy(
                             [
                                 'parent' => $parent->getId()
                             ]
@@ -5514,7 +5514,7 @@ class APIController extends ODRCustomController
 
             // Find datatype for Dataset UUID
             /** @var DataType $data_type */
-            $data_type = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+            $data_type = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
                 [
                     'unique_id' => $data['dataset_uuid']
                 ]
@@ -5534,7 +5534,7 @@ class APIController extends ODRCustomController
             $data_record = null;
             if (isset($data['record_uuid'])) {
                 /** @var DataRecord $data_record */
-                $data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                $data_record = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->findOneBy(
                     [
                         'unique_id' => $data['record_uuid']
                     ]
@@ -5663,7 +5663,7 @@ class APIController extends ODRCustomController
 
             // Find datatype for Dataset UUID
             /** @var DataType $data_type */
-            $data_type = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+            $data_type = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
                 [
                     'unique_id' => $data['dataset_uuid']
                 ]
@@ -5683,7 +5683,7 @@ class APIController extends ODRCustomController
             $data_record = null;
             if (isset($data['record_uuid'])) {
                 /** @var DataRecord $data_record */
-                $data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                $data_record = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->findOneBy(
                     [
                         'unique_id' => $data['record_uuid']
                     ]
@@ -5691,7 +5691,7 @@ class APIController extends ODRCustomController
             } // Only works for Metadat Records
             else if (isset($data['dataset_uuid'])) {
                 /** @var DataRecord $data_record */
-                $data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                $data_record = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->findOneBy(
                     [
                         'dataType' => $data_type->getId()
                     ]
@@ -5745,7 +5745,7 @@ class APIController extends ODRCustomController
                 $em->persist($actual_data_type_meta);
 
                 /** @var DataRecord $actual_data_record */
-                $actual_data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                $actual_data_record = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->findOneBy(
                     [
                         'dataType' => $actual_data_type->getId()
                     ]
@@ -5880,7 +5880,7 @@ class APIController extends ODRCustomController
         // Probably should check if user owns record here?
 
         /** @var DataRecord $data_record */
-        $data_record = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+        $data_record = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->findOneBy(
             [
                 'unique_id' => $record_data['record_uuid']
             ]
@@ -5977,7 +5977,7 @@ class APIController extends ODRCustomController
 
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
                 ['unique_id' => $dataset_uuid]
             );
             if ($datatype == null)
@@ -5986,13 +5986,13 @@ class APIController extends ODRCustomController
             /** @var DataRecord $datarecord */
             $datarecord = null;
             if (!is_null($record_uuid)) {
-                $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->findOneBy(
                     ['unique_id' => $record_uuid]
                 );
             } else if ($datatype->getIsMasterType() || !is_null($datatype->getMetadataFor())) {
                 // The alternate datarecord load is only allowed when it's a master template or
                 //  a metadata datatype...those are only supposed to have a single record
-                $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+                $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->findOneBy(
                     ['dataType' => $datatype->getId()]
                 );
             }
@@ -6004,14 +6004,14 @@ class APIController extends ODRCustomController
             /** @var DataFields $datafield */
             $datafield = null;
             if (!is_null($template_field_uuid)) {
-                $datafield = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
+                $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->findOneBy(
                     [
                         'templateFieldUuid' => $template_field_uuid,
                         'dataType' => $datatype->getId()
                     ]
                 );
             } else if (!is_null($field_uuid)) {
-                $datafield = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
+                $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->findOneBy(
                     [
                         'fieldUuid' => $field_uuid,
                         'dataType' => $datatype->getId()
@@ -6065,7 +6065,7 @@ class APIController extends ODRCustomController
             // TODO - should it include images too?
             // TODO - this only returns files uploaded to top-level records...shouldn't it do child records as well?
             $query = $em->createQuery(
-                'SELECT SUM(f.filesize) FROM ODRAdminBundle:File AS f
+                'SELECT SUM(f.filesize) FROM ODR\AdminBundle\Entity\File AS f
                 JOIN f.dataRecord AS dr
                 JOIN dr.dataType AS dt
                 WHERE dt.id = :datatype_id
@@ -6164,7 +6164,7 @@ class APIController extends ODRCustomController
                         if (!$datafield->getAllowMultipleUploads()) {
                             // ...then delete the currently uploaded file if one exists
                             /** @var File $current_file */
-                            $current_file = $em->getRepository('ODRAdminBundle:File')->findOneBy(
+                            $current_file = $em->getRepository('ODR\AdminBundle\Entity\File')->findOneBy(
                                 ['dataRecordFields' => $drf->getId()]
                             );
                             if ($current_file != null)
@@ -6188,7 +6188,7 @@ class APIController extends ODRCustomController
                         if (!$datafield->getAllowMultipleUploads()) {
                             // ...then delete the currently uploaded image if one exists
                             /** @var Image $current_image */
-                            $current_image = $em->getRepository('ODRAdminBundle:Image')->findOneBy(
+                            $current_image = $em->getRepository('ODR\AdminBundle\Entity\Image')->findOneBy(
                                 [
                                     'dataRecordFields' => $drf->getId(),
                                     'parent' => null
@@ -6305,7 +6305,7 @@ class APIController extends ODRCustomController
 
 
         /** @var DataRecord $datarecord */
-        $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(
+        $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->findOneBy(
             ['unique_id' => $datarecord_uuid]
         );
         if ($datarecord == null)
@@ -6470,7 +6470,7 @@ class APIController extends ODRCustomController
             $search_key_service = $this->container->get('odr.search_key_service');
 
             /** @var DataType $template_datatype */
-            $template_datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+            $template_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
                 [
                     'unique_id' => $template_uuid,
                     'is_master_type' => 1    // require master template
@@ -6480,7 +6480,7 @@ class APIController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             /** @var DataFields $template_datafield */
-            $template_datafield = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
+            $template_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->findOneBy(
                 [
                     'dataType' => $template_datatype->getId(),
                     'fieldUuid' => $template_field_uuid
@@ -6691,7 +6691,7 @@ class APIController extends ODRCustomController
             $search_key_service = $this->container->get('odr.search_key_service');
 
             /** @var DataType $template_datatype */
-            $template_datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+            $template_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
                 [
                     'unique_id' => $template_uuid,
                     'is_master_type' => 1    // require master template
@@ -6701,7 +6701,7 @@ class APIController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             /** @var DataFields $template_datafield */
-            $template_datafield = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(
+            $template_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->findOneBy(
                 [
                     'dataType' => $template_datatype->getId(),
                     'fieldUuid' => $template_field_uuid
@@ -6844,12 +6844,12 @@ class APIController extends ODRCustomController
 
 
             // This API action works on both files and images...
-            $obj = $em->getRepository('ODRAdminBundle:File')->findOneBy(
+            $obj = $em->getRepository('ODR\AdminBundle\Entity\File')->findOneBy(
                 ['unique_id' => $file_uuid]
             );
             if ($obj == null) {
                 // ...if there's no file with the given UUID, look for an image instead
-                $obj = $em->getRepository('ODRAdminBundle:Image')->findOneBy(
+                $obj = $em->getRepository('ODR\AdminBundle\Entity\Image')->findOneBy(
                     ['unique_id' => $file_uuid]
                 );
             }
@@ -7064,7 +7064,7 @@ class APIController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var File $file */
-            $file = $em->getRepository('ODRAdminBundle:File')->find($file_id);
+            $file = $em->getRepository('ODR\AdminBundle\Entity\File')->find($file_id);
             if ($file == null)
                 throw new ODRNotFoundException('File');
             $file_uuid = $file->getUniqueId();
@@ -7105,7 +7105,7 @@ class APIController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var Image $image */
-            $image = $em->getRepository('ODRAdminBundle:Image')->find($image_id);
+            $image = $em->getRepository('ODR\AdminBundle\Entity\Image')->find($image_id);
             if ($image == null)
                 throw new ODRNotFoundException('Image');
             $image_uuid = $image->getUniqueId();
@@ -7179,7 +7179,7 @@ class APIController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
                 [
                     'unique_id' => $dataset_uuid
                 ]
@@ -7284,7 +7284,7 @@ class APIController extends ODRCustomController
                 $filter = $em->getFilters()->enable('softdeleteable');
                 $filter->disableForEntity(UserGroup::class);
 
-                $user_groups = $em->getRepository('ODRAdminBundle:UserGroup')
+                $user_groups = $em->getRepository('ODR\AdminBundle\Entity\UserGroup')
                     ->findBy(['user' => $user->getId()]);
 
                 foreach ($user_groups as $group) {
@@ -7299,7 +7299,7 @@ class APIController extends ODRCustomController
 
             /** @var DataType $datatype */
             /*
-            $datatypes = $em->getRepository('ODRAdminBundle:DataType')->findAll(
+            $datatypes = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findAll(
                 array(
                     'createdBy' => $user,
                     'is_master_type' => 0,
@@ -7314,8 +7314,8 @@ class APIController extends ODRCustomController
                        dt.unique_id AS database_uuid,
                        dr.id AS record_id,
                        dr.unique_id AS record_uuid
-                    FROM ODRAdminBundle:DataType AS dt
-                    JOIN ODRAdminBundle:DataRecord AS dr WITH dr.dataType = dt
+                    FROM ODR\AdminBundle\Entity\DataType AS dt
+                    JOIN ODR\AdminBundle\Entity\DataRecord AS dr WITH dr.dataType = dt
                     WHERE dt.setup_step IN (:setup_steps)
                     AND dt.createdBy = :user
                     AND dt.is_master_type = :is_master_type 
@@ -7390,7 +7390,7 @@ class APIController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DataType $datatype */
-            $datatype = $em->getRepository('ODRAdminBundle:DataType')
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')
                 ->findOneBy(
                     [
                         'is_master_type' => 1,
@@ -7402,7 +7402,7 @@ class APIController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             // Find all records for datatypes with this master_template_id
-            $datatype_array = $em->getRepository('ODRAdminBundle:DataType')
+            $datatype_array = $em->getRepository('ODR\AdminBundle\Entity\DataType')
                 ->findBy(
                     [
                         'masterDataType' => $datatype->getId(),
@@ -7415,8 +7415,8 @@ class APIController extends ODRCustomController
             foreach ($datatype_array as $dt) {
                 // Find record
                 $results = $em->createQuery(
-                    'SELECT distinct dr FROM ODRAdminBundle:DataRecord dr
-                            JOIN ODRAdminBundle:DataRecordMeta drm 
+                    'SELECT distinct dr FROM ODR\AdminBundle\Entity\DataRecord dr
+                            JOIN ODR\AdminBundle\Entity\DataRecordMeta drm 
                             WHERE drm.publicDate <= CURRENT_DATE()
                             AND dr.dataType = :data_type_id
                             AND drm.deletedAt IS NULL
@@ -7692,7 +7692,7 @@ class APIController extends ODRCustomController
             $em->persist($tracked_job);
             $em->flush();
             $em->refresh($tracked_job);
-            // $repo_job = $em->getRepository('ODRAdminBundle:TrackedJob');
+            // $repo_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob');
             // /** @var TrackedJob $tracked_job */
             // $tracked_job = $repo_job->findOneBy(['id' => $tracked_job->getId()]);
             return new JsonResponse($tracked_job->toArray());
@@ -7803,7 +7803,7 @@ class APIController extends ODRCustomController
             }
 
             // Get the Job
-            $repo_job = $em->getRepository('ODRAdminBundle:TrackedJob');
+            $repo_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob');
             /** @var TrackedJob $tracked_job */
             $tracked_jobs = $repo_job->findBy([
                 'createdBy' => $user,
@@ -7867,7 +7867,7 @@ class APIController extends ODRCustomController
 
 
             // Get the Job
-            $repo_job = $em->getRepository('ODRAdminBundle:TrackedJob');
+            $repo_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob');
             /** @var TrackedJob $tracked_job */
             $tracked_job = $repo_job->findOneBy([
                 'id' => $job_id,
@@ -7920,7 +7920,7 @@ class APIController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             // Get the Job
-            $repo_job = $em->getRepository('ODRAdminBundle:TrackedJob');
+            $repo_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob');
             /** @var TrackedJob $tracked_job */
             $tracked_job = $repo_job->findOneBy([
                 'id' => $job_id,
@@ -7931,7 +7931,7 @@ class APIController extends ODRCustomController
                 // Update counts from TrackedCSVExport
                 /** @var TrackedCSVExport[] $tracked_csv_exports */
                 $tracked_csv_exports = $em
-                    ->getRepository('ODRAdminBundle:TrackedCSVExport')
+                    ->getRepository('ODR\AdminBundle\Entity\TrackedCSVExport')
                     ->findBy(
                         ['trackedJob' => $tracked_job->getId()]
                     );
@@ -7963,7 +7963,7 @@ class APIController extends ODRCustomController
                 $em->flush();
 
                 $tracked_csv_exports = $em
-                    ->getRepository('ODRAdminBundle:TrackedCSVExport')
+                    ->getRepository('ODR\AdminBundle\Entity\TrackedCSVExport')
                     ->findBy(
                         ['trackedJob' => $tracked_job->getId()]
                     );
@@ -8027,11 +8027,11 @@ class APIController extends ODRCustomController
             }
 
             // Get the Job
-            $repo_job = $em->getRepository('ODRAdminBundle:TrackedJob');
+            $repo_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob');
             /** @var TrackedJob[] $tracked_jobs */
             $query = $em->createQuery(
                 'SELECT tj 
-                    FROM ODRAdminBundle:TrackedJob tj
+                    FROM ODR\AdminBundle\Entity\TrackedJob tj
                     WHERE tj.createdBy = :createdBy
                     AND tj.job_type IN (:job_type)
                     AND tj.completed IS NOT NULL
@@ -8090,7 +8090,7 @@ class APIController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             // Get the Job
-            $repo_job = $em->getRepository('ODRAdminBundle:TrackedJob');
+            $repo_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob');
             /** @var TrackedJob $tracked_job */
             $tracked_job = $repo_job->findOneBy([
                 'id' => $job_id,
@@ -8102,7 +8102,7 @@ class APIController extends ODRCustomController
                 // Need to also load all the TrackedCSVExport entries of this job...
                 /** @var TrackedCSVExport[] $tracked_csv_exports */
                 $tracked_csv_exports = $em
-                    ->getRepository('ODRAdminBundle:TrackedCSVExport')
+                    ->getRepository('ODR\AdminBundle\Entity\TrackedCSVExport')
                     ->findBy(
                     ['trackedJob' => $tracked_job->getId()]
                 );
@@ -8171,7 +8171,7 @@ class APIController extends ODRCustomController
                 }
             }
             */
-            $repo_job = $em->getRepository('ODRAdminBundle:TrackedJob');
+            $repo_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob');
             /** @var TrackedJob $tracked_job */
             $tracked_job = $repo_job->findOneBy(['id' => $job['tracked_job_id']]);
 
@@ -8257,7 +8257,7 @@ class APIController extends ODRCustomController
             }
             */
 
-            $repo_job = $em->getRepository('ODRAdminBundle:TrackedJob');
+            $repo_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob');
             /** @var TrackedJob $tracked_job */
             $tracked_job = $repo_job->findOneBy(['id' => $job['id']]);
             if($tracked_job) {

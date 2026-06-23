@@ -66,8 +66,8 @@ class DatarecordInfoService
         $query = $this->em->createQuery(
            'SELECT dr
             FROM ODRAdminBundle:'.$external_id_field->getFieldType()->getTypeClass().' AS e
-            JOIN ODRAdminBundle:DataRecordFields AS drf WITH e.dataRecordFields = drf
-            JOIN ODRAdminBundle:DataRecord AS dr WITH drf.dataRecord = dr
+            JOIN ODR\AdminBundle\Entity\DataRecordFields AS drf WITH e.dataRecordFields = drf
+            JOIN ODR\AdminBundle\Entity\DataRecord AS dr WITH drf.dataRecord = dr
             WHERE e.dataField = :datafield AND e.value = :datafield_value
             AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
         )->setParameters(
@@ -110,10 +110,10 @@ class DatarecordInfoService
         $query = $this->em->createQuery(
            'SELECT dr
             FROM ODRAdminBundle:'.$child_external_id_field->getFieldType()->getTypeClass().' AS e_1
-            JOIN ODRAdminBundle:DataRecordFields AS drf_1 WITH e_1.dataRecordFields = drf_1
-            JOIN ODRAdminBundle:DataRecord AS dr WITH drf_1.dataRecord = dr
-            JOIN ODRAdminBundle:DataRecord AS parent WITH dr.parent = parent
-            JOIN ODRAdminBundle:DataRecordFields AS drf_2 WITH drf_2.dataRecord = parent
+            JOIN ODR\AdminBundle\Entity\DataRecordFields AS drf_1 WITH e_1.dataRecordFields = drf_1
+            JOIN ODR\AdminBundle\Entity\DataRecord AS dr WITH drf_1.dataRecord = dr
+            JOIN ODR\AdminBundle\Entity\DataRecord AS parent WITH dr.parent = parent
+            JOIN ODR\AdminBundle\Entity\DataRecordFields AS drf_2 WITH drf_2.dataRecord = parent
             JOIN ODRAdminBundle:'.$parent_external_id_field->getFieldType()->getTypeClass().' AS e_2 WITH e_2.dataRecordFields = drf_2
             WHERE dr.id != parent.id
             AND e_1.dataField = :child_datafield AND e_2.dataField = :parent_datafield
@@ -159,9 +159,9 @@ class DatarecordInfoService
         // Attempt to locate the datarecord using the given external id
         $query = $this->em->createQuery(
            'SELECT dr
-            FROM ODRAdminBundle:DataRecord AS dr
-            JOIN ODRAdminBundle:DataRecord AS parent WITH dr.parent = parent
-            JOIN ODRAdminBundle:DataRecordFields AS drf WITH drf.dataRecord = parent
+            FROM ODR\AdminBundle\Entity\DataRecord AS dr
+            JOIN ODR\AdminBundle\Entity\DataRecord AS parent WITH dr.parent = parent
+            JOIN ODR\AdminBundle\Entity\DataRecordFields AS drf WITH drf.dataRecord = parent
             JOIN ODRAdminBundle:'.$parent_external_id_field->getFieldType()->getTypeClass().' AS e WITH e.dataRecordFields = drf
             WHERE dr.dataType = :child_datatype_id AND e.dataField = :parent_datafield
             AND e.value = :parent_datafield_value
@@ -275,7 +275,7 @@ class DatarecordInfoService
                partial e_dtv_ub.{id, username, email, firstName, lastName},
                partial e_xyz_ub.{id, username, email, firstName, lastName}
 
-            FROM ODRAdminBundle:DataRecord AS dr
+            FROM ODR\AdminBundle\Entity\DataRecord AS dr
             LEFT JOIN dr.dataRecordMeta AS drm
             LEFT JOIN dr.createdBy AS dr_cb
             LEFT JOIN dr.updatedBy AS dr_ub
@@ -671,7 +671,7 @@ class DatarecordInfoService
         $query = $this->em->createQuery(
            'SELECT rs, ro, partial rs_ub.{id, username, email, firstName, lastName},
                     partial drf.{id}, partial df.{id}, partial dr.{id}
-            FROM ODRAdminBundle:RadioSelection AS rs
+            FROM ODR\AdminBundle\Entity\RadioSelection AS rs
             JOIN rs.radioOption AS ro
             JOIN rs.updatedBy AS rs_ub
             JOIN rs.dataRecordFields AS drf
@@ -721,7 +721,7 @@ class DatarecordInfoService
         $query = $this->em->createQuery(
            'SELECT ts, t, partial ts_ub.{id, username, email, firstName, lastName},
                     partial drf.{id}, partial df.{id}, partial dr.{id}
-            FROM ODRAdminBundle:TagSelection AS ts
+            FROM ODR\AdminBundle\Entity\TagSelection AS ts
             JOIN ts.tag AS t
             JOIN ts.updatedBy AS ts_ub
             JOIN ts.dataRecordFields AS drf
@@ -771,7 +771,7 @@ class DatarecordInfoService
         $query = $this->em->createQuery(
            'SELECT xyz, partial xyz_ub.{id, username, email, firstName, lastName},
                 partial drf.{id}, partial df.{id}, partial dr.{id}
-            FROM ODRAdminBundle:XYZData AS xyz
+            FROM ODR\AdminBundle\Entity\XYZData AS xyz
             JOIN xyz.updatedBy AS xyz_ub
             JOIN xyz.dataRecordFields AS drf
             JOIN drf.dataField AS df
@@ -815,7 +815,7 @@ class DatarecordInfoService
         $query = $this->em->createQuery(
            'SELECT partial dr.{id}, partial cdr.{id}, partial cdr_dt.{id},
                     partial ldt.{id}, partial ldr.{id}, partial ldr_dt.{id}
-            FROM ODRAdminBundle:DataRecord dr
+            FROM ODR\AdminBundle\Entity\DataRecord dr
             LEFT JOIN dr.children AS cdr
             LEFT JOIN cdr.dataType AS cdr_dt
             LEFT JOIN dr.linkedDatarecords AS ldt
@@ -996,8 +996,8 @@ class DatarecordInfoService
                         // Need one query to get the typeclass of the field...
                         $query = $this->em->createQuery(
                            'SELECT ft.typeClass
-                            FROM ODRAdminBundle:DataFieldsMeta dfm
-                            LEFT JOIN ODRAdminBundle:FieldType ft WITH dfm.fieldType = ft
+                            FROM ODR\AdminBundle\Entity\DataFieldsMeta dfm
+                            LEFT JOIN ODR\AdminBundle\Entity\FieldType ft WITH dfm.fieldType = ft
                             WHERE dfm.dataField = :datafield_id
                             AND dfm.deletedAt IS NULL AND ft.deletedAt IS NULL'
                         )->setParameters( ['datafield_id' => $df_id] );
@@ -1012,9 +1012,9 @@ class DatarecordInfoService
                         if ( $typeclass === 'Radio' ) {
                             $query = $this->em->createQuery(
                                'SELECT ro.optionName AS field_value
-                                FROM ODRAdminBundle:DataRecordFields drf
-                                LEFT JOIN ODRAdminBundle:RadioSelection rs WITH rs.dataRecordFields = drf
-                                LEFT JOIN ODRAdminBundle:RadioOptions ro WITH rs.radioOption = ro
+                                FROM ODR\AdminBundle\Entity\DataRecordFields drf
+                                LEFT JOIN ODR\AdminBundle\Entity\RadioSelection rs WITH rs.dataRecordFields = drf
+                                LEFT JOIN ODR\AdminBundle\Entity\RadioOptions ro WITH rs.radioOption = ro
                                 WHERE drf.dataRecord = :datarecord_id AND drf.dataField = :datafield_id
                                 AND rs.selected = 1
                                 AND drf.deletedAt IS NULL AND rs.deletedAt IS NULL AND ro.deletedAt IS NULL'
@@ -1023,7 +1023,7 @@ class DatarecordInfoService
                         else {
                             $query = $this->em->createQuery(
                                'SELECT e.value AS field_value
-                                FROM ODRAdminBundle:DataRecordFields drf
+                                FROM ODR\AdminBundle\Entity\DataRecordFields drf
                                 LEFT JOIN ODRAdminBundle:'.$typeclass.' e WITH e.dataRecordFields = drf
                                 WHERE drf.dataRecord = :datarecord_id AND drf.dataField = :datafield_id
                                 AND drf.deletedAt IS NULL AND e.deletedAt IS NULL'
@@ -1141,7 +1141,7 @@ class DatarecordInfoService
     {
         $query = $this->em->createQuery(
            'SELECT dr.id AS dr_id
-            FROM ODRAdminBundle:DataRecord AS dr
+            FROM ODR\AdminBundle\Entity\DataRecord AS dr
             WHERE dr.dataType = :datatype_id
             AND dr.deletedAt IS NULL'
         )->setParameters( ['datatype_id' => $grandparent_datatype_id] );

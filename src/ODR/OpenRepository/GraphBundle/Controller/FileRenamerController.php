@@ -86,7 +86,7 @@ class FileRenamerController extends ODRCustomController
             $dispatcher = $this->get('event_dispatcher');
 
             /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($dr_id);
+            $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($dr_id);
             if ($datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
 
@@ -156,7 +156,7 @@ class FileRenamerController extends ODRCustomController
             // ...so that we can run a database query to hydrate them
             $query = $em->createQuery(
                'SELECT drf
-                FROM ODRAdminBundle:DataRecordFields drf
+                FROM ODR\AdminBundle\Entity\DataRecordFields drf
                 WHERE drf.id IN (:drf_ids)
                 AND drf.deletedAt IS NULL'
             )->setParameters( ['drf_ids' => array_keys($drf_ids_list)] );
@@ -268,12 +268,12 @@ class FileRenamerController extends ODRCustomController
 
 
             /** @var DataRecord $datarecord */
-            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->find($dr_id);
+            $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($dr_id);
             if ($datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
 
             /** @var DataFields $datafield */
-            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->find($df_id);
+            $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($df_id);
             if ($datafield == null)
                 throw new ODRNotFoundException('Datafield');
 
@@ -282,7 +282,7 @@ class FileRenamerController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             /** @var DataRecordFields $drf */
-            $drf = $em->getRepository('ODRAdminBundle:DataRecordFields')->findOneBy(
+            $drf = $em->getRepository('ODR\AdminBundle\Entity\DataRecordFields')->findOneBy(
                 [
                     'dataRecord' => $datarecord->getId(),
                     'dataField' => $datafield->getId(),

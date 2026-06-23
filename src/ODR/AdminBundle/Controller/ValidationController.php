@@ -301,9 +301,9 @@ class ValidationController extends ODRCustomController
 
             $query = $em->createQuery(
                'SELECT dtm
-                FROM ODRAdminBundle:DataType AS gp_dt
-                JOIN ODRAdminBundle:DataType AS dt WITH dt.grandparent = gp_dt
-                JOIN ODRAdminBundle:DataTypeMeta AS dtm WITH dtm.dataType = dt
+                FROM ODR\AdminBundle\Entity\DataType AS gp_dt
+                JOIN ODR\AdminBundle\Entity\DataType AS dt WITH dt.grandparent = gp_dt
+                JOIN ODR\AdminBundle\Entity\DataTypeMeta AS dtm WITH dtm.dataType = dt
                 WHERE gp_dt.id != dt.id AND dtm.searchSlug IS NOT NULL
                 AND gp_dt.deletedAt IS NULL AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
                 ORDER BY gp_dt.id, dt.id'
@@ -388,17 +388,17 @@ class ValidationController extends ODRCustomController
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
-            $repo_datafield = $em->getRepository('ODRAdminBundle:DataFields');
-            $repo_fieldtype = $em->getRepository('ODRAdminBundle:FieldType');
-            $repo_datarecord = $em->getRepository('ODRAdminBundle:DataRecord');
-//            $repo_datatree = $em->getRepository('ODRAdminBundle:DataTree');
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
-            $repo_file = $em->getRepository('ODRAdminBundle:File');
-            $repo_image = $em->getRepository('ODRAdminBundle:Image');
-            $repo_radio_options = $em->getRepository('ODRAdminBundle:RadioOptions');
-            $repo_sidebar_layout = $em->getRepository('ODRAdminBundle:SidebarLayout');
-            $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
-            $repo_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement');
+            $repo_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
+            $repo_fieldtype = $em->getRepository('ODR\AdminBundle\Entity\FieldType');
+            $repo_datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord');
+//            $repo_datatree = $em->getRepository('ODR\AdminBundle\Entity\DataTree');
+            $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
+            $repo_file = $em->getRepository('ODR\AdminBundle\Entity\File');
+            $repo_image = $em->getRepository('ODR\AdminBundle\Entity\Image');
+            $repo_radio_options = $em->getRepository('ODR\AdminBundle\Entity\RadioOptions');
+            $repo_sidebar_layout = $em->getRepository('ODR\AdminBundle\Entity\SidebarLayout');
+            $repo_theme = $em->getRepository('ODR\AdminBundle\Entity\Theme');
+            $repo_theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement');
 
             /** @var FieldType $default_fieldtype */
             $default_fieldtype = $repo_fieldtype->find(9);    // shortvarchar
@@ -1276,7 +1276,7 @@ class ValidationController extends ODRCustomController
 
             $query = $em->createQuery(
                'SELECT partial dt.{id}, partial ancestor.{id}, partial descendant.{id}
-                FROM ODRAdminBundle:DataTree AS dt
+                FROM ODR\AdminBundle\Entity\DataTree AS dt
                 JOIN dt.ancestor AS ancestor
                 JOIN dt.descendant AS descendant'
             );
@@ -1297,11 +1297,11 @@ class ValidationController extends ODRCustomController
 
             $query = $em->createQuery(
                'SELECT t.id AS theme_id, dt.id AS datatype_id, c_dt.id AS child_datatype_id
-                FROM ODRAdminBundle:Theme AS t
-                JOIN ODRAdminBundle:DataType AS dt WITH t.dataType = dt
-                JOIN ODRAdminBundle:ThemeElement AS te WITH te.theme = t
-                JOIN ODRAdminBundle:ThemeDataType AS tdt WITH tdt.themeElement = te
-                JOIN ODRAdminBundle:DataType AS c_dt WITH tdt.dataType = c_dt
+                FROM ODR\AdminBundle\Entity\Theme AS t
+                JOIN ODR\AdminBundle\Entity\DataType AS dt WITH t.dataType = dt
+                JOIN ODR\AdminBundle\Entity\ThemeElement AS te WITH te.theme = t
+                JOIN ODR\AdminBundle\Entity\ThemeDataType AS tdt WITH tdt.themeElement = te
+                JOIN ODR\AdminBundle\Entity\DataType AS c_dt WITH tdt.dataType = c_dt
                 WHERE t.deletedAt IS NULL AND te.deletedAt IS NULL AND tdt.deletedAt IS NULL
                 AND dt.deletedAt IS NULL AND c_dt.deletedAt IS NULL
                 ORDER BY dt.id, c_dt.id'
@@ -1345,7 +1345,7 @@ class ValidationController extends ODRCustomController
             // Ancestors in themes but not in the datatree can technically be taken care of by
             //  creating new datatree entries...though this should be handled on a case-by-case
             //  basis
-            $repo_datatype = $em->getRepository('ODRAdminBundle:DataType');
+            $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
 
             // ...these can be taken care of by creating new datatree entries
             print "\nCreating datatree entries for Ancestors in themes but not in datatree...\n";
@@ -1437,7 +1437,7 @@ class ValidationController extends ODRCustomController
             $conn->beginTransaction();
 
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:DataTree AS dt
+               'UPDATE ODR\AdminBundle\Entity\DataTree AS dt
                 SET dt.deletedAt = :now, dt.deletedBy = :user
                 WHERE dt.id IN (:datatree_ids) AND dt.deletedAt IS NULL'
             )->setParameters(
@@ -1452,7 +1452,7 @@ class ValidationController extends ODRCustomController
             print "Deleting these datatree and their datatree_meta entries...\n".print_r($datatree_ids, true)."\n\n";
 
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:DataTreeMeta AS dtm
+               'UPDATE ODR\AdminBundle\Entity\DataTreeMeta AS dtm
                 SET dtm.deletedAt = :now
                 WHERE dtm.dataTree IN (:datatree_ids) AND dtm.deletedAt IS NULL'
             )->setParameters(
@@ -1633,7 +1633,7 @@ class ValidationController extends ODRCustomController
                 print ' -- '.$dt_id.' => NULL'."\n";
 
             $query = $em->createQuery(
-               'UPDATE ODRAdminBundle:DataType AS dt
+               'UPDATE ODR\AdminBundle\Entity\DataType AS dt
                 SET dt.deletedAt = :now
                 WHERE dt.id IN (:datatype_ids)'
             )->setParameters(
@@ -1855,12 +1855,12 @@ class ValidationController extends ODRCustomController
 
             $query = $em->createQuery(
                'SELECT t.id AS t_id, te.id AS te_id, tdf.id AS tdf_id, df.id AS df_id, tdt.id AS tdt_id, dt.id AS dt_id
-                FROM ODRAdminBundle:Theme AS t
-                JOIN ODRAdminBundle:ThemeElement AS te WITH te.theme = t
-                LEFT JOIN ODRAdminBundle:ThemeDataField AS tdf WITH tdf.themeElement = te
-                LEFT JOIN ODRAdminBundle:DataFields AS df WITH tdf.dataField = df
-                LEFT JOIN ODRAdminBundle:ThemeDataType AS tdt WITH tdt.themeElement = te
-                LEFT JOIN ODRAdminBundle:DataType AS dt WITH tdt.dataType = dt
+                FROM ODR\AdminBundle\Entity\Theme AS t
+                JOIN ODR\AdminBundle\Entity\ThemeElement AS te WITH te.theme = t
+                LEFT JOIN ODR\AdminBundle\Entity\ThemeDataField AS tdf WITH tdf.themeElement = te
+                LEFT JOIN ODR\AdminBundle\Entity\DataFields AS df WITH tdf.dataField = df
+                LEFT JOIN ODR\AdminBundle\Entity\ThemeDataType AS tdt WITH tdt.themeElement = te
+                LEFT JOIN ODR\AdminBundle\Entity\DataType AS dt WITH tdt.dataType = dt
                 WHERE t.deletedAt IS NULL AND te.deletedAt IS NULL AND tdf.deletedAt IS NULL
                 AND tdt.deletedAt IS NULL AND df.deletedAt IS NULL AND dt.deletedAt IS NULL'
             );
@@ -1934,10 +1934,10 @@ class ValidationController extends ODRCustomController
             if (!$top_level) {
                 $query = $em->createQuery(
                    'SELECT dt.id AS dt_id, t.id AS t_id, t.themeType AS theme_type, p_t.id AS pt_id, s_t.id AS st_id
-                    FROM ODRAdminBundle:DataType AS dt
-                    LEFT JOIN ODRAdminBundle:Theme AS t WITH t.dataType = dt
-                    LEFT JOIN ODRAdminBundle:Theme AS p_t WITH t.parentTheme = p_t
-                    LEFT JOIN ODRAdminBundle:Theme AS s_t WITH t.sourceTheme = s_t
+                    FROM ODR\AdminBundle\Entity\DataType AS dt
+                    LEFT JOIN ODR\AdminBundle\Entity\Theme AS t WITH t.dataType = dt
+                    LEFT JOIN ODR\AdminBundle\Entity\Theme AS p_t WITH t.parentTheme = p_t
+                    LEFT JOIN ODR\AdminBundle\Entity\Theme AS s_t WITH t.sourceTheme = s_t
                     WHERE 1=1 AND dt != dt.grandparent
                     AND dt.deletedAt IS NULL AND t.deletedAt IS NULL AND s_t.deletedAt IS NULL
                     AND p_t.deletedAt IS NULL
@@ -1951,10 +1951,10 @@ class ValidationController extends ODRCustomController
             else {
                 $query = $em->createQuery(
                    'SELECT dt.id AS dt_id, t.id AS t_id, t.themeType AS theme_type, p_t.id AS pt_id, s_t.id AS st_id
-                    FROM ODRAdminBundle:DataType AS dt
-                    LEFT JOIN ODRAdminBundle:Theme AS t WITH t.dataType = dt
-                    LEFT JOIN ODRAdminBundle:Theme AS p_t WITH t.parentTheme = p_t
-                    LEFT JOIN ODRAdminBundle:Theme AS s_t WITH t.sourceTheme = s_t
+                    FROM ODR\AdminBundle\Entity\DataType AS dt
+                    LEFT JOIN ODR\AdminBundle\Entity\Theme AS t WITH t.dataType = dt
+                    LEFT JOIN ODR\AdminBundle\Entity\Theme AS p_t WITH t.parentTheme = p_t
+                    LEFT JOIN ODR\AdminBundle\Entity\Theme AS s_t WITH t.sourceTheme = s_t
                     WHERE 1=1 AND dt = dt.grandparent
                     AND dt.deletedAt IS NULL AND t.deletedAt IS NULL AND s_t.deletedAt IS NULL
                     AND p_t.deletedAt IS NULL
@@ -2481,8 +2481,8 @@ class ValidationController extends ODRCustomController
 
             $query = $em->createQuery(
                'SELECT df.id AS df_id, mdf.id AS mdf_id
-                FROM ODRAdminBundle:DataFields df
-                JOIN ODRAdminBundle:DataFields mdf WITH df.masterDataField = mdf
+                FROM ODR\AdminBundle\Entity\DataFields df
+                JOIN ODR\AdminBundle\Entity\DataFields mdf WITH df.masterDataField = mdf
                 WHERE df.masterDataField IS NOT NULL AND df.templateFieldUuid IS NULL
                 AND df.deletedAt IS NULL AND mdf.deletedAt IS NULL'
             );
@@ -2549,9 +2549,9 @@ class ValidationController extends ODRCustomController
 
             $query = $em->createQuery(
                'SELECT u.id AS user_id, g.id AS group_id
-                FROM ODROpenRepositoryUserBundle:User AS u
-                JOIN ODRAdminBundle:UserGroup AS ug WITH ug.user = u
-                JOIN ODRAdminBundle:Group AS g WITH ug.group = g
+                FROM ODR\OpenRepository\UserBundle\Entity\User AS u
+                JOIN ODR\AdminBundle\Entity\UserGroup AS ug WITH ug.user = u
+                JOIN ODR\AdminBundle\Entity\Group AS g WITH ug.group = g
                 WHERE ug.deletedAt IS NULL AND g.deletedAt IS NULL
                 ORDER BY u.id, g.id'
             );
@@ -2629,12 +2629,12 @@ class ValidationController extends ODRCustomController
             foreach ($relationships as $relationship) {
                 $query = $em->createQuery(
                    'SELECT dt_1.id AS dt_1_id, dtm_1.shortName AS dt_1_name, dfm.fieldName AS df_name, dt_2.id AS dt_2_id, dtm_2.shortName AS dt_2_name
-                    FROM ODRAdminBundle:DataType AS dt_1
-                    JOIN ODRAdminBundle:DataTypeMeta AS dtm_1 WITH dtm_1.dataType = dt_1
-                    JOIN ODRAdminBundle:DataFields AS df WITH dtm_1.'.$relationship.' = df
-                    JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
-                    JOIN ODRAdminBundle:DataType AS dt_2 WITH df.dataType = dt_2
-                    JOIN ODRAdminBundle:DataTypeMeta AS dtm_2 WITH dtm_2.dataType = dt_2
+                    FROM ODR\AdminBundle\Entity\DataType AS dt_1
+                    JOIN ODR\AdminBundle\Entity\DataTypeMeta AS dtm_1 WITH dtm_1.dataType = dt_1
+                    JOIN ODR\AdminBundle\Entity\DataFields AS df WITH dtm_1.'.$relationship.' = df
+                    JOIN ODR\AdminBundle\Entity\DataFieldsMeta AS dfm WITH dfm.dataField = df
+                    JOIN ODR\AdminBundle\Entity\DataType AS dt_2 WITH df.dataType = dt_2
+                    JOIN ODR\AdminBundle\Entity\DataTypeMeta AS dtm_2 WITH dtm_2.dataType = dt_2
                     WHERE dt_1.id != dt_2.id
                     AND dt_1.deletedAt IS NULL AND dtm_1.deletedAt IS NULL
                     AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL
@@ -2653,7 +2653,7 @@ class ValidationController extends ODRCustomController
                 print_r( '<pre>clearing '.$relationship.' for datatypes: '.print_r($datatype_ids, true).'</pre>' );
 
                 $update_query = $em->createQuery(
-                   'UPDATE ODRAdminBundle:DataTypeMeta AS dtm
+                   'UPDATE ODR\AdminBundle\Entity\DataTypeMeta AS dtm
                     SET dtm.'.$relationship.' = NULL
                     WHERE dtm.deletedAt IS NULL AND dtm.dataType IN (:datatype_ids)'
                 )->setParameters( ['datatype_ids' => $datatype_ids] );
@@ -2670,14 +2670,14 @@ class ValidationController extends ODRCustomController
                     ancestor.id AS ancestor_id, ancestor_meta.shortName AS ancestor_name,
                     df.id AS df_id, dfm.fieldName AS df_name,
                     descendant.id AS descendant_id, descendant_meta.shortName AS descendant_name
-                FROM ODRAdminBundle:DataTypeSpecialFields AS dtsf
-                JOIN ODRAdminBundle:DataFields AS df WITH dtsf.dataField = df
-                JOIN ODRAdminBundle:DataFieldsMeta AS dfm WITH dfm.dataField = df
+                FROM ODR\AdminBundle\Entity\DataTypeSpecialFields AS dtsf
+                JOIN ODR\AdminBundle\Entity\DataFields AS df WITH dtsf.dataField = df
+                JOIN ODR\AdminBundle\Entity\DataFieldsMeta AS dfm WITH dfm.dataField = df
 
-                JOIN ODRAdminBundle:DataType AS ancestor WITH dtsf.dataType = ancestor
-                JOIN ODRAdminBundle:DataTypeMeta AS ancestor_meta WITH ancestor_meta.dataType = ancestor
-                JOIN ODRAdminBundle:DataType AS descendant WITH df.dataType = descendant
-                JOIN ODRAdminBundle:DataTypeMeta AS descendant_meta WITH descendant_meta.dataType = descendant
+                JOIN ODR\AdminBundle\Entity\DataType AS ancestor WITH dtsf.dataType = ancestor
+                JOIN ODR\AdminBundle\Entity\DataTypeMeta AS ancestor_meta WITH ancestor_meta.dataType = ancestor
+                JOIN ODR\AdminBundle\Entity\DataType AS descendant WITH df.dataType = descendant
+                JOIN ODR\AdminBundle\Entity\DataTypeMeta AS descendant_meta WITH descendant_meta.dataType = descendant
                 WHERE ancestor.id != descendant.id
                 AND dtsf.deletedAt IS NULL
                 AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL
@@ -2709,8 +2709,8 @@ class ValidationController extends ODRCustomController
                 //  if the ancestor -> descendant link does not allow multiple records
                 $query = $em->createQuery(
                    'SELECT dtm.is_link, dtm.multiple_allowed
-                    FROM ODRAdminBundle:DataTree AS dt
-                    JOIN ODRAdminBundle:DataTreeMeta AS dtm WITH dtm.dataTree = dt
+                    FROM ODR\AdminBundle\Entity\DataTree AS dt
+                    JOIN ODR\AdminBundle\Entity\DataTreeMeta AS dtm WITH dtm.dataTree = dt
                     WHERE dt.ancestor = :ancestor_id AND dt.descendant = :descendant_id
                     AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL'
                 )->setParameters(
@@ -2746,7 +2746,7 @@ class ValidationController extends ODRCustomController
             print_r( '<pre>clearing special fields: '.print_r($dtsf_entries_to_delete, true).'</pre>' );
 
             $update_query = $em->createQuery(
-               'UPDATE ODRAdminBundle:DataTypeMeta AS dtm
+               'UPDATE ODR\AdminBundle\Entity\DataTypeMeta AS dtm
                 SET dtm.sortField = NULL
                 WHERE dtm.deletedAt IS NULL AND dtm.dataType IN (:datatype_ids)'
             )->setParameters( ['datatype_ids' => $dtsf_entries_to_delete] );
@@ -2864,7 +2864,7 @@ class ValidationController extends ODRCustomController
             // Get the same set of data from the database...
             $query = $em->createQuery(
                'SELECT ft.id, ft.typeName, ft.typeClass, ft.canBeUnique, ft.canBeSortField
-                FROM ODRAdminBundle:FieldType AS ft
+                FROM ODR\AdminBundle\Entity\FieldType AS ft
                 WHERE ft.deletedAt IS NULL'
             );
             $results = $query->getArrayResult();
@@ -2980,12 +2980,12 @@ class ValidationController extends ODRCustomController
                 throw new ODRForbiddenException();
 
             /** @var DataType $left_datatype */
-            $left_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($left_datatype_id);
+            $left_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($left_datatype_id);
             if ( is_null($left_datatype) )
                 throw new ODRNotFoundException('Datatype');
 
             /** @var DataType $right_datatype */
-            $right_datatype = $em->getRepository('ODRAdminBundle:DataType')->find($right_datatype_id);
+            $right_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($right_datatype_id);
             if ( is_null($right_datatype) )
                 throw new ODRNotFoundException('Datatype');
 
