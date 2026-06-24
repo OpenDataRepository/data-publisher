@@ -7,6 +7,10 @@
 
 > **Why incremental?** Jumping multiple major versions at once makes debugging impossible. Each LTS version has deprecation warnings that guide you to the next step. Fix deprecations at each step before moving forward.
 
+> **Companion docs:** [`SYMFONY_5_DEPRECATION_CLEANUP.md`](SYMFONY_5_DEPRECATION_CLEANUP.md) — repeatable
+> playbook for the 4.4 → 5.0 deprecation cleanup (route/template/templating/exception-controller/
+> controller-DI work, already done; see Phase 4). [`TEST_URLS.md`](TEST_URLS.md) — regression URL list.
+
 ---
 
 ## Phase 0: Pre-Upgrade Baseline (Do This First)
@@ -235,6 +239,13 @@ php bin/console debug:container --deprecations
 ---
 
 ## Phase 4: Symfony 4.4 → 5.4
+
+> **The 4.4 → 5.0 deprecation cleanup is documented as a repeatable playbook in
+> [`SYMFONY_5_DEPRECATION_CLEANUP.md`](SYMFONY_5_DEPRECATION_CLEANUP.md)** — route notation, template
+> notation + templating engine, the exception controller, and the controller container-injection
+> refactor are already done and committed. That guide is written to be re-run if the work diverges as
+> the codebase changes. What remains for Phase 4 is the **abandoned-bundle removals** (FOSUserBundle,
+> FOSOAuthServerBundle, sensio-extra), covered below.
 
 ### 4.1 — Remove All 4.x Deprecations First
 
