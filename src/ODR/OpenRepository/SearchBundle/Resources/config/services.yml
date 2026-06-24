@@ -4,9 +4,24 @@ parameters:
     odr.search_slug_blacklist: "admin|api|app|beanstalk|bin|csvimport|csvexport|dashboard|design|docs|edit|jobs|login|login-check|logout|massedit|oauth|profile|profile_edit|profile_save|redirect|remote_search|resetting|save_fragment|search|session|src|statistics|user|vendor|view|web"
 
 services:
+    # Fetched by SearchBundle\DefaultController to reuse ODRCustomController utility methods; now
+    # that the base has a constructor, supply its 12 odr.* deps. (setContainer is called in code.)
     odr_custom_controller:
         public: true
         class: ODR\AdminBundle\Controller\ODRCustomController
+        arguments:
+            $clone_theme_service: '@odr.clone_theme_service'
+            $database_info_service: '@odr.database_info_service'
+            $datarecord_info_service: '@odr.datarecord_info_service'
+            $datatree_info_service: '@odr.datatree_info_service'
+            $entity_meta_modify_service: '@odr.entity_meta_modify_service'
+            $render_service: '@odr.render_service'
+            $tab_helper_service: '@odr.tab_helper_service'
+            $permissions_management_service: '@odr.permissions_management_service'
+            $table_theme_helper_service: '@odr.table_theme_helper_service'
+            $theme_info_service: '@odr.theme_info_service'
+            $search_service: '@odr.search_service'
+            $search_key_service: '@odr.search_key_service'
 
     odr.search_api_service_no_conflict:
         public: true

@@ -80,6 +80,83 @@ services:
                 # two odr.* services with dotted ids kept on the locator (only a few call sites)
                 odr.jupyterhub_bridge.username_service: '@odr.jupyterhub_bridge.username_service'
                 odr.oauth_server.client_manager: '@odr.oauth_server.client_manager'
+                # used by the direct-AbstractController controllers (SearchBundle / OAuthServer)
+                security.authentication_utils: '@security.authentication_utils'
+                fos_oauth_server.client_manager.default: '@fos_oauth_server.client_manager.default'
+                odr_custom_controller: '@odr_custom_controller'
+
+    # --- C-tail: controllers that extend AbstractController directly (no ODRCustomController base) ---
+    ODR\OpenRepository\SearchBundle\Controller\DefaultController:
+        public: true
+        arguments:
+            $database_info_service: '@odr.database_info_service'
+            $datarecord_info_service: '@odr.datarecord_info_service'
+            $pagination_helper_service: '@odr.pagination_helper_service'
+            $permissions_management_service: '@odr.permissions_management_service'
+            $search_api_service: '@odr.search_api_service'
+            $search_key_service: '@odr.search_key_service'
+            $search_redirect_service: '@odr.search_redirect_service'
+            $search_sidebar_service: '@odr.search_sidebar_service'
+            $tab_helper_service: '@odr.tab_helper_service'
+            $theme_info_service: '@odr.theme_info_service'
+            $tracked_path_service: '@odr.tracked_path_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\OpenRepository\SearchBundle\Controller\FacadeController:
+        public: true
+        arguments:
+            $datarecord_export_service: '@odr.datarecord_export_service'
+            $permissions_management_service: '@odr.permissions_management_service'
+            $search_api_service: '@odr.search_api_service'
+            $search_api_service_no_conflict: '@odr.search_api_service_no_conflict'
+            $search_key_service: '@odr.search_key_service'
+            $search_sidebar_service: '@odr.search_sidebar_service'
+            $tab_helper_service: '@odr.tab_helper_service'
+            $theme_info_service: '@odr.theme_info_service'
+            $tracked_path_service: '@odr.tracked_path_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\OpenRepository\SearchBundle\Controller\RemoteController:
+        public: true
+        arguments:
+            $database_info_service: '@odr.database_info_service'
+            $datatree_info_service: '@odr.datatree_info_service'
+            $permissions_management_service: '@odr.permissions_management_service'
+            $search_service: '@odr.search_service'
+            $theme_info_service: '@odr.theme_info_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\OpenRepository\SearchBundle\Controller\SearchCacheController:
+        public: true
+        arguments:
+            $search_key_service: '@odr.search_key_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\OpenRepository\ApiBundle\Controller\DefaultController:
+        public: true
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\OpenRepository\OAuthServerBundle\Controller\SecurityController:
+        public: true
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\OpenRepository\OAuthServerBundle\Controller\ClientController:
+        public: true
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
 
     # Uses dynamic service ids ($this->container->get('hwi_oauth.resource_owner.'.$name)) that can't
     # live in a fixed locator, so it gets the full container. (OAuthClientBundle is a Phase 4 removal.)

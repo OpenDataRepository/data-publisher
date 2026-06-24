@@ -37,11 +37,11 @@ class SecurityController extends \Symfony\Bundle\FrameworkBundle\Controller\Abst
         }
 
         $csrfToken = $this->has('security.csrf.token_manager')
-            ? $this->get('security.csrf.token_manager')->getToken('authenticate')->getValue()
+            ? $this->container->get('security.csrf.token_manager')->getToken('authenticate')->getValue()
             : null;
 
         // TODO - this doesn't seem to actually do anything on authentication failure
-        $helper = $this->get('security.authentication_utils');
+        $helper = $this->container->get('security.authentication_utils');
 
         return $this->render('@ODROpenRepositoryOAuthServer/Security/oauth_login.html.twig', [
             'last_username' => $helper->getLastUsername(),

@@ -47,6 +47,19 @@ use Symfony\Component\Intl\Tests\Data\Provider\Json\JsonRegionDataProviderTest;
 class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\AbstractController
 {
 
+    public function __construct(
+        private readonly DatarecordExportService $datarecord_export_service,
+        private readonly PermissionsManagementService $permissions_management_service,
+        private readonly SearchAPIService $search_api_service,
+        private readonly SearchAPIServiceNoConflict $search_api_service_no_conflict,
+        private readonly SearchKeyService $search_key_service,
+        private readonly SearchSidebarService $search_sidebar_service,
+        private readonly ODRTabHelperService $tab_helper_service,
+        private readonly ThemeInfoService $theme_info_service,
+        private readonly TrackedPathService $tracked_path_service
+    ) {
+    }
+
     /**
      * Determines datatype id via search slug, then forwards to the equivalent function in
      * ODRAdminBundle:APIController.
@@ -234,13 +247,13 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatarecordExportService $dre_service */
-            $dre_service = $this->container->get('odr.datarecord_export_service');
+            $dre_service = $this->datarecord_export_service;
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
             /** @var SearchAPIService $search_api_service */
-            $search_api_service = $this->container->get('odr.search_api_service');
+            $search_api_service = $this->search_api_service;
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
             /** @var TokenGenerator $tokenGenerator */
             $tokenGenerator = $this->container->get('fos_user.util.token_generator');
 
@@ -304,7 +317,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             $datarecord_list = array_slice($datarecord_list, $offset, $limit);
 
             // Render the resulting list of datarecords into a single chunk of export data
-            $baseurl = $this->container->getParameter('site_baseurl');
+            $baseurl = $this->getParameter('site_baseurl');
             $data = $dre_service->getData(
                 $version,
                 $datarecord_list,
@@ -346,7 +359,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
         $em = $this->getDoctrine()->getManager();
 
         /** @var SearchKeyService $search_key_service */
-        $search_key_service = $this->container->get('odr.search_key_service');
+        $search_key_service = $this->search_key_service;
 
         $search_key = $search_key_service->convertBase64toSearchKey($search_key);
         // $search_key_service->validateTemplateSearchKey($search_key);
@@ -366,10 +379,10 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             throw new ODRNotFoundException('Datatype');
 
         /** @var SearchAPIServiceNoConflict $search_api_service */
-        $search_api_service = $this->container->get('odr.search_api_service_no_conflict');
-        $baseurl = $this->container->getParameter('site_baseurl');
-        $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
-        $wordpress_site_baseurl = $this->container->getParameter('wordpress_site_baseurl');
+        $search_api_service = $this->search_api_service_no_conflict;
+        $baseurl = $this->getParameter('site_baseurl');
+        $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+        $wordpress_site_baseurl = $this->getParameter('wordpress_site_baseurl');
         $records = $search_api_service->fullTemplateSearch($datatype, $baseurl, $params);
 
         // Render the base html for the page...$this->render() apparently creates and automatically returns a full Reponse object
@@ -398,7 +411,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
         $em = $this->getDoctrine()->getManager();
 
         /** @var SearchKeyService $search_key_service */
-        $search_key_service = $this->container->get('odr.search_key_service');
+        $search_key_service = $this->search_key_service;
 
         $post = $request->request->all();
         if ( !isset($post['search_key']) )
@@ -423,8 +436,8 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             throw new ODRNotFoundException('Datatype');
 
         // /** @var SearchAPIServiceNoConflict $search_api_service */
-        // $search_api_service = $this->container->get('odr.search_api_service_no_conflict');
-        // $baseurl = $this->container->getParameter('site_baseurl');
+        // $search_api_service = $this->search_api_service_no_conflict;
+        // $baseurl = $this->getParameter('site_baseurl');
         // $records = $search_api_service->fullTemplateSearch($datatype, $baseurl, $params);
 
         // Slice for Limit/Offset
@@ -462,13 +475,13 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             $em = $this->getDoctrine()->getManager();
 
             /** @var ODRTabHelperService $odr_tab_service */
-            $odr_tab_service = $this->container->get('odr.tab_helper_service');
+            $odr_tab_service = $this->tab_helper_service;
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
             /** @var SearchSidebarService $ssb_service */
-            $ssb_service = $this->container->get('odr.search_sidebar_service');
+            $ssb_service = $this->search_sidebar_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
             $cookies = $request->cookies;
 
             // ------------------------------
@@ -476,7 +489,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             // If using Wordpress - check for Wordpress User and Log them in.
-            if($this->container->getParameter('odr_wordpress_integrated')) {
+            if($this->getParameter('odr_wordpress_integrated')) {
                 $odr_wordpress_user = getenv("WORDPRESS_USER");
                 if($odr_wordpress_user) {
                     // print $odr_wordpress_user . ' ';
@@ -515,7 +528,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
                     // So, need to clear existing session redirect paths...
                     /** @var TrackedPathService $tracked_path_service */
-                    $tracked_path_service = $this->container->get('odr.tracked_path_service');
+                    $tracked_path_service = $this->tracked_path_service;
                     $tracked_path_service->clearTargetPaths();
 
                     // ...then need to save the user's current URL into their session
@@ -562,8 +575,8 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
             // Random cross domain search
             $log = "Cross domain search: " . $datatype->getUniqueId() . '<br />';
-            // $url =$this->container->getParameter('elastic_server_baseurl') . $datatype->getUniqueId() . '/_search?*.*&pretty=true';
-            $url =$this->container->getParameter('elastic_server_baseurl')[0] . '/' . $datatype->getUniqueId() . '/_search?pretty=true';
+            // $url =$this->getParameter('elastic_server_baseurl') . $datatype->getUniqueId() . '/_search?*.*&pretty=true';
+            $url =$this->getParameter('elastic_server_baseurl')[0] . '/' . $datatype->getUniqueId() . '/_search?pretty=true';
             // print $url . "<br />";exit();
             $ch = curl_init($url);
             # Setup request to send json via POST.
@@ -596,7 +609,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             curl_close($ch);
 
             $output = '';
-            $output .= $this->get('twig')->render(
+            $output .= $this->container->get('twig')->render(
                 '@ODROpenRepositorySearch/TemplateSearch/result_header.html.twig',
                 [
                     'total' => $search_result['hits']['total']['value'], // total records
@@ -607,7 +620,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             $counter = 1;
             foreach($search_result['hits']['hits'] as $record_data) {
                 $record = $record_data['_source'];
-                $output .= $this->get('twig')->render(
+                $output .= $this->container->get('twig')->render(
                     '@ODROpenRepositorySearch/TemplateSearch/result.html.twig',
                     [
                         'record'=> $record,
@@ -619,9 +632,9 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
             // ----------------------------------------
             // Render just the html for the base page and the search page...$this->render() apparently creates a full Response object
-            $site_baseurl = $this->container->getParameter('site_baseurl');
-            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
-            $wordpress_site_baseurl = $this->container->getParameter('wordpress_site_baseurl');
+            $site_baseurl = $this->getParameter('site_baseurl');
+            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            $wordpress_site_baseurl = $this->getParameter('wordpress_site_baseurl');
 
             $html = $this->renderView(
                 '@ODROpenRepositorySearch/TemplateSearch/index.html.twig',
@@ -714,12 +727,12 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
         $datatype = $record->getDataType();
 
         /** @var SearchAPIServiceNoConflict $search_api_service */
-        $search_api_service = $this->container->get('odr.search_api_service_no_conflict');
+        $search_api_service = $this->search_api_service_no_conflict;
 
         $data = $search_api_service->getRecordData(
             $version,
             $record->getUniqueId(),
-            $this->container->getParameter('site_baseurl'),
+            $this->getParameter('site_baseurl'),
             'json',
             true,
             null,
@@ -737,7 +750,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
          * {"_index":"ahed","_id":"7e7f170c64ee9790344baccc170c","_version":1,"result":"created","_shards":{"total":2,"successful":1,"failed":0},"_seq_no":0,"_primary_term":1}
         */
         $log = "Pushing document: " . $datatype->getUniqueId() . '--' . $record->getUniqueId() . '<br />';
-        $url =$this->container->getParameter('elastic_server_baseurl') . '/' . $datatype->getUniqueId() . "/_doc/" . $record->getUniqueId();
+        $url =$this->getParameter('elastic_server_baseurl') . '/' . $datatype->getUniqueId() . "/_doc/" . $record->getUniqueId();
         $ch = curl_init($url);
         # Setup request to send json via POST.
         $payload = $data;
@@ -755,7 +768,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
         // Also build index for cross template search
         if($datatype->getMasterDataType()) {
             $log .= "Pushing document: " . $datatype->getMasterDataType()->getUniqueId() . '--' . $record->getUniqueId() . '<br />';
-            $url =$this->container->getParameter('elastic_server_baseurl') . '/' . $datatype->getMasterDataType()->getUniqueId() . "/_doc/" . $record->getUniqueId();
+            $url =$this->getParameter('elastic_server_baseurl') . '/' . $datatype->getMasterDataType()->getUniqueId() . "/_doc/" . $record->getUniqueId();
             $ch = curl_init($url);
             # Setup request to send json via POST.
             curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
@@ -787,7 +800,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
         $log = "";
 
         // Array of dataset UUIDs from parameters.yml
-        $dataset_uuids = $this->container->getParameter('elastic_dataset_uuids');
+        $dataset_uuids = $this->getParameter('elastic_dataset_uuids');
 
         // Initialize the output array
         $output = [];
@@ -804,8 +817,8 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
                 throw new ODRNotFoundException('Datatype');
 
             // Ensure all index exists for the datatype
-            $log .= "Creating Index: " . $this->container->getParameter('elastic_server_baseurl') . "/" . $datatype->getUniqueId() . '<br />';
-            $url = $this->container->getParameter('elastic_server_baseurl') . '/' . $datatype->getUniqueId();
+            $log .= "Creating Index: " . $this->getParameter('elastic_server_baseurl') . "/" . $datatype->getUniqueId() . '<br />';
+            $url = $this->getParameter('elastic_server_baseurl') . '/' . $datatype->getUniqueId();
             $ch = curl_init($url);
             # Setup request to send json via POST.
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
@@ -819,7 +832,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
             // Ensure all index has total_field limit set properly
             $log .= "Setting index total_field limit: " . $datatype->getUniqueId() . '<br />';
-            $url = $this->container->getParameter('elastic_server_baseurl') . '/' . $datatype->getUniqueId() . '/_settings';
+            $url = $this->getParameter('elastic_server_baseurl') . '/' . $datatype->getUniqueId() . '/_settings';
             $ch = curl_init($url);
             # Setup request to send json via POST.
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
@@ -834,9 +847,9 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
             // Also build index for cross template search
             if($datatype->getMasterDataType()) {
-                $log .= "Creating Index: " . $this->container->getParameter('elastic_server_baseurl') . "/" . $datatype->getMasterDataType()->getUniqueId() . '<br />';
+                $log .= "Creating Index: " . $this->getParameter('elastic_server_baseurl') . "/" . $datatype->getMasterDataType()->getUniqueId() . '<br />';
                 // Ensure all index exists
-                $url = $this->container->getParameter('elastic_server_baseurl') . '/' . $datatype->getMasterDataType()->getUniqueId();
+                $url = $this->getParameter('elastic_server_baseurl') . '/' . $datatype->getMasterDataType()->getUniqueId();
                 $ch = curl_init($url);
                 # Setup request to send json via POST.
                 curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
@@ -850,7 +863,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
                 $log .= "Setting index total_field limit: " . $datatype->getMasterDataType()->getUniqueId() . '<br />';
                 // Ensure all index has total_field limit set properly
-                $url = $this->container->getParameter('elastic_server_baseurl') . '/' . $datatype->getMasterDataType()->getUniqueId() . '/_settings';
+                $url = $this->getParameter('elastic_server_baseurl') . '/' . $datatype->getMasterDataType()->getUniqueId() . '/_settings';
                 $ch = curl_init($url);
                 # Setup request to send json via POST.
                 curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
@@ -874,8 +887,8 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
                 );
 
             // Get the pheanstalk queue
-            $pheanstalk = $this->get('pheanstalk');
-            $baseurl = $this->container->getParameter('site_baseurl');
+            $pheanstalk = $this->container->get('pheanstalk');
+            $baseurl = $this->getParameter('site_baseurl');
 
             $counter = 0;
             // for($i=0; $i<10; $i++) {
@@ -926,18 +939,18 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
      * @return JsonResponse
      */
     public function updateRRUFFFilesAction($recent, $version, Request $request) {
-        $baseurl = $this->container->getParameter('baseurl_no_prefix');
+        $baseurl = $this->getParameter('baseurl_no_prefix');
         $baseurl = $baseurl . "/odr_rruff";
 
         // Get the pheanstalk queue
-        $pheanstalk = $this->get('pheanstalk');
+        $pheanstalk = $this->container->get('pheanstalk');
 
         $job_data = [
             'base_url' => $baseurl,
             'ima_update_rebuild' => $recent,
-            'api_user' => $this->container->getParameter('api_user'),
-            'api_key' => $this->container->getParameter('api_key'),
-            'rruff_database_uuid' => $this->container->getParameter('rruff_database_uuid')
+            'api_user' => $this->getParameter('api_user'),
+            'api_key' => $this->getParameter('api_key'),
+            'rruff_database_uuid' => $this->getParameter('rruff_database_uuid')
         ];
 
         // TODO Updating File Zips requires a way to get
@@ -1036,18 +1049,18 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
      * @return JsonResponse
      */
     public function updateAMCSDFilesAction($recent, $version, Request $request) {
-        $baseurl = $this->container->getParameter('baseurl_no_prefix');
+        $baseurl = $this->getParameter('baseurl_no_prefix');
         $baseurl = $baseurl . "/odr_rruff";
 
         // Get the pheanstalk queue
-        $pheanstalk = $this->get('pheanstalk');
+        $pheanstalk = $this->container->get('pheanstalk');
 
         $job_data = [
             'base_url' => $baseurl,
             'ima_update_rebuild' => $recent,
-            'api_user' => $this->container->getParameter('api_user'),
-            'api_key' => $this->container->getParameter('api_key'),
-            'amcsd_database_uuid' => $this->container->getParameter('amcsd_database_uuid')
+            'api_user' => $this->getParameter('api_user'),
+            'api_key' => $this->getParameter('api_key'),
+            'amcsd_database_uuid' => $this->getParameter('amcsd_database_uuid')
         ];
 
         // TODO Updating File Zips requires a way to get
@@ -1161,34 +1174,34 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
                 cell_params_synonyms: 'web/uploads/cell_params_synonyms.js'
                 tag_data: 'web/uploads/master_tag_data.js'
             */
-            $baseurl = $this->container->getParameter('baseurl_no_prefix');
+            $baseurl = $this->getParameter('baseurl_no_prefix');
             $baseurl = $baseurl . "/odr_rruff";
             $job_data = [
                 'base_url' => $baseurl,
                 'ima_update_rebuild' => $recent,
-                'api_user' => $this->container->getParameter('api_user'),
-                'api_key' => $this->container->getParameter('api_key'),
-                'ima_uuid' => $this->container->getParameter('ima_uuid'),
-                'ima_template_uuid' => $this->container->getParameter('ima_template_uuid'),
-                'cell_params_uuid' => $this->container->getParameter('cell_params_uuid'),
-                'rruff_database_uuid' => $this->container->getParameter('rruff_database_uuid'),
-                'reference_database_uuid' => $this->container->getParameter('reference_database_uuid'),
-                'amcsd_database_uuid' => $this->container->getParameter('amcsd_database_uuid'),
-                'paragenetic_modes_uuid' => $this->container->getParameter('paragenetic_modes_uuid'),
-                'mineral_data' => $this->container->getParameter('mineral_data'),
-                'cell_params' => $this->container->getParameter('cell_params'),
-                'pm_data' => $this->container->getParameter('pm_data'),
-                'pm_tag_data' => $this->container->getParameter('pm_tag_data'),
-                'references' => $this->container->getParameter('references'),
-                'amcsd_file' => $this->container->getParameter('amcsd_file'),
-                'cell_params_range' => $this->container->getParameter('cell_params_range'),
-                'cell_params_synonyms' => $this->container->getParameter('cell_params_synonyms'),
-                'master_tag_data' => $this->container->getParameter('tag_data'),
-                'tag_data' => $this->container->getParameter('tag_data')
+                'api_user' => $this->getParameter('api_user'),
+                'api_key' => $this->getParameter('api_key'),
+                'ima_uuid' => $this->getParameter('ima_uuid'),
+                'ima_template_uuid' => $this->getParameter('ima_template_uuid'),
+                'cell_params_uuid' => $this->getParameter('cell_params_uuid'),
+                'rruff_database_uuid' => $this->getParameter('rruff_database_uuid'),
+                'reference_database_uuid' => $this->getParameter('reference_database_uuid'),
+                'amcsd_database_uuid' => $this->getParameter('amcsd_database_uuid'),
+                'paragenetic_modes_uuid' => $this->getParameter('paragenetic_modes_uuid'),
+                'mineral_data' => $this->getParameter('mineral_data'),
+                'cell_params' => $this->getParameter('cell_params'),
+                'pm_data' => $this->getParameter('pm_data'),
+                'pm_tag_data' => $this->getParameter('pm_tag_data'),
+                'references' => $this->getParameter('references'),
+                'amcsd_file' => $this->getParameter('amcsd_file'),
+                'cell_params_range' => $this->getParameter('cell_params_range'),
+                'cell_params_synonyms' => $this->getParameter('cell_params_synonyms'),
+                'master_tag_data' => $this->getParameter('tag_data'),
+                'tag_data' => $this->getParameter('tag_data')
             ];
 
             // Get the pheanstalk queue
-            $pheanstalk = $this->get('pheanstalk');
+            $pheanstalk = $this->container->get('pheanstalk');
 
             $route_name = 'odr_api_datarecord_list';
             $full_ima_url = $this->generateUrl(
@@ -1342,12 +1355,12 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             $job_data['paragenetic_modes_url'] = $paragenetic_modes_url;
             $job_data['paragenetic_modes_template_url'] = $paragenetic_modes_template_url;
 
-            $job_data['ima_record_map'] = $this->container->getParameter('ima_record_map');
-            $job_data['reference_record_map'] = $this->container->getParameter('reference_record_map');
-            $job_data['amcsd_record_map'] = $this->container->getParameter('amcsd_record_map');
-            $job_data['paragenetic_modes_record_map'] = $this->container->getParameter('paragenetic_modes_record_map');
-            $job_data['cell_params_map'] = $this->container->getParameter('cell_params_map');
-            $job_data['powder_diffraction_map'] = $this->container->getParameter('powder_diffraction_map');
+            $job_data['ima_record_map'] = $this->getParameter('ima_record_map');
+            $job_data['reference_record_map'] = $this->getParameter('reference_record_map');
+            $job_data['amcsd_record_map'] = $this->getParameter('amcsd_record_map');
+            $job_data['paragenetic_modes_record_map'] = $this->getParameter('paragenetic_modes_record_map');
+            $job_data['cell_params_map'] = $this->getParameter('cell_params_map');
+            $job_data['powder_diffraction_map'] = $this->getParameter('powder_diffraction_map');
 
             // Add record to pheanstalk queue
             $payload = json_encode($job_data);
@@ -1401,8 +1414,8 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             throw new ODRNotFoundException('Datatype');
 
         /** @var SearchAPIService $search_api_service */
-        $search_api_service = $this->container->get('odr.search_api_service');
-        $baseurl = $this->container->getParameter('site_baseurl');
+        $search_api_service = $this->search_api_service;
+        $baseurl = $this->getParameter('site_baseurl');
         // $records = $search_api_service->performSearch($datatype, $baseurl, $params);
         $records = $search_api_service->performSearch(
             $datatype,
@@ -1422,7 +1435,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
         if($limit > 0) {
             $records = array_slice($records, $offset, $limit);
         }
-        $search_api_service_nc = $this->container->get('odr.search_api_service_no_conflict');
+        $search_api_service_nc = $this->search_api_service_no_conflict;
 
         $output_data = [];
         if(!$return_as_list) {
@@ -1468,7 +1481,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
         $em = $this->getDoctrine()->getManager();
 
         /** @var SearchKeyService $search_key_service */
-        $search_key_service = $this->container->get('odr.search_key_service');
+        $search_key_service = $this->search_key_service;
 
         $post = $request->request->all();
         if ( !isset($post['search_key']) )
@@ -1488,8 +1501,8 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             throw new ODRNotFoundException('Datatype');
 
         /** @var SearchAPIServiceNoConflict $search_api_service */
-        $search_api_service = $this->container->get('odr.search_api_service_no_conflict');
-        $baseurl = $this->container->getParameter('site_baseurl');
+        $search_api_service = $this->search_api_service_no_conflict;
+        $baseurl = $this->getParameter('site_baseurl');
         $records = $search_api_service->fullTemplateSearch($datatype, $baseurl, $params);
 
         // Slice for Limit/Offset
@@ -1537,13 +1550,13 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatarecordExportService $dre_service */
-            $dre_service = $this->container->get('odr.datarecord_export_service');
+            $dre_service = $this->datarecord_export_service;
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
             /** @var SearchAPIService $search_api_service */
-            $search_api_service = $this->container->get('odr.search_api_service');
+            $search_api_service = $this->search_api_service;
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
             /** @var TokenGenerator $tokenGenerator */
             $tokenGenerator = $this->container->get('fos_user.util.token_generator');
 
@@ -1614,7 +1627,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             $datarecord_list = array_slice($datarecord_list, $offset, $limit);
 
             // Render the resulting list of datarecords into a single chunk of export data
-            $baseurl = $this->container->getParameter('site_baseurl');
+            $baseurl = $this->getParameter('site_baseurl');
             $data = $dre_service->getData(
                 $version,
                 $datarecord_list,

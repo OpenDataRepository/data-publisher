@@ -48,6 +48,15 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class RemoteController extends \Symfony\Bundle\FrameworkBundle\Controller\AbstractController
 {
 
+    public function __construct(
+        private readonly DatabaseInfoService $database_info_service,
+        private readonly DatatreeInfoService $datatree_info_service,
+        private readonly PermissionsManagementService $permissions_management_service,
+        private readonly SearchService $search_service,
+        private readonly ThemeInfoService $theme_info_service
+    ) {
+    }
+
     /**
      * Displays a list of public datatypes that can be searched on without an ODR login.
      *
@@ -63,11 +72,11 @@ class RemoteController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var DatatreeInfoService $datatree_info_service */
-            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            $datatree_info_service = $this->datatree_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             // --------------------
@@ -120,9 +129,9 @@ class RemoteController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             // ----------------------------------------
             // Render this as a "base" page...otherwise users have to go to something like
             //  https://odr.io/admin#/remote_search ...which requires a login
-            $site_baseurl = $this->container->getParameter('site_baseurl');
-            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
-            $wordpress_site_baseurl = $this->container->getParameter('wordpress_site_baseurl');
+            $site_baseurl = $this->getParameter('site_baseurl');
+            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            $wordpress_site_baseurl = $this->getParameter('wordpress_site_baseurl');
 
             $html = $this->renderView(
                 '@ODROpenRepositorySearch/Remote/index.html.twig',
@@ -175,13 +184,13 @@ class RemoteController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var PermissionsManagementService $permissions_service */
-//            $permissions_service = $this->container->get('odr.permissions_management_service');
+//            $permissions_service = $this->permissions_management_service;
             /** @var SearchService $search_service */
-            $search_service = $this->container->get('odr.search_service');
+            $search_service = $this->search_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
 
             /** @var DataType $datatype */
@@ -275,7 +284,7 @@ class RemoteController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
             // ----------------------------------------
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
             $return['d'] = [
                 'html' => $templating->render(
                     '@ODROpenRepositorySearch/Remote/select_ajax.html.twig',
@@ -327,7 +336,7 @@ class RemoteController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
             // Need the protocol and the baseurl
             $protocol = $request->getScheme();
-            $site_baseurl = $this->container->getParameter('site_baseurl');
+            $site_baseurl = $this->getParameter('site_baseurl');
 
             if ( !isset($post['datatype_id']) || !isset($post['datafield_ids']) )
                 throw new ODRBadRequestException();
@@ -341,7 +350,7 @@ class RemoteController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
 
 
             /** @var DataType $datatype */
@@ -415,7 +424,7 @@ class RemoteController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
             // ----------------------------------------
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
             // Need to render this separately...
 //            $short_config = $templating->render(
@@ -480,7 +489,7 @@ class RemoteController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
         try {
             // Need templating to render a couple twig things in the javascript file...
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
             $js = '';
             if ($minified) {
@@ -552,11 +561,11 @@ class RemoteController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
         try {
             // ----------------------------------------
-            $site_baseurl = $this->container->getParameter('site_baseurl');
+            $site_baseurl = $this->getParameter('site_baseurl');
 
             // Just need to get twig to render an example
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
             $template = null;
             if ($type === 'basic1')

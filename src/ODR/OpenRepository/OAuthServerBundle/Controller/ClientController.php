@@ -65,7 +65,7 @@ class ClientController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
                 throw new ODRConflictException();
             // --------------------
 
-            $site_baseurl = $this->container->getParameter('site_baseurl');
+            $site_baseurl = $this->getParameter('site_baseurl');
             $clientManager = $this->container->get('fos_oauth_server.client_manager.default');
 
             // Define the grant types this oauth client is allowed to use

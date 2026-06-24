@@ -55,6 +55,21 @@ use Symfony\Component\Routing\Router;
 class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\AbstractController
 {
 
+    public function __construct(
+        private readonly DatabaseInfoService $database_info_service,
+        private readonly DatarecordInfoService $datarecord_info_service,
+        private readonly PaginationHelperService $pagination_helper_service,
+        private readonly PermissionsManagementService $permissions_management_service,
+        private readonly SearchAPIService $search_api_service,
+        private readonly SearchKeyService $search_key_service,
+        private readonly SearchRedirectService $search_redirect_service,
+        private readonly SearchSidebarService $search_sidebar_service,
+        private readonly ODRTabHelperService $tab_helper_service,
+        private readonly ThemeInfoService $theme_info_service,
+        private readonly TrackedPathService $tracked_path_service
+    ) {
+    }
+
     /**
      * TODO
      *
@@ -66,22 +81,22 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
     public function homeAction($search_slug, $search_string, Request $request)
     {
         $html = '';
-        $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
+        $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
             /** @var ODRTabHelperService $odr_tab_service */
-            $odr_tab_service = $this->container->get('odr.tab_helper_service');
+            $odr_tab_service = $this->tab_helper_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
             /** @var SearchSidebarService $search_sidebar_service */
-            $search_sidebar_service = $this->container->get('odr.search_sidebar_service');
+            $search_sidebar_service = $this->search_sidebar_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
             $cookies = $request->cookies;
 
@@ -91,7 +106,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
             // If using Wordpress - check for Wordpress User and Log them in.
-            if($this->container->getParameter('odr_wordpress_integrated')) {
+            if($this->getParameter('odr_wordpress_integrated')) {
                 $odr_wordpress_user = getenv("WORDPRESS_USER");
                 if($odr_wordpress_user) {
                     // print $odr_wordpress_user . ' ';
@@ -200,7 +215,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
 
                     // So, need to clear existing session redirect paths...
                     /** @var TrackedPathService $tracked_path_service */
-                    $tracked_path_service = $this->container->get('odr.tracked_path_service');
+                    $tracked_path_service = $this->tracked_path_service;
                     $tracked_path_service->clearTargetPaths();
 
                     // ...then need to save the user's current URL into their session
@@ -279,8 +294,8 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
 
             // ----------------------------------------
             // Render just the html for the base page and the search page...$this->render() apparently creates a full Response object
-            $site_baseurl = $this->container->getParameter('site_baseurl');
-            $wordpress_site_baseurl = $this->container->getParameter('wordpress_site_baseurl');
+            $site_baseurl = $this->getParameter('site_baseurl');
+            $wordpress_site_baseurl = $this->getParameter('wordpress_site_baseurl');
 
             $html = $this->renderView(
                 '@ODROpenRepositorySearch/Default/index.html.twig',
@@ -359,22 +374,22 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
     public function searchpageAction($search_slug, $search_string, Request $request)
     {
         $html = '';
-        $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
+        $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
             /** @var ODRTabHelperService $odr_tab_service */
-            $odr_tab_service = $this->container->get('odr.tab_helper_service');
+            $odr_tab_service = $this->tab_helper_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
             /** @var SearchSidebarService $search_sidebar_service */
-            $search_sidebar_service = $this->container->get('odr.search_sidebar_service');
+            $search_sidebar_service = $this->search_sidebar_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
             $cookies = $request->cookies;
 
@@ -483,7 +498,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
 
                     // So, need to clear existing session redirect paths...
                     /** @var TrackedPathService $tracked_path_service */
-                    $tracked_path_service = $this->container->get('odr.tracked_path_service');
+                    $tracked_path_service = $this->tracked_path_service;
                     $tracked_path_service->clearTargetPaths();
 
                     // ...then need to save the user's current URL into their session
@@ -564,8 +579,8 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
             // ----------------------------------------
             // Render just the html for the base page and the search page...$this->render() apparently creates a full Response object
             // Wordpress Integrated - use full & body
-            $site_baseurl = $this->container->getParameter('site_baseurl');
-            $wordpress_site_baseurl = $this->container->getParameter('wordpress_site_baseurl');
+            $site_baseurl = $this->getParameter('site_baseurl');
+            $wordpress_site_baseurl = $this->getParameter('wordpress_site_baseurl');
             // print "WP Header: " . $request->wordpress_header; exit();
 
             if ( $is_wordpress_integrated ) {
@@ -693,9 +708,9 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
 
         try {
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
             /** @var SearchRedirectService $search_redirect_service */
-            $search_redirect_service = $this->container->get('odr.search_redirect_service');
+            $search_redirect_service = $this->search_redirect_service;
 
             // Need to reformat to create proper search key and forward internally to view controller
 
@@ -786,14 +801,14 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 //            /** @var SearchAPIService $search_api_service */
-//            $search_api_service = $this->container->get('odr.search_api_service');
+//            $search_api_service = $this->search_api_service;
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
 
             /** @var Router $router */
-            $router = $this->get('router');
+            $router = $this->container->get('router');
 
 
             /** @var DataType $datatype */
@@ -812,7 +827,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
             //  to generate a search key, and thus is vaguely similar
 
             // Convert the POST request into a search key and validate it
-            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
+            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
             $search_key = $search_key_service->convertPOSTtoSearchKey($search_params, $is_wordpress_integrated);
             $search_key_service->validateSearchKey($search_key);
 
@@ -822,7 +837,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
 //            $filtered_search_key = $search_api_service->filterSearchKeyForUser($datatype, $search_key, $user_permissions);
 
             // If the coverted POST request generates a search key that is considered to be too long...
-            if ( strlen($search_key) > intval($this->container->getParameter('search_key_char_limit')) ) {
+            if ( strlen($search_key) > intval($this->getParameter('search_key_char_limit')) ) {
                 // ...then shunt the generated key behind a different uuid
                 $search_key = $search_key_service->handleOversizedSearchKey($search_key);
             }
@@ -845,10 +860,10 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
             $new_url = '';
             if ( $intent === 'searching' ) {
                 // For a search results page, "manually" create the baseurl...
-                $baseurl = 'https:'.$this->container->getParameter('site_baseurl');
+                $baseurl = 'https:'.$this->getParameter('site_baseurl');
                 if ($is_wordpress_integrated)
-                    $baseurl = 'https:'.$this->container->getParameter('wordpress_site_baseurl');
-                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                    $baseurl = 'https:'.$this->getParameter('wordpress_site_baseurl');
+                if ( $this->getParameter('kernel.environment') === 'dev' )
                     $baseurl .= '/app_dev.php';
                 $baseurl .= '/'.$datatype->getSearchSlug();
 
@@ -900,7 +915,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
 
         try {
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
             // Need to reformat to create proper search key and forward internally to view controller
 
             $search_param_elements = preg_split("/\|/",(string) $search_key);
@@ -957,21 +972,21 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
             $em = $this->getDoctrine()->getManager();
 
             /** @var ODRTabHelperService $odr_tab_service */
-            $odr_tab_service = $this->container->get('odr.tab_helper_service');
+            $odr_tab_service = $this->tab_helper_service;
             /** @var PaginationHelperService $pagination_helper_service */
-            $pagination_helper_service = $this->container->get('odr.pagination_helper_service');
+            $pagination_helper_service = $this->pagination_helper_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
             /** @var SearchRedirectService $search_redirect_service */
-            $search_redirect_service = $this->container->get('odr.search_redirect_service');
+            $search_redirect_service = $this->search_redirect_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
 
             /** @var ODRCustomController $odrcc */
-            $odrcc = $this->get('odr_custom_controller');
+            $odrcc = $this->container->get('odr_custom_controller');
             $odrcc->setContainer($this->container);
 
 
@@ -1121,7 +1136,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
             $em = $this->getDoctrine()->getManager();
 
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
@@ -1190,15 +1205,15 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatarecordInfoService $datarecord_info_service */
-            $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
+            $datarecord_info_service = $this->datarecord_info_service;
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SearchAPIService $search_api_service */
-            $search_api_service = $this->container->get('odr.search_api_service');
+            $search_api_service = $this->search_api_service;
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
 
 
             /** @var DataType $datatype */
@@ -1220,7 +1235,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
             }
 
             // Need to unescape these values if they're coming from a wordpress install...
-            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
+            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
             if ( $is_wordpress_integrated ) {
                 foreach ($search_params as $key => $value)
                     $search_params[$key] = stripslashes((string) $value);

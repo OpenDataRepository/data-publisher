@@ -28,6 +28,11 @@ use Symfony\Component\HttpFoundation\Request;
 class SearchCacheController extends \Symfony\Bundle\FrameworkBundle\Controller\AbstractController
 {
 
+    public function __construct(
+        private readonly SearchKeyService $search_key_service
+    ) {
+    }
+
     /**
      * Pre-caches records so search is faster
      *
@@ -36,7 +41,7 @@ class SearchCacheController extends \Symfony\Bundle\FrameworkBundle\Controller\A
     {
         // ----------------------------------------
         // Grab necessary stuff for pheanstalk...
-        $pheanstalk = $this->get('pheanstalk');
+        $pheanstalk = $this->container->get('pheanstalk');
 
         // print $site_baseurl;exit();
         // Get Datatype
@@ -68,7 +73,7 @@ class SearchCacheController extends \Symfony\Bundle\FrameworkBundle\Controller\A
             $search_params = ["dt_id" => $datatype_id];
 
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
             $search_key = $search_key_service->encodeSearchKey($search_params);
 
             // var url = '{{ path('odr_search_render', { 'search_theme_id': search_theme_id, 'search_key': search_key, 'offset': '1' } ) }}';
@@ -86,9 +91,9 @@ class SearchCacheController extends \Symfony\Bundle\FrameworkBundle\Controller\A
             );
 
             // If wordpress integrated
-            $site_baseurl = $this->container->getParameter('site_baseurl');
-            if($this->container->getParameter('odr_wordpress_integrated')) {
-                $site_baseurl = $this->container->getParameter('wordpress_site_baseurl');
+            $site_baseurl = $this->getParameter('site_baseurl');
+            if($this->getParameter('odr_wordpress_integrated')) {
+                $site_baseurl = $this->getParameter('wordpress_site_baseurl');
             }
 
             $url = $site_baseurl . '/' . $datatype->getSearchSlug() . "#" . $url;
