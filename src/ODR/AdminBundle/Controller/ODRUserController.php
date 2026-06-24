@@ -24,7 +24,6 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
-use ODR\OpenRepository\OAuthClientBundle\Entity\UserLink;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
@@ -34,7 +33,6 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Form\ODRAdminChangePasswordForm;
 use ODR\AdminBundle\Form\ODRUserProfileForm;
 // OAuth
-use HWI\Bundle\OAuthBundle\Security\OAuthUtils;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
@@ -370,27 +368,9 @@ class ODRUserController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Store whether any OAuth providers have been configured
+            // OAuth client (HWIOAuthBundle, GitHub/Google login) removed in the Symfony 5 upgrade -- was unused
             $connected_oauth_resources = [];
             $has_oauth_providers = false;
-
-            // Users should only be able to see their own connected OAuth accounts, not those belonging to somebody else
-            if ( $self_edit && $this->has('hwi_oauth.security.oauth_utils') ) {
-                /** @var OAuthUtils $oauth_utils */
-                $oauth_utils = $this->container->get('hwi_oauth.security.oauth_utils');
-                $resource_owners = $oauth_utils->getResourceOwners();
-
-                if (count($resource_owners) > 0) {
-                    $has_oauth_providers = true;
-
-                    // Attempt to figure out which OAuth providers the user is already connected to
-                    foreach ($user->getUserLink() as $ul) {
-                        /** @var UserLink $ul */
-                        if ($ul->getProviderName() !== null && $ul->getProviderId() !== null)
-                            $connected_oauth_resources[] = $ul->getProviderName();
-                    }
-                }
-            }
 
 
             // ----------------------------------------
@@ -491,27 +471,9 @@ class ODRUserController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Store whether any OAuth providers have been configured
+            // OAuth client (HWIOAuthBundle, GitHub/Google login) removed in the Symfony 5 upgrade -- was unused
             $connected_oauth_resources = [];
             $has_oauth_providers = false;
-
-            // Users should only be able to see their own connected OAuth accounts, not those belonging to somebody else
-            if ( $self_edit && $this->has('hwi_oauth.security.oauth_utils') ) {
-                /** @var OAuthUtils $oauth_utils */
-                $oauth_utils = $this->container->get('hwi_oauth.security.oauth_utils');
-                $resource_owners = $oauth_utils->getResourceOwners();
-
-                if (count($resource_owners) > 0) {
-                    $has_oauth_providers = true;
-
-                    // Attempt to figure out which OAuth providers the user is already connected to
-                    foreach ($target_user->getUserLink() as $ul) {
-                        /** @var UserLink $ul */
-                        if ($ul->getProviderName() !== null && $ul->getProviderId() !== null)
-                            $connected_oauth_resources[] = $ul->getProviderName();
-                    }
-                }
-            }
 
 
             // ----------------------------------------

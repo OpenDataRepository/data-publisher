@@ -24,7 +24,6 @@ class AppKernel extends Kernel
             new drymek\PheanstalkBundle\drymekPheanstalkBundle(),
             new dterranova\Bundle\CryptoBundle\dterranovaCryptoBundle(),
             new FOS\UserBundle\FOSUserBundle(),
-            new HWI\Bundle\OAuthBundle\HWIOAuthBundle(),
             new Knp\Bundle\MarkdownBundle\KnpMarkdownBundle(),
             new Snc\RedisBundle\SncRedisBundle(),
 
@@ -34,7 +33,6 @@ class AppKernel extends Kernel
             new ODR\OpenRepository\ApiBundle\ODROpenRepositoryApiBundle(),
             new ODR\OpenRepository\GraphBundle\ODROpenRepositoryGraphBundle(),
             new ODR\OpenRepository\JupyterhubBridgeBundle\ODROpenRepositoryJupyterhubBridgeBundle(),
-            new ODR\OpenRepository\OAuthClientBundle\ODROpenRepositoryOAuthClientBundle(),
             new ODR\OpenRepository\SearchBundle\ODROpenRepositorySearchBundle(),
             new ODR\OpenRepository\UserBundle\ODROpenRepositoryUserBundle(),
         );

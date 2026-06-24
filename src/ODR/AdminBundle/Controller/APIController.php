@@ -88,7 +88,6 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use FOS\UserBundle\Doctrine\UserManager;
-use HWI\Bundle\OAuthBundle\Tests\Fixtures\FOSUser;
 use Symfony\Bridge\Monolog\Logger;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;

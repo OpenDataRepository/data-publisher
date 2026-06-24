@@ -13,7 +13,6 @@
 
 namespace ODR\AdminBundle\Command;
 
-use HWI\Bundle\OAuthBundle\Tests\Fixtures\FOSUser;
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\CloneMasterDatatypeService;
 use ODR\AdminBundle\Component\Service\DatarecordExportService;

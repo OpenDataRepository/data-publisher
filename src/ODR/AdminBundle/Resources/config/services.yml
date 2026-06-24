@@ -76,7 +76,6 @@ services:
                 fos_user.user_manager: '@fos_user.user_manager'
                 fos_user.util.token_generator: '@fos_user.util.token_generator'
                 snc_redis.default: '@snc_redis.default'
-                hwi_oauth.security.oauth_utils: '@hwi_oauth.security.oauth_utils'
                 # odr.* service with a dotted id kept on the locator (only a few call sites)
                 odr.jupyterhub_bridge.username_service: '@odr.jupyterhub_bridge.username_service'
                 # used by the direct-AbstractController controllers (SearchBundle)
@@ -144,14 +143,6 @@ services:
             - [setContainer, ['@odr.controller_locator']]
         tags: ['controller.service_arguments']
 
-    # Uses dynamic service ids ($this->container->get('hwi_oauth.resource_owner.'.$name)) that can't
-    # live in a fixed locator, so it gets the full container. (OAuthClientBundle is a Phase 4 removal.)
-    ODR\OpenRepository\OAuthClientBundle\Controller\LinkController:
-        public: true
-        arguments: *odr_base_args
-        calls:
-            - [setContainer, ['@service_container']]
-        tags: ['controller.service_arguments']
 
     ODR\AdminBundle\Controller\LinkController:
         public: true

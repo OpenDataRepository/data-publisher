@@ -40,26 +40,6 @@ fos_user_resetting:
 # ----------------------------------------
 
 # ----------------------------------------
-# HWIOAuthBundle routes
-hwi_oauth_redirect:
-    resource: "@HWIOAuthBundle/Resources/config/routing/redirect.xml"
-    prefix:   /odr/connect
-
-hwi_oauth_connect:
-    resource: "@HWIOAuthBundle/Resources/config/routing/connect.xml"
-    prefix:   /odr/connect
-
-# unused, FOSUserBundle's login files are overridden to include pieces from this bundle
-#hwi_oauth_login:
-#    resource: "@HWIOAuthBundle/Resources/config/routing/login.xml"
-#    prefix:   /login
-
-# Resource file needs to contain the routes listed in app/config/security.yml under  security: -> firewalls: -> main: -> oauth: -> resource_owners:
-odr_open_repository_oauth_client:
-    resource: "@ODROpenRepositoryOAuthClientBundle/Resources/config/routing.yml"
-    prefix:   /odr/
-
-# ----------------------------------------
 # ODR routes
 odr_open_repository_graph:
     resource: "@ODROpenRepositoryGraphBundle/Resources/config/routing.yml"

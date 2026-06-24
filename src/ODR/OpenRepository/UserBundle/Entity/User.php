@@ -38,7 +38,6 @@ class User extends BaseUser
         parent::__construct();
 
         $this->userGroups = new \Doctrine\Common\Collections\ArrayCollection();
-        $this->userLink = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -311,46 +310,4 @@ class User extends BaseUser
     }
 
 
-    // -------------------- OAuth Client --------------------
-    /**
-     * @var \ODR\OpenRepository\OAuthClientBundle\Entity\UserLink
-     *
-     * @ORM\OneToMany(targetEntity="\ODR\OpenRepository\OAuthClientBundle\Entity\UserLink", mappedBy="user")
-     * @ORM\JoinTable(name="fos_user_link_oauth")
-     */
-    private $userLink;
-
-    /**
-     * Get UserLink
-     *
-     * @return \Doctrine\Common\Collections\Collection
-     */
-    public function getUserLink()
-    {
-        return $this->userLink;
-    }
-
-    /**
-     * Add userLink
-     *
-     * @param \ODR\OpenRepository\OAuthClientBundle\Entity\UserLink $userLink
-     *
-     * @return User
-     */
-    public function addUserLink(\ODR\OpenRepository\OAuthClientBundle\Entity\UserLink $userLink)
-    {
-        $this->userLink[] = $userLink;
-
-        return $this;
-    }
-
-    /**
-     * Remove userLink
-     *
-     * @param \ODR\OpenRepository\OAuthClientBundle\Entity\UserLink $userLink
-     */
-    public function removeUserLink(\ODR\OpenRepository\OAuthClientBundle\Entity\UserLink $userLink)
-    {
-        $this->userLink->removeElement($userLink);
-    }
 }

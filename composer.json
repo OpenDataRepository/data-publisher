@@ -23,7 +23,6 @@
         "snc/redis-bundle": "^3.0",
         "ramsey/uuid": "^3.9",
         "neitanod/forceutf8": "^2.0",
-        "hwi/oauth-bundle": "^1.0",
         "php-http/guzzle6-adapter": "^2.0",
         "php-http/httplug-bundle": "^1.18",
         "friendsofsymfony/user-bundle": "^2.1",

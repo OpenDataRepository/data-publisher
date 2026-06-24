@@ -51,13 +51,6 @@
                             {% block fos_user_content %}
                             {% endblock fos_user_content %}
                         </div>
-
-                        {# only display the oauth provider list on the actual login page #}
-                        {% if render_type is defined and render_type == 'login' %}
-                        <div class="ODROAuthProviderList">
-                            {% include "@ODROpenRepositoryOAuthClient/Connect/login.html.twig" %}
-                        </div>
-                        {% endif %}
                     </div>
                 </div>
             </div>
