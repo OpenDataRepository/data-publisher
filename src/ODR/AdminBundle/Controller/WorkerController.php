@@ -265,7 +265,7 @@ class WorkerController extends ODRCustomController
                 // This query should do nothing, but make sure that the destination table doesn't
                 //  have any undeleted entries for this datafield
                 $delete_dest_query = 'UPDATE '.$table_map[$new_typeclass].' SET deletedAt = NOW() WHERE data_field_id = '.$datafield->getId().' AND deletedAt IS NULL';
-                $rows = $conn->executeUpdate($delete_dest_query);
+                $rows = $conn->executeStatement($delete_dest_query);
 
                 if ( $rows > 0 )
                     $logger->warning('WorkerController::migrateAction() tracked_job '.$tracked_job_id.': deleted '.$rows.' of data for datafield '.$datafield->getId().' from the "'.$new_typeclass.'" table...should have been 0.');
@@ -465,7 +465,7 @@ class WorkerController extends ODRCustomController
                     $final_query = $insert_query.$select_query.$remaining_query;
                     $logger->debug('WorkerController::migrateAction() tracked_job '.$tracked_job_id.': '.$final_query);
 
-                    $rows = $conn->executeUpdate($final_query);
+                    $rows = $conn->executeStatement($final_query);
                     $logger->info('WorkerController::migrateAction() tracked_job '.$tracked_job_id.': copied '.$rows.' rows of data from "'.$old_typeclass.'" to "'.$new_typeclass.'" for datafield '.$datafield->getId());
                 }
                 else {
@@ -480,7 +480,7 @@ class WorkerController extends ODRCustomController
                             $final_query = str_replace("\\", "\\\\", $final_query);
                         $logger->debug('WorkerController::migrateAction() tracked_job '.$tracked_job_id.': '.$final_query);
 
-                        $rows = $conn->executeUpdate($final_query);
+                        $rows = $conn->executeStatement($final_query);
                         $logger->info('WorkerController::migrateAction() tracked_job '.$tracked_job_id.': copied '.$rows.' rows of data from "'.$old_typeclass.'" to "'.$new_typeclass.'" for datafield '.$datafield->getId());
                     }
                 }
@@ -490,7 +490,7 @@ class WorkerController extends ODRCustomController
                 // Now that the values have been moved, soft-delete the entries in the source
                 //  table
                 $delete_src_query = 'UPDATE '.$table_map[$old_typeclass].' SET deletedAt = NOW() WHERE data_field_id = '.$datafield->getId().' AND deletedAt IS NULL';
-                $rows = $conn->executeUpdate($delete_src_query);
+                $rows = $conn->executeStatement($delete_src_query);
 
                 $logger->debug('WorkerController::migrateAction() tracked_job '.$tracked_job_id.': deleted '.$rows.' rows of data for datafield '.$datafield->getId().' from the "'.$old_typeclass.'" table');
 
@@ -1201,7 +1201,7 @@ $ret .= '  Set current to '.$count."\n";
                         $delete_query = 'DELETE FROM '.$table.' WHERE id IN ('.implode(',', $slice).');';
                         $offset += $length;
 
-                        $rows = $conn->executeUpdate($delete_query);
+                        $rows = $conn->executeStatement($delete_query);
                         $logger->debug('WorkerController::storageentitycleanupAction(): deleted '.$rows.' rows from "'.$table.'" for datafield '.$datafield_id);
                     }
                     else {

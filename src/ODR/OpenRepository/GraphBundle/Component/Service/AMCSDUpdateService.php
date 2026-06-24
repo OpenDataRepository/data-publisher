@@ -280,7 +280,7 @@ class AMCSDUpdateService
             LEFT JOIN odr_data_type_meta dtm ON dtm.data_type_id = dt.id
             WHERE dtm.short_name = "AMCSD"
             AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL';
-        $results = $conn->fetchAll($query);
+        $results = $conn->fetchAllAssociative($query);
 
         $dt_id = 0;
         foreach ($results as $result)
@@ -298,7 +298,7 @@ class AMCSDUpdateService
             WHERE rp.plugin_class_name = "odr_plugins.rruff.amcsd" AND rpi.data_type_id = '.$dt_id.'
             AND rp.deletedAt IS NULL AND rpf.deletedAt IS NULL
             AND rpi.deletedAt IS NULL AND rpm.deletedAt IS NULL';
-        $results = $conn->fetchAll($query);
+        $results = $conn->fetchAllAssociative($query);
 
         $database_code_df_id = $amc_df_id = $cif_df_id = $dif_df_id = 0;
         foreach ($results as $result) {
@@ -338,7 +338,7 @@ class AMCSDUpdateService
             WHERE dr.data_type_id = '.$dt_id.' AND sv.data_field_id = '.$database_code_df_id.'
             AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
             AND sv.deletedAt IS NULL';
-        $results = $conn->fetchAll($query);
+        $results = $conn->fetchAllAssociative($query);
 
         foreach ($results as $result) {
             $dr_id = $result['dr_id'];
@@ -374,9 +374,9 @@ class AMCSDUpdateService
                 $query_2 = 'UPDATE odr_data_record_meta drm SET deletedAt = NOW() WHERE drm.data_record_id = '.$dr_id;
                 $query_3 = 'UPDATE odr_data_record_fields drf SET deletedAt = NOW() WHERE drf.data_record_id = '.$dr_id;
 
-                $conn->executeUpdate($query_1);
-                $conn->executeUpdate($query_2);
-                $conn->executeUpdate($query_3);
+                $conn->executeStatement($query_1);
+                $conn->executeStatement($query_2);
+                $conn->executeStatement($query_3);
 
                 unset( $database_codes[$dr_id] );
                 $this->logger->debug('deleting duplicate datarecord '.$dr_id);
@@ -395,7 +395,7 @@ class AMCSDUpdateService
             WHERE dr.data_type_id = '.$dt_id.' AND amc_file.data_field_id = '.$amc_df_id.'
             AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
             AND amc_file.deletedAt IS NULL';
-        $results = $conn->fetchAll($query);
+        $results = $conn->fetchAllAssociative($query);
 
         foreach ($results as $result) {
             $dr_id = $result['dr_id'];
@@ -411,7 +411,7 @@ class AMCSDUpdateService
             WHERE dr.data_type_id = '.$dt_id.' AND cif_file.data_field_id = '.$cif_df_id.'
             AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
             AND cif_file.deletedAt IS NULL';
-        $results = $conn->fetchAll($query);
+        $results = $conn->fetchAllAssociative($query);
 
         foreach ($results as $result) {
             $dr_id = $result['dr_id'];
@@ -427,7 +427,7 @@ class AMCSDUpdateService
             WHERE dr.data_type_id = '.$dt_id.' AND dif_file.data_field_id = '.$dif_df_id.'
             AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
             AND dif_file.deletedAt IS NULL';
-        $results = $conn->fetchAll($query);
+        $results = $conn->fetchAllAssociative($query);
 
         foreach ($results as $result) {
             $dr_id = $result['dr_id'];
@@ -633,7 +633,7 @@ class AMCSDUpdateService
             LEFT JOIN odr_data_type_meta dtm ON dtm.data_type_id = dt.id
             WHERE dtm.short_name = "RRUFF References"
             AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL';
-        $results = $conn->fetchAll($query);
+        $results = $conn->fetchAllAssociative($query);
 
         $dt_id = 0;
         foreach ($results as $result)
@@ -651,7 +651,7 @@ class AMCSDUpdateService
             WHERE rp.plugin_class_name = "odr_plugins.rruff.rruff_references" AND rpi.data_type_id = '.$dt_id.'
             AND rp.deletedAt IS NULL AND rpf.deletedAt IS NULL
             AND rpi.deletedAt IS NULL AND rpm.deletedAt IS NULL';
-        $results = $conn->fetchAll($query);
+        $results = $conn->fetchAllAssociative($query);
 
         $ref_id_df_id = $authors_df_id = $article_title_df_id = $journal_df_id = $year_df_id = $month_df_id = $volume_df_id = $pages_df_id = 0;
         foreach ($results as $result) {
@@ -693,7 +693,7 @@ class AMCSDUpdateService
             LEFT JOIN odr_data_fields df ON e.data_field_id = df.id
             WHERE df.data_type_id = '.$dt_id.'
             LIMIT 0,1';
-        $results = $conn->fetchAll($query);
+        $results = $conn->fetchAllAssociative($query);
 
         $needs_review_df_id = 0;
         foreach ($results as $result)
@@ -1060,7 +1060,7 @@ class AMCSDUpdateService
             WHERE dr.id IN ('.implode(',', $reference_links).') AND drf.data_field_id = '.$reference_info['ref_id_df_id'].'
             AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
             AND e.deletedAt IS NULL';
-        $results = $conn->fetchAll($query);
+        $results = $conn->fetchAllAssociative($query);
 
         $ref_id_mapping = [];
         foreach ($results as $result) {

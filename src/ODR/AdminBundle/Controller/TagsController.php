@@ -1389,7 +1389,7 @@ class TagsController extends ODRCustomController
                 AND t.deletedAt IS NULL AND tm.deletedAt IS NULL';
             $parameters = [1 => $tags_to_delete];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
             // Delete the tag tree entries
             $query_str =
@@ -1398,7 +1398,7 @@ class TagsController extends ODRCustomController
                 WHERE tt.id IN (?)';
             $parameters = [1 => $tag_trees_to_delete];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
             // Delete the tag selection entries
             $query_str =
@@ -1407,7 +1407,7 @@ class TagsController extends ODRCustomController
                 WHERE ts.id IN (?)';
             $parameters = [1 => $tag_selections_to_delete];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
             // No error encountered, commit changes
             $conn->commit();

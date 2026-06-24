@@ -2483,7 +2483,7 @@ class DisplayController extends ODRCustomController
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
 
             $conn = $em->getConnection();
-            $results = $conn->fetchAll($query, $parameters, $types);
+            $results = $conn->fetchAllAssociative($query, $parameters, $types);
 
             $datatype_id = null;
             $dr_arrays = [];

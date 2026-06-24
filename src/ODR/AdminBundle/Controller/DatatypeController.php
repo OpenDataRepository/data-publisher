@@ -629,7 +629,7 @@ class DatatypeController extends ODRCustomController
                     }
 
                     $result = $conn->executeQuery($query_str);
-                    $results = $result->fetchAll();
+                    $results = $result->fetchAllAssociative();
 
                     $num = $results[0]['dr_count'];
                     $total_created += $num;
@@ -657,7 +657,7 @@ class DatatypeController extends ODRCustomController
                     }
 
                     $result = $conn->executeQuery($query_str);
-                    $results = $result->fetchAll();
+                    $results = $result->fetchAllAssociative();
 
                     $num = $results[0]['dr_count'];
                     $total_updated += $num;

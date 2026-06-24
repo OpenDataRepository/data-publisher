@@ -658,7 +658,7 @@ class SearchAPIServiceNoConflict
             ['record_ids' => $found_record_ids],
             ['record_ids' => \Doctrine\DBAL\Connection::PARAM_INT_ARRAY]
         );
-        $result = $stmt->fetchAll();
+        $result = $stmt->fetchAllAssociative();
         // var_dump($result);exit();
 
         $possible_records = [];

@@ -131,7 +131,7 @@ class SearchCacheService implements EventSubscriberInterface
 
         $parameters = [1 => $datatype_ids];
         $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-        $results = $conn->fetchAll($query, $parameters, $types);
+        $results = $conn->fetchAllAssociative($query, $parameters, $types);
 
         if ( is_array($results) ) {
             foreach ($results as $result) {
@@ -173,7 +173,7 @@ class SearchCacheService implements EventSubscriberInterface
 
         $parameters = [1 => $datatype_ids];
         $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-        $results = $conn->fetchAll($query, $parameters, $types);
+        $results = $conn->fetchAllAssociative($query, $parameters, $types);
 
         if ( is_array($results) ) {
             foreach ($results as $result) {
@@ -211,7 +211,7 @@ class SearchCacheService implements EventSubscriberInterface
 
         $parameters = [1 => $datatype_ids];
         $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-        $results = $conn->fetchAll($query, $parameters, $types);
+        $results = $conn->fetchAllAssociative($query, $parameters, $types);
 
         if ( is_array($results) ) {
             foreach ($results as $result) {
@@ -248,7 +248,7 @@ class SearchCacheService implements EventSubscriberInterface
 
         $parameters = [1 => $datafield_ids];
         $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-        $results = $conn->fetchAll($query, $parameters, $types);
+        $results = $conn->fetchAllAssociative($query, $parameters, $types);
 
         if ( is_array($results) ) {
             foreach ($results as $result) {
@@ -285,7 +285,7 @@ class SearchCacheService implements EventSubscriberInterface
 
         $parameters = [1 => $datafield_ids];
         $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-        $results = $conn->fetchAll($query, $parameters, $types);
+        $results = $conn->fetchAllAssociative($query, $parameters, $types);
 
         if ( is_array($results) ) {
             foreach ($results as $result) {
@@ -385,7 +385,7 @@ class SearchCacheService implements EventSubscriberInterface
             LEFT JOIN odr_data_type AS grandparent ON o_dt.grandparent_id = grandparent.id
             LEFT JOIN odr_data_type as dt ON dt.grandparent_id = grandparent.id
             WHERE o_dt.id = '.$datatype_id;
-        $results = $conn->fetchAll($query);
+        $results = $conn->fetchAllAssociative($query);
 
         $grandparent_datatype_id = null;
         $tmp_datatree_array = [];
@@ -472,7 +472,7 @@ class SearchCacheService implements EventSubscriberInterface
             LEFT JOIN odr_data_type AS grandparent ON dt.grandparent_id = grandparent.id
             LEFT JOIN odr_data_type AS mdt ON grandparent.master_datatype_id = mdt.id
             WHERE dt.id = '.$datatype_id;
-        $results = $conn->fetchAll($query);
+        $results = $conn->fetchAllAssociative($query);
 
         $template_datatype_id = null;
         foreach ($results as $result) {
@@ -501,7 +501,7 @@ class SearchCacheService implements EventSubscriberInterface
                'SELECT mdt.id AS mdt_id, mdt.unique_id AS mdt_uuid
                 FROM odr_data_type AS mdt
                 WHERE mdt.grandparent_id = '.$template_datatype_id;
-            $results = $conn->fetchAll($query);
+            $results = $conn->fetchAllAssociative($query);
 
             if ( is_array($results) ) {
                 foreach ($results as $result) {
@@ -676,7 +676,7 @@ class SearchCacheService implements EventSubscriberInterface
                 LEFT JOIN odr_field_type ft ON dfm.field_type_id = ft.id
                 LEFT JOIN odr_data_fields mdf ON df.master_datafield_id = mdf.id
                 WHERE df.id = '.$datafield_id;
-            $results = $conn->fetchAll($query);
+            $results = $conn->fetchAllAssociative($query);
 
             // Unfortunately, there are likely to be multiple unwanted datafieldMeta entries in here...
             $typeclass = null;

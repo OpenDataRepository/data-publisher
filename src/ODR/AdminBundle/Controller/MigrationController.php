@@ -2059,7 +2059,7 @@ class MigrationController extends ODRCustomController
                 FROM odr_theme t
                 WHERE t.data_type_id IN ('.implode(',', $target_descendant_ids).')
                 AND t.deletedAt IS NULL';
-            $results = $conn->fetchAll($query);    // fetchAll() instead of executeQuery() because the latter only allows one iteration through the results
+            $results = $conn->fetchAllAssociative($query);    // fetchAll() instead of executeQuery() because the latter only allows one iteration through the results
 
             // This needs to happen in three steps though...
             $own_themes = [];

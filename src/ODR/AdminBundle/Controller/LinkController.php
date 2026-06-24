@@ -1923,7 +1923,7 @@ class LinkController extends ODRCustomController
                 WHERE dt.ancestor_id = '.$local_datatype_id.' AND dtm.is_link = 1
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
                 AND ddt.deletedAt IS NULL AND ddtm.deletedAt IS NULL';
-//            $results = $conn->fetchAll($query);    // can debug with this, but might run into memory issues
+//            $results = $conn->fetchAllAssociative($query);    // can debug with this, but might run into memory issues
             $results = $conn->executeQuery($query);
 
             foreach ($results as $result) {
@@ -1953,7 +1953,7 @@ class LinkController extends ODRCustomController
                 WHERE dt.descendant_id = '.$local_datatype_id.' AND dtm.is_link = 1
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
                 AND adt.deletedAt IS NULL AND adtm.deletedAt IS NULL AND gdtm.deletedAt IS NULL';
-//            $results = $conn->fetchAll($query);    // can debug with this, but might run into memory issues
+//            $results = $conn->fetchAllAssociative($query);    // can debug with this, but might run into memory issues
             $results = $conn->executeQuery($query);
 
             foreach ($results as $result) {
@@ -1993,7 +1993,7 @@ class LinkController extends ODRCustomController
                 LEFT JOIN odr_data_record_meta ddrm ON ddrm.data_record_id = ddr.id
                 WHERE ldt.ancestor_id = '.$local_datarecord_id.'
                 AND ldt.deletedAt IS NULL AND ddr.deletedAt IS NULL AND ddrm.deletedAt IS NULL';
-//            $results = $conn->fetchAll($query);    // can debug with this, but might run into memory issues
+//            $results = $conn->fetchAllAssociative($query);    // can debug with this, but might run into memory issues
             $results = $conn->executeQuery($query);
 
             foreach ($results as $result) {
@@ -2027,7 +2027,7 @@ class LinkController extends ODRCustomController
                 AND adr.deletedAt IS NULL AND adrm.deletedAt IS NULL
                 AND pdr.deletedAt IS NULL AND pdrm.deletedAt IS NULL
                 AND gdr.deletedAt IS NULL AND gdrm.deletedAt IS NULL';
-//            $results = $conn->fetchAll($query);    // can debug with this, but might run into memory issues
+//            $results = $conn->fetchAllAssociative($query);    // can debug with this, but might run into memory issues
             $results = $conn->executeQuery($query);
 
             foreach ($results as $result) {

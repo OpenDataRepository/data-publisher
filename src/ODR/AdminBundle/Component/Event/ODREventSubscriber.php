@@ -394,7 +394,7 @@ class ODREventSubscriber implements EventSubscriberInterface
                    'SELECT dr.id AS dr_id, dr.unique_id AS dr_uuid
                     FROM odr_data_record AS dr
                     WHERE dr.data_type_id = '.$datatype_id;
-                $results = $conn->fetchAll($query);
+                $results = $conn->fetchAllAssociative($query);
 
                 foreach ($results as $result) {
                     $dr_id = $result['dr_id'];
@@ -539,7 +539,7 @@ class ODREventSubscriber implements EventSubscriberInterface
                    'SELECT dr.id AS dr_id, dr.unique_id AS dr_uuid
                     FROM odr_data_record AS dr
                     WHERE dr.data_type_id = '.$dt_id;
-                $results = $conn->fetchAll($query);
+                $results = $conn->fetchAllAssociative($query);
 
                 foreach ($results as $result) {
                     $dr_id = $result['dr_id'];
@@ -774,7 +774,7 @@ class ODREventSubscriber implements EventSubscriberInterface
                 $types = [1 => DBALConnection::PARAM_INT_ARRAY];
 
                 $conn = $this->em->getConnection();
-                $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+                $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
             }
 
             // ----------------------------------------
@@ -1020,7 +1020,7 @@ class ODREventSubscriber implements EventSubscriberInterface
                 $types = [1 => DBALConnection::PARAM_INT_ARRAY];
 
                 $conn = $this->em->getConnection();
-                $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+                $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
             }
 
 
@@ -1432,7 +1432,7 @@ class ODREventSubscriber implements EventSubscriberInterface
                 AND ddr.deletedAt IS NULL AND ldt.deletedAt IS NULL AND adr.deletedAt IS NULL
                 AND adt.deletedAt IS NULL AND dtsf.deletedAt IS NULL';
             $conn = $this->em->getConnection();
-            $results = $conn->fetchAll($query);
+            $results = $conn->fetchAllAssociative($query);
 
             foreach ($results as $result) {
                 $dr_id = $result['grandparent_id'];

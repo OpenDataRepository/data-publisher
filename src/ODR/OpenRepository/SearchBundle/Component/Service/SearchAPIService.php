@@ -2431,7 +2431,7 @@ class SearchAPIService
             AND dtm.deletedAt IS NULL';
         $params = [1 => array_keys($top_level_datatype_ids)];    // Need the datatype ids to be values, not keys
         $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-        $results = $conn->fetchAll($query, $params, $types);
+        $results = $conn->fetchAllAssociative($query, $params, $types);
 
         $ancestor_ids = [];
         $all_datatypes = [];
@@ -2475,7 +2475,7 @@ class SearchAPIService
                 AND descendant.deletedAt IS NULL AND descendant_meta.deletedAt IS NULL';
             $params = [1 => $ancestor_ids];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $results = $conn->fetchAll($query, $params, $types);
+            $results = $conn->fetchAllAssociative($query, $params, $types);
 
             // If the set of ancestor datatypes has no descendants, then there's nothing left to do
             if ( empty($results) )
@@ -2523,7 +2523,7 @@ class SearchAPIService
             AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL';
         $params = [1 => array_keys($all_datatypes)];
         $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-        $results = $conn->fetchAll($query, $params, $types);
+        $results = $conn->fetchAllAssociative($query, $params, $types);
 
         $all_datarecords = [];
         $possible_linked_descendants = [];
@@ -2562,7 +2562,7 @@ class SearchAPIService
             AND descendant.deletedAt IS NULL AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL';
         $params = [1 => array_keys($possible_linked_descendants)];
         $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-        $results = $conn->fetchAll($query, $params, $types);
+        $results = $conn->fetchAllAssociative($query, $params, $types);
 
         $linked_ancestors = [];
         foreach ($results as $result) {

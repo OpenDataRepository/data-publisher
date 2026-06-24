@@ -546,7 +546,7 @@ class RadioOptionsController extends ODRCustomController
                 AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL';
             $parameters = [1 => $radio_options_to_delete];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
             // Delete the RadioSelection entries
             $query_str =
@@ -555,7 +555,7 @@ class RadioOptionsController extends ODRCustomController
                 WHERE rs.id IN (?)';
             $parameters = [1 => $radio_selections_to_delete];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
             // No errors, commit transaction
             $conn->commit();

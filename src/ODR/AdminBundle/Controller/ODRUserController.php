@@ -1202,7 +1202,7 @@ class ODRUserController extends ODRCustomController
                 ];
 
                 $conn = $em->getConnection();
-                $rowsAffected = $conn->executeUpdate($query_str, $parameters);
+                $rowsAffected = $conn->executeStatement($query_str, $parameters);
             }
 
             $user_manager->updateUser($target_user);
@@ -1268,7 +1268,7 @@ class ODRUserController extends ODRCustomController
 //                throw new ODRException('Unable to delete another Super-Admin user');
 
             // Remove user from all the groups they're currently a member of
-            // NOTE - using $em->getConnection()->executeUpdate(...) because
+            // NOTE - using $em->getConnection()->executeStatement(...) because
             //  $em->createQuery(...)->execute() doesn't support multi-table updates
             $query_str =
                'UPDATE odr_user_group AS ug, odr_group AS g
@@ -1281,7 +1281,7 @@ class ODRUserController extends ODRCustomController
             ];
 
             $conn = $em->getConnection();
-            $rowsAffected = $conn->executeUpdate($query_str, $parameters);
+            $rowsAffected = $conn->executeStatement($query_str, $parameters);
 
             // Demote the user to the regular user group
             $target_user->addRole('ROLE_USER');

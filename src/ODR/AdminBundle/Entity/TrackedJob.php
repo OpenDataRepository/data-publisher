@@ -524,7 +524,7 @@ class TrackedJob
             WHERE id = :id';
         $params = ['id' => $this->id];
         $conn = $em->getConnection();
-        $rowsAffected = $conn->executeUpdate($query, $params);
+        $rowsAffected = $conn->executeStatement($query, $params);
 
 
         // Grab what the new value is, so it can be returned
@@ -547,7 +547,7 @@ class TrackedJob
                 WHERE id = :id';
             $params = ['id' => $this->id, 'datetime' => $start_time->format('Y-m-d H:i:s') ];
             $conn = $em->getConnection();
-            $rowsAffected = $conn->executeUpdate($query, $params);
+            $rowsAffected = $conn->executeStatement($query, $params);
         }
 
         return $curr_value;

@@ -2163,7 +2163,7 @@ class PluginsController extends ODRCustomController
             }
 
             $conn = $em->getConnection();
-            $results = $conn->fetchAll($query);
+            $results = $conn->fetchAllAssociative($query);
 
             $return['d'] = [
                 'html' => $templating->render(

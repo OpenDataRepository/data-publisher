@@ -116,7 +116,7 @@ class SearchQueryService
         // ----------------------------------------
         // Execute and return the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAll($query, $search_params['params']);
+        $results = $conn->fetchAllAssociative($query, $search_params['params']);
 
         $datarecords = [];
         foreach ($results as $result)
@@ -168,7 +168,7 @@ class SearchQueryService
         // ----------------------------------------
         // Execute and return the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAll($query, $search_params['params']);
+        $results = $conn->fetchAllAssociative($query, $search_params['params']);
 
         $datarecords = [];
         foreach ($results as $result)
@@ -201,7 +201,7 @@ class SearchQueryService
 
         // Execute the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAll($query, ['datafield_id' => $datafield_id]);
+        $results = $conn->fetchAllAssociative($query, ['datafield_id' => $datafield_id]);
 
         // The results are the datarecords which are selected...
         $selected_datarecords = [];
@@ -249,7 +249,7 @@ class SearchQueryService
 
         // Execute the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAll($query, ['template_df_id' => $datafield_uuid]);
+        $results = $conn->fetchAllAssociative($query, ['template_df_id' => $datafield_uuid]);
 
 
         // Need to use the search result and $all_datarecord_ids to build two arrays...one of
@@ -330,7 +330,7 @@ class SearchQueryService
 
         // Execute the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAll($query, ['radio_option_id' => $radio_option_id]);
+        $results = $conn->fetchAllAssociative($query, ['radio_option_id' => $radio_option_id]);
 
         // The results are the datarecords which are selected...
         $selected_datarecords = [];
@@ -378,7 +378,7 @@ class SearchQueryService
 
         // Execute the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAll($query, ['radio_option_uuid' => $radio_option_uuid]);
+        $results = $conn->fetchAllAssociative($query, ['radio_option_uuid' => $radio_option_uuid]);
 
         // Need to use the search result and $all_datarecord_ids to build two arrays...one of
         //  datarecords that are selected, and another of all datarecords that aren't
@@ -462,7 +462,7 @@ class SearchQueryService
 
         // Execute the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAll($query, ['tag_id' => $tag_id]);
+        $results = $conn->fetchAllAssociative($query, ['tag_id' => $tag_id]);
 
         // The results are the datarecords which are selected...
         $selected_datarecords = [];
@@ -510,7 +510,7 @@ class SearchQueryService
 
         // Execute the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAll($query, ['tag_uuid' => $tag_uuid]);
+        $results = $conn->fetchAllAssociative($query, ['tag_uuid' => $tag_uuid]);
 
         // Need to use the search result and $all_datarecord_ids to build two arrays...one of
         //  datarecords that are selected, and another of all datarecords that aren't
@@ -617,7 +617,7 @@ class SearchQueryService
 
         // Execute the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAll($query, $search_params['params']);
+        $results = $conn->fetchAllAssociative($query, $search_params['params']);
 
         // The results are the datarecords which are selected...
         $datarecords = [];
@@ -676,7 +676,7 @@ class SearchQueryService
 
          // Execute the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAll($query, $search_params['params']);
+        $results = $conn->fetchAllAssociative($query, $search_params['params']);
 
         // Convert the results into an array of datarecord ids
         $datarecords = [];
@@ -734,7 +734,7 @@ class SearchQueryService
 
         // Execute the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAll($query, $search_params['params']);
+        $results = $conn->fetchAllAssociative($query, $search_params['params']);
 
         // The results are the datarecords which are selected...
         $tags = [];
@@ -778,7 +778,7 @@ class SearchQueryService
 
         // Execute the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAll($query, ['mdf_id' => $template_field_id]);
+        $results = $conn->fetchAllAssociative($query, ['mdf_id' => $template_field_id]);
 
         $unselected_datarecords = [];
         foreach ($results as $result) {
@@ -846,7 +846,7 @@ class SearchQueryService
 
         // Execute the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAll($query, $params);
+        $results = $conn->fetchAllAssociative($query, $params);
 
         // Turn the result into useful arrays...
         $labels = [];
@@ -918,7 +918,7 @@ class SearchQueryService
 
         // Execute the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAll($query, $params);
+        $results = $conn->fetchAllAssociative($query, $params);
 
         // Turn the result into useful arrays...
         $labels = [];
@@ -1027,7 +1027,7 @@ class SearchQueryService
                 }
             }
 
-            $results = $conn->fetchAll($query, $search_params['params']);
+            $results = $conn->fetchAllAssociative($query, $search_params['params']);
         }
         else if ( $search_type === 'public_status' ) {
             // Setup params for either type of public search...
@@ -1060,7 +1060,7 @@ class SearchQueryService
             // Don't need a null query...in order for a file to match a search on quality or public
             //  status, it has to exist in the first place
 
-            $results = $conn->fetchAll($public_status_query, $search_params['params']);
+            $results = $conn->fetchAllAssociative($public_status_query, $search_params['params']);
         }
         else if ( $search_type === 'quality' ) {
             // Don't need to modify the stuff for quality
@@ -1085,7 +1085,7 @@ class SearchQueryService
             // Don't need a null query...in order for a file to match a search on quality or public
             //  status, it has to exist in the first place
 
-            $results = $conn->fetchAll($quality_query, $search_params['params']);
+            $results = $conn->fetchAllAssociative($quality_query, $search_params['params']);
         }
 
 
@@ -1186,7 +1186,7 @@ class SearchQueryService
                 }
             }
 
-            $results = $conn->fetchAll($query, $search_params['params']);
+            $results = $conn->fetchAllAssociative($query, $search_params['params']);
         }
         else if ( $search_type === 'public_status' ) {
             // Setup params for either type of public search...
@@ -1220,7 +1220,7 @@ class SearchQueryService
                 AND dr.deletedAt IS NULL AND df.deletedAt IS NULL AND drf.deletedAt IS NULL
                 AND e.deletedAt IS NULL AND e_m.deletedAt IS NULL';
 
-            $results = $conn->fetchAll($public_status_query, $search_params['params']);
+            $results = $conn->fetchAllAssociative($public_status_query, $search_params['params']);
         }
         else if ( $search_type === 'quality' ) {
             // Don't need to modify the stuff for quality
@@ -1246,7 +1246,7 @@ class SearchQueryService
                 AND dr.deletedAt IS NULL AND df.deletedAt IS NULL AND drf.deletedAt IS NULL
                 AND e.deletedAt IS NULL AND e_m.deletedAt IS NULL';
 
-            $results = $conn->fetchAll($quality_query, $search_params['params']);
+            $results = $conn->fetchAllAssociative($quality_query, $search_params['params']);
         }
 
         // Convert the results into an array of datarecord ids
@@ -1314,7 +1314,7 @@ class SearchQueryService
         // ----------------------------------------
         // Execute and return the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAll($query, $search_params['params']);
+        $results = $conn->fetchAllAssociative($query, $search_params['params']);
 
         $datarecords = [];
         foreach ($results as $result)
@@ -1350,7 +1350,7 @@ class SearchQueryService
 
         // Execute the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAll($query, ['datafield_id' => $datafield_id]);
+        $results = $conn->fetchAllAssociative($query, ['datafield_id' => $datafield_id]);
 
         // The results are the datarecords which have a datetime value...
         $datarecords_with_dates = [];
@@ -1411,7 +1411,7 @@ class SearchQueryService
         // ----------------------------------------
         // Execute and return the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAll($query, $search_params['params']);
+        $results = $conn->fetchAllAssociative($query, $search_params['params']);
 
         $datarecords = [];
         foreach ($results as $result) {
@@ -1557,7 +1557,7 @@ class SearchQueryService
 
         // Execute and return the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAll($query, $search_params['params']);
+        $results = $conn->fetchAllAssociative($query, $search_params['params']);
 
         $datarecords = [];
         foreach ($results as $result)
@@ -1703,7 +1703,7 @@ class SearchQueryService
 
         // Execute and return the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAll($query, $search_params['params']);
+        $results = $conn->fetchAllAssociative($query, $search_params['params']);
 
         $datarecords = [];
         foreach ($results as $result)
@@ -1810,7 +1810,7 @@ class SearchQueryService
 
         // Execute and return the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAll($query, $search_params['params']);
+        $results = $conn->fetchAllAssociative($query, $search_params['params']);
 
         $datarecords = [];
         foreach ($results as $result)
@@ -1959,7 +1959,7 @@ class SearchQueryService
             // ODR used to try to typehint the parameters to try to get inequalities to work better,
             //  but that doesn't actually work...the only typehint available converts the value to
             //  an integer, which breaks searching on decimal fields
-            $results[$id] = $conn->fetchAll($queries[$id], $params[$id]['params']);
+            $results[$id] = $conn->fetchAllAssociative($queries[$id], $params[$id]['params']);
         }
 
         // Create an array structure so the matching datarecords can be filtered based on user

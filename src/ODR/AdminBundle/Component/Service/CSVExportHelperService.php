@@ -584,7 +584,7 @@ class CSVExportHelperService
             ];
 
             $conn = $this->em->getConnection();
-            $rowsAffected = $conn->executeUpdate($query, $params);
+            $rowsAffected = $conn->executeStatement($query, $params);
 
             if ( $rowsAffected !== 1 )
                 throw new ODRException('CSVExportHelperService: failure when inserting into odr_tracked_csv_export table');

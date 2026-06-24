@@ -441,7 +441,7 @@ class ValidationController extends ODRCustomController
                      SELECT DISTINCT(dfm.data_field_id)
                      FROM odr_data_fields_meta AS dfm
                  )';
-            $results = $conn->fetchAll($query);
+            $results = $conn->fetchAllAssociative($query);
 
             $missing_datafields = [];
             foreach ($results as $result)
@@ -511,7 +511,7 @@ class ValidationController extends ODRCustomController
                      SELECT DISTINCT(drm.data_record_id)
                      FROM odr_data_record_meta AS drm
                  )';
-            $results = $conn->fetchAll($query);
+            $results = $conn->fetchAllAssociative($query);
 
             $missing_datarecords = [];
             foreach ($results as $result)
@@ -558,7 +558,7 @@ class ValidationController extends ODRCustomController
                      SELECT DISTINCT(dtm.data_tree_id)
                      FROM odr_data_tree_meta AS dtm
                  )';
-            $results = $conn->fetchAll($query);
+            $results = $conn->fetchAllAssociative($query);
 
             $missing_datatrees = [];
             foreach ($results as $result)
@@ -577,7 +577,7 @@ class ValidationController extends ODRCustomController
                      SELECT DISTINCT(dtm.data_type_id)
                      FROM odr_data_type_meta AS dtm
                  )';
-            $results = $conn->fetchAll($query);
+            $results = $conn->fetchAllAssociative($query);
 
             $missing_datatypes = [];
             foreach ($results as $result)
@@ -638,7 +638,7 @@ class ValidationController extends ODRCustomController
                      SELECT DISTINCT(fm.file_id)
                      FROM odr_file_meta AS fm
                  )';
-            $results = $conn->fetchAll($query);
+            $results = $conn->fetchAllAssociative($query);
 
             $missing_files = [];
             foreach ($results as $result)
@@ -686,7 +686,7 @@ class ValidationController extends ODRCustomController
                      SELECT DISTINCT(im.image_id)
                      FROM odr_image_meta AS im
                  )';
-            $results = $conn->fetchAll($query);
+            $results = $conn->fetchAllAssociative($query);
 
             $missing_images = [];
             foreach ($results as $result)
@@ -736,7 +736,7 @@ class ValidationController extends ODRCustomController
                      SELECT DISTINCT(rom.radio_option_id)
                      FROM odr_radio_options_meta AS rom
                  )';
-            $results = $conn->fetchAll($query);
+            $results = $conn->fetchAllAssociative($query);
 
             $missing_radio_options = [];
             foreach ($results as $result)
@@ -780,7 +780,7 @@ class ValidationController extends ODRCustomController
                      SELECT DISTINCT(slm.sidebar_layout_id)
                      FROM odr_sidebar_layout_meta AS slm
                  )';
-            $results = $conn->fetchAll($query);
+            $results = $conn->fetchAllAssociative($query);
 
             $missing_sidebar_layouts = [];
             foreach ($results as $result)
@@ -824,7 +824,7 @@ class ValidationController extends ODRCustomController
                      SELECT DISTINCT(tm.theme_id)
                      FROM odr_theme_meta AS tm
                  )';
-            $results = $conn->fetchAll($query);
+            $results = $conn->fetchAllAssociative($query);
 
             $missing_themes = [];
             foreach ($results as $result)
@@ -874,7 +874,7 @@ class ValidationController extends ODRCustomController
                      SELECT DISTINCT(tem.theme_element_id)
                      FROM odr_theme_element_meta AS tem
                  )';
-            $results = $conn->fetchAll($query);
+            $results = $conn->fetchAllAssociative($query);
 
             $missing_theme_elements = [];
             foreach ($results as $result)
@@ -1221,7 +1221,7 @@ class ValidationController extends ODRCustomController
                 FROM odr_data_type_special_fields dtsf
                 LEFT JOIN odr_data_fields df ON dtsf.data_field_id = df.id
                 WHERE dtsf.deletedAt IS NULL';
-            $results = $conn->fetchAll($query);
+            $results = $conn->fetchAllAssociative($query);
 
             print '<pre>';
 
@@ -1639,7 +1639,7 @@ class ValidationController extends ODRCustomController
                 FROM odr_data_type dt
                 LEFT JOIN odr_theme t ON (t.data_type_id = dt.id AND t.deletedAt IS NULL)
                 WHERE dt.deletedAt IS NULL';
-            $results = $conn->fetchAll($query);
+            $results = $conn->fetchAllAssociative($query);
 
             $dt_ids = [];
             foreach ($results as $result) {
@@ -2160,7 +2160,7 @@ class ValidationController extends ODRCustomController
                 LEFT JOIN odr_data_fields rpi_df ON rpi.data_field_id = rpi_df.id';
             // Don't really care that this gets deleted entries
 
-            $results = $conn->fetchAll($query);
+            $results = $conn->fetchAllAssociative($query);
 //            exit('<pre>'.print_r($results, true).'</pre>');
 
             $invalid_datatype_plugins = [];
@@ -2258,7 +2258,7 @@ class ValidationController extends ODRCustomController
                 JOIN odr_theme_data_type tdt ON tdt.theme_element_id = te.id
                 WHERE t.deletedAt IS NULL AND te.deletedAt IS NULL AND tdt.deletedAt IS NULL';
 
-            $results = $conn->fetchAll($query);
+            $results = $conn->fetchAllAssociative($query);
 //            exit('<pre>'.print_r($results, true).'</pre>');
 
             $dt_map = [];
@@ -2346,7 +2346,7 @@ class ValidationController extends ODRCustomController
                     FROM '.$table_name.' e
                     WHERE e.deletedAt IS NULL';
                 // Do NOT want to exclude deleted rows
-                $results = $conn->fetchAll($query);
+                $results = $conn->fetchAllAssociative($query);
 
                 $duplicates = [];
                 $tmp = [];
@@ -2416,7 +2416,7 @@ class ValidationController extends ODRCustomController
                     LEFT JOIN odr_data_fields df ON e.data_fields_id = df.id
                     WHERE df.master_datafield_id IS NULL';
                 // Do NOT want to exclude deleted rows
-                $results = $conn->fetchAll($query);
+                $results = $conn->fetchAllAssociative($query);
 
                 $duplicates = [];
                 $tmp = [];
@@ -2517,7 +2517,7 @@ class ValidationController extends ODRCustomController
                 WHERE df.master_datafield_id = mdf.id
                 AND df.master_datafield_id IS NOT NULL AND df.template_field_uuid IS NULL
                 AND df.deletedAt IS NULL AND mdf.deletedAt IS NULL';
-            $rows = $conn->executeUpdate($sql);
+            $rows = $conn->executeStatement($sql);
             print 'updated '.$rows.' rows';
             print '</pre>';
 
@@ -3221,7 +3221,7 @@ class ValidationController extends ODRCustomController
                  WHERE dt.id IN (?) AND dt.id = dt.grandparent_id';
             $parameters = [1 => $initial_datatype_ids];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $results = $conn->fetchAll($query, $parameters, $types);
+            $results = $conn->fetchAllAssociative($query, $parameters, $types);
 
             $grandparent_datatype_ids = [];
             foreach ($results as $result)
@@ -3240,7 +3240,7 @@ class ValidationController extends ODRCustomController
                         WHERE dt.grandparent_id IN (?) OR dt.metadata_for_id IN (?)';
                     $parameters = [ 1 => $new_datatype_ids, 2 => $new_datatype_ids ];
                     $types = [ 1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY ];
-                    $results = $conn->fetchAll($query, $parameters, $types);
+                    $results = $conn->fetchAllAssociative($query, $parameters, $types);
 
                     $new_datatype_ids = [];
                     foreach ($results as $result) {
@@ -3261,7 +3261,7 @@ class ValidationController extends ODRCustomController
                  WHERE (dt.ancestor_id IN (?) OR dt.descendant_id IN (?))';
             $parameters = [1 => $datatype_ids, 2 => $datatype_ids];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY];
-            $results = $conn->fetchAll($query_str, $parameters, $types);
+            $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $datatree_ids = [];
             foreach ($results as $result)
                 $datatree_ids[] = $result['dt_id'];
@@ -3274,7 +3274,7 @@ class ValidationController extends ODRCustomController
                  WHERE df.data_type_id IN (?)';
             $parameters = [1 => $datatype_ids];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $results = $conn->fetchAll($query_str, $parameters, $types);
+            $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $datafield_ids = [];
             foreach ($results as $result)
                 $datafield_ids[] = $result['df_id'];
@@ -3287,7 +3287,7 @@ class ValidationController extends ODRCustomController
                 WHERE dtsf.data_type_id IN (?) OR dtsf.data_field_id IN (?)';
             $parameters = [1 => $datatype_ids, 2 => $datafield_ids];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY];
-            $results = $conn->fetchAll($query_str, $parameters, $types);
+            $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $dtsf_ids = [];
             foreach ($results as $result)
                 $dtsf_ids[] = $result['dtsf_id'];
@@ -3300,7 +3300,7 @@ class ValidationController extends ODRCustomController
                  WHERE t.data_type_id IN (?)';
             $parameters = [1 => $datatype_ids];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $results = $conn->fetchAll($query_str, $parameters, $types);
+            $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $theme_ids = [];
             foreach ($results as $result)
                 $theme_ids[] = $result['t_id'];
@@ -3312,7 +3312,7 @@ class ValidationController extends ODRCustomController
                  WHERE t.parent_theme_id IN (?) OR t.source_theme_id IN (?)';
             $parameters = [1 => $theme_ids, 2 => $theme_ids];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY];
-            $results = $conn->fetchAll($query_str, $parameters, $types);
+            $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             foreach ($results as $result)
                 $theme_ids[] = $result['t_id'];
             $theme_ids = array_unique($theme_ids);
@@ -3325,7 +3325,7 @@ class ValidationController extends ODRCustomController
                  WHERE te.theme_id IN (?)';
             $parameters = [1 => $theme_ids];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $results = $conn->fetchAll($query_str, $parameters, $types);
+            $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $theme_element_ids = [];
             foreach ($results as $result)
                 $theme_element_ids[] = $result['te_id'];
@@ -3338,7 +3338,7 @@ class ValidationController extends ODRCustomController
                  WHERE (rpi.data_type_id IN (?) OR rpi.data_field_id IN (?))';
             $parameters = [1 => $datatype_ids, 2 => $datafield_ids];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY];
-            $results = $conn->fetchAll($query_str, $parameters, $types);
+            $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $render_plugin_instance_ids = [];
             foreach ($results as $result)
                 $render_plugin_instance_ids[] = $result['rpi_id'];
@@ -3351,7 +3351,7 @@ class ValidationController extends ODRCustomController
                  WHERE sl.data_type_id IN (?)';
             $parameters = [1 => $datatype_ids];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $results = $conn->fetchAll($query_str, $parameters, $types);
+            $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $sidebar_layout_ids = [];
             foreach ($results as $result)
                 $sidebar_layout_ids[] = $result['sl_id'];
@@ -3364,7 +3364,7 @@ class ValidationController extends ODRCustomController
                  WHERE g.data_type_id IN (?)';
             $parameters = [1 => $datatype_ids];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $results = $conn->fetchAll($query_str, $parameters, $types);
+            $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $group_ids = [];
             foreach ($results as $result)
                 $group_ids[] = $result['g_id'];
@@ -3377,7 +3377,7 @@ class ValidationController extends ODRCustomController
                  WHERE t.data_fields_id IN (?)';
             $parameters = [1 => $datafield_ids];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $results = $conn->fetchAll($query_str, $parameters, $types);
+            $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $tag_ids = [];
             foreach ($results as $result)
                 $tag_ids[] = $result['t_id'];
@@ -3390,7 +3390,7 @@ class ValidationController extends ODRCustomController
                  WHERE ro.data_fields_id IN (?)';
             $parameters = [1 => $datafield_ids];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $results = $conn->fetchAll($query_str, $parameters, $types);
+            $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $radio_option_ids = [];
             foreach ($results as $result)
                 $radio_option_ids[] = $result['ro_id'];
@@ -3403,7 +3403,7 @@ class ValidationController extends ODRCustomController
                  WHERE i.data_field_id IN (?)';
             $parameters = [1 => $datafield_ids];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $results = $conn->fetchAll($query_str, $parameters, $types);
+            $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $image_ids = [];
             foreach ($results as $result)
                 $image_ids[] = $result['i_id'];
@@ -3416,7 +3416,7 @@ class ValidationController extends ODRCustomController
                  WHERE f.data_field_id IN (?)';
             $parameters = [1 => $datafield_ids];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $results = $conn->fetchAll($query_str, $parameters, $types);
+            $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $file_ids = [];
             foreach ($results as $result)
                 $file_ids[] = $result['f_id'];
@@ -3429,7 +3429,7 @@ class ValidationController extends ODRCustomController
                  WHERE dr.data_type_id IN (?)';
             $parameters = [1 => $datatype_ids];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $results = $conn->fetchAll($query_str, $parameters, $types);
+            $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $datarecord_ids = [];
             foreach ($results as $result)
                 $datarecord_ids[] = $result['dr_id'];
@@ -3442,7 +3442,7 @@ class ValidationController extends ODRCustomController
                  WHERE (ldt.ancestor_id IN (?) OR ldt.descendant_id IN (?))';
             $parameters = [1 => $datarecord_ids, 2 => $datarecord_ids];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY];
-            $results = $conn->fetchAll($query_str, $parameters, $types);
+            $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $linked_datatree_ids = [];
             foreach ($results as $result)
                 $linked_datatree_ids[] = $result['ldt_id'];
@@ -3749,7 +3749,7 @@ class ValidationController extends ODRCustomController
                  WHERE dt.id IN (?) AND dt.id = dt.grandparent_id';
             $parameters = [1 => $initial_datatype_ids];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $results = $conn->fetchAll($query, $parameters, $types);
+            $results = $conn->fetchAllAssociative($query, $parameters, $types);
 
             $grandparent_datatype_ids = [];
             foreach ($results as $result)
@@ -3768,7 +3768,7 @@ class ValidationController extends ODRCustomController
                         WHERE dt.grandparent_id IN (?) OR dt.metadata_for_id IN (?)';
                     $parameters = [ 1 => $new_datatype_ids, 2 => $new_datatype_ids ];
                     $types = [ 1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY ];
-                    $results = $conn->fetchAll($query, $parameters, $types);
+                    $results = $conn->fetchAllAssociative($query, $parameters, $types);
 
                     $new_datatype_ids = [];
                     foreach ($results as $result) {
@@ -3798,7 +3798,7 @@ class ValidationController extends ODRCustomController
                  WHERE df.data_type_id IN (?)';
             $parameters = [1 => $datatype_ids];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $results = $conn->fetchAll($query_str, $parameters, $types);
+            $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $datafield_ids = [];
             foreach ($results as $result)
                 $datafield_ids[] = $result['df_id'];
@@ -3813,7 +3813,7 @@ class ValidationController extends ODRCustomController
                  AND dr.deletedAt IS NOT NULL';    // only want deleted datarecords
             $parameters = [1 => $datatype_ids];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $results = $conn->fetchAll($query_str, $parameters, $types);
+            $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $datarecord_ids = [];
             foreach ($results as $result)
                 $datarecord_ids[] = $result['dr_id'];
@@ -3826,7 +3826,7 @@ class ValidationController extends ODRCustomController
                  WHERE (ldt.ancestor_id IN (?) OR ldt.descendant_id IN (?))';
             $parameters = [1 => $datarecord_ids, 2 => $datarecord_ids];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY];
-            $results = $conn->fetchAll($query_str, $parameters, $types);
+            $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $linked_datatree_ids = [];
             foreach ($results as $result)
                 $linked_datatree_ids[] = $result['ldt_id'];
@@ -3838,7 +3838,7 @@ class ValidationController extends ODRCustomController
                  WHERE t.data_fields_id IN (?)';
             $parameters = [1 => $datafield_ids];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $results = $conn->fetchAll($query_str, $parameters, $types);
+            $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $tag_ids = [];
             foreach ($results as $result)
                 $tag_ids[] = $result['t_id'];
@@ -3850,7 +3850,7 @@ class ValidationController extends ODRCustomController
                  WHERE ro.data_fields_id IN (?)';
             $parameters = [1 => $datafield_ids];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $results = $conn->fetchAll($query_str, $parameters, $types);
+            $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $radio_option_ids = [];
             foreach ($results as $result)
                 $radio_option_ids[] = $result['ro_id'];
@@ -3865,7 +3865,7 @@ class ValidationController extends ODRCustomController
                  AND i.data_record_id IN (?)';
             $parameters = [1 => $datafield_ids, 2 => $datarecord_ids];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY];
-            $results = $conn->fetchAll($query_str, $parameters, $types);
+            $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $image_ids = [];
             foreach ($results as $result)
                 $image_ids[] = $result['i_id'];
@@ -3879,7 +3879,7 @@ class ValidationController extends ODRCustomController
                  AND f.data_record_id IN (?)';
             $parameters = [1 => $datafield_ids, 2 => $datarecord_ids];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY];
-            $results = $conn->fetchAll($query_str, $parameters, $types);
+            $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $file_ids = [];
             foreach ($results as $result)
                 $file_ids[] = $result['f_id'];
@@ -4049,7 +4049,7 @@ class ValidationController extends ODRCustomController
 
             // Get the list of files that exist in the database (including soft-deleted)
             $query_str = 'SELECT id FROM odr_file';
-            $results = $conn->fetchAll($query_str);
+            $results = $conn->fetchAllAssociative($query_str);
 
             foreach ($results as $result) {
                 $file_id = $result['id'];
@@ -4063,7 +4063,7 @@ class ValidationController extends ODRCustomController
 
             // Do the same for the images...
             $query_str = 'SELECT id FROM odr_image';
-            $results = $conn->fetchAll($query_str);
+            $results = $conn->fetchAllAssociative($query_str);
 
             foreach ($results as $result) {
                 $file_id = $result['id'];
@@ -4124,7 +4124,7 @@ class ValidationController extends ODRCustomController
 
             // ----------------------------------------
             $query = 'SELECT dt.id FROM odr_data_type dt WHERE dt.deletedAt IS NULL AND dt.id != 594';
-            $results = $conn->fetchAll($query);
+            $results = $conn->fetchAllAssociative($query);
 
             $dt_ids = [];
             foreach ($results as $result)
@@ -4141,7 +4141,7 @@ class ValidationController extends ODRCustomController
             print '<pre>';
             foreach ($dt_ids as $dt_id) {
                 $params = ['dt_id' => $dt_id];
-//                $results = $conn->fetchAll($query, $params);    // runs into memory issues
+//                $results = $conn->fetchAllAssociative($query, $params);    // runs into memory issues
                 $results = $conn->executeQuery($query, $params);
 
                 print 'dt: '.$dt_id."\n";
@@ -4236,7 +4236,7 @@ class ValidationController extends ODRCustomController
 
             // ----------------------------------------
             $query = 'SELECT dt.id FROM odr_data_type dt WHERE dt.deletedAt IS NULL AND dt.id != 594';
-            $results = $conn->fetchAll($query);
+            $results = $conn->fetchAllAssociative($query);
 
             $dt_ids = [];
             foreach ($results as $result) {
@@ -4257,7 +4257,7 @@ class ValidationController extends ODRCustomController
             print '<pre>';
             foreach ($dt_ids as $dt_id) {
                 $params = ['dt_id' => $dt_id];
-//                $results = $conn->fetchAll($query, $params);    // runs into memory issues
+//                $results = $conn->fetchAllAssociative($query, $params);    // runs into memory issues
                 $results = $conn->executeQuery($query, $params);
 
                 print 'dt: '.$dt_id."\n";
@@ -4345,7 +4345,7 @@ class ValidationController extends ODRCustomController
 
             // ----------------------------------------
             $query = 'SELECT dt.id FROM odr_data_type dt WHERE dt.deletedAt IS NULL AND dt.id != 594';
-            $results = $conn->fetchAll($query);
+            $results = $conn->fetchAllAssociative($query);
 
             $dt_ids = [];
             foreach ($results as $result)
@@ -4365,7 +4365,7 @@ class ValidationController extends ODRCustomController
             print '<pre>';
             foreach ($dt_ids as $dt_id) {
                 $params = ['dt_id' => $dt_id];
-//                $results = $conn->fetchAll($query, $params);    // runs into memory issues
+//                $results = $conn->fetchAllAssociative($query, $params);    // runs into memory issues
                 $results = $conn->executeQuery($query, $params);
 
                 print 'dt: '.$dt_id."\n";
@@ -4460,7 +4460,7 @@ class ValidationController extends ODRCustomController
 
             // ----------------------------------------
             $query = 'SELECT dt.id FROM odr_data_type dt WHERE dt.deletedAt IS NULL AND dt.id != 594 AND dt.id != 681';
-            $results = $conn->fetchAll($query);
+            $results = $conn->fetchAllAssociative($query);
 
             $dt_ids = [];
             foreach ($results as $result) {
@@ -4480,7 +4480,7 @@ class ValidationController extends ODRCustomController
                 $storage_query .= 'JOIN odr_data_record dr ON e.data_record_id = dr.id ';
                 $storage_query .= 'WHERE dr.data_type_id = '.$dt_id.' ';
                 $storage_query .= 'AND dr.deletedat IS NULL AND e.deletedat IS NULL ';
-//                $results = $conn->fetchAll($storage_query);    // runs into memory issues
+//                $results = $conn->fetchAllAssociative($storage_query);    // runs into memory issues
                 $results = $conn->executeQuery($storage_query);
 
                 $df_list = [];
@@ -4511,7 +4511,7 @@ class ValidationController extends ODRCustomController
                 $drf_query .= 'JOIN odr_data_record dr ON drf.data_record_id = dr.id ';
                 $drf_query .= 'WHERE dr.data_type_id = '.$dt_id.' AND drf.data_field_id IN ('.implode(',', array_keys($df_list)).') ';
                 $drf_query .= 'AND dr.deletedat IS NULL AND drf.deletedat IS NULL ';
-//                $results = $conn->fetchAll($drf_query);    // runs into memory issues
+//                $results = $conn->fetchAllAssociative($drf_query);    // runs into memory issues
                 $results = $conn->executeQuery($drf_query);
 
                 foreach ($results as $result) {

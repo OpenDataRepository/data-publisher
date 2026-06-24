@@ -474,7 +474,7 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
 
         // Execute the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAll($query, $params, $types);
+        $results = $conn->fetchAllAssociative($query, $params, $types);
 
 
         // ----------------------------------------

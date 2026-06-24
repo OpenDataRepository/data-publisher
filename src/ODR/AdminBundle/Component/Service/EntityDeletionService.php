@@ -1056,7 +1056,7 @@ class EntityDeletionService
              * because the SQL IN() clause typically won't be interpreted correctly by the underlying
              * database abstraction layer.
              *
-             * These update queries have to use $conn->executeUpdate(<SQL>) and explicit typehinting...
+             * These update queries have to use $conn->executeStatement(<SQL>) and explicit typehinting...
              * that way, Doctrine can rewrite the queries so the database abstraction layer can
              * interpret them correctly.
              */
@@ -1071,7 +1071,7 @@ class EntityDeletionService
                 WHERE ldt.id IN (?)';
             $parameters = [1 => $linked_datatrees_to_delete];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
 
             // ----------------------------------------
@@ -1085,7 +1085,7 @@ class EntityDeletionService
                 AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL AND drf.deletedAt IS NULL';
             $parameters = array(1 => $datatypes_to_delete);
             $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
-            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 */
 
             // ----------------------------------------
@@ -1098,7 +1098,7 @@ class EntityDeletionService
                 AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL';
             $parameters = array(1 => $datatypes_to_delete);
             $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
-            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 */
 
             // Delete all DatatypeSpecialField entries for the datatypes that are getting deleted
@@ -1109,7 +1109,7 @@ class EntityDeletionService
                 AND dtsf.deletedAt IS NULL';
             $parameters = [1 => $datatypes_to_delete, 2 => $datafields_to_delete];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY];
-            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
 
             // ----------------------------------------
@@ -1121,7 +1121,7 @@ class EntityDeletionService
                 AND ssk.deletedAt IS NULL';
             $parameters = [1 => $datatypes_to_delete];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
 
             // ----------------------------------------
@@ -1135,7 +1135,7 @@ class EntityDeletionService
                 AND tdt.deletedAt IS NULL AND te.deletedAt IS NULL AND t.deletedAt IS NULL';
             $parameters = array(1 => $datatypes_to_delete);
             $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
-            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 */
 
             // Delete any leftover ThemeDatatype entries that refer to $datatypes_to_delete...these would be other datatypes linking to the ones being deleted
@@ -1147,7 +1147,7 @@ class EntityDeletionService
                 AND tdt.deletedAt IS NULL';
             $parameters = [1 => $datatypes_to_delete];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 /*
             // Delete all ThemeDatafield entries
             $query_str =
@@ -1158,7 +1158,7 @@ class EntityDeletionService
                 AND tdf.deletedAt IS NULL AND te.deletedAt IS NULL AND t.deletedAt IS NULL';
             $parameters = array(1 => $datatypes_to_delete);
             $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
-            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 */
 /*
             // Delete all ThemeElement and ThemeElementMeta entries
@@ -1170,7 +1170,7 @@ class EntityDeletionService
                 AND te.deletedAt IS NULL AND tem.deletedAt IS NULL AND t.deletedAt IS NULL';
             $parameters = array(1 => $datatypes_to_delete);
             $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
-            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 */
 
             // Delete all Theme and ThemeMeta entries
@@ -1181,7 +1181,7 @@ class EntityDeletionService
                 AND t.deletedAt IS NULL AND tm.deletedAt IS NULL';
             $parameters = [1 => $datatypes_to_delete];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
 
             // ----------------------------------------
@@ -1218,7 +1218,7 @@ class EntityDeletionService
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL';
             $parameters = [1 => $datatree_ids];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
 
             // ----------------------------------------
@@ -1232,7 +1232,7 @@ class EntityDeletionService
                 AND g.deletedAt IS NULL AND gm.deletedAt IS NULL AND gdtp.deletedAt IS NULL AND gdfp.deletedAt IS NULL';
             $parameters = array(1 => $datatypes_to_delete);
             $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
-            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 */
 
             // Remove members from the Groups for this Datatype
@@ -1243,7 +1243,7 @@ class EntityDeletionService
                 AND ug.deletedAt IS NULL';
             $parameters = [1 => $groups_to_delete];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
 
             // ----------------------------------------
@@ -1255,7 +1255,7 @@ class EntityDeletionService
                 AND rpi.deletedAt IS NULL';
             $parameters = [1 => $datatypes_to_delete, 2 => $datafields_to_delete];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY];
-            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
             // Delete all RenderPluginMap entries
             $query_str =
@@ -1265,7 +1265,7 @@ class EntityDeletionService
                 AND rpm.deletedAt IS NULL';
             $parameters = [1 => $datatypes_to_delete, 2 => $datafields_to_delete];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY];
-            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
 
             // ----------------------------------------
@@ -1277,7 +1277,7 @@ class EntityDeletionService
                 AND slm.deletedAt IS NULL';
             $parameters = [1 => $datatypes_to_delete, 2 => $datafields_to_delete];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY];
-            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
             // Delete all SidebarLayoutPreferences entries
             $query_str =
@@ -1288,7 +1288,7 @@ class EntityDeletionService
                 AND slp.deletedAt IS NULL AND sl.deletedAt IS NULL';
             $parameters = [1 => $datatypes_to_delete];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
             // Delete all SidebarLayout and SidebarLayoutMeta entries
             $query_str =
@@ -1298,7 +1298,7 @@ class EntityDeletionService
                 AND sl.deletedAt IS NULL AND slm.deletedAt IS NULL';
             $parameters = [1 => $datatypes_to_delete];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
             // Update all SidebarLayoutMeta entries that have this datatype as an inverse...
             $query_str =
@@ -1308,7 +1308,7 @@ class EntityDeletionService
                 AND sl.deletedAt IS NULL AND slm.deletedAt IS NULL';
             $parameters = [1 => $datatypes_to_delete];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
 
             // ----------------------------------------
@@ -1320,7 +1320,7 @@ class EntityDeletionService
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL';
             $parameters = [1 => $datatypes_to_delete];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
             // Update all Datatypes which were derived from these Datatypes
             $derived_datatype_list = array_keys($derived_datatypes_to_update);
@@ -1332,7 +1332,7 @@ class EntityDeletionService
                 AND dt.deletedAt IS NULL AND dt.deletedAt IS NULL';
             $parameters = [1 => $derived_datatype_list];
             $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+            $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
 
             // ----------------------------------------
