@@ -62,6 +62,9 @@ class ODRMarkdownParserService extends CommonMarkConverter implements MarkdownPa
      */
     function transformMarkdown($text)
     {
-        return parent::convertToHtml($text);
+        // Coerce null/non-string to '' -- CommonMarkConverter::convertToHtml() type-hints a string,
+        // and on PHP 8 passing null (e.g. an empty markdown field or unguarded |markdown filter)
+        // throws a TypeError instead of silently rendering nothing as it did on PHP 7.
+        return parent::convertToHtml((string) $text);
     }
 }
