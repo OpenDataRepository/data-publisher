@@ -9,7 +9,8 @@
 
 > **Companion docs:** [`SYMFONY_5_DEPRECATION_CLEANUP.md`](SYMFONY_5_DEPRECATION_CLEANUP.md) — repeatable
 > playbook for the 4.4 → 5.0 deprecation cleanup (route/template/templating/exception-controller/
-> controller-DI work, already done; see Phase 4). [`TEST_URLS.md`](TEST_URLS.md) — regression URL list.
+> controller-DI work, already done; see Phase 4). [`PHASE_4_PLAN.md`](PHASE_4_PLAN.md) — detailed,
+> code-grounded plan for the Phase 4 bundle removals. [`TEST_URLS.md`](TEST_URLS.md) — regression URL list.
 
 ---
 
@@ -244,8 +245,10 @@ php bin/console debug:container --deprecations
 > [`SYMFONY_5_DEPRECATION_CLEANUP.md`](SYMFONY_5_DEPRECATION_CLEANUP.md)** — route notation, template
 > notation + templating engine, the exception controller, and the controller container-injection
 > refactor are already done and committed. That guide is written to be re-run if the work diverges as
-> the codebase changes. What remains for Phase 4 is the **abandoned-bundle removals** (FOSUserBundle,
-> FOSOAuthServerBundle, sensio-extra), covered below.
+> the codebase changes. What remains for Phase 4 is the **abandoned-bundle removals** — see the
+> detailed, code-grounded [`PHASE_4_PLAN.md`](PHASE_4_PLAN.md). A footprint scan found the OAuth
+> *server* and GitHub/Google login are both **unused** (two clean removals), leaving FOSUserBundle
+> (271 users) as the one real auth migration.
 
 ### 4.1 — Remove All 4.x Deprecations First
 
