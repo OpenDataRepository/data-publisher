@@ -1,3 +1,5 @@
+{# autoescape:false wraps `apply spaceless` -- in a .js.twig (js autoescape) the spaceless filter (is_safe=html only) js-escapes the whole literal-JS block, breaking it. #}
+{% autoescape false %}
 {% apply spaceless %}
 <script>
     $(function() {
@@ -59,3 +61,4 @@
     });
 </script>
 {% endapply %}
+{% endautoescape %}

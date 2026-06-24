@@ -1,3 +1,9 @@
+{# autoescape:false must wrap `apply spaceless`: this is a .js.twig file (js autoescape), and
+   `{% apply spaceless %}` prints its block via {{ }}, but the spaceless filter is only is_safe=html
+   -- so in a js context Twig js-escapes the whole block, mangling the literal JS (e.g. $ -> $)
+   into an "Invalid or unexpected token" SyntaxError. Only controlled CSS selectors are interpolated,
+   so disabling autoescape here is safe. #}
+{% autoescape false %}
 {% apply spaceless %}
 
 {% set pagechange_element = "#ODRPageSelectForm" %}
@@ -82,3 +88,4 @@
             .start();
     });
 {% endapply %}
+{% endautoescape %}
