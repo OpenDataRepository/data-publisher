@@ -38,7 +38,6 @@ class User extends BaseUser
         parent::__construct();
 
         $this->userGroups = new \Doctrine\Common\Collections\ArrayCollection();
-        $this->clients = new \Doctrine\Common\Collections\ArrayCollection();
         $this->userLink = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
@@ -298,7 +297,7 @@ class User extends BaseUser
      */
     public function removeUserGroup(\ODR\AdminBundle\Entity\UserGroup $userGroup)
     {
-        $this->clients->removeElement($userGroup);
+        $this->userGroups->removeElement($userGroup);
     }
 
     /**
@@ -311,65 +310,6 @@ class User extends BaseUser
         return $this->userGroups;
     }
 
-
-    // -------------------- OAuth Server --------------------
-    /**
-     * @var \Doctrine\Common\Collections\Collection
-     *
-     * @ORM\ManyToMany(targetEntity="\ODR\OpenRepository\OAuthServerBundle\Entity\Client", inversedBy="users")
-     * @ORM\JoinTable(name="fos_authorized_clients")
-     */
-    private $clients;
-
-    /**
-     * Add authorizedClient
-     *
-     * @param \ODR\OpenRepository\OAuthServerBundle\Entity\Client $client
-     * @return User
-     */
-    public function addClient(\ODR\OpenRepository\OAuthServerBundle\Entity\Client $client)
-    {
-        $this->clients[] = $client;
-
-        return $this;
-    }
-
-    /**
-     * Remove authorizedClient
-     *
-     * @param \ODR\OpenRepository\OAuthServerBundle\Entity\Client $client
-     */
-    public function removeClient(\ODR\OpenRepository\OAuthServerBundle\Entity\Client $client)
-    {
-        $this->clients->removeElement($client);
-    }
-
-    /**
-     * Get clients
-     *
-     * @return \Doctrine\Common\Collections\Collection
-     */
-    public function getClients()
-    {
-        return $this->clients;
-    }
-
-    /**
-     * is authorizedClient
-     *
-     * @param \ODR\OpenRepository\OAuthServerBundle\Entity\Client $client
-     * @return boolean
-     */
-    public function isAuthorizedClient(\ODR\OpenRepository\OAuthServerBundle\Entity\Client $client)
-    {
-        $authorized_clients = self::getClients();
-        foreach ($authorized_clients as $authorized_client) {
-            if ($client->getId() == $authorized_client->getId())
-                return true;
-        }
-
-        return false;
-    }
 
     // -------------------- OAuth Client --------------------
     /**

@@ -77,12 +77,10 @@ services:
                 fos_user.util.token_generator: '@fos_user.util.token_generator'
                 snc_redis.default: '@snc_redis.default'
                 hwi_oauth.security.oauth_utils: '@hwi_oauth.security.oauth_utils'
-                # two odr.* services with dotted ids kept on the locator (only a few call sites)
+                # odr.* service with a dotted id kept on the locator (only a few call sites)
                 odr.jupyterhub_bridge.username_service: '@odr.jupyterhub_bridge.username_service'
-                odr.oauth_server.client_manager: '@odr.oauth_server.client_manager'
-                # used by the direct-AbstractController controllers (SearchBundle / OAuthServer)
+                # used by the direct-AbstractController controllers (SearchBundle)
                 security.authentication_utils: '@security.authentication_utils'
-                fos_oauth_server.client_manager.default: '@fos_oauth_server.client_manager.default'
                 odr_custom_controller: '@odr_custom_controller'
 
     # --- C-tail: controllers that extend AbstractController directly (no ODRCustomController base) ---
@@ -141,18 +139,6 @@ services:
         tags: ['controller.service_arguments']
 
     ODR\OpenRepository\ApiBundle\Controller\DefaultController:
-        public: true
-        calls:
-            - [setContainer, ['@odr.controller_locator']]
-        tags: ['controller.service_arguments']
-
-    ODR\OpenRepository\OAuthServerBundle\Controller\SecurityController:
-        public: true
-        calls:
-            - [setContainer, ['@odr.controller_locator']]
-        tags: ['controller.service_arguments']
-
-    ODR\OpenRepository\OAuthServerBundle\Controller\ClientController:
         public: true
         calls:
             - [setContainer, ['@odr.controller_locator']]

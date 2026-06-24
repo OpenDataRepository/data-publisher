@@ -38,12 +38,6 @@ fos_user_resetting:
 #    prefix: /profile
 
 # ----------------------------------------
-# FOSOAuthServerBundle routes
-fos_oauth_server_token:
-    resource: "@FOSOAuthServerBundle/Resources/config/routing/token.xml"
-
-fos_oauth_server_authorize:
-    resource: "@FOSOAuthServerBundle/Resources/config/routing/authorize.xml"
 
 # ----------------------------------------
 # HWIOAuthBundle routes
@@ -77,10 +71,6 @@ odr_open_repository_api:
 
 odr_open_repository_user:
     resource: "@ODROpenRepositoryUserBundle/Resources/config/routing.yml"
-    prefix:   /odr/
-
-odr_open_repository_oauth_server:
-    resource: "@ODROpenRepositoryOAuthServerBundle/Resources/config/routing.yml"
     prefix:   /odr/
 
 odr_open_repository_jupyterhub_bridge:

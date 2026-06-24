@@ -111,24 +111,6 @@ security:
                     - lexik_jwt_authentication.jwt_token_authenticator
             context: odr_firewall   # logging in through this firewall should grant the user "logged-in" status everywhere
 
-        oauth_token:
-            pattern:    ^/oauth/v2/token
-            security:   false
-
-        oauth_authorize:
-            pattern:    ^/oauth/v2/auth
-            form_login:
-                provider: fos_userbundle
-
-                check_path: odr_oauth_server_auth_login_check
-                login_path: odr_oauth_server_auth_login
-
-                # always force sucessful logins through this firewall (apps using ODR as OAuth provider) to redirect to this path
-                default_target_path:  odr_redirect
-                always_use_default_target_path: true
-            anonymous: true
-
-            context: odr_firewall   # logging in through this firewall should grant the user "logged-in" status everywhere
 
         # currently disabled because there's no route using this...
 #        api:

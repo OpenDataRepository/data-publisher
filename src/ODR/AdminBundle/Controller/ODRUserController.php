@@ -35,7 +35,6 @@ use ODR\AdminBundle\Form\ODRAdminChangePasswordForm;
 use ODR\AdminBundle\Form\ODRUserProfileForm;
 // OAuth
 use HWI\Bundle\OAuthBundle\Security\OAuthUtils;
-use ODR\OpenRepository\OAuthServerBundle\OAuth\ClientManager;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
@@ -395,18 +394,10 @@ class ODRUserController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Determine whether the user owns any OAuth clients
+            // OAuth server (FOSOAuthServerBundle) removed in the Symfony 5 upgrade -- feature was unused
             $has_oauth_clients = false;
             $owned_clients = [];
             $site_baseurl = $this->getParameter('site_baseurl');
-
-            if ( $self_edit && $this->has('odr.oauth_server.client_manager') ) {
-                $has_oauth_clients = true;
-
-                /** @var ClientManager $client_manager */
-                $client_manager = $this->container->get('odr.oauth_server.client_manager');
-                $owned_clients = $client_manager->getOwnedClients($user);
-            }
 
 
             // ----------------------------------------
@@ -524,18 +515,10 @@ class ODRUserController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Determine whether the user owns any OAuth clients
+            // OAuth server (FOSOAuthServerBundle) removed in the Symfony 5 upgrade -- feature was unused
             $has_oauth_clients = false;
             $owned_clients = [];
             $site_baseurl = $this->getParameter('site_baseurl');
-
-            if ( $self_edit && $this->has('odr.oauth_server.client_manager') ) {
-                $has_oauth_clients = true;
-
-                /** @var ClientManager $client_manager */
-                $client_manager = $this->container->get('odr.oauth_server.client_manager');
-                $owned_clients = $client_manager->getOwnedClients($target_user);
-            }
 
 
             // ----------------------------------------

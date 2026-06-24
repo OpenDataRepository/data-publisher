@@ -140,22 +140,6 @@ fos_user:
             type: odr_user_change_password
 
 
-fos_oauth_server:
-    db_driver: orm
-    client_class:        ODR\OpenRepository\OAuthServerBundle\Entity\Client
-    access_token_class:  ODR\OpenRepository\OAuthServerBundle\Entity\AccessToken
-    refresh_token_class: ODR\OpenRepository\OAuthServerBundle\Entity\RefreshToken
-    auth_code_class:     ODR\OpenRepository\OAuthServerBundle\Entity\AuthCode
-    service:
-        options:
-            # Changing tokens and authcode lifetime
-#            access_token_lifetime: 3600
-#            refresh_token_lifetime: 1209600
-#            auth_code_lifetime: 30
-
-            # Enforce state to be passed in authorization (see RFC 6749, section 10.12)
-#            enforce_state: true
-
 hwi_oauth:
     # list of names of the firewalls in which this bundle is active, this setting MUST be set
     firewall_names: [main]
