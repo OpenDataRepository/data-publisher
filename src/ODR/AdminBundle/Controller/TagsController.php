@@ -49,6 +49,29 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 class TagsController extends ODRCustomController
 {
 
+    public function __construct(
+        $clone_theme_service,
+        $database_info_service,
+        $datarecord_info_service,
+        $datatree_info_service,
+        $entity_meta_modify_service,
+        $render_service,
+        $tab_helper_service,
+        $permissions_management_service,
+        $table_theme_helper_service,
+        $theme_info_service,
+        $search_service,
+        $search_key_service,
+        private readonly CloneTemplateService $clone_template_service,
+        private readonly EntityCreationService $entity_creation_service,
+        private readonly SortService $sort_service,
+        private readonly TagHelperService $tag_helper_service,
+        private readonly TrackedJobService $tracked_job_service,
+        private readonly UUIDService $uuid_service
+    ) {
+        parent::__construct($clone_theme_service, $database_info_service, $datarecord_info_service, $datatree_info_service, $entity_meta_modify_service, $render_service, $tab_helper_service, $permissions_management_service, $table_theme_helper_service, $theme_info_service, $search_service, $search_key_service);
+    }
+
     /**
      * Returns the HTML to modify a specific tag tree
      *
@@ -70,15 +93,15 @@ class TagsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var CloneTemplateService $clone_template_service */
-            $clone_template_service = $this->container->get('odr.clone_template_service');
+            $clone_template_service = $this->clone_template_service;
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var TrackedJobService $tracked_job_service */
-            $tracked_job_service = $this->container->get('odr.tracked_job_service');
+            $tracked_job_service = $this->tracked_job_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataFields $datafield */
@@ -265,7 +288,7 @@ class TagsController extends ODRCustomController
 
             // Need to unescape this value if it's coming from a wordpress install...
             $tag_name = $post['tag_name'];
-            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
+            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
             if ( $is_wordpress_integrated )
                 $tag_name = stripslashes($tag_name);
 
@@ -277,20 +300,20 @@ class TagsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var CloneTemplateService $clone_template_service */
-            $clone_template_service = $this->container->get('odr.clone_template_service');
+            $clone_template_service = $this->clone_template_service;
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SortService $sort_service */
-            $sort_service = $this->container->get('odr.sort_service');
+            $sort_service = $this->sort_service;
 
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
 
             /** @var DataFields $datafield */
@@ -474,7 +497,7 @@ class TagsController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -491,7 +514,7 @@ class TagsController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -547,17 +570,17 @@ class TagsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var CloneTemplateService $clone_template_service */
-            $clone_template_service = $this->container->get('odr.clone_template_service');
+            $clone_template_service = $this->clone_template_service;
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var ODRTabHelperService $tab_helper_service */
-            $tab_helper_service = $this->container->get('odr.tab_helper_service');
+            $tab_helper_service = $this->tab_helper_service;
             /** @var TagHelperService $tag_helper_service */
-            $tag_helper_service = $this->container->get('odr.tag_helper_service');
+            $tag_helper_service = $this->tag_helper_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataFields $datafield */
@@ -634,7 +657,7 @@ class TagsController extends ODRCustomController
             $tag_list = $post['tag_list'];
             if ( strlen($tag_list) > 0 ) {
                 // Need to unescape this value if it's coming from a wordpress install...
-                $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
+                $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
                 if ( $is_wordpress_integrated )
                     $tag_list = stripslashes($tag_list);
 
@@ -771,26 +794,26 @@ class TagsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var CloneTemplateService $clone_template_service */
-            $clone_template_service = $this->container->get('odr.clone_template_service');
+            $clone_template_service = $this->clone_template_service;
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SortService $sort_service */
-            $sort_service = $this->container->get('odr.sort_service');
+            $sort_service = $this->sort_service;
             /** @var TagHelperService $tag_helper_service */
-            $tag_helper_service = $this->container->get('odr.tag_helper_service');
+            $tag_helper_service = $this->tag_helper_service;
             /** @var UUIDService $uuid_service */
-            $uuid_service = $this->container->get('odr.uuid_service');
+            $uuid_service = $this->uuid_service;
 
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
 
             /** @var DataFields $datafield */
@@ -937,7 +960,7 @@ class TagsController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -954,7 +977,7 @@ class TagsController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
         }
@@ -1177,18 +1200,18 @@ class TagsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var CloneTemplateService $clone_template_service */
-            $clone_template_service = $this->container->get('odr.clone_template_service');
+            $clone_template_service = $this->clone_template_service;
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var TrackedJobService $tracked_job_service */
-            $tracked_job_service = $this->container->get('odr.tracked_job_service');
+            $tracked_job_service = $this->tracked_job_service;
 
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
 
             /** @var Tags $tag */
@@ -1410,7 +1433,7 @@ class TagsController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -1430,7 +1453,7 @@ class TagsController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -1478,7 +1501,7 @@ class TagsController extends ODRCustomController
         $tags_to_delete = [];
 
         /** @var TagHelperService $tag_helper_service */
-        $tag_helper_service = $this->container->get('odr.tag_helper_service');
+        $tag_helper_service = $this->tag_helper_service;
 
         foreach ($relevant_tags as $tag) {
             $tag_id = $tag->getId();
@@ -1543,23 +1566,23 @@ class TagsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var CloneTemplateService $clone_template_service */
-            $clone_template_service = $this->container->get('odr.clone_template_service');
+            $clone_template_service = $this->clone_template_service;
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SortService $sort_service */
-            $sort_service = $this->container->get('odr.sort_service');
+            $sort_service = $this->sort_service;
             /** @var TrackedJobService $tracked_job_service */
-            $tracked_job_service = $this->container->get('odr.tracked_job_service');
+            $tracked_job_service = $this->tracked_job_service;
 
 
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
 
             /** @var DataFields $datafield */
@@ -1838,7 +1861,7 @@ class TagsController extends ODRCustomController
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
-//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    if ( $this->getParameter('kernel.environment') === 'dev' )
 //                        throw $e;
                 }
 
@@ -1862,7 +1885,7 @@ class TagsController extends ODRCustomController
                     catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
                         //  event
-//                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        if ( $this->getParameter('kernel.environment') === 'dev' )
 //                            throw $e;
                     }
                 }
@@ -2059,9 +2082,9 @@ class TagsController extends ODRCustomController
 
 
             // Going to also need these values
-            $api_key = $this->container->getParameter('beanstalk_api_key');
-            $pheanstalk = $this->get('pheanstalk');
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');    // debug purposes only
+            $api_key = $this->getParameter('beanstalk_api_key');
+            $pheanstalk = $this->container->get('pheanstalk');
+            $redis_prefix = $this->getParameter('memcached_key_prefix');    // debug purposes only
             $url = $this->generateUrl('odr_tag_rebuild_worker', [], UrlGeneratorInterface::ABSOLUTE_URL);
 
             $priority = 1024;   // should be roughly default priority
@@ -2144,7 +2167,7 @@ class TagsController extends ODRCustomController
                 throw new ODRBadRequestException("Tag Names can't be blank");
 
             // Need to unescape this value if it's coming from a wordpress install...
-            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
+            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
             if ( $is_wordpress_integrated )
                 $tag_name = stripslashes($tag_name);
 
@@ -2153,20 +2176,20 @@ class TagsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var CloneTemplateService $clone_template_service */
-            $clone_template_service = $this->container->get('odr.clone_template_service');
+            $clone_template_service = $this->clone_template_service;
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SortService $sort_service */
-            $sort_service = $this->container->get('odr.sort_service');
+            $sort_service = $this->sort_service;
             /** @var TrackedJobService $tracked_job_service */
-            $tracked_job_service = $this->container->get('odr.tracked_job_service');
+            $tracked_job_service = $this->tracked_job_service;
 
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
 
             /** @var Tags $tag */
@@ -2298,7 +2321,7 @@ class TagsController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -2318,7 +2341,7 @@ class TagsController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -2368,17 +2391,17 @@ class TagsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var TagHelperService $tag_helper_service */
-            $tag_helper_service = $this->container->get('odr.tag_helper_service');
+            $tag_helper_service = $this->tag_helper_service;
 
 
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
 
             /** @var Tags $tag */
@@ -2464,7 +2487,7 @@ class TagsController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -2476,7 +2499,7 @@ class TagsController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 

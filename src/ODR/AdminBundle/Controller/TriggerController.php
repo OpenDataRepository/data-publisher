@@ -40,6 +40,24 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 class TriggerController extends ODRCustomController
 {
 
+    public function __construct(
+        $clone_theme_service,
+        $database_info_service,
+        $datarecord_info_service,
+        $datatree_info_service,
+        $entity_meta_modify_service,
+        $render_service,
+        $tab_helper_service,
+        $permissions_management_service,
+        $table_theme_helper_service,
+        $theme_info_service,
+        $search_service,
+        $search_key_service,
+        private readonly TrackedJobService $tracked_job_service
+    ) {
+        parent::__construct($clone_theme_service, $database_info_service, $datarecord_info_service, $datatree_info_service, $entity_meta_modify_service, $render_service, $tab_helper_service, $permissions_management_service, $table_theme_helper_service, $theme_info_service, $search_service, $search_key_service);
+    }
+
     /**
      * Renders a page to select trigger actions for a given datatype.
      *
@@ -60,9 +78,9 @@ class TriggerController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataType $datatype */
@@ -139,7 +157,7 @@ class TriggerController extends ODRCustomController
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
 
             /** @var DataType $datatype */
@@ -167,7 +185,7 @@ class TriggerController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -208,7 +226,7 @@ class TriggerController extends ODRCustomController
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
 
             /** @var DataFields $datafield */
@@ -238,7 +256,7 @@ class TriggerController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -278,9 +296,9 @@ class TriggerController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var TrackedJobService $tracked_job_service */
-            $tracked_job_service = $this->container->get('odr.tracked_job_service');
+            $tracked_job_service = $this->tracked_job_service;
             /** @var Logger $logger */
-            $logger = $this->get('logger');
+            $logger = $this->container->get('logger');
 
 
             /** @var DataFields $datafield */
@@ -356,9 +374,9 @@ class TriggerController extends ODRCustomController
 
 
                 // Going to also need these values
-                $api_key = $this->container->getParameter('beanstalk_api_key');
-                $pheanstalk = $this->get('pheanstalk');
-                $redis_prefix = $this->container->getParameter('memcached_key_prefix');    // debug purposes only
+                $api_key = $this->getParameter('beanstalk_api_key');
+                $pheanstalk = $this->container->get('pheanstalk');
+                $redis_prefix = $this->getParameter('memcached_key_prefix');    // debug purposes only
                 $url = $this->generateUrl('odr_tag_rebuild_worker', [], UrlGeneratorInterface::ABSOLUTE_URL);
 
                 $priority = 1024;   // should be roughly default priority

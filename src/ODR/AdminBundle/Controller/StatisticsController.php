@@ -39,6 +39,24 @@ use Symfony\Component\Routing\Annotation\Route;
 
 class StatisticsController extends ODRCustomController
 {
+
+    public function __construct(
+        $clone_theme_service,
+        $database_info_service,
+        $datarecord_info_service,
+        $datatree_info_service,
+        $entity_meta_modify_service,
+        $render_service,
+        $tab_helper_service,
+        $permissions_management_service,
+        $table_theme_helper_service,
+        $theme_info_service,
+        $search_service,
+        $search_key_service,
+        private readonly StatisticsService $statistics_service
+    ) {
+        parent::__construct($clone_theme_service, $database_info_service, $datarecord_info_service, $datatree_info_service, $entity_meta_modify_service, $render_service, $tab_helper_service, $permissions_management_service, $table_theme_helper_service, $theme_info_service, $search_service, $search_key_service);
+    }
     /**
      * JavaScript endpoint to log datarecord views
      *
@@ -68,7 +86,7 @@ class StatisticsController extends ODRCustomController
 
             // Log the view (no database lookups needed)
             /** @var StatisticsService $statistics_service */
-            $statistics_service = $this->container->get('odr.statistics_service');
+            $statistics_service = $this->statistics_service;
             $statistics_service->logRecordView(
                 $datarecord_id,
                 $datatype_id,
@@ -131,7 +149,7 @@ class StatisticsController extends ODRCustomController
 
             /** @var StatisticsService $statistics_service */
             $service_start = microtime(true);
-            $statistics_service = $this->container->get('odr.statistics_service');
+            $statistics_service = $this->statistics_service;
             $service_time = (microtime(true) - $service_start) * 1000;
 
             $logger->debug('logBatchViewAction - Service instantiation time: ' . round($service_time, 2) . 'ms', ['source' => 0xa1b2c3d4]);
@@ -252,7 +270,7 @@ class StatisticsController extends ODRCustomController
 
             // Log the download
             /** @var StatisticsService $statistics_service */
-            $statistics_service = $this->container->get('odr.statistics_service');
+            $statistics_service = $this->statistics_service;
             $statistics_service->logFileDownload(
                 $file_id,
                 $datatype->getId(),
@@ -289,7 +307,7 @@ class StatisticsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
@@ -317,7 +335,7 @@ class StatisticsController extends ODRCustomController
 
             // Get statistics
             /** @var StatisticsService $statistics_service */
-            $statistics_service = $this->container->get('odr.statistics_service');
+            $statistics_service = $this->statistics_service;
             $stats = $statistics_service->getStatisticsByDatatype(
                 $datatype_id,
                 $start_date,
@@ -356,7 +374,7 @@ class StatisticsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
@@ -385,7 +403,7 @@ class StatisticsController extends ODRCustomController
 
             // Get statistics
             /** @var StatisticsService $statistics_service */
-            $statistics_service = $this->container->get('odr.statistics_service');
+            $statistics_service = $this->statistics_service;
             $stats = $statistics_service->getStatisticsByRecord(
                 $datarecord_id,
                 $start_date,
@@ -422,7 +440,7 @@ class StatisticsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
@@ -458,7 +476,7 @@ class StatisticsController extends ODRCustomController
 
             // Get statistics
             /** @var StatisticsService $statistics_service */
-            $statistics_service = $this->container->get('odr.statistics_service');
+            $statistics_service = $this->statistics_service;
             $stats = $statistics_service->getGeographicStats(
                 $datatype_id,
                 $start_date,
@@ -496,7 +514,7 @@ class StatisticsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
@@ -520,7 +538,7 @@ class StatisticsController extends ODRCustomController
 
             // Get dashboard statistics
             /** @var StatisticsService $statistics_service */
-            $statistics_service = $this->container->get('odr.statistics_service');
+            $statistics_service = $this->statistics_service;
             $stats = $statistics_service->getDashboardStats($datatype_id, $days);
 
             // Render template
@@ -590,7 +608,7 @@ class StatisticsController extends ODRCustomController
             $expanded_datatype_ids = [];
             if (!empty($datatype_ids)) {
                 /** @var \ODR\AdminBundle\Component\Service\DatatreeInfoService $datatree_info_service */
-                $datatree_info_service = $this->container->get('odr.datatree_info_service');
+                $datatree_info_service = $this->datatree_info_service;
 
                 foreach ($datatype_ids as $dt_id) {
                     // Get all associated datatypes (including descendants)
@@ -711,10 +729,10 @@ class StatisticsController extends ODRCustomController
             // Aggregate child datatype downloads into parent datatypes
             // NOTE: Views remain specific to each datatype, only downloads are aggregated
             /** @var \ODR\AdminBundle\Component\Service\DatatreeInfoService $datatree_info_service */
-            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            $datatree_info_service = $this->datatree_info_service;
 
             /** @var \Symfony\Bridge\Monolog\Logger $logger */
-            $logger = $this->get('logger');
+            $logger = $this->container->get('logger');
 
             $logger->info('StatisticsController::getSummaryAction() - Starting download aggregation');
             $logger->info('StatisticsController::getSummaryAction() - Initial by_datatype', ['by_datatype' => $by_datatype]);
@@ -917,8 +935,8 @@ class StatisticsController extends ODRCustomController
             }
 
             // Get URL parameters for WordPress integration
-            $site_baseurl = $this->container->getParameter('site_baseurl');
-            $wordpress_site_baseurl = $this->container->getParameter('wordpress_site_baseurl');
+            $site_baseurl = $this->getParameter('site_baseurl');
+            $wordpress_site_baseurl = $this->getParameter('wordpress_site_baseurl');
 
             // Render template
             $html = $this->renderView(

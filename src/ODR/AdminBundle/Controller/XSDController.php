@@ -30,7 +30,6 @@ use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
-use ODR\AdminBundle\Component\Service\DatatypeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 // Symfony
@@ -64,11 +63,11 @@ class XSDController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatatypeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatype_info_service');
+            $dti_service = $this->container->get('odr.datatype_info_service'); // NOTE: pre-existing ref to a non-existent service
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
             /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
+            $theme_service = $this->theme_info_service;
 
 
             /** @var DataType $datatype */
@@ -135,9 +134,9 @@ class XSDController extends ODRCustomController
         throw new ODRNotImplementedException();
 
         /** @var PermissionsManagementService $pm_service */
-        $pm_service = $this->container->get('odr.permissions_management_service');
+        $pm_service = $this->permissions_management_service;
         /** @var ThemeInfoService $theme_service */
-        $theme_service = $this->container->get('odr.theme_info_service');
+        $theme_service = $this->theme_info_service;
 
         // These should already exist
         /** @var DataType $datatype */
@@ -146,7 +145,7 @@ class XSDController extends ODRCustomController
 
         $redis = $this->container->get('snc_redis.default');;
         // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+        $redis_prefix = $this->getParameter('memcached_key_prefix');
 
         // ----------------------------------------
         // Determine user privileges
@@ -159,7 +158,7 @@ class XSDController extends ODRCustomController
         // ----------------------------------------
         // Always bypass cache if in dev mode?
         $bypass_cache = false;
-        if ($this->container->getParameter('kernel.environment') === 'dev')
+        if ($this->getParameter('kernel.environment') === 'dev')
             $bypass_cache = true;
 
 
@@ -198,7 +197,7 @@ class XSDController extends ODRCustomController
 
         // ----------------------------------------
         // Render the schema layout
-        $templating = $this->get('twig');
+        $templating = $this->container->get('twig');
         $xml = $templating->render(
             '@ODRAdmin/XSDCreate/xsd_ajax.html.twig',
             [

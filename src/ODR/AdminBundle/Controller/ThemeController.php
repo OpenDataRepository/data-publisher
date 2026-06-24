@@ -51,6 +51,25 @@ use Symfony\Component\HttpFoundation\Response;
 class ThemeController extends ODRCustomController
 {
 
+    public function __construct(
+        $clone_theme_service,
+        $database_info_service,
+        $datarecord_info_service,
+        $datatree_info_service,
+        $entity_meta_modify_service,
+        $render_service,
+        $tab_helper_service,
+        $permissions_management_service,
+        $table_theme_helper_service,
+        $theme_info_service,
+        $search_service,
+        $search_key_service,
+        private readonly CacheService $cache_service,
+        private readonly EntityCreationService $entity_creation_service
+    ) {
+        parent::__construct($clone_theme_service, $database_info_service, $datarecord_info_service, $datatree_info_service, $entity_meta_modify_service, $render_service, $tab_helper_service, $permissions_management_service, $table_theme_helper_service, $theme_info_service, $search_service, $search_key_service);
+    }
+
     /**
      * Returns a list of themes the current user can use in the current context for the given
      * datatype.
@@ -75,11 +94,11 @@ class ThemeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataType $datatype */
@@ -177,7 +196,7 @@ class ThemeController extends ODRCustomController
     private function canModifyTheme($user, $theme, $datafield = null)
     {
         /** @var PermissionsManagementService $permissions_service */
-        $permissions_service = $this->container->get('odr.permissions_management_service');
+        $permissions_service = $this->permissions_management_service;
 
         // ----------------------------------------
         // ODR supports linking of databases in order to reduce duplication of data.
@@ -285,7 +304,7 @@ class ThemeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var ODRRenderService $odr_render_service */
-            $odr_render_service = $this->container->get('odr.render_service');
+            $odr_render_service = $this->render_service;
 
 
             /** @var DataType $datatype */
@@ -361,9 +380,9 @@ class ThemeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
 
             /** @var Theme $theme */
@@ -410,7 +429,7 @@ class ThemeController extends ODRCustomController
 //                $theme_form->addError( new FormError('DO NOT SAVE') );
 
                 // Need to unescape these values if they're coming from a wordpress install...
-                $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
+                $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
                 if ( $is_wordpress_integrated ) {
                     $submitted_data->setTemplateName( stripslashes($submitted_data->getTemplateName()) );
                     $submitted_data->setTemplateDescription( stripslashes($submitted_data->getTemplateDescription()) );
@@ -482,9 +501,9 @@ class ThemeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
 
             /** @var Theme $theme */
@@ -590,11 +609,11 @@ class ThemeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
 
             /** @var Theme $theme */
@@ -711,11 +730,11 @@ class ThemeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
 
             /** @var Theme $theme */
@@ -807,7 +826,7 @@ class ThemeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             /** @var Theme $theme */
@@ -907,7 +926,7 @@ class ThemeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
+            $cache_service = $this->cache_service;
 
 
             /** @var Theme $theme */
@@ -1025,11 +1044,11 @@ class ThemeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
+            $cache_service = $this->cache_service;
             /** @var CloneThemeService $clone_theme_service */
-            $clone_theme_service = $this->container->get('odr.clone_theme_service');
+            $clone_theme_service = $this->clone_theme_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             /** @var Theme $theme */
@@ -1109,11 +1128,11 @@ class ThemeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var ODRRenderService $odr_render_service */
-            $odr_render_service = $this->container->get('odr.render_service');
+            $odr_render_service = $this->render_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
 
             /** @var Theme $theme */
@@ -1200,7 +1219,7 @@ class ThemeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
 
             // Grab the theme element from the repository
@@ -1291,11 +1310,11 @@ class ThemeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var ThemeElement $theme_element */
@@ -1421,9 +1440,9 @@ class ThemeController extends ODRCustomController
             $repo_theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement');
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
 
             // Grab the first theme element just to check permissions
@@ -1512,9 +1531,9 @@ class ThemeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
 
             /** @var ThemeElement $theme_element */
@@ -1602,9 +1621,9 @@ class ThemeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
 
             /** @var ThemeElement $theme_element */
@@ -1688,7 +1707,7 @@ class ThemeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var ODRRenderService $odr_render_service */
-            $odr_render_service = $this->container->get('odr.render_service');
+            $odr_render_service = $this->render_service;
 
 
             /** @var ThemeElement $theme_element */
@@ -1761,9 +1780,9 @@ class ThemeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var ThemeElement $theme_element */
@@ -1880,11 +1899,11 @@ class ThemeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
 
             /** @var ThemeElement $theme_element */
@@ -2012,7 +2031,7 @@ class ThemeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataFields $datafield */
@@ -2120,9 +2139,9 @@ class ThemeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
 
             /** @var ThemeElement $theme_element */
@@ -2245,9 +2264,9 @@ class ThemeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
 
             /** @var DataFields $datafield */
@@ -2347,9 +2366,9 @@ class ThemeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
 
             /** @var DataFields $datafield */
@@ -2454,9 +2473,9 @@ class ThemeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
 
             /** @var DataFields $datafield */
@@ -2564,9 +2583,9 @@ class ThemeController extends ODRCustomController
             $repo_theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement');
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
 
             /** @var ThemeElement $initial_theme_element */

@@ -78,6 +78,31 @@ use Symfony\Component\Security\Csrf\CsrfTokenManager;
 class DisplaytemplateController extends ODRCustomController
 {
 
+    public function __construct(
+        $clone_theme_service,
+        $database_info_service,
+        $datarecord_info_service,
+        $datatree_info_service,
+        $entity_meta_modify_service,
+        $render_service,
+        $tab_helper_service,
+        $permissions_management_service,
+        $table_theme_helper_service,
+        $theme_info_service,
+        $search_service,
+        $search_key_service,
+        private readonly CacheService $cache_service,
+        private readonly CloneTemplateService $clone_template_service,
+        private readonly DatafieldInfoService $datafield_info_service,
+        private readonly EntityCreationService $entity_creation_service,
+        private readonly EntityDeletionService $entity_deletion_service,
+        private readonly SearchSidebarService $search_sidebar_service,
+        private readonly SortService $sort_service,
+        private readonly TrackedJobService $tracked_job_service
+    ) {
+        parent::__construct($clone_theme_service, $database_info_service, $datarecord_info_service, $datatree_info_service, $entity_meta_modify_service, $render_service, $tab_helper_service, $permissions_management_service, $table_theme_helper_service, $theme_info_service, $search_service, $search_key_service);
+    }
+
     /**
      * Deletes a DataField from the DataType.
      *
@@ -99,9 +124,9 @@ class DisplaytemplateController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityDeletionService $entity_deletion_service */
-            $entity_deletion_service = $this->container->get('odr.entity_deletion_service');
+            $entity_deletion_service = $this->entity_deletion_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             /** @var DataFields $datafield */
@@ -170,9 +195,9 @@ class DisplaytemplateController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityDeletionService $entity_deletion_service */
-            $entity_deletion_service = $this->container->get('odr.entity_deletion_service');
+            $entity_deletion_service = $this->entity_deletion_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
@@ -233,7 +258,7 @@ class DisplaytemplateController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
@@ -261,8 +286,8 @@ class DisplaytemplateController extends ODRCustomController
             }
             else {
                 // Determine where to send this redirect
-                $baseurl = 'https:'.$this->container->getParameter('site_baseurl').'/';
-                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                $baseurl = 'https:'.$this->getParameter('site_baseurl').'/';
+                if ( $this->getParameter('kernel.environment') === 'dev' )
                     $baseurl .= 'app_dev.php/';
 
                 if ($datatype->getMetadataFor() !== null)  {
@@ -333,9 +358,9 @@ class DisplaytemplateController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataType $datatype */
@@ -374,7 +399,7 @@ class DisplaytemplateController extends ODRCustomController
                     throw new ODRForbiddenException();
 
                 /** @var ODRRenderService $odr_render_service */
-                $odr_render_service = $this->container->get('odr.render_service');
+                $odr_render_service = $this->render_service;
                 $page_html = $odr_render_service->getMasterDesignHTML($user, $datatype);
 
                 $return['d'] = [
@@ -419,16 +444,16 @@ class DisplaytemplateController extends ODRCustomController
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
 
             /** @var ThemeElement $theme_element */
@@ -571,7 +596,7 @@ class DisplaytemplateController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -583,7 +608,7 @@ class DisplaytemplateController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -654,20 +679,20 @@ class DisplaytemplateController extends ODRCustomController
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var DatafieldInfoService $datafield_info_service */
-            $datafield_info_service = $this->container->get('odr.datafield_info_service');
+            $datafield_info_service = $this->datafield_info_service;
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
 
             /** @var ThemeElement $theme_element */
@@ -851,7 +876,7 @@ class DisplaytemplateController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -863,7 +888,7 @@ class DisplaytemplateController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -963,16 +988,16 @@ class DisplaytemplateController extends ODRCustomController
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
 
             /** @var ThemeElement $theme_element */
@@ -1158,7 +1183,7 @@ class DisplaytemplateController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -1170,7 +1195,7 @@ class DisplaytemplateController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -1227,9 +1252,9 @@ class DisplaytemplateController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var ODRRenderService $odr_render_service */
-            $odr_render_service = $this->container->get('odr.render_service');
+            $odr_render_service = $this->render_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             /** @var ThemeElement $theme_element */
@@ -1314,11 +1339,11 @@ class DisplaytemplateController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var ODRRenderService $odr_render_service */
-            $odr_render_service = $this->container->get('odr.render_service');
+            $odr_render_service = $this->render_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
 
             /** @var DataType $source_datatype */
@@ -1400,18 +1425,18 @@ class DisplaytemplateController extends ODRCustomController
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var DatafieldInfoService $datafield_info_service */
-            $datafield_info_service = $this->container->get('odr.datafield_info_service');
+            $datafield_info_service = $this->datafield_info_service;
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             // Either both $parent_datatype_id and $theme_element_id have to be the empty string, or
@@ -1566,7 +1591,7 @@ class DisplaytemplateController extends ODRCustomController
                     throw new ODRForbiddenException();
 
                 // Need to unescape these values if they're coming from a wordpress install...
-                $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
+                $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
                 if ( $is_wordpress_integrated ) {
                     $submitted_data->setShortName( stripslashes($submitted_data->getShortName()) );  // ignoring that short name should be equivalent to long name here
                     $submitted_data->setLongName( stripslashes($submitted_data->getLongName()) );
@@ -1596,7 +1621,7 @@ class DisplaytemplateController extends ODRCustomController
 
                     // ...check that the new search slug isn't going to collide with other parts of the site
                     // TODO - make this automatic based on contents of routing files?
-                    $search_slug_blacklist = $this->container->getParameter('odr.search_slug_blacklist');
+                    $search_slug_blacklist = $this->getParameter('odr.search_slug_blacklist');
                     $invalid_slugs = explode('|', (string) $search_slug_blacklist);
                     if ( in_array(strtolower($submitted_data->getSearchSlug()), $invalid_slugs) )
                         $datatype_form->addError( new FormError('This abbreviation is reserved for use by ODR') );
@@ -1699,7 +1724,7 @@ class DisplaytemplateController extends ODRCustomController
                     catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
                         //  event
-//                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        if ( $this->getParameter('kernel.environment') === 'dev' )
 //                            throw $e;
                     }
 
@@ -1931,7 +1956,7 @@ class DisplaytemplateController extends ODRCustomController
     private function getSingleLinkedDescendants($datatype)
     {
         /** @var DatatreeInfoService $datatree_info_service */
-        $datatree_info_service = $this->container->get('odr.datatree_info_service');
+        $datatree_info_service = $this->datatree_info_service;
 
         // Locate the ids of all datatypes that the given parent datatype links to
         $datatree_array = $datatree_info_service->getDatatreeArray();
@@ -1983,14 +2008,14 @@ class DisplaytemplateController extends ODRCustomController
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
+            $cache_service = $this->cache_service;
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             /** @var DataTree $datatree */
@@ -2179,7 +2204,7 @@ class DisplaytemplateController extends ODRCustomController
                     catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
                         //  event
-//                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        if ( $this->getParameter('kernel.environment') === 'dev' )
 //                            throw $e;
                     }
 
@@ -2239,26 +2264,26 @@ class DisplaytemplateController extends ODRCustomController
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var DatafieldInfoService $datafield_info_service */
-            $datafield_info_service = $this->container->get('odr.datafield_info_service');
+            $datafield_info_service = $this->datafield_info_service;
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SortService $sort_service */
-            $sort_service = $this->container->get('odr.sort_service');
+            $sort_service = $this->sort_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
             /** @var TrackedJobService $tracked_job_service */
-            $tracked_job_service = $this->container->get('odr.tracked_job_service');
+            $tracked_job_service = $this->tracked_job_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             // TODO - what should you be allowed to modify on a derived datafield?
@@ -2366,7 +2391,7 @@ class DisplaytemplateController extends ODRCustomController
                 $em->refresh($datafield->getDataFieldMeta());
 
                 // Need to unescape these values if they're coming from a wordpress install...
-                $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
+                $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
                 if ( $is_wordpress_integrated ) {
                     $submitted_data->setFieldName( stripslashes($submitted_data->getFieldName()) );
                     $submitted_data->setDescription( stripslashes($submitted_data->getDescription()) );
@@ -2637,7 +2662,7 @@ class DisplaytemplateController extends ODRCustomController
                     catch (\Exception $e) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
                         //  event
-//                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        if ( $this->getParameter('kernel.environment') === 'dev' )
 //                            throw $e;
                     }
 
@@ -2653,7 +2678,7 @@ class DisplaytemplateController extends ODRCustomController
                     catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
                         //  event
-//                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        if ( $this->getParameter('kernel.environment') === 'dev' )
 //                            throw $e;
                     }
 
@@ -2862,9 +2887,9 @@ class DisplaytemplateController extends ODRCustomController
     {
         // ----------------------------------------
         // Grab necessary stuff for pheanstalk...
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-        $api_key = $this->container->getParameter('beanstalk_api_key');
-        $pheanstalk = $this->get('pheanstalk');
+        $redis_prefix = $this->getParameter('memcached_key_prefix');
+        $api_key = $this->getParameter('beanstalk_api_key');
+        $pheanstalk = $this->container->get('pheanstalk');
 
         $url = $this->generateUrl('odr_migrate_field', [], UrlGeneratorInterface::ABSOLUTE_URL);
 
@@ -2990,9 +3015,9 @@ class DisplaytemplateController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataType $datatype */
@@ -3095,7 +3120,7 @@ $debug = false;
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             $em->getFilters()->disable('softdeleteable');   // Temporarily disable the code that prevents the following query from returning deleted rows, because we want to display old selected mappings/options
@@ -3352,12 +3377,12 @@ if ($debug)
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             /** @var DataType $datatype */
@@ -3402,7 +3427,7 @@ if ($debug)
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -3445,12 +3470,12 @@ if ($debug)
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             /** @var DataFields $datafield */
@@ -3503,7 +3528,7 @@ if ($debug)
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -3515,7 +3540,7 @@ if ($debug)
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -3551,7 +3576,7 @@ if ($debug)
 
         try {
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
             $return['d'] = [
                 'html' => $templating->render(
@@ -3598,7 +3623,7 @@ if ($debug)
             $lower_value = $post['lower_value'];
 
             // Need to unescape the values if they're coming from a wordpress install...
-            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
+            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
             if ( $is_wordpress_integrated ) {
                 $upper_value = stripslashes($upper_value);
                 $lower_value = stripslashes($lower_value);
@@ -3610,12 +3635,12 @@ if ($debug)
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             /** @var DataType $datatype */
@@ -3652,7 +3677,7 @@ if ($debug)
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
         }
@@ -3693,9 +3718,9 @@ if ($debug)
             $em = $this->getDoctrine()->getManager();
 
             /** @var CloneTemplateService $clone_template_service */
-            $clone_template_service = $this->container->get('odr.clone_template_service');
+            $clone_template_service = $this->clone_template_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             /** @var DataType $datatype */
@@ -3729,9 +3754,9 @@ if ($debug)
             // Grab necessary stuff for pheanstalk...
 //            $clone_template_service->syncWithTemplate($user, $datatype);
 
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-            $api_key = $this->container->getParameter('beanstalk_api_key');
-            $pheanstalk = $this->get('pheanstalk');
+            $redis_prefix = $this->getParameter('memcached_key_prefix');
+            $api_key = $this->getParameter('beanstalk_api_key');
+            $pheanstalk = $this->container->get('pheanstalk');
 
             $url = $this->generateUrl('odr_sync_with_template_worker', [], UrlGeneratorInterface::ABSOLUTE_URL);
 
@@ -3805,9 +3830,9 @@ if ($debug)
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataType $datatype */
@@ -3914,13 +3939,13 @@ if ($debug)
             $token_manager = $this->container->get('security.csrf.token_manager');
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var DatafieldInfoService $datafield_info_service */
-            $datafield_info_service = $this->container->get('odr.datafield_info_service');
+            $datafield_info_service = $this->datafield_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataType $datatype */
@@ -4037,20 +4062,20 @@ if ($debug)
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var DatafieldInfoService $datafield_info_service */
-            $datafield_info_service = $this->container->get('odr.datafield_info_service');
+            $datafield_info_service = $this->datafield_info_service;
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var TrackedJobService $tracked_job_service */
-            $tracked_job_service = $this->container->get('odr.tracked_job_service');
+            $tracked_job_service = $this->tracked_job_service;
             /** @var CsrfTokenManager $token_manager */
             $token_manager = $this->container->get('security.csrf.token_manager');
 
@@ -4267,7 +4292,7 @@ if ($debug)
                     catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
                         //  event
-//                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        if ( $this->getParameter('kernel.environment') === 'dev' )
 //                            throw $e;
                     }
                 }
@@ -4280,7 +4305,7 @@ if ($debug)
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
-//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    if ( $this->getParameter('kernel.environment') === 'dev' )
 //                        throw $e;
                 }
             }
@@ -4324,11 +4349,11 @@ if ($debug)
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
             /** @var CsrfTokenManager $token_manager */
             $token_manager = $this->container->get('security.csrf.token_manager');
 
@@ -4443,18 +4468,18 @@ if ($debug)
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
+            $cache_service = $this->cache_service;
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var CsrfTokenManager $token_manager */
             $token_manager = $this->container->get('security.csrf.token_manager');
 
@@ -4595,7 +4620,7 @@ if ($debug)
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
-//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    if ( $this->getParameter('kernel.environment') === 'dev' )
 //                        throw $e;
                 }
 
@@ -4640,15 +4665,15 @@ if ($debug)
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatafieldInfoService $datafield_info_service */
-            $datafield_info_service = $this->container->get('odr.datafield_info_service');
+            $datafield_info_service = $this->datafield_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
             /** @var SearchSidebarService $search_sidebar_service */
-            $search_sidebar_service = $this->container->get('odr.search_sidebar_service');
+            $search_sidebar_service = $this->search_sidebar_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataType $datatype */
@@ -4852,13 +4877,13 @@ if ($debug)
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var DatafieldInfoService $datafield_info_service */
-            $datafield_info_service = $this->container->get('odr.datafield_info_service');
+            $datafield_info_service = $this->datafield_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
 
 
             /** @var DataType $datatype */
@@ -4882,12 +4907,12 @@ if ($debug)
 
             // ----------------------------------------
             // Convert the POST request into a search key and validate it
-            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
+            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
             $search_key = $search_key_service->convertPOSTtoSearchKey($search_params, $is_wordpress_integrated);
 
             // Don't want to filter the search key here...it wouldn't do anything anyways...but
             //  should complain if it's too long
-            if ( strlen($search_key) > intval($this->container->getParameter('search_key_char_limit')) )
+            if ( strlen($search_key) > intval($this->getParameter('search_key_char_limit')) )
                 throw new ODRBadRequestException('Search Key has too many criteria');
 
             // If the search key isn't too excessively long, then make sure it's legal
@@ -4972,13 +4997,13 @@ if ($debug)
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
 
 
             /** @var DataType $datatype */

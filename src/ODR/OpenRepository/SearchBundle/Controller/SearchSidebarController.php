@@ -50,6 +50,26 @@ use Symfony\Component\HttpFoundation\Response;
 class SearchSidebarController extends ODRCustomController
 {
 
+    public function __construct(
+        $clone_theme_service,
+        $database_info_service,
+        $datarecord_info_service,
+        $datatree_info_service,
+        $entity_meta_modify_service,
+        $render_service,
+        $tab_helper_service,
+        $permissions_management_service,
+        $table_theme_helper_service,
+        $theme_info_service,
+        $search_service,
+        $search_key_service,
+        private readonly CacheService $cache_service,
+        private readonly EntityCreationService $entity_creation_service,
+        private readonly SearchSidebarService $search_sidebar_service
+    ) {
+        parent::__construct($clone_theme_service, $database_info_service, $datarecord_info_service, $datatree_info_service, $entity_meta_modify_service, $render_service, $tab_helper_service, $permissions_management_service, $table_theme_helper_service, $theme_info_service, $search_service, $search_key_service);
+    }
+
     /**
      * Re-renders and returns the HTML to search a datafield in the search sidebar.
      *
@@ -70,9 +90,9 @@ class SearchSidebarController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
@@ -109,7 +129,7 @@ class SearchSidebarController extends ODRCustomController
                 $datatype_array = $database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want links
                 $df_array = $datatype_array[$datatype->getId()]['dataFields'][$datafield->getId()];
 
-                $templating = $this->get('twig');
+                $templating = $this->container->get('twig');
                 $return['d'] = [
                     'needs_update' => true,
                     'html' => $templating->render(
@@ -157,13 +177,13 @@ class SearchSidebarController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
             /** @var SearchSidebarService $search_sidebar_service */
-            $search_sidebar_service = $this->container->get('odr.search_sidebar_service');
+            $search_sidebar_service = $this->search_sidebar_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
 
             // Ensure it's a valid search key first...
@@ -228,7 +248,7 @@ class SearchSidebarController extends ODRCustomController
             $preferred_theme_id = $theme_info_service->getPreferredThemeId($user, $target_datatype->getId(), 'search_results');
             $preferred_theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($preferred_theme_id);
 
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
             $return['d'] = [
                 'num_params' => count($search_params),
                 'html' => $templating->render(
@@ -292,9 +312,9 @@ class SearchSidebarController extends ODRCustomController
 
         try {
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
             /** @var SearchSidebarService $search_sidebar_service */
-            $search_sidebar_service = $this->container->get('odr.search_sidebar_service');
+            $search_sidebar_service = $this->search_sidebar_service;
 
             // Convert the given search key into an array of parameters...
             $search_key_service->validateSearchKey($search_key);
@@ -363,13 +383,13 @@ class SearchSidebarController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
             /** @var SearchSidebarService $search_sidebar_service */
-            $search_sidebar_service = $this->container->get('odr.search_sidebar_service');
+            $search_sidebar_service = $this->search_sidebar_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
             $datatype_id = intval($datatype_id);
             $inverse_datatype_id = intval($inverse_datatype_id);
@@ -420,7 +440,7 @@ class SearchSidebarController extends ODRCustomController
             $preferred_theme_id = $theme_info_service->getPreferredThemeId($user, $target_datatype->getId(), 'linking');
             $preferred_theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($preferred_theme_id);
 
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
             $return['d'] = [
                 'num_params' => count($search_params),
                 'html' => $templating->render(
@@ -486,13 +506,13 @@ class SearchSidebarController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
             /** @var SearchSidebarService $search_sidebar_service */
-            $search_sidebar_service = $this->container->get('odr.search_sidebar_service');
+            $search_sidebar_service = $this->search_sidebar_service;
 //            /** @var ThemeInfoService $theme_info_service */
-//            $theme_info_service = $this->container->get('odr.theme_info_service');
+//            $theme_info_service = $this->theme_info_service;
 
             $datatype_id = intval($datatype_id);
             $inverse_datatype_id = intval($inverse_datatype_id);
@@ -545,7 +565,7 @@ class SearchSidebarController extends ODRCustomController
 //            $preferred_theme_id = $theme_info_service->getPreferredThemeId($user, $target_datatype->getId(), 'search_results');
 //            $preferred_theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($preferred_theme_id);
 
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
             $return['d'] = [
                 'num_params' => count($search_params),
                 'html' => $templating->render(
@@ -613,13 +633,13 @@ class SearchSidebarController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
             /** @var SearchSidebarService $search_sidebar_service */
-            $search_sidebar_service = $this->container->get('odr.search_sidebar_service');
+            $search_sidebar_service = $this->search_sidebar_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataType $datatype */
@@ -718,7 +738,7 @@ class SearchSidebarController extends ODRCustomController
     private function canModifySidebarLayout($user, $sidebar_layout, $datafield = null)
     {
         /** @var PermissionsManagementService $permissions_service */
-        $permissions_service = $this->container->get('odr.permissions_management_service');
+        $permissions_service = $this->permissions_management_service;
 
         $datatype = $sidebar_layout->getDataType();
 
@@ -766,11 +786,11 @@ class SearchSidebarController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
+            $cache_service = $this->cache_service;
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             /** @var DataType $datatype */
@@ -837,11 +857,11 @@ class SearchSidebarController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var ODRRenderService $odr_render_service */
-            $odr_render_service = $this->container->get('odr.render_service');
+            $odr_render_service = $this->render_service;
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
             /** @var SearchSidebarService $search_sidebar_service */
-            $search_sidebar_service = $this->container->get('odr.search_sidebar_service');
+            $search_sidebar_service = $this->search_sidebar_service;
 
 
             /** @var DataType $datatype */
@@ -937,9 +957,9 @@ class SearchSidebarController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var SearchSidebarService $search_sidebar_service */
-            $search_sidebar_service = $this->container->get('odr.search_sidebar_service');
+            $search_sidebar_service = $this->search_sidebar_service;
 
 
             /** @var SidebarLayout $sidebar_layout */
@@ -982,7 +1002,7 @@ class SearchSidebarController extends ODRCustomController
 //                $sidebar_layout_form->addError( new FormError('DO NOT SAVE') );
 
                 // Need to unescape these values if they're coming from a wordpress install...
-                $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
+                $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
                 if ( $is_wordpress_integrated ) {
                     $submitted_data->setLayoutName( stripslashes($submitted_data->getLayoutName()) );
                     $submitted_data->setLayoutDescription( stripslashes((string) $submitted_data->getLayoutDescription()) );
@@ -1056,9 +1076,9 @@ class SearchSidebarController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
@@ -1130,7 +1150,7 @@ class SearchSidebarController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
 
 
             /** @var SidebarLayout $sidebar_layout */
@@ -1215,9 +1235,9 @@ class SearchSidebarController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             /** @var SidebarLayout $sidebar_layout */
@@ -1324,9 +1344,9 @@ class SearchSidebarController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             /** @var SidebarLayout $sidebar_layout */
@@ -1411,7 +1431,7 @@ class SearchSidebarController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             /** @var SidebarLayout $sidebar_layout */
@@ -1509,9 +1529,9 @@ class SearchSidebarController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
+            $cache_service = $this->cache_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             /** @var SidebarLayout $sidebar_layout */
@@ -1648,11 +1668,11 @@ class SearchSidebarController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
+            $cache_service = $this->cache_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var Logger $logger */
-            $logger = $this->get('logger');
+            $logger = $this->container->get('logger');
 
 
             /** @var SidebarLayout $sidebar_layout */
@@ -1791,15 +1811,15 @@ class SearchSidebarController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var ODRRenderService $odr_render_service */
-            $odr_render_service = $this->container->get('odr.render_service');
+            $odr_render_service = $this->render_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SearchSidebarService $search_sidebar_service */
-            $search_sidebar_service = $this->container->get('odr.search_sidebar_service');
+            $search_sidebar_service = $this->search_sidebar_service;
 
 
             /** @var SidebarLayout $sidebar_layout */
@@ -1982,9 +2002,9 @@ class SearchSidebarController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
 
 
             /** @var SidebarLayout $sidebar_layout */

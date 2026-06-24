@@ -51,6 +51,24 @@ use Symfony\Component\HttpFoundation\Response;
 class ODRUserController extends ODRCustomController
 {
 
+    public function __construct(
+        $clone_theme_service,
+        $database_info_service,
+        $datarecord_info_service,
+        $datatree_info_service,
+        $entity_meta_modify_service,
+        $render_service,
+        $tab_helper_service,
+        $permissions_management_service,
+        $table_theme_helper_service,
+        $theme_info_service,
+        $search_service,
+        $search_key_service,
+        private readonly CacheService $cache_service
+    ) {
+        parent::__construct($clone_theme_service, $database_info_service, $datarecord_info_service, $datatree_info_service, $entity_meta_modify_service, $render_service, $tab_helper_service, $permissions_management_service, $table_theme_helper_service, $theme_info_service, $search_service, $search_key_service);
+    }
+
     /**
      * Renders a form to allow admins to create a new user
      *
@@ -68,9 +86,9 @@ class ODRUserController extends ODRCustomController
         try {
             // Grab necessary objects
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             // --------------------
@@ -146,7 +164,7 @@ class ODRUserController extends ODRCustomController
                 throw new ODRBadRequestException();
 
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
 
@@ -234,10 +252,10 @@ class ODRUserController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             /** @var Router $router */
-            $router = $this->get('router');
+            $router = $this->container->get('router');
 
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
 
@@ -339,7 +357,7 @@ class ODRUserController extends ODRCustomController
 
         try {
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
             // ----------------------------------------
             // Grab the specified user
@@ -360,7 +378,7 @@ class ODRUserController extends ODRCustomController
             // Users should only be able to see their own connected OAuth accounts, not those belonging to somebody else
             if ( $self_edit && $this->has('hwi_oauth.security.oauth_utils') ) {
                 /** @var OAuthUtils $oauth_utils */
-                $oauth_utils = $this->get('hwi_oauth.security.oauth_utils');
+                $oauth_utils = $this->container->get('hwi_oauth.security.oauth_utils');
                 $resource_owners = $oauth_utils->getResourceOwners();
 
                 if (count($resource_owners) > 0) {
@@ -380,13 +398,13 @@ class ODRUserController extends ODRCustomController
             // Determine whether the user owns any OAuth clients
             $has_oauth_clients = false;
             $owned_clients = [];
-            $site_baseurl = $this->container->getParameter('site_baseurl');
+            $site_baseurl = $this->getParameter('site_baseurl');
 
             if ( $self_edit && $this->has('odr.oauth_server.client_manager') ) {
                 $has_oauth_clients = true;
 
                 /** @var ClientManager $client_manager */
-                $client_manager = $this->get('odr.oauth_server.client_manager');
+                $client_manager = $this->container->get('odr.oauth_server.client_manager');
                 $owned_clients = $client_manager->getOwnedClients($user);
             }
 
@@ -451,7 +469,7 @@ class ODRUserController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var ODRUser $target_user */
@@ -489,7 +507,7 @@ class ODRUserController extends ODRCustomController
             // Users should only be able to see their own connected OAuth accounts, not those belonging to somebody else
             if ( $self_edit && $this->has('hwi_oauth.security.oauth_utils') ) {
                 /** @var OAuthUtils $oauth_utils */
-                $oauth_utils = $this->get('hwi_oauth.security.oauth_utils');
+                $oauth_utils = $this->container->get('hwi_oauth.security.oauth_utils');
                 $resource_owners = $oauth_utils->getResourceOwners();
 
                 if (count($resource_owners) > 0) {
@@ -509,13 +527,13 @@ class ODRUserController extends ODRCustomController
             // Determine whether the user owns any OAuth clients
             $has_oauth_clients = false;
             $owned_clients = [];
-            $site_baseurl = $this->container->getParameter('site_baseurl');
+            $site_baseurl = $this->getParameter('site_baseurl');
 
             if ( $self_edit && $this->has('odr.oauth_server.client_manager') ) {
                 $has_oauth_clients = true;
 
                 /** @var ClientManager $client_manager */
-                $client_manager = $this->get('odr.oauth_server.client_manager');
+                $client_manager = $this->container->get('odr.oauth_server.client_manager');
                 $owned_clients = $client_manager->getOwnedClients($target_user);
             }
 
@@ -779,7 +797,7 @@ class ODRUserController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var ODRUser $target_user */
@@ -954,9 +972,9 @@ class ODRUserController extends ODRCustomController
         try {
 
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             // --------------------
@@ -1039,7 +1057,7 @@ class ODRUserController extends ODRCustomController
         try {
 
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
 
@@ -1059,7 +1077,7 @@ class ODRUserController extends ODRCustomController
             // Determine whether the Jupyterhub role needs to be displayed
             $using_jupyterhub = false;
             if ( $this->container->hasParameter('jupyterhub_config') ) {
-                $jupyterhub_config = $this->container->getParameter('jupyterhub_config');
+                $jupyterhub_config = $this->getParameter('jupyterhub_config');
 
                 $using_jupyterhub = $jupyterhub_config['use_jupyterhub'];
             }
@@ -1112,7 +1130,7 @@ class ODRUserController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var CacheService $cache_service*/
-            $cache_service = $this->container->get('odr.cache_service');
+            $cache_service = $this->cache_service;
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
 
@@ -1141,7 +1159,7 @@ class ODRUserController extends ODRCustomController
             // Determine whether the Jupyterhub role needs to be dealt with
             $using_jupyterhub = false;
             if ( $this->container->hasParameter('jupyterhub_config') ) {
-                $jupyterhub_config = $this->container->getParameter('jupyterhub_config');
+                $jupyterhub_config = $this->getParameter('jupyterhub_config');
 
                 $using_jupyterhub = $jupyterhub_config['use_jupyterhub'];
             }
@@ -1234,7 +1252,7 @@ class ODRUserController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var CacheService $cache_service*/
-            $cache_service = $this->container->get('odr.cache_service');
+            $cache_service = $this->cache_service;
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
 
@@ -1284,7 +1302,7 @@ class ODRUserController extends ODRCustomController
 
             // Generate a redirect to the user list
             /** @var Router $router */
-            $router = $this->get('router');
+            $router = $this->container->get('router');
             $return['d'] = [
                 'url' => $router->generate('odr_user_list')
             ];
@@ -1354,7 +1372,7 @@ class ODRUserController extends ODRCustomController
 
             // Generate a redirect to the user list
             /** @var Router $router */
-            $router = $this->get('router');
+            $router = $this->container->get('router');
             $return['d'] = [
                 'url' => $router->generate('odr_user_list')
             ];
@@ -1395,13 +1413,13 @@ class ODRUserController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatatreeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatree_info_service');
+            $dti_service = $this->datatree_info_service;
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataType $datatype */
@@ -1500,11 +1518,11 @@ class ODRUserController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatatreeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatree_info_service');
+            $dti_service = $this->datatree_info_service;
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
             /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
+            $theme_service = $this->theme_info_service;
 
 
             /** @var ODRUser $target_user */
@@ -1546,7 +1564,7 @@ class ODRUserController extends ODRCustomController
             // ----------------------------------------
             // Render the datatype from the target user's point of view
             /** @var ODRRenderService $odr_render_service */
-            $odr_render_service = $this->get('odr.render_service');
+            $odr_render_service = $this->render_service;
             $page_html = $odr_render_service->getViewAsUserHTML($admin_user, $target_user, $theme);
 
             $return['d'] = [

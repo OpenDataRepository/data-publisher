@@ -31,6 +31,502 @@ parameters:
             mimeTypesErrorMessage: Please upload a valid file.
 
 services:
+    # --- ODR controller DI (Symfony 5.0 prep: replaces container auto-injection) ---
+    # The 12 shared ODRCustomController odr.* dependencies, as a reusable YAML anchor. Each ODR
+    # controller is a service that pulls these in via *odr_base_args and adds its own extra odr.*
+    # services; framework/vendor services resolve through odr.controller_locator (injected via the
+    # explicit setContainer call on each controller, which is what suppresses the auto-injection
+    # deprecation while keeping AbstractController's helpers working).
+    odr.controller_base:
+        abstract: true
+        class: ODR\AdminBundle\Controller\ODRCustomController
+        arguments: &odr_base_args
+            $clone_theme_service: '@odr.clone_theme_service'
+            $database_info_service: '@odr.database_info_service'
+            $datarecord_info_service: '@odr.datarecord_info_service'
+            $datatree_info_service: '@odr.datatree_info_service'
+            $entity_meta_modify_service: '@odr.entity_meta_modify_service'
+            $render_service: '@odr.render_service'
+            $tab_helper_service: '@odr.tab_helper_service'
+            $permissions_management_service: '@odr.permissions_management_service'
+            $table_theme_helper_service: '@odr.table_theme_helper_service'
+            $theme_info_service: '@odr.theme_info_service'
+            $search_service: '@odr.search_service'
+            $search_key_service: '@odr.search_key_service'
+
+    odr.controller_locator:
+        class: Symfony\Component\DependencyInjection\ServiceLocator
+        tags: ['container.service_locator']
+        arguments:
+            -
+                router: '@router'
+                request_stack: '@request_stack'
+                http_kernel: '@http_kernel'
+                session: '@session'
+                security.authorization_checker: '@security.authorization_checker'
+                twig: '@twig'
+                doctrine: '@doctrine'
+                form.factory: '@form.factory'
+                security.token_storage: '@security.token_storage'
+                security.csrf.token_manager: '@security.csrf.token_manager'
+                parameter_bag: '@parameter_bag'
+                event_dispatcher: '@event_dispatcher'
+                logger: '@logger'
+                pheanstalk: '@pheanstalk'
+                fos_user.user_manager: '@fos_user.user_manager'
+                fos_user.util.token_generator: '@fos_user.util.token_generator'
+                snc_redis.default: '@snc_redis.default'
+                hwi_oauth.security.oauth_utils: '@hwi_oauth.security.oauth_utils'
+                # two odr.* services with dotted ids kept on the locator (only a few call sites)
+                odr.jupyterhub_bridge.username_service: '@odr.jupyterhub_bridge.username_service'
+                odr.oauth_server.client_manager: '@odr.oauth_server.client_manager'
+
+    # Uses dynamic service ids ($this->container->get('hwi_oauth.resource_owner.'.$name)) that can't
+    # live in a fixed locator, so it gets the full container. (OAuthClientBundle is a Phase 4 removal.)
+    ODR\OpenRepository\OAuthClientBundle\Controller\LinkController:
+        public: true
+        arguments: *odr_base_args
+        calls:
+            - [setContainer, ['@service_container']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\LinkController:
+        public: true
+        arguments:
+            <<: *odr_base_args
+            $cache_service: '@odr.cache_service'
+            $entity_creation_service: '@odr.entity_creation_service'
+            $entity_deletion_service: '@odr.entity_deletion_service'
+            $sort_service: '@odr.sort_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\EditController:
+        public: true
+        arguments:
+            <<: *odr_base_args
+            $cache_service: '@odr.cache_service'
+            $crypto_service: '@odr.crypto_service'
+            $entity_creation_service: '@odr.entity_creation_service'
+            $entity_deletion_service: '@odr.entity_deletion_service'
+            $pagination_helper_service: '@odr.pagination_helper_service'
+            $sort_service: '@odr.sort_service'
+            $tracked_job_service: '@odr.tracked_job_service'
+            $upload_service: '@odr.upload_service'
+            $xyzdata_helper_service: '@odr.xyzdata_helper_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\APIController:
+        public: true
+        arguments:
+            <<: *odr_base_args
+            $cache_service: '@odr.cache_service'
+            $crypto_service: '@odr.crypto_service'
+            $datarecord_export_service: '@odr.datarecord_export_service'
+            $datatype_create_service: '@odr.datatype_create_service'
+            $datatype_export_service: '@odr.datatype_export_service'
+            $entity_creation_service: '@odr.entity_creation_service'
+            $entity_deletion_service: '@odr.entity_deletion_service'
+            $search_api_service: '@odr.search_api_service'
+            $sort_service: '@odr.sort_service'
+            $statistics_service: '@odr.statistics_service'
+            $tag_helper_service: '@odr.tag_helper_service'
+            $upload_service: '@odr.upload_service'
+            $user_group_management_service: '@odr.user_group_management_service'
+            $uuid_service: '@odr.uuid_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\CSVExportController:
+        public: true
+        arguments:
+            <<: *odr_base_args
+            $csv_export_helper_service: '@odr.csv_export_helper_service'
+            $search_api_service: '@odr.search_api_service'
+            $search_redirect_service: '@odr.search_redirect_service'
+            $tracked_job_service: '@odr.tracked_job_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\CSVImportController:
+        public: true
+        arguments:
+            <<: *odr_base_args
+            $cache_service: '@odr.cache_service'
+            $csv_import_helper_service: '@odr.csv_import_helper_service'
+            $entity_creation_service: '@odr.entity_creation_service'
+            $sort_service: '@odr.sort_service'
+            $tag_helper_service: '@odr.tag_helper_service'
+            $tracked_job_service: '@odr.tracked_job_service'
+            $upload_service: '@odr.upload_service'
+            $uuid_service: '@odr.uuid_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\DatatypeController:
+        public: true
+        arguments:
+            <<: *odr_base_args
+            $cache_service: '@odr.cache_service'
+            $datatype_create_service: '@odr.datatype_create_service'
+            $entity_creation_service: '@odr.entity_creation_service'
+            $user_group_management_service: '@odr.user_group_management_service'
+            $uuid_service: '@odr.uuid_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\DebugController:
+        public: true
+        arguments:
+            <<: *odr_base_args
+            $csv_export_helper_service: '@odr.csv_export_helper_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\DefaultController:
+        public: true
+        arguments: *odr_base_args
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\DisplayController:
+        public: true
+        arguments:
+            <<: *odr_base_args
+            $crypto_service: '@odr.crypto_service'
+            $pagination_helper_service: '@odr.pagination_helper_service'
+            $search_api_service: '@odr.search_api_service'
+            $search_redirect_service: '@odr.search_redirect_service'
+            $statistics_service: '@odr.statistics_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\DisplaytemplateController:
+        public: true
+        arguments:
+            <<: *odr_base_args
+            $cache_service: '@odr.cache_service'
+            $clone_template_service: '@odr.clone_template_service'
+            $datafield_info_service: '@odr.datafield_info_service'
+            $entity_creation_service: '@odr.entity_creation_service'
+            $entity_deletion_service: '@odr.entity_deletion_service'
+            $search_sidebar_service: '@odr.search_sidebar_service'
+            $sort_service: '@odr.sort_service'
+            $tracked_job_service: '@odr.tracked_job_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\FakeEditController:
+        public: true
+        arguments:
+            <<: *odr_base_args
+            $entity_creation_service: '@odr.entity_creation_service'
+            $sort_service: '@odr.sort_service'
+            $tag_helper_service: '@odr.tag_helper_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\FlowController:
+        public: true
+        arguments:
+            <<: *odr_base_args
+            $entity_creation_service: '@odr.entity_creation_service'
+            $lock_service: '@odr.lock_service'
+            $upload_service: '@odr.upload_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\JobController:
+        public: true
+        arguments:
+            <<: *odr_base_args
+            $tracked_job_service: '@odr.tracked_job_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\MassEditController:
+        public: true
+        arguments:
+            <<: *odr_base_args
+            $cache_service: '@odr.cache_service'
+            $crypto_service: '@odr.crypto_service'
+            $entity_creation_service: '@odr.entity_creation_service'
+            $search_api_service: '@odr.search_api_service'
+            $search_redirect_service: '@odr.search_redirect_service'
+            $tag_helper_service: '@odr.tag_helper_service'
+            $tracked_job_service: '@odr.tracked_job_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\MigrationController:
+        public: true
+        arguments:
+            <<: *odr_base_args
+            $cache_service: '@odr.cache_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\ODRGroupController:
+        public: true
+        arguments:
+            <<: *odr_base_args
+            $cache_service: '@odr.cache_service'
+            $entity_creation_service: '@odr.entity_creation_service'
+            $user_group_management_service: '@odr.user_group_management_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\ODRSystemController:
+        public: true
+        arguments: *odr_base_args
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\ODRUserController:
+        public: true
+        arguments:
+            <<: *odr_base_args
+            $cache_service: '@odr.cache_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\PluginsController:
+        public: true
+        arguments:
+            <<: *odr_base_args
+            $cache_service: '@odr.cache_service'
+            $datafield_info_service: '@odr.datafield_info_service'
+            $entity_creation_service: '@odr.entity_creation_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\RadioOptionsController:
+        public: true
+        arguments:
+            <<: *odr_base_args
+            $cache_service: '@odr.cache_service'
+            $clone_template_service: '@odr.clone_template_service'
+            $entity_creation_service: '@odr.entity_creation_service'
+            $sort_service: '@odr.sort_service'
+            $tracked_job_service: '@odr.tracked_job_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\ReportsController:
+        public: true
+        arguments:
+            <<: *odr_base_args
+            $cache_service: '@odr.cache_service'
+            $datafield_info_service: '@odr.datafield_info_service'
+            $fieldtype_migration_service: '@odr.fieldtype_migration_service'
+            $sort_service: '@odr.sort_service'
+            $upload_service: '@odr.upload_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\SessionController:
+        public: true
+        arguments:
+            <<: *odr_base_args
+            $search_sidebar_service: '@odr.search_sidebar_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\StatisticsController:
+        public: true
+        arguments:
+            <<: *odr_base_args
+            $statistics_service: '@odr.statistics_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\TagsController:
+        public: true
+        arguments:
+            <<: *odr_base_args
+            $clone_template_service: '@odr.clone_template_service'
+            $entity_creation_service: '@odr.entity_creation_service'
+            $sort_service: '@odr.sort_service'
+            $tag_helper_service: '@odr.tag_helper_service'
+            $tracked_job_service: '@odr.tracked_job_service'
+            $uuid_service: '@odr.uuid_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\TextResultsController:
+        public: true
+        arguments:
+            <<: *odr_base_args
+            $pagination_helper_service: '@odr.pagination_helper_service'
+            $search_api_service: '@odr.search_api_service'
+            $sort_service: '@odr.sort_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\ThemeController:
+        public: true
+        arguments:
+            <<: *odr_base_args
+            $cache_service: '@odr.cache_service'
+            $entity_creation_service: '@odr.entity_creation_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\TrackingController:
+        public: true
+        arguments:
+            <<: *odr_base_args
+            $search_api_service: '@odr.search_api_service'
+            $sort_service: '@odr.sort_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\TriggerController:
+        public: true
+        arguments:
+            <<: *odr_base_args
+            $tracked_job_service: '@odr.tracked_job_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\ValidationController:
+        public: true
+        arguments:
+            <<: *odr_base_args
+            $cache_service: '@odr.cache_service'
+            $uuid_service: '@odr.uuid_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\WorkerController:
+        public: true
+        arguments:
+            <<: *odr_base_args
+            $amcsd_update_service: '@odr.amcsd_update_service'
+            $cache_service: '@odr.cache_service'
+            $clone_template_service: '@odr.clone_template_service'
+            $crypto_service: '@odr.crypto_service'
+            $entity_creation_service: '@odr.entity_creation_service'
+            $tag_helper_service: '@odr.tag_helper_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\XMLImportController:
+        public: true
+        arguments: *odr_base_args
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\AdminBundle\Controller\XSDController:
+        public: true
+        arguments: *odr_base_args
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\OpenRepository\GraphBundle\Controller\FileHeaderInserterController:
+        public: true
+        arguments: *odr_base_args
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\OpenRepository\GraphBundle\Controller\FileRenamerController:
+        public: true
+        arguments: *odr_base_args
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\OpenRepository\GraphBundle\Controller\GraphController:
+        public: true
+        arguments: *odr_base_args
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\OpenRepository\GraphBundle\Controller\RRUFFCellparamsController:
+        public: true
+        arguments:
+            <<: *odr_base_args
+            $entity_creation_service: '@odr.entity_creation_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\OpenRepository\GraphBundle\Controller\RRUFFFileHeaderInserterController:
+        public: true
+        arguments: *odr_base_args
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\OpenRepository\GraphBundle\Controller\RRUFFInstrumentUsageController:
+        public: true
+        arguments: *odr_base_args
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\OpenRepository\GraphBundle\Controller\ReferenceController:
+        public: true
+        arguments: *odr_base_args
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\OpenRepository\JupyterhubBridgeBundle\Controller\BridgeController:
+        public: true
+        arguments:
+            <<: *odr_base_args
+            $search_api_service: '@odr.search_api_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
+    ODR\OpenRepository\SearchBundle\Controller\SearchSidebarController:
+        public: true
+        arguments:
+            <<: *odr_base_args
+            $cache_service: '@odr.cache_service'
+            $entity_creation_service: '@odr.entity_creation_service'
+            $search_sidebar_service: '@odr.search_sidebar_service'
+        calls:
+            - [setContainer, ['@odr.controller_locator']]
+        tags: ['controller.service_arguments']
+
     # Console commands. Symfony 4 removed auto-registration of a bundle's
     # Command/ directory, so the legacy ContainerAwareCommand classes must be
     # registered explicitly as services tagged console.command.

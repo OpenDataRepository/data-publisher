@@ -37,6 +37,24 @@ use Symfony\Component\HttpFoundation\Response;
 class BridgeController extends ODRCustomController
 {
 
+    public function __construct(
+        $clone_theme_service,
+        $database_info_service,
+        $datarecord_info_service,
+        $datatree_info_service,
+        $entity_meta_modify_service,
+        $render_service,
+        $tab_helper_service,
+        $permissions_management_service,
+        $table_theme_helper_service,
+        $theme_info_service,
+        $search_service,
+        $search_key_service,
+        private readonly SearchAPIService $search_api_service
+    ) {
+        parent::__construct($clone_theme_service, $database_info_service, $datarecord_info_service, $datatree_info_service, $entity_meta_modify_service, $render_service, $tab_helper_service, $permissions_management_service, $table_theme_helper_service, $theme_info_service, $search_service, $search_key_service);
+    }
+
     /**
      * Loads and returns a list of available "apps" to run inside Jupyterhub.
      *
@@ -89,7 +107,7 @@ class BridgeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
@@ -120,7 +138,7 @@ class BridgeController extends ODRCustomController
 
             // ----------------------------------------
             // Return the applist as a json array
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
             $html = $templating->render(
                 '@ODROpenRepositoryJupyterhubBridge/Default/app_list.html.twig',
                 [
@@ -158,15 +176,15 @@ class BridgeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
             /** @var SearchAPIService $search_api_service */
-            $search_api_service = $this->container->get('odr.search_api_service');
+            $search_api_service = $this->search_api_service;
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
 
 
             // Going to need these...
-            $jupyterhub_config = $this->container->getParameter('jupyterhub_config');
+            $jupyterhub_config = $this->getParameter('jupyterhub_config');
             $jupyterhub_server_baseurl = $jupyterhub_config['jupyterhub_baseurl'];
 
             $jupyterhub_api_baseurl = $jupyterhub_server_baseurl.'/hub/api';
@@ -194,7 +212,7 @@ class BridgeController extends ODRCustomController
                 throw new ODRForbiddenException();
 
             $user_permissions = $pm_service->getUserPermissionsArray($user);
-            $username = $this->get('odr.jupyterhub_bridge.username_service')->getJupyterhubUsername($user);
+            $username = $this->container->get('odr.jupyterhub_bridge.username_service')->getJupyterhubUsername($user);
 
 
             // ----------------------------------------
@@ -278,7 +296,7 @@ class BridgeController extends ODRCustomController
         $headers[] = 'Authorization: token '.$jupyterhub_api_key;
 
         // Juypyterhub API url is of the form  /users/{name}/server
-        $username = $this->get('odr.jupyterhub_bridge.username_service')->getJupyterhubUsername($user);
+        $username = $this->container->get('odr.jupyterhub_bridge.username_service')->getJupyterhubUsername($user);
         $jupyterhub_api_url = $jupyterhub_api_baseurl.'/users/'.$username.'/server';
 
         curl_setopt_array(
@@ -351,10 +369,10 @@ class BridgeController extends ODRCustomController
         $headers[] = 'Authorization: token '.$jupyterhub_api_key;
 
         // Juypyterhub API url is of the form
-        $username = $this->get('odr.jupyterhub_bridge.username_service')->getJupyterhubUsername($user);
+        $username = $this->container->get('odr.jupyterhub_bridge.username_service')->getJupyterhubUsername($user);
         $jupyterhub_api_url = $jupyterhub_server_baseurl.'/services/odr_bridge/create_notebook';
 
-        $jupyterhub_config = $this->container->getParameter('jupyterhub_config');
+        $jupyterhub_config = $this->getParameter('jupyterhub_config');
         $bridge_token = $jupyterhub_config['bridge_token'];
 
         $parameters = [
@@ -421,7 +439,7 @@ class BridgeController extends ODRCustomController
 
 
             // Going to need these...
-            $jupyterhub_config = $this->container->getParameter('jupyterhub_config');
+            $jupyterhub_config = $this->getParameter('jupyterhub_config');
             $jupyterhub_server_baseurl = $jupyterhub_config['jupyterhub_baseurl'];
 
             $jupyterhub_api_baseurl = $jupyterhub_server_baseurl.'/hub/api';

@@ -43,6 +43,25 @@ use Doctrine\DBAL\Connection as DBALConnection;
 class TrackingController extends ODRCustomController
 {
 
+    public function __construct(
+        $clone_theme_service,
+        $database_info_service,
+        $datarecord_info_service,
+        $datatree_info_service,
+        $entity_meta_modify_service,
+        $render_service,
+        $tab_helper_service,
+        $permissions_management_service,
+        $table_theme_helper_service,
+        $theme_info_service,
+        $search_service,
+        $search_key_service,
+        private readonly SearchAPIService $search_api_service,
+        private readonly SortService $sort_service
+    ) {
+        parent::__construct($clone_theme_service, $database_info_service, $datarecord_info_service, $datatree_info_service, $entity_meta_modify_service, $render_service, $tab_helper_service, $permissions_management_service, $table_theme_helper_service, $theme_info_service, $search_service, $search_key_service);
+    }
+
     // TODO - move the datafield history stuff from EditController into here?
 
     // TODO - add another controller action so users can approach from the context of "what changes have been made to this field?"
@@ -87,15 +106,15 @@ class TrackingController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var DatatreeInfoService $datatree_info_service */
-            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            $datatree_info_service = $this->datatree_info_service;
             /** @var DatarecordInfoService $datarecord_info_service */
-            $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
+            $datarecord_info_service = $this->datarecord_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataRecord $datarecord */
@@ -224,17 +243,17 @@ class TrackingController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var DatatreeInfoService $datatree_info_service */
-            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            $datatree_info_service = $this->datatree_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SearchAPIService $search_api_service */
-            $search_api_service = $this->container->get('odr.search_api_service');
+            $search_api_service = $this->search_api_service;
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             // Ensure the search key is valid before attempting to decode it...
@@ -383,13 +402,13 @@ class TrackingController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var DatatreeInfoService $datatree_info_service */
-            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            $datatree_info_service = $this->datatree_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataType $datatype */
@@ -505,9 +524,9 @@ class TrackingController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var ODRUser $target_user */
@@ -685,13 +704,13 @@ class TrackingController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
             /** @var SearchAPIService $search_api_service */
-            $search_api_service = $this->container->get('odr.search_api_service');
+            $search_api_service = $this->search_api_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataType $grandparent_datatype */
@@ -2441,7 +2460,7 @@ class TrackingController extends ODRCustomController
         // datarecords are incredibly problematic to build names for "manually", due to namefields
         //  being allowed to come from single-allowed child/linked descendants
         /** @var SortService $sort_service */
-        $sort_service = $this->container->get('odr.sort_service');
+        $sort_service = $this->sort_service;
 
         // ...it's considerably easier to treat the problem the same as sorting the datarecords
         foreach ($grandparent_datatype_ids as $dt_id => $num_1) {
@@ -2520,11 +2539,11 @@ class TrackingController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataType|null $datatype_restriction */
@@ -2684,11 +2703,11 @@ class TrackingController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             // --------------------
@@ -2796,9 +2815,9 @@ class TrackingController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
         }
         catch (\Exception $e) {

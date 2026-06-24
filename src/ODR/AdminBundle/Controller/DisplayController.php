@@ -15,6 +15,8 @@
 
 namespace ODR\AdminBundle\Controller;
 
+use ODR\AdminBundle\Component\Service\StatisticsService;
+
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
@@ -58,6 +60,28 @@ use Symfony\Component\Routing\Router;
 class DisplayController extends ODRCustomController
 {
 
+    public function __construct(
+        $clone_theme_service,
+        $database_info_service,
+        $datarecord_info_service,
+        $datatree_info_service,
+        $entity_meta_modify_service,
+        $render_service,
+        $tab_helper_service,
+        $permissions_management_service,
+        $table_theme_helper_service,
+        $theme_info_service,
+        $search_service,
+        $search_key_service,
+        private readonly CryptoService $crypto_service,
+        private readonly PaginationHelperService $pagination_helper_service,
+        private readonly SearchAPIService $search_api_service,
+        private readonly SearchRedirectService $search_redirect_service,
+        private readonly StatisticsService $statistics_service
+    ) {
+        parent::__construct($clone_theme_service, $database_info_service, $datarecord_info_service, $datatree_info_service, $entity_meta_modify_service, $render_service, $tab_helper_service, $permissions_management_service, $table_theme_helper_service, $theme_info_service, $search_service, $search_key_service);
+    }
+
     /**
      * Fixes searches to follow the new URL system and redirects the user.
      *
@@ -77,9 +101,9 @@ class DisplayController extends ODRCustomController
 
         try {
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
             /** @var SearchRedirectService $search_redirect_service */
-            $search_redirect_service = $this->container->get('odr.search_redirect_service');
+            $search_redirect_service = $this->search_redirect_service;
 
 
             $search_theme_id = 0;
@@ -145,18 +169,18 @@ class DisplayController extends ODRCustomController
             $session = $request->getSession();
 
             /** @var ODRTabHelperService $odr_tab_service */
-            $odr_tab_service = $this->container->get('odr.tab_helper_service');
+            $odr_tab_service = $this->tab_helper_service;
             /** @var PaginationHelperService $pagination_helper_service */
-            $pagination_helper_service = $this->container->get('odr.pagination_helper_service');
+            $pagination_helper_service = $this->pagination_helper_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
             /** @var Router $router */
-            $router = $this->get('router');
+            $router = $this->container->get('router');
 
 
             // ----------------------------------------
@@ -329,7 +353,7 @@ class DisplayController extends ODRCustomController
 
             // Render the display page for this datarecord
             /** @var ODRRenderService $odr_render_service */
-            $odr_render_service = $this->container->get('odr.render_service');
+            $odr_render_service = $this->render_service;
             $page_html = $odr_render_service->getDisplayHTML($user, $datarecord, $search_key, $theme);
 
             $now = microtime(true);
@@ -380,7 +404,7 @@ class DisplayController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->findOneBy(
@@ -466,10 +490,10 @@ class DisplayController extends ODRCustomController
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
+            $redis_prefix = $this->getParameter('memcached_key_prefix');     // debug purposes only
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             // Locate the file in the database
@@ -510,12 +534,12 @@ class DisplayController extends ODRCustomController
                 $filename = md5($file->getOriginalChecksum().'_'.$file_id.'_'.$user->getId()).'.'.$file->getExt();
 
             // Ensure file exists before attempting to download it
-            $local_filepath = realpath( $this->container->getParameter('odr_web_directory').'/'.$file->getUploadDir().'/'.$filename );
+            $local_filepath = realpath( $this->getParameter('odr_web_directory').'/'.$file->getUploadDir().'/'.$filename );
             if ( !file_exists($local_filepath) ) {
                 // Need to decrypt the file...generate the url for cURL to use
                 $url = $this->generateUrl('odr_crypto_request', [], UrlGeneratorInterface::ABSOLUTE_URL);
-                $pheanstalk = $this->get('pheanstalk');
-                $api_key = $this->container->getParameter('beanstalk_api_key');
+                $pheanstalk = $this->container->get('pheanstalk');
+                $api_key = $this->getParameter('beanstalk_api_key');
 
                 // Schedule a beanstalk job to start decrypting the file
                 $priority = 1024;   // should be roughly default priority
@@ -614,11 +638,11 @@ class DisplayController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var CryptoService $crypto_service */
-            $crypto_service = $this->container->get('odr.crypto_service');
+            $crypto_service = $this->crypto_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var StatisticsService $statistics_service */
-            $statistics_service = $this->container->get('odr.statistics_service');
+            $statistics_service = $this->statistics_service;
 
 
             // Locate the file in the database
@@ -714,7 +738,7 @@ class DisplayController extends ODRCustomController
             if ( !$file->isPublic() )
                 $filename = md5($file->getOriginalChecksum().'_'.$output_file['id'].'_'.$user->getId()).'.'.$file->getExt();
 
-            $local_filepath = realpath( $this->container->getParameter('odr_web_directory').'/'.$file->getUploadDir().'/'.$filename );
+            $local_filepath = realpath( $this->getParameter('odr_web_directory').'/'.$file->getUploadDir().'/'.$filename );
             if (!$local_filepath) {
                 // If file doesn't exist, and user has permissions...just decrypt it directly?
                 // TODO - don't really like this, but downloading a file via table theme or interactive graph feature can't get at non-public files otherwise...
@@ -780,11 +804,11 @@ class DisplayController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var CryptoService $crypto_service */
-            $crypto_service = $this->container->get('odr.crypto_service');
+            $crypto_service = $this->crypto_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var StatisticsService $statistics_service */
-            $statistics_service = $this->container->get('odr.statistics_service');
+            $statistics_service = $this->statistics_service;
 
 
             // Locate the file in the database
@@ -824,7 +848,7 @@ class DisplayController extends ODRCustomController
             if ( !$file->isPublic() )
                 $filename = md5($file->getOriginalChecksum().'_'.$file_id.'_'.$user->getId()).'.'.$file->getExt();
 
-            $local_filepath = realpath( $this->container->getParameter('odr_web_directory').'/'.$file->getUploadDir().'/'.$filename );
+            $local_filepath = realpath( $this->getParameter('odr_web_directory').'/'.$file->getUploadDir().'/'.$filename );
             if (!$local_filepath) {
                 // If file doesn't exist, and user has permissions...just decrypt it directly?
                 // TODO - don't really like this, but downloading a file via table theme or interactive graph feature can't get at non-public files otherwise...
@@ -956,9 +980,9 @@ class DisplayController extends ODRCustomController
 
             // print microtime(true) - $start . "<br />";
             /** @var CryptoService $crypto_service */
-            $crypto_service = $this->container->get('odr.crypto_service');
+            $crypto_service = $this->crypto_service;
             /** @var StatisticsService $statistics_service */
-            $statistics_service = $this->container->get('odr.statistics_service');
+            $statistics_service = $this->statistics_service;
             // print microtime(true) - $start . "<br />";
 
             // Locate the image object in the database
@@ -992,7 +1016,7 @@ class DisplayController extends ODRCustomController
             if ( !$image->isPublic() ) {
 
                 /** @var PermissionsManagementService $permissions_service */
-                $permissions_service = $this->container->get('odr.permissions_management_service');
+                $permissions_service = $this->permissions_management_service;
                 // ----------------------------------------
                 // Non-Public images are more work because they always need decryption...but first, ensure user is permitted to download
                 if ( !$permissions_service->canViewImage($user, $image) )
@@ -1003,7 +1027,7 @@ class DisplayController extends ODRCustomController
                 $filename = md5($image->getOriginalChecksum().'_'.$image->getId().'_'.$user->getId()).'.'.$image->getExt();
 
                 // Ensure the image exists in decrypted format
-                $image_path = realpath( $this->container->getParameter('odr_web_directory').'/'.$filename );     // realpath() returns false if file does not exist
+                $image_path = realpath( $this->getParameter('odr_web_directory').'/'.$filename );     // realpath() returns false if file does not exist
                 if ( !$image->isPublic() || !$image_path )
                     $image_path = $crypto_service->decryptImage($image->getId(), $filename);
 
@@ -1077,7 +1101,7 @@ class DisplayController extends ODRCustomController
             }
             else {
                 // If image is public but doesn't exist, decrypt now
-                $image_path = realpath( $this->container->getParameter('odr_web_directory').'/'.$filename );     // realpath() returns false if file does not exist
+                $image_path = realpath( $this->getParameter('odr_web_directory').'/'.$filename );     // realpath() returns false if file does not exist
                 if ( !$image_path )
                     $image_path = $crypto_service->decryptImage($image->getId(), $filename);
 
@@ -1094,7 +1118,7 @@ class DisplayController extends ODRCustomController
                 );
 
                 // print microtime(true) - $start . "<br />";
-                $url = $this->container->getParameter('site_baseurl') . '/uploads/images/' . $filename;
+                $url = $this->getParameter('site_baseurl') . '/uploads/images/' . $filename;
                 // print microtime(true) - $start . "<br />";exit();
                 // $response = new Response($url);
                 // $response->headers->set('Content-Type', 'text/html');
@@ -1136,13 +1160,13 @@ class DisplayController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var DatarecordInfoService $datarecord_info_service */
-            $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
+            $datarecord_info_service = $this->datarecord_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataRecord $grandparent_datarecord */
@@ -1507,11 +1531,11 @@ class DisplayController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var DatarecordInfoService $datarecord_info_service */
-            $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
+            $datarecord_info_service = $this->datarecord_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             /** @var DataRecord $grandparent_datarecord */
@@ -1608,11 +1632,11 @@ class DisplayController extends ODRCustomController
             }
             else {
                 // Create a filename for the zip archive
-                $tokenGenerator = $this->get('fos_user.util.token_generator');
+                $tokenGenerator = $this->container->get('fos_user.util.token_generator');
                 $random_id = substr((string) $tokenGenerator->generateToken(), 0, 12);
 
                 $archive_filename = $random_id.'.zip';
-                $archive_filepath = $this->container->getParameter('odr_tmp_directory').'/user_'.$user_id.'/'.$archive_filename;
+                $archive_filepath = $this->getParameter('odr_tmp_directory').'/user_'.$user_id.'/'.$archive_filename;
 
                 $archive_size = count($file_list) + count($image_list);
 
@@ -1703,13 +1727,13 @@ class DisplayController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             // Need to locate the datatype from the search key
@@ -1835,13 +1859,13 @@ class DisplayController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatatreeInfoService $datatree_info_service */
-            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            $datatree_info_service = $this->datatree_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SearchAPIService $search_api_service */
-            $search_api_service = $this->container->get('odr.search_api_service');
+            $search_api_service = $this->search_api_service;
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
 
 
             // Need to ensure the datatype from the search key matches the given datafield
@@ -2044,11 +2068,11 @@ class DisplayController extends ODRCustomController
             }
             else {
                 // Create a filename for the zip archive
-                $tokenGenerator = $this->get('fos_user.util.token_generator');
+                $tokenGenerator = $this->container->get('fos_user.util.token_generator');
                 $random_id = substr((string) $tokenGenerator->generateToken(), 0, 12);
 
                 $archive_filename = $random_id.'.zip';
-                $archive_filepath = $this->container->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/'.$archive_filename;
+                $archive_filepath = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/'.$archive_filename;
 
                 $archive_size = count($file_list) + count($image_list);
 
@@ -2181,10 +2205,10 @@ class DisplayController extends ODRCustomController
             mkdir( $archive_directory );
 
         // Generate the url for cURL to use
-        $pheanstalk = $this->get('pheanstalk');
+        $pheanstalk = $this->container->get('pheanstalk');
         $url = $this->generateUrl('odr_crypto_request', [], UrlGeneratorInterface::ABSOLUTE_URL);
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
-        $api_key = $this->container->getParameter('beanstalk_api_key');
+        $redis_prefix = $this->getParameter('memcached_key_prefix');     // debug purposes only
+        $api_key = $this->getParameter('beanstalk_api_key');
 
         // Schedule a beanstalk job to start decrypting the requests in the array
         foreach ($requests as $request) {
@@ -2246,7 +2270,7 @@ class DisplayController extends ODRCustomController
             if ($archive_filename == '0')
                 throw new ODRBadRequestException();
 
-            $archive_filepath = $this->container->getParameter('odr_tmp_directory').'/user_'.$user_id.'/'.$archive_filename;
+            $archive_filepath = $this->getParameter('odr_tmp_directory').'/user_'.$user_id.'/'.$archive_filename;
             if ( !file_exists($archive_filepath) )
                 throw new FileNotFoundException($archive_filename);
 
@@ -2333,9 +2357,9 @@ class DisplayController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var Router $router */
-            $router = $this->get('router');
+            $router = $this->container->get('router');
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
@@ -2425,11 +2449,11 @@ class DisplayController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var DatarecordInfoService $datarecord_info_service */
-            $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
+            $datarecord_info_service = $this->datarecord_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             // ----------------------------------------
@@ -2516,11 +2540,11 @@ class DisplayController extends ODRCustomController
             }
             else {
                 // Create a filename for the zip archive
-                $tokenGenerator = $this->get('fos_user.util.token_generator');
+                $tokenGenerator = $this->container->get('fos_user.util.token_generator');
                 $random_id = substr((string) $tokenGenerator->generateToken(), 0, 12);
 
                 $archive_filename = $random_id.'.zip';
-                $archive_filepath = $this->container->getParameter('odr_tmp_directory').'/user_'.$user_id.'/'.$archive_filename;
+                $archive_filepath = $this->getParameter('odr_tmp_directory').'/user_'.$user_id.'/'.$archive_filename;
 
                 $archive_size = count($file_list);
 

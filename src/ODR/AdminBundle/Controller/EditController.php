@@ -90,11 +90,37 @@ use Symfony\Component\Security\Csrf\CsrfTokenManager;
 class EditController extends ODRCustomController
 {
 
+    public function __construct(
+        $clone_theme_service,
+        $database_info_service,
+        $datarecord_info_service,
+        $datatree_info_service,
+        $entity_meta_modify_service,
+        $render_service,
+        $tab_helper_service,
+        $permissions_management_service,
+        $table_theme_helper_service,
+        $theme_info_service,
+        $search_service,
+        $search_key_service,
+        private readonly CacheService $cache_service,
+        private readonly CryptoService $crypto_service,
+        private readonly EntityCreationService $entity_creation_service,
+        private readonly EntityDeletionService $entity_deletion_service,
+        private readonly PaginationHelperService $pagination_helper_service,
+        private readonly SortService $sort_service,
+        private readonly TrackedJobService $tracked_job_service,
+        private readonly ODRUploadService $upload_service,
+        private readonly XYZDataHelperService $xyzdata_helper_service
+    ) {
+        parent::__construct($clone_theme_service, $database_info_service, $datarecord_info_service, $datatree_info_service, $entity_meta_modify_service, $render_service, $tab_helper_service, $permissions_management_service, $table_theme_helper_service, $theme_info_service, $search_service, $search_key_service);
+    }
+
 //    public function __construct() {
 //
 //        // Check for Wordpress Integration
-////                if ( $this->container->getParameter('kernel.environment') === 'dev' )
-//        if($this->container->getParameter('wordpress_integrated')) {
+////                if ( $this->getParameter('kernel.environment') === 'dev' )
+//        if($this->getParameter('wordpress_integrated')) {
 //            $odr_wordpress_user = getenv("WORDPRESS_USER");
 //            if ($odr_wordpress_user) {
 //                // print $odr_wordpress_user . ' ';
@@ -110,12 +136,12 @@ class EditController extends ODRCustomController
 //        $token = new UsernamePasswordToken($user, $user->getPassword(), "public", $user->getRoles());
 //
 //        // For older versions of Symfony, use security.context here
-//        $this->get("security.token_storage")->setToken($token);
+//        $this->container->get('security.token_storage')->setToken($token);
 //
 //        // Fire the login event
 //        // Logging the user in above the way we do it doesn't do this automatically
 //        $event = new InteractiveLoginEvent($request, $token);
-//        $this->get("event_dispatcher")->dispatch("security.interactive_login", $event);
+//        $this->container->get('event_dispatcher')->dispatch("security.interactive_login", $event);
 //    }
 
     /**
@@ -143,14 +169,14 @@ class EditController extends ODRCustomController
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             /** @var DatatreeInfoService $datatree_info_service */
-            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            $datatree_info_service = $this->datatree_info_service;
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             /** @var DataType $datatype */
@@ -210,7 +236,7 @@ class EditController extends ODRCustomController
                 //  event.  In this case, a datarecord gets created, but the rest of the values aren't
                 //  saved and the provisioned flag never gets changed to "false"...leaving the
                 //  datarecord in a state that the user can't view/edit
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -266,14 +292,14 @@ class EditController extends ODRCustomController
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             /** @var DatatreeInfoService $datatree_info_service */
-            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            $datatree_info_service = $this->datatree_info_service;
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             // Grab needed Entities from the repository
@@ -335,7 +361,7 @@ class EditController extends ODRCustomController
                 //  event.  In this case, a datarecord gets created, but the rest of the values aren't
                 //  saved and the provisioned flag never gets changed to "false"...leaving the
                 //  datarecord in a state that the user can't view/edit
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -353,7 +379,7 @@ class EditController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -409,15 +435,15 @@ class EditController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityDeletionService $entity_deletion_service */
-            $entity_deletion_service = $this->container->get('odr.entity_deletion_service');
+            $entity_deletion_service = $this->entity_deletion_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
             /** @var TrackedJobService $tracked_job_service */
-            $tracked_job_service = $this->container->get('odr.tracked_job_service');
+            $tracked_job_service = $this->tracked_job_service;
 
 
             // Grab the necessary entities
@@ -561,7 +587,7 @@ class EditController extends ODRCustomController
 
             // Need to unescape the value if it's coming from a wordpress install...
             $filename = $post['filename'];
-            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
+            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
             if ( $is_wordpress_integrated )
                 $filename = stripslashes($filename);
 
@@ -573,12 +599,12 @@ class EditController extends ODRCustomController
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             // Grab the necessary entities
@@ -639,7 +665,7 @@ class EditController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -651,7 +677,7 @@ class EditController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -693,7 +719,7 @@ class EditController extends ODRCustomController
 
             // Need to unescape the value if it's coming from a wordpress install...
             $filename = $post['filename'];
-            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
+            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
             if ( $is_wordpress_integrated )
                 $filename = stripslashes($filename);
 
@@ -705,12 +731,12 @@ class EditController extends ODRCustomController
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             // Grab the necessary entities
@@ -775,7 +801,7 @@ class EditController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -787,7 +813,7 @@ class EditController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -831,12 +857,12 @@ class EditController extends ODRCustomController
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             // Grab the necessary entities
@@ -935,7 +961,7 @@ class EditController extends ODRCustomController
                 catch (\Exception $e) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
                 }
 
@@ -947,7 +973,7 @@ class EditController extends ODRCustomController
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
                 }
             }
@@ -991,12 +1017,12 @@ class EditController extends ODRCustomController
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             // Grab the necessary entities
@@ -1098,7 +1124,7 @@ class EditController extends ODRCustomController
                 catch (\Exception $e) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
                 }
 
@@ -1110,7 +1136,7 @@ class EditController extends ODRCustomController
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
                 }
             }
@@ -1152,12 +1178,12 @@ class EditController extends ODRCustomController
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             // Grab the necessary entities
@@ -1214,7 +1240,7 @@ class EditController extends ODRCustomController
                 $entity_modify_service->updateFileMeta($user, $file, $properties);
 
                 // Delete the decrypted version of the file, if it exists
-                $file_upload_path = $this->container->getParameter('odr_web_directory').'/uploads/files/';
+                $file_upload_path = $this->getParameter('odr_web_directory').'/uploads/files/';
                 $filename = 'File_'.$file_id.'.'.$file->getExt();
                 $absolute_path = realpath($file_upload_path).'/'.$filename;
 
@@ -1233,9 +1259,9 @@ class EditController extends ODRCustomController
                 // Need to decrypt the file...generate the url for cURL to use
                 $url = $this->generateUrl('odr_crypto_request', [], UrlGeneratorInterface::ABSOLUTE_URL);
 
-                $redis_prefix = $this->container->getParameter('memcached_key_prefix');    // debug purposes only
-                $pheanstalk = $this->get('pheanstalk');
-                $api_key = $this->container->getParameter('beanstalk_api_key');
+                $redis_prefix = $this->getParameter('memcached_key_prefix');    // debug purposes only
+                $pheanstalk = $this->container->get('pheanstalk');
+                $api_key = $this->getParameter('beanstalk_api_key');
 
                 // Determine the filename after decryption
                 $target_filename = 'File_'.$file_id.'.'.$file->getExt();
@@ -1282,7 +1308,7 @@ class EditController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -1294,7 +1320,7 @@ class EditController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -1306,7 +1332,7 @@ class EditController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
         }
@@ -1348,14 +1374,14 @@ class EditController extends ODRCustomController
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             /** @var CryptoService $crypto_service */
-            $crypto_service = $this->container->get('odr.crypto_service');
+            $crypto_service = $this->crypto_service;
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             // Grab the necessary entities
@@ -1422,7 +1448,7 @@ class EditController extends ODRCustomController
 
                 // Delete the decrypted version of the image and all of its children, if any of them exist
                 foreach ($all_images as $img) {
-                    $image_upload_path = $this->container->getParameter('odr_web_directory').'/uploads/images/';
+                    $image_upload_path = $this->getParameter('odr_web_directory').'/uploads/images/';
                     $filename = 'Image_'.$img->getId().'.'.$img->getExt();
                     $absolute_path = realpath($image_upload_path).'/'.$filename;
 
@@ -1461,7 +1487,7 @@ class EditController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -1473,7 +1499,7 @@ class EditController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -1485,7 +1511,7 @@ class EditController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
         }
@@ -1524,9 +1550,9 @@ class EditController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityDeletionService $entity_deletion_service */
-            $entity_deletion_service = $this->container->get('odr.entity_deletion_service');
+            $entity_deletion_service = $this->entity_deletion_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             // Grab the necessary entities
@@ -1619,9 +1645,9 @@ class EditController extends ODRCustomController
             $repo_image = $em->getRepository('ODR\AdminBundle\Entity\Image');
 
             /** @var EntityDeletionService $entity_deletion_service */
-            $entity_deletion_service = $this->container->get('odr.entity_deletion_service');
+            $entity_deletion_service = $this->entity_deletion_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             // Grab the necessary entities
@@ -1719,15 +1745,15 @@ class EditController extends ODRCustomController
             $repo_image = $em->getRepository('ODR\AdminBundle\Entity\Image');
 
             /** @var CryptoService $crypto_service */
-            $crypto_service = $this->container->get('odr.crypto_service');
+            $crypto_service = $this->crypto_service;
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var ODRUploadService $upload_service */
-            $upload_service = $this->container->get('odr.upload_service');
+            $upload_service = $this->upload_service;
 
 
             // Grab the necessary entities
@@ -1803,7 +1829,7 @@ class EditController extends ODRCustomController
             //  deleted here
             foreach ($relevant_images as $i) {
                 if ( !$i->getOriginal() ) {
-                    $path = $this->container->getParameter('odr_web_directory').'/'.$i->getLocalFileName();
+                    $path = $this->getParameter('odr_web_directory').'/'.$i->getLocalFileName();
                     if ( file_exists($path) )
                         unlink($path);
                 }
@@ -1818,7 +1844,7 @@ class EditController extends ODRCustomController
 
             // Move the decrypted version into ODR's temporary directory, using the filename it was
             //  originally uploaded with
-            $dirname = $this->container->getParameter('odr_tmp_directory').'/user_'.$user->getId();
+            $dirname = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId();
             if ( !file_exists($dirname) )
                 mkdir($dirname);
             rename($image_path, $dirname.'/'.$original_filename);
@@ -1929,12 +1955,12 @@ class EditController extends ODRCustomController
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             // Grab the first image just to check permissions
@@ -2031,7 +2057,7 @@ class EditController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
         }
@@ -2072,12 +2098,12 @@ class EditController extends ODRCustomController
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             /** @var DataRecord $datarecord */
@@ -2136,7 +2162,7 @@ class EditController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -2183,12 +2209,12 @@ class EditController extends ODRCustomController
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             /** @var DataRecord $datarecord */
@@ -2235,7 +2261,7 @@ class EditController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -2294,18 +2320,18 @@ class EditController extends ODRCustomController
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
+            $cache_service = $this->cache_service;
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SortService $sort_service */
-            $sort_service = $this->container->get('odr.sort_service');
+            $sort_service = $this->sort_service;
 
 
             /** @var DataRecord $datarecord */
@@ -2408,7 +2434,7 @@ class EditController extends ODRCustomController
             if ($form->isSubmitted()) {
 
                 // Need to unescape the value if it's coming from a wordpress install...
-                $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
+                $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
                 if ( $is_wordpress_integrated )
                     $form_object->setValue( stripslashes($form_object->getValue()) );
 
@@ -2526,7 +2552,7 @@ class EditController extends ODRCustomController
                         catch (\Exception $e) {
                             // ...don't want to rethrow the error since it'll interrupt everything after this
                             //  event
-//                            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                            if ( $this->getParameter('kernel.environment') === 'dev' )
 //                                throw $e;
                         }
 
@@ -2538,7 +2564,7 @@ class EditController extends ODRCustomController
                         catch (\Exception) {
                             // ...don't want to rethrow the error since it'll interrupt everything after this
                             //  event
-//                            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                            if ( $this->getParameter('kernel.environment') === 'dev' )
 //                                throw $e;
                         }
 
@@ -2613,12 +2639,12 @@ class EditController extends ODRCustomController
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var XYZDataHelperService $xyzdata_helper_service */
-            $xyzdata_helper_service = $this->container->get('odr.xyzdata_helper_service');
+            $xyzdata_helper_service = $this->xyzdata_helper_service;
 
 
             /** @var DataRecord $datarecord */
@@ -2658,7 +2684,7 @@ class EditController extends ODRCustomController
             //  "correct" underlying structure...this is all going to be done manually
 
             /** @var CsrfTokenManager $token_generator */
-            $token_generator = $this->get('security.csrf.token_manager');
+            $token_generator = $this->container->get('security.csrf.token_manager');
 
             $token_id = 'XYZDataForm_'.$datarecord->getId().'_'.$datafield->getId();
             $expected_csrf_token = $token_generator->getToken($token_id)->getValue();
@@ -2687,7 +2713,7 @@ class EditController extends ODRCustomController
                 catch (\Exception $e) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
-//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    if ( $this->getParameter('kernel.environment') === 'dev' )
 //                        throw $e;
                 }
 
@@ -2699,7 +2725,7 @@ class EditController extends ODRCustomController
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
-//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    if ( $this->getParameter('kernel.environment') === 'dev' )
 //                        throw $e;
                 }
             }
@@ -2749,9 +2775,9 @@ class EditController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var ODRRenderService $odr_render_service */
-            $odr_render_service = $this->container->get('odr.render_service');
+            $odr_render_service = $this->render_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             /** @var ThemeElement $theme_element */
@@ -2862,11 +2888,11 @@ class EditController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var ODRRenderService $odr_render_service */
-            $odr_render_service = $this->container->get('odr.render_service');
+            $odr_render_service = $this->render_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
 
             /** @var DataFields $datafield */
@@ -3047,13 +3073,13 @@ class EditController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var DatarecordInfoService $datarecord_info_service */
-            $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
+            $datarecord_info_service = $this->datarecord_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataFields $datafield */
@@ -3185,21 +3211,21 @@ class EditController extends ODRCustomController
             $session = $request->getSession();
 
             /** @var DatatreeInfoService $datatree_info_service */
-            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            $datatree_info_service = $this->datatree_info_service;
             /** @var ODRRenderService $odr_render_service */
-            $odr_render_service = $this->container->get('odr.render_service');
+            $odr_render_service = $this->render_service;
             /** @var ODRTabHelperService $odr_tab_service */
-            $odr_tab_service = $this->container->get('odr.tab_helper_service');
+            $odr_tab_service = $this->tab_helper_service;
             /** @var PaginationHelperService $pagination_helper_service */
-            $pagination_helper_service = $this->container->get('odr.pagination_helper_service');
+            $pagination_helper_service = $this->pagination_helper_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
             /** @var Router $router */
-            $router = $this->get('router');
+            $router = $this->container->get('router');
 
 
             // ----------------------------------------
@@ -3445,9 +3471,9 @@ class EditController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataRecord $datarecord */
@@ -3599,7 +3625,7 @@ class EditController extends ODRCustomController
             $current_typeclass = $datafield->getFieldType()->getTypeClass();
 
             /** @var CsrfTokenManager $token_generator */
-            $token_generator = $this->get('security.csrf.token_manager');
+            $token_generator = $this->container->get('security.csrf.token_manager');
 
             $token_id = $current_typeclass.'Form_'.$datarecord->getId().'_'.$datafield->getId();
             $csrf_token = $token_generator->getToken($token_id)->getValue();
@@ -3658,9 +3684,9 @@ class EditController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataRecord $datarecord */
@@ -3873,7 +3899,7 @@ class EditController extends ODRCustomController
             $current_typeclass = $datafield->getFieldType()->getTypeClass();
 
             /** @var CsrfTokenManager $token_generator */
-            $token_generator = $this->get('security.csrf.token_manager');
+            $token_generator = $this->container->get('security.csrf.token_manager');
 
             $token_id = $current_typeclass.'Form_'.$datarecord->getId().'_'.$datafield->getId();
             $csrf_token = $token_generator->getToken($token_id)->getValue();

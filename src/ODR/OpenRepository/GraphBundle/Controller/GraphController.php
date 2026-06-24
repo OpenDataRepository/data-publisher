@@ -72,13 +72,13 @@ class GraphController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatarecordInfoService $datarecord_info_service */
-            $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
+            $datarecord_info_service = $this->datarecord_info_service;
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
 
             /** @var DataRecord $request_datarecord */
@@ -272,7 +272,7 @@ class GraphController extends ODRCustomController
             $svc = $this->container->get($plugin_classname);
             $svc->execute($plugin_dr_array, $plugin_dt_array, $plugin_rpi_array, $plugin_theme_array, $rendering_options, $plugin_parent_dr_array, $datatype_permissions, $datafield_permissions);
 
-//            $site_baseurl = $this->container->getParameter('site_baseurl');
+//            $site_baseurl = $this->getParameter('site_baseurl');
 //            return $this->redirect($site_baseurl.$filename);
 
 
@@ -328,7 +328,7 @@ class GraphController extends ODRCustomController
      */
     private function svgWarning($message, $detail = "") {
 
-        $templating = $this->get('twig');
+        $templating = $this->container->get('twig');
 
         return $templating->render(
             'ODROpenRepositoryGraphBundle:Base:Graph/graph_error.html.twig',
@@ -361,7 +361,7 @@ class GraphController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
@@ -398,8 +398,8 @@ class GraphController extends ODRCustomController
             // If the user can edit records in the datatype and also edit the graph datafield, then
             //  that's close enough for me...the regex is incredibly restrictive, and it doesn't
             //  really matter if they put random numbers in there
-            $odr_web_directory = $this->container->getParameter('odr_web_directory');
-            $odr_files_directory = $this->container->getParameter('odr_files_directory');
+            $odr_web_directory = $this->getParameter('odr_web_directory');
+            $odr_files_directory = $this->getParameter('odr_files_directory');
 
             $filepath = $odr_web_directory.'/'.$odr_files_directory.'/graphs/datatype_'.$datatype_id.'/'.$graph_filename;
             if ( file_exists($filepath) )
@@ -442,7 +442,7 @@ class GraphController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
             /** @var RenderPluginInstance $render_plugin_instance */
             $render_plugin_instance = $em->getRepository('ODR\AdminBundle\Entity\RenderPluginInstance')->find($render_plugin_instance_id);

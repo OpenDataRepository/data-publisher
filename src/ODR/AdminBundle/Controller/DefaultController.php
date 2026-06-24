@@ -43,16 +43,16 @@ class DefaultController extends ODRCustomController
     {
         try {
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
 
             // Grab the current user
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();
             $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
-            $site_baseurl = $this->container->getParameter('site_baseurl');
-            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
-            $wordpress_site_baseurl = $this->container->getParameter('wordpress_site_baseurl');
+            $site_baseurl = $this->getParameter('site_baseurl');
+            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            $wordpress_site_baseurl = $this->getParameter('wordpress_site_baseurl');
 
             if ($is_wordpress_integrated) {
                 // Render the base html for the page...$this->render() apparently creates and automatically returns a full Reponse object

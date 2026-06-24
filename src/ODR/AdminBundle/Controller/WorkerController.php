@@ -15,6 +15,8 @@
 
 namespace ODR\AdminBundle\Controller;
 
+use ODR\OpenRepository\GraphBundle\Component\Service\AMCSDUpdateService;
+
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
@@ -57,6 +59,29 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 class WorkerController extends ODRCustomController
 {
 
+    public function __construct(
+        $clone_theme_service,
+        $database_info_service,
+        $datarecord_info_service,
+        $datatree_info_service,
+        $entity_meta_modify_service,
+        $render_service,
+        $tab_helper_service,
+        $permissions_management_service,
+        $table_theme_helper_service,
+        $theme_info_service,
+        $search_service,
+        $search_key_service,
+        private readonly AMCSDUpdateService $amcsd_update_service,
+        private readonly CacheService $cache_service,
+        private readonly CloneTemplateService $clone_template_service,
+        private readonly CryptoService $crypto_service,
+        private readonly EntityCreationService $entity_creation_service,
+        private readonly TagHelperService $tag_helper_service
+    ) {
+        parent::__construct($clone_theme_service, $database_info_service, $datarecord_info_service, $datatree_info_service, $entity_meta_modify_service, $render_service, $tab_helper_service, $permissions_management_service, $table_theme_helper_service, $theme_info_service, $search_service, $search_key_service);
+    }
+
     /**
      * Called by the migration background process to transfer data from one storage entity to
      * another compatible storage entity.
@@ -92,10 +117,10 @@ class WorkerController extends ODRCustomController
             $api_key = $post['api_key'];
 
             // Load symfony objects
-            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            $beanstalk_api_key = $this->getParameter('beanstalk_api_key');
 
             /** @var Logger $logger */
-            $logger = $this->get('logger');
+            $logger = $this->container->get('logger');
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -103,9 +128,9 @@ class WorkerController extends ODRCustomController
 
 
             /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
+            $cache_service = $this->cache_service;
             /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            $emm_service = $this->entity_meta_modify_service;
 
 
             if ($api_key !== $beanstalk_api_key)
@@ -482,7 +507,7 @@ class WorkerController extends ODRCustomController
                 // Don't want to mark the affected datarecords as updated...nothing has fundamentally
                 //  changed.  However, need to delete all the cached datarecords for the datatype
                 /** @var SearchService $search_service */
-                $search_service = $this->container->get('odr.search_service');
+                $search_service = $this->search_service;
 
                 $dr_list = $search_service->getCachedSearchDatarecordList($datatype->getGrandparent()->getId());
                 foreach ($dr_list as $dr_id => $parent_dr_id) {
@@ -514,14 +539,14 @@ class WorkerController extends ODRCustomController
                         // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
                         //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
                         /** @var EventDispatcherInterface $event_dispatcher */
-                        $dispatcher = $this->get('event_dispatcher');
+                        $dispatcher = $this->container->get('event_dispatcher');
                         $event = new DatafieldModifiedEvent($datafield, $user);
                         $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
                     }
                     catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
                         //  event
-//                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        if ( $this->getParameter('kernel.environment') === 'dev' )
 //                            throw $e;
                     }
                 }
@@ -579,13 +604,13 @@ $ret .= '  Set current to '.$count."\n";
             $api_key = $post['api_key'];
 
             // Load symfony objects
-            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            $beanstalk_api_key = $this->getParameter('beanstalk_api_key');
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
             /** @var CloneTemplateService $clone_template_service */
-            $clone_template_service = $this->container->get('odr.clone_template_service');
+            $clone_template_service = $this->clone_template_service;
 
             if ($api_key !== $beanstalk_api_key)
                 throw new ODRBadRequestException('Invalid Form');
@@ -646,10 +671,10 @@ $ret .= '  Set current to '.$count."\n";
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            $pheanstalk = $this->get('pheanstalk');
+            $pheanstalk = $this->container->get('pheanstalk');
             $router = $this->container->get('router');
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-            $api_key = $this->container->getParameter('beanstalk_api_key');
+            $redis_prefix = $this->getParameter('memcached_key_prefix');
+            $api_key = $this->getParameter('beanstalk_api_key');
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
@@ -671,7 +696,7 @@ $ret .= '  Set current to '.$count."\n";
 
             // ----------------------------------------
             // Generate the url for cURL to use
-            $url = $this->container->getParameter('site_baseurl');
+            $url = $this->getParameter('site_baseurl');
             $url .= $router->generate('odr_rebuild_thumbnails');
 
             // Grab a list of all full-size images on the site
@@ -769,7 +794,7 @@ $ret .= '  Set current to '.$count."\n";
             $api_key = $post['api_key'];
 
             // Load symfony objects
-            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            $beanstalk_api_key = $this->getParameter('beanstalk_api_key');
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid Form');
 
@@ -778,9 +803,9 @@ $ret .= '  Set current to '.$count."\n";
             $em = $this->getDoctrine()->getManager();
 
             /** @var CryptoService $crypto_service */
-            $crypto_service = $this->container->get('odr.crypto_service');
+            $crypto_service = $this->crypto_service;
             /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
+            $ec_service = $this->entity_creation_service;
 
 
             /** @var Image $img */
@@ -926,10 +951,10 @@ $ret .= '  Set current to '.$count."\n";
             $em = $this->getDoctrine()->getManager();
 
             /** @var CryptoService $crypto_service */
-            $crypto_service = $this->container->get('odr.crypto_service');
+            $crypto_service = $this->crypto_service;
 
 
-            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            $beanstalk_api_key = $this->getParameter('beanstalk_api_key');
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid Form');
 
@@ -1017,9 +1042,9 @@ $ret .= '  Set current to '.$count."\n";
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
-            $pheanstalk = $this->get('pheanstalk');
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            $pheanstalk = $this->container->get('pheanstalk');
+            $redis_prefix = $this->getParameter('memcached_key_prefix');
+            $beanstalk_api_key = $this->getParameter('beanstalk_api_key');
             $url = $this->generateUrl('odr_storage_entity_cleanup_worker', [], UrlGeneratorInterface::ABSOLUTE_URL);
 
             // --------------------
@@ -1117,13 +1142,13 @@ $ret .= '  Set current to '.$count."\n";
             $api_key = $post['api_key'];
 
             // Load symfony objects
-            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            $beanstalk_api_key = $this->getParameter('beanstalk_api_key');
             if ($api_key !== $beanstalk_api_key)
                 throw new ODRBadRequestException('Invalid Form');
 
 
             /** @var Logger $logger */
-            $logger = $this->get('logger');
+            $logger = $this->container->get('logger');
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -1230,7 +1255,7 @@ $ret .= '  Set current to '.$count."\n";
             $datafield_id = $post['datafield_id'];
 
             $api_key = $post['api_key'];
-            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            $beanstalk_api_key = $this->getParameter('beanstalk_api_key');
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid Form');
 
@@ -1241,14 +1266,14 @@ $ret .= '  Set current to '.$count."\n";
             $repo_datarecordfields = $em->getRepository('ODR\AdminBundle\Entity\DataRecordFields');
 
             /** @var TagHelperService $tag_helper_service */
-            $tag_helper_service = $this->container->get('odr.tag_helper_service');
+            $tag_helper_service = $this->tag_helper_service;
             /** @var Logger $logger */
-            $logger = $this->get('logger');
+            $logger = $this->container->get('logger');
 
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
 
             /** @var ODRUser $user */
@@ -1387,7 +1412,7 @@ $ret .= '  Set current to '.$count."\n";
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
-//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    if ( $this->getParameter('kernel.environment') === 'dev' )
 //                        throw $e;
                 }
 
@@ -1399,7 +1424,7 @@ $ret .= '  Set current to '.$count."\n";
                     catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
                         //  event
-//                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        if ( $this->getParameter('kernel.environment') === 'dev' )
 //                            throw $e;
                     }
                 }
@@ -1442,19 +1467,19 @@ $ret .= '  Set current to '.$count."\n";
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
-            if ( $this->container->getParameter('kernel.environment') !== 'dev' )
+            if ( $this->getParameter('kernel.environment') !== 'dev' )
                 throw new ODRForbiddenException();
             // --------------------
 
 //            /** @var AMCSDUpdateService $amcsd_update_service */
-//            $amcsd_update_service = $this->container->get('odr.amcsd_update_service');
+//            $amcsd_update_service = $this->amcsd_update_service;
 //            $amcsd_update_service->amcsdupdateAction(2, null);
 //            throw new ODRException('do not continue');
 
             /** @var Pheanstalk $pheanstalk */
-            $pheanstalk = $this->get('pheanstalk');
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-            $api_key = $this->container->getParameter('beanstalk_api_key');
+            $pheanstalk = $this->container->get('pheanstalk');
+            $redis_prefix = $this->getParameter('memcached_key_prefix');
+            $api_key = $this->getParameter('beanstalk_api_key');
 
 
             // Not sure what state the server was left in, so wipe the jobs off of it
@@ -1517,7 +1542,7 @@ $ret .= '  Set current to '.$count."\n";
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
-            if ( $this->container->getParameter('kernel.environment') !== 'dev' )
+            if ( $this->getParameter('kernel.environment') !== 'dev' )
                 throw new ODRForbiddenException();
             // --------------------
 

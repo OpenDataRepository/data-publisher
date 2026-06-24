@@ -42,6 +42,24 @@ use Symfony\Component\HttpFoundation\Response;
 class SessionController extends ODRCustomController
 {
 
+    public function __construct(
+        $clone_theme_service,
+        $database_info_service,
+        $datarecord_info_service,
+        $datatree_info_service,
+        $entity_meta_modify_service,
+        $render_service,
+        $tab_helper_service,
+        $permissions_management_service,
+        $table_theme_helper_service,
+        $theme_info_service,
+        $search_service,
+        $search_key_service,
+        private readonly SearchSidebarService $search_sidebar_service
+    ) {
+        parent::__construct($clone_theme_service, $database_info_service, $datarecord_info_service, $datatree_info_service, $entity_meta_modify_service, $render_service, $tab_helper_service, $permissions_management_service, $table_theme_helper_service, $theme_info_service, $search_service, $search_key_service);
+    }
+
     /**
      * Changes the number of Datarecords displayed per ShortResults page.  This will also end up
      * changing the session variable the datatables plugin uses to store page length.
@@ -71,7 +89,7 @@ class SessionController extends ODRCustomController
         try {
             // Grab necessary objects
             /** @var ODRTabHelperService $odr_tab_service */
-            $odr_tab_service = $this->container->get('odr.tab_helper_service');
+            $odr_tab_service = $this->tab_helper_service;
 
             // Grab the tab's id, if it exists
             $params = $request->query->all();
@@ -394,9 +412,9 @@ class SessionController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
 
             /** @var DataType $datatype */
@@ -492,9 +510,9 @@ class SessionController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SearchSidebarService $search_sidebar_service */
-            $search_sidebar_service = $this->container->get('odr.search_sidebar_service');
+            $search_sidebar_service = $this->search_sidebar_service;
 
 
             /** @var DataType $datatype */
@@ -618,11 +636,11 @@ class SessionController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var ODRTabHelperService $odr_tab_service */
-            $odr_tab_service = $this->container->get('odr.tab_helper_service');
+            $odr_tab_service = $this->tab_helper_service;
 
 
             /** @var DataType $datatype */

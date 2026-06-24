@@ -75,6 +75,26 @@ use Symfony\Component\Yaml\Exception\ParseException;
 class PluginsController extends ODRCustomController
 {
 
+    public function __construct(
+        $clone_theme_service,
+        $database_info_service,
+        $datarecord_info_service,
+        $datatree_info_service,
+        $entity_meta_modify_service,
+        $render_service,
+        $tab_helper_service,
+        $permissions_management_service,
+        $table_theme_helper_service,
+        $theme_info_service,
+        $search_service,
+        $search_key_service,
+        private readonly CacheService $cache_service,
+        private readonly DatafieldInfoService $datafield_info_service,
+        private readonly EntityCreationService $entity_creation_service
+    ) {
+        parent::__construct($clone_theme_service, $database_info_service, $datarecord_info_service, $datatree_info_service, $entity_meta_modify_service, $render_service, $tab_helper_service, $permissions_management_service, $table_theme_helper_service, $theme_info_service, $search_service, $search_key_service);
+    }
+
     /**
      * Enough places use data from the fieldtype table that it makes sense to have it all in one
      * function...
@@ -163,7 +183,7 @@ class PluginsController extends ODRCustomController
         // ----------------------------------------
         // Also going to need a list of events defined by ODR that can be used by render plugins
         $all_events = [];
-        $events_base_dir = $this->container->getParameter('odr_events_directory');
+        $events_base_dir = $this->getParameter('odr_events_directory');
         foreach ( scandir($events_base_dir) as $filename ) {
             // TODO - assumes linux?
             if ($filename === '.' || $filename === '..')
@@ -180,7 +200,7 @@ class PluginsController extends ODRCustomController
 
         // ----------------------------------------
         $available_plugins = [];
-        $plugin_base_dir = $this->container->getParameter('odr_plugin_basedir');
+        $plugin_base_dir = $this->getParameter('odr_plugin_basedir');
         // Plugins are organized by category inside the plugin base directory...
         foreach ( scandir($plugin_base_dir) as $plugin_category ) {
             // TODO - assumes linux?
@@ -752,7 +772,7 @@ class PluginsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             // ----------------------------------------
@@ -1965,7 +1985,7 @@ class PluginsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             // ----------------------------------------
@@ -2074,7 +2094,7 @@ class PluginsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             // ----------------------------------------
@@ -2206,7 +2226,7 @@ class PluginsController extends ODRCustomController
             $repo_render_plugin_events = $em->getRepository('ODR\AdminBundle\Entity\RenderPluginEvents');
 
             /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
+            $cache_service = $this->cache_service;
 
 
             // ----------------------------------------
@@ -2781,9 +2801,9 @@ class PluginsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             // Grab necessary objects
@@ -3031,9 +3051,9 @@ class PluginsController extends ODRCustomController
             $repo_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             // Ensure the relevant entities exist
@@ -3617,16 +3637,16 @@ class PluginsController extends ODRCustomController
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var DatafieldInfoService $datafield_info_service */
-            $datafield_info_service = $this->container->get('odr.datafield_info_service');
+            $datafield_info_service = $this->datafield_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
 
             // Ensure the relevant entities exist
@@ -3720,7 +3740,7 @@ class PluginsController extends ODRCustomController
                 // ...don't particularly want to rethrow the error since it'll interrupt
                 //  everything downstream of the event (such as file encryption...), but
                 //  having the error disappear is less ideal on the dev environment...
-                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                if ( $this->getParameter('kernel.environment') === 'dev' )
                     throw $e;
             }
 
@@ -3783,7 +3803,7 @@ class PluginsController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -3859,7 +3879,7 @@ class PluginsController extends ODRCustomController
                 $plugin_options = $post['plugin_options'];
 
             // Need to unescape these values if they're coming from a wordpress install...
-            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
+            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
             if ( $is_wordpress_integrated ) {
                 foreach ($plugin_options as $rpo_id => $value)
                     $plugin_options[$rpo_id] = stripslashes((string) $value);
@@ -3874,20 +3894,20 @@ class PluginsController extends ODRCustomController
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             /** @var DatafieldInfoService $datafield_info_service */
-            $datafield_info_service = $this->container->get('odr.datafield_info_service');
+            $datafield_info_service = $this->datafield_info_service;
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
 
             $repo_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
@@ -4152,7 +4172,7 @@ class PluginsController extends ODRCustomController
                     catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
                         //  event
-//                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        if ( $this->getParameter('kernel.environment') === 'dev' )
 //                            throw $e;
                     }
                 }
@@ -4307,7 +4327,7 @@ class PluginsController extends ODRCustomController
                     // ...don't particularly want to rethrow the error since it'll interrupt
                     //  everything downstream of the event (such as file encryption...), but
                     //  having the error disappear is less ideal on the dev environment...
-//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    if ( $this->getParameter('kernel.environment') === 'dev' )
 //                        throw $e;
                 }
             }
@@ -4331,7 +4351,7 @@ class PluginsController extends ODRCustomController
                     // ...don't particularly want to rethrow the error since it'll interrupt
                     //  everything downstream of the event (such as file encryption...), but
                     //  having the error disappear is less ideal on the dev environment...
-//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    if ( $this->getParameter('kernel.environment') === 'dev' )
 //                        throw $e;
                 }
             }
@@ -4356,7 +4376,7 @@ class PluginsController extends ODRCustomController
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
-//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    if ( $this->getParameter('kernel.environment') === 'dev' )
 //                        throw $e;
                 }
             }
@@ -4412,9 +4432,9 @@ class PluginsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
             $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
             $repo_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
@@ -4616,9 +4636,9 @@ class PluginsController extends ODRCustomController
             $repo_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             // Ensure the relevant entities exist
@@ -4880,7 +4900,7 @@ class PluginsController extends ODRCustomController
                 throw new ODRBadRequestException('Invalid Form');
 
             // Need to unescape these values if they're coming from a wordpress install...
-            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
+            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
             if ( $is_wordpress_integrated ) {
                 foreach ($plugin_options as $rpo_id => $value)
                     $plugin_options[$rpo_id] = stripslashes((string) $value);
@@ -4895,16 +4915,16 @@ class PluginsController extends ODRCustomController
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
 
 
             $repo_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
@@ -5099,7 +5119,7 @@ class PluginsController extends ODRCustomController
 //                    // ...don't particularly want to rethrow the error since it'll interrupt
 //                    //  everything downstream of the event (such as file encryption...), but
 //                    //  having the error disappear is less ideal on the dev environment...
-////                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+////                    if ( $this->getParameter('kernel.environment') === 'dev' )
 ////                        throw $e;
 //                }
             }
@@ -5124,7 +5144,7 @@ class PluginsController extends ODRCustomController
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
-//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    if ( $this->getParameter('kernel.environment') === 'dev' )
 //                        throw $e;
                 }
             }

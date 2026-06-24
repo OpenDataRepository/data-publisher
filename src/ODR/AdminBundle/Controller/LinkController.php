@@ -60,6 +60,27 @@ use Symfony\Component\Routing\Router;
 class LinkController extends ODRCustomController
 {
 
+    public function __construct(
+        $clone_theme_service,
+        $database_info_service,
+        $datarecord_info_service,
+        $datatree_info_service,
+        $entity_meta_modify_service,
+        $render_service,
+        $tab_helper_service,
+        $permissions_management_service,
+        $table_theme_helper_service,
+        $theme_info_service,
+        $search_service,
+        $search_key_service,
+        private readonly CacheService $cache_service,
+        private readonly EntityCreationService $entity_creation_service,
+        private readonly EntityDeletionService $entity_deletion_service,
+        private readonly SortService $sort_service
+    ) {
+        parent::__construct($clone_theme_service, $database_info_service, $datarecord_info_service, $datatree_info_service, $entity_meta_modify_service, $render_service, $tab_helper_service, $permissions_management_service, $table_theme_helper_service, $theme_info_service, $search_service, $search_key_service);
+    }
+
     /**
      * Gets a list of linkable templates for potential use by the clone and link process.
      *
@@ -83,9 +104,9 @@ class LinkController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataType $local_datatype */
@@ -251,9 +272,9 @@ class LinkController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             /** @var DataType $local_datatype */
@@ -365,9 +386,9 @@ class LinkController extends ODRCustomController
 
 
             // Start the job to create the datatype from the template
-            $pheanstalk = $this->get('pheanstalk');
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-            $api_key = $this->container->getParameter('beanstalk_api_key');
+            $pheanstalk = $this->container->get('pheanstalk');
+            $redis_prefix = $this->getParameter('memcached_key_prefix');
+            $api_key = $this->getParameter('beanstalk_api_key');
 
             // Insert the new job into the queue
             $priority = 1024;   // should be roughly default priority
@@ -434,11 +455,11 @@ class LinkController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatatreeInfoService $datatree_info_service */
-            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            $datatree_info_service = $this->datatree_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataType $local_datatype */
@@ -836,9 +857,9 @@ class LinkController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
             /** @var DataTree $local_datatree */
             $local_datatree = $em->getRepository('ODR\AdminBundle\Entity\DataTree')->find($datatree_id);
@@ -1033,22 +1054,22 @@ class LinkController extends ODRCustomController
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
+            $cache_service = $this->cache_service;
             /** @var DatatreeInfoService $datatree_info_service */
-            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            $datatree_info_service = $this->datatree_info_service;
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
             /** @var CloneThemeService $clone_theme_service */
-            $clone_theme_service = $this->container->get('odr.clone_theme_service');
+            $clone_theme_service = $this->clone_theme_service;
 
 
             /** @var ThemeElement $theme_element */
@@ -1219,7 +1240,7 @@ class LinkController extends ODRCustomController
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
-//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    if ( $this->getParameter('kernel.environment') === 'dev' )
 //                        throw $e;
                 }
 
@@ -1399,7 +1420,7 @@ class LinkController extends ODRCustomController
                 catch (\Exception $e) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
-//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    if ( $this->getParameter('kernel.environment') === 'dev' )
 //                        throw $e;
                 }
 
@@ -1410,7 +1431,7 @@ class LinkController extends ODRCustomController
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
-//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    if ( $this->getParameter('kernel.environment') === 'dev' )
 //                        throw $e;
                 }
 
@@ -1674,7 +1695,7 @@ class LinkController extends ODRCustomController
         // ----------------------------------------
         // Cache entries need to be wiped too...
         /** @var CacheService $cache_service */
-        $cache_service = $this->container->get('odr.cache_service');
+        $cache_service = $this->cache_service;
         foreach ($top_level_themes as $t_id)
             $cache_service->delete('cached_theme_'.$t_id);
     }
@@ -1848,13 +1869,13 @@ class LinkController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SortService $sort_service */
-            $sort_service = $this->container->get('odr.sort_service');
+            $sort_service = $this->sort_service;
             /** @var Router $router */
-            $router = $this->get('router');
+            $router = $this->container->get('router');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
             /** @var DataRecord $local_datarecord */
             $local_datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($local_datarecord_id);
@@ -2125,11 +2146,11 @@ class LinkController extends ODRCustomController
             uasort($linked_record_data, fn($a, $b) => strcmp((string) $a['dt_name'], (string) $b['dt_name']));
 
             // Easier if PHP creates the extra info string
-            $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
-            $site_baseurl = $this->container->getParameter('site_baseurl').'/';    // doesn't have trailing slash by default
+            $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+            $site_baseurl = $this->getParameter('site_baseurl').'/';    // doesn't have trailing slash by default
             if ( $is_wordpress_integrated )
-                $site_baseurl = $this->container->getParameter('wordpress_site_baseurl').'/';    // doesn't have trailing slash by default
-            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+                $site_baseurl = $this->getParameter('wordpress_site_baseurl').'/';    // doesn't have trailing slash by default
+            if ( $this->getParameter('kernel.environment') === 'dev' )
                 $site_baseurl .= 'app_dev.php/';
 
             // NOTE: count($data[$dt_id]['records']) is NOT guaranteed to be equal to
@@ -2245,19 +2266,19 @@ class LinkController extends ODRCustomController
             $repo_datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord');
 
             /** @var DatatreeInfoService $datatree_info_service */
-            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            $datatree_info_service = $this->datatree_info_service;
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var DatarecordInfoService $datarecord_info_service */
-            $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
+            $datarecord_info_service = $this->datarecord_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             // Grab the datatypes from the database
@@ -2571,14 +2592,14 @@ class LinkController extends ODRCustomController
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
+            $cache_service = $this->cache_service;
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             /** @var DataRecord $local_datarecord */
@@ -2944,7 +2965,7 @@ class LinkController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -2959,7 +2980,7 @@ class LinkController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -3039,12 +3060,12 @@ class LinkController extends ODRCustomController
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
+            $cache_service = $this->cache_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             /** @var DataRecord $local_datarecord */
@@ -3218,7 +3239,7 @@ class LinkController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -3231,7 +3252,7 @@ class LinkController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -3284,9 +3305,9 @@ class LinkController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var ODRRenderService $odr_render_service */
-            $odr_render_service = $this->container->get('odr.render_service');
+            $odr_render_service = $this->render_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             /** @var ThemeElement $theme_element */
@@ -3405,7 +3426,7 @@ class LinkController extends ODRCustomController
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             // ----------------------------------------
@@ -3536,13 +3557,13 @@ class LinkController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatarecordInfoService $datarecord_info_service */
-            $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
+            $datarecord_info_service = $this->datarecord_info_service;
             /** @var DatatreeInfoService $datatree_info_service */
-            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            $datatree_info_service = $this->datatree_info_service;
             /** @var ODRRenderService $odr_render_service */
-            $odr_render_service = $this->container->get('odr.render_service');
+            $odr_render_service = $this->render_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
             /** @var DataFields $external_id_field */
             $external_id_field = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($external_id_field_id);
@@ -3731,18 +3752,18 @@ class LinkController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
+            $cache_service = $this->cache_service;
             /** @var DatarecordInfoService $datarecord_info_service */
-            $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
+            $datarecord_info_service = $this->datarecord_info_service;
             /** @var DatatreeInfoService $datatree_info_service */
-            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            $datatree_info_service = $this->datatree_info_service;
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var EntityDeletionService $entity_delete_service */
-            $entity_delete_service = $this->container->get('odr.entity_deletion_service');
+            $entity_delete_service = $this->entity_deletion_service;
 
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
@@ -3904,7 +3925,7 @@ class LinkController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -3921,7 +3942,7 @@ class LinkController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 

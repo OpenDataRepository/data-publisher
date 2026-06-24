@@ -75,6 +75,30 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 class MassEditController extends ODRCustomController
 {
 
+    public function __construct(
+        $clone_theme_service,
+        $database_info_service,
+        $datarecord_info_service,
+        $datatree_info_service,
+        $entity_meta_modify_service,
+        $render_service,
+        $tab_helper_service,
+        $permissions_management_service,
+        $table_theme_helper_service,
+        $theme_info_service,
+        $search_service,
+        $search_key_service,
+        private readonly CacheService $cache_service,
+        private readonly CryptoService $crypto_service,
+        private readonly EntityCreationService $entity_creation_service,
+        private readonly SearchAPIService $search_api_service,
+        private readonly SearchRedirectService $search_redirect_service,
+        private readonly TagHelperService $tag_helper_service,
+        private readonly TrackedJobService $tracked_job_service
+    ) {
+        parent::__construct($clone_theme_service, $database_info_service, $datarecord_info_service, $datatree_info_service, $entity_meta_modify_service, $render_service, $tab_helper_service, $permissions_management_service, $table_theme_helper_service, $theme_info_service, $search_service, $search_key_service);
+    }
+
     /**
      * Sets up a mass edit request made from a search results page.
      *
@@ -99,19 +123,19 @@ class MassEditController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var ODRRenderService $odr_render_service */
-            $odr_render_service = $this->container->get('odr.render_service');
+            $odr_render_service = $this->render_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SearchAPIService $search_api_service */
-            $search_api_service = $this->container->get('odr.search_api_service');
+            $search_api_service = $this->search_api_service;
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
             /** @var SearchRedirectService $search_redirect_service */
-            $search_redirect_service = $this->container->get('odr.search_redirect_service');
+            $search_redirect_service = $this->search_redirect_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataType $datatype */
@@ -352,15 +376,15 @@ class MassEditController extends ODRCustomController
             $repo_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SearchAPIService $search_api_service */
-            $search_api_service = $this->container->get('odr.search_api_service');
+            $search_api_service = $this->search_api_service;
             /** @var SearchRedirectService $search_redirect_service */
-            $search_redirect_service = $this->container->get('odr.search_redirect_service');
+            $search_redirect_service = $this->search_redirect_service;
             /** @var TrackedJobService $tracked_job_service */
-            $tracked_job_service = $this->container->get('odr.tracked_job_service');
+            $tracked_job_service = $this->tracked_job_service;
 
 
             /** @var DataType $datatype */
@@ -375,9 +399,9 @@ class MassEditController extends ODRCustomController
             $dt_array = $database_info_service->getDatatypeArray($datatype_id, false);    // No links, MassEdit isn't allowed to affect them
 
             $session = $request->getSession();
-            $api_key = $this->container->getParameter('beanstalk_api_key');
-            $pheanstalk = $this->get('pheanstalk');
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');    // debug purposes only
+            $api_key = $this->getParameter('beanstalk_api_key');
+            $pheanstalk = $this->container->get('pheanstalk');
+            $redis_prefix = $this->getParameter('memcached_key_prefix');    // debug purposes only
 
 
             // --------------------
@@ -932,23 +956,23 @@ class MassEditController extends ODRCustomController
             $api_key = $post['api_key'];
 
             // Load symfony objects
-            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
-//            $logger = $this->get('logger');
+            $beanstalk_api_key = $this->getParameter('beanstalk_api_key');
+//            $logger = $this->container->get('logger');
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
 
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
 
             if ($api_key !== $beanstalk_api_key)
@@ -1012,7 +1036,7 @@ class MassEditController extends ODRCustomController
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
                 }
             }
@@ -1106,7 +1130,7 @@ class MassEditController extends ODRCustomController
                 $event_trigger = json_decode( $post['event_trigger'] );
 
             // Load symfony objects
-            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            $beanstalk_api_key = $this->getParameter('beanstalk_api_key');
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -1114,22 +1138,22 @@ class MassEditController extends ODRCustomController
             $repo_radio_selection = $em->getRepository('ODR\AdminBundle\Entity\RadioSelection');
 
             /** @var CryptoService $crypto_service */
-            $crypto_service = $this->container->get('odr.crypto_service');
+            $crypto_service = $this->crypto_service;
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var TagHelperService $tag_helper_service */
-            $tag_helper_service = $this->container->get('odr.tag_helper_service');
+            $tag_helper_service = $this->tag_helper_service;
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
             /** @var Logger $logger */
-            $logger = $this->get('logger');
+            $logger = $this->container->get('logger');
 
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
@@ -1249,7 +1273,7 @@ class MassEditController extends ODRCustomController
                             // ...don't particularly want to rethrow the error since it'll interrupt
                             //  everything downstream of the event (such as file encryption...), but
                             //  having the error disappear is less ideal on the dev environment...
-                            if ($this->container->getParameter('kernel.environment') === 'dev')
+                            if ($this->getParameter('kernel.environment') === 'dev')
                                 throw $e;
                         }
                     }
@@ -1281,7 +1305,7 @@ class MassEditController extends ODRCustomController
                             // ...don't particularly want to rethrow the error since it'll interrupt
                             //  everything downstream of the event (such as file encryption...), but
                             //  having the error disappear is less ideal on the dev environment...
-                            if ($this->container->getParameter('kernel.environment') === 'dev')
+                            if ($this->getParameter('kernel.environment') === 'dev')
                                 throw $e;
                         }
                     }
@@ -1313,7 +1337,7 @@ class MassEditController extends ODRCustomController
                             $entity_modify_service->updateFileMeta($user, $file, $properties, true);    // don't flush immediately
 
                             // Delete the decrypted version of the file, if it exists
-                            $file_upload_path = $this->container->getParameter('odr_web_directory').'/uploads/files/';
+                            $file_upload_path = $this->getParameter('odr_web_directory').'/uploads/files/';
                             $filename = 'File_'.$file->getId().'.'.$file->getExt();
                             $absolute_path = realpath($file_upload_path).'/'.$filename;
 
@@ -1349,7 +1373,7 @@ class MassEditController extends ODRCustomController
                             catch (\Exception) {
                                 // ...don't want to rethrow the error since it'll interrupt everything after this
                                 //  event
-//                                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                                throw $e;
                             }
                         }
@@ -1370,7 +1394,7 @@ class MassEditController extends ODRCustomController
                             // ...don't particularly want to rethrow the error since it'll interrupt
                             //  everything downstream of the event (such as file encryption...), but
                             //  having the error disappear is less ideal on the dev environment...
-                            if ($this->container->getParameter('kernel.environment') === 'dev')
+                            if ($this->getParameter('kernel.environment') === 'dev')
                                 throw $e;
                         }
                     }
@@ -1402,7 +1426,7 @@ class MassEditController extends ODRCustomController
                             $entity_modify_service->updateImageMeta($user, $image, $properties, true);    // don't flush immediately
 
                             // Delete the decrypted version of the file, if it exists
-                            $image_upload_path = $this->container->getParameter('odr_web_directory').'/uploads/images/';
+                            $image_upload_path = $this->getParameter('odr_web_directory').'/uploads/images/';
                             $filename = 'Image_'.$image->getId().'.'.$image->getExt();
                             $absolute_path = realpath($image_upload_path).'/'.$filename;
 
@@ -1438,7 +1462,7 @@ class MassEditController extends ODRCustomController
                             catch (\Exception) {
                                 // ...don't want to rethrow the error since it'll interrupt everything after this
                                 //  event
-//                                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                                throw $e;
                             }
                         }
@@ -1459,7 +1483,7 @@ class MassEditController extends ODRCustomController
                             // ...don't particularly want to rethrow the error since it'll interrupt
                             //  everything downstream of the event (such as file encryption...), but
                             //  having the error disappear is less ideal on the dev environment...
-                            if ($this->container->getParameter('kernel.environment') === 'dev')
+                            if ($this->getParameter('kernel.environment') === 'dev')
                                 throw $e;
                         }
                     }
@@ -1498,7 +1522,7 @@ class MassEditController extends ODRCustomController
                             // ...don't particularly want to rethrow the error since it'll interrupt
                             //  everything downstream of the event (such as file encryption...), but
                             //  having the error disappear is less ideal on the dev environment...
-                            if ($this->container->getParameter('kernel.environment') === 'dev')
+                            if ($this->getParameter('kernel.environment') === 'dev')
                                 throw $e;
                         }
                     }
@@ -1521,7 +1545,7 @@ class MassEditController extends ODRCustomController
                             // ...don't particularly want to rethrow the error since it'll interrupt
                             //  everything downstream of the event (such as file encryption...), but
                             //  having the error disappear is less ideal on the dev environment...
-                            if ($this->container->getParameter('kernel.environment') === 'dev')
+                            if ($this->getParameter('kernel.environment') === 'dev')
                                 throw $e;
                         }
                     }
@@ -1566,7 +1590,7 @@ class MassEditController extends ODRCustomController
                             // ...don't particularly want to rethrow the error since it'll interrupt
                             //  everything downstream of the event (such as file encryption...), but
                             //  having the error disappear is less ideal on the dev environment...
-                            if ($this->container->getParameter('kernel.environment') === 'dev')
+                            if ($this->getParameter('kernel.environment') === 'dev')
                                 throw $e;
                         }
                     }
@@ -1583,7 +1607,7 @@ class MassEditController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -1608,7 +1632,7 @@ class MassEditController extends ODRCustomController
                     catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
                         //  event
-//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    if ( $this->getParameter('kernel.environment') === 'dev' )
 //                        throw $e;
                     }
                 }
@@ -1661,24 +1685,24 @@ class MassEditController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
+            $cache_service = $this->cache_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SearchAPIService $search_api_service */
-            $search_api_service = $this->container->get('odr.search_api_service');
+            $search_api_service = $this->search_api_service;
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
             /** @var SearchRedirectService $search_redirect_service */
-            $search_redirect_service = $this->container->get('odr.search_redirect_service');
+            $search_redirect_service = $this->search_redirect_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
             /** @var TrackedJobService $tracked_job_service */
-            $tracked_job_service = $this->container->get('odr.tracked_job_service');
+            $tracked_job_service = $this->tracked_job_service;
 
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
 
             /** @var DataType $datatype */
@@ -1911,7 +1935,7 @@ class MassEditController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -1924,7 +1948,7 @@ class MassEditController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -1940,7 +1964,7 @@ class MassEditController extends ODRCustomController
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 

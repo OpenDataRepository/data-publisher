@@ -15,7 +15,7 @@
 
 namespace ODR\AdminBundle\Controller;
 
-use Symfony\Bundle\FrameworkBundle\Controller\Controller;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 
 // Entities
 use ODR\AdminBundle\Entity\DataType;
@@ -41,8 +41,34 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
-class ODRCustomController extends \Symfony\Bundle\FrameworkBundle\Controller\AbstractController
+
+
+/**
+ * Shared base for ODR controllers. The odr.* domain services it uses are injected via the
+ * constructor and exposed as protected readonly props so subclasses inherit them (forwarding them to
+ * parent::__construct() and adding only their own extra odr.* services). Framework/vendor services
+ * (twig, session, doctrine, parameter_bag, event_dispatcher, ...) still resolve through the service
+ * locator wired in via setContainer (see odr.controller_locator) — this replaces the container
+ * auto-injection removed in Symfony 5.0 without re-plumbing Symfony internals.
+ */
+class ODRCustomController extends AbstractController
 {
+
+    public function __construct(
+        protected readonly CloneThemeService $clone_theme_service,
+        protected readonly DatabaseInfoService $database_info_service,
+        protected readonly DatarecordInfoService $datarecord_info_service,
+        protected readonly DatatreeInfoService $datatree_info_service,
+        protected readonly EntityMetaModifyService $entity_meta_modify_service,
+        protected readonly ODRRenderService $render_service,
+        protected readonly ODRTabHelperService $tab_helper_service,
+        protected readonly PermissionsManagementService $permissions_management_service,
+        protected readonly TableThemeHelperService $table_theme_helper_service,
+        protected readonly ThemeInfoService $theme_info_service,
+        protected readonly SearchService $search_service,
+        protected readonly SearchKeyService $search_key_service
+    ) {
+    }
 
     /**
      * Utility function that renders a list of datarecords inside a wrapper template (shortresutlslist.html.twig or textresultslist.html.twig).
@@ -66,44 +92,44 @@ class ODRCustomController extends \Symfony\Bundle\FrameworkBundle\Controller\Abs
     {
         // -----------------------------------
         // Grab necessary objects
-        $session = $this->get('session');    // NOTE: has to be $this->get(), not $request->get()
+        $session = $this->container->get('session');    // NOTE: has to be $this->get(), not $request->get()
 
         $use_jupyterhub = false;
-        $jupyterhub_config = $this->container->getParameter('jupyterhub_config');
+        $jupyterhub_config = $this->getParameter('jupyterhub_config');
         if ( isset($jupyterhub_config['use_jupyterhub']) && $jupyterhub_config['use_jupyterhub'] == true )
             $use_jupyterhub = true;
 
-        $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
+        $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
 
 
         /** @var \Doctrine\ORM\EntityManager $em */
         $em = $this->getDoctrine()->getManager();
 
         /** @var CloneThemeService $clone_theme_service */
-        $clone_theme_service = $this->container->get('odr.clone_theme_service');
+        $clone_theme_service = $this->clone_theme_service;
         /** @var DatabaseInfoService $database_info_service */
-        $database_info_service = $this->container->get('odr.database_info_service');
+        $database_info_service = $this->database_info_service;
         /** @var DatarecordInfoService $datarecord_info_service */
-        $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
+        $datarecord_info_service = $this->datarecord_info_service;
         /** @var DatatreeInfoService $datatree_info_service */
-        $datatree_info_service = $this->container->get('odr.datatree_info_service');
+        $datatree_info_service = $this->datatree_info_service;
         /** @var ODRRenderService $odr_render_service */
-        $odr_render_service = $this->container->get('odr.render_service');
+        $odr_render_service = $this->render_service;
         /** @var ODRTabHelperService $odr_tab_service */
-        $odr_tab_service = $this->container->get('odr.tab_helper_service');
+        $odr_tab_service = $this->tab_helper_service;
         /** @var PermissionsManagementService $permissions_service */
-        $permissions_service = $this->container->get('odr.permissions_management_service');
+        $permissions_service = $this->permissions_management_service;
         /** @var ThemeInfoService $theme_info_service */
-        $theme_info_service = $this->container->get('odr.theme_info_service');
+        $theme_info_service = $this->theme_info_service;
         /** @var SearchService $search_service */
-        $search_service = $this->container->get('odr.search_service');
+        $search_service = $this->search_service;
         /** @var SearchKeyService $search_key_service */
-        $search_key_service = $this->container->get('odr.search_key_service');
+        $search_key_service = $this->search_key_service;
         /** @var TableThemeHelperService $table_theme_helper_service */
-        $table_theme_helper_service = $this->container->get('odr.table_theme_helper_service');
+        $table_theme_helper_service = $this->table_theme_helper_service;
 
         /** @var \Twig\Environment $templating */
-        $templating = $this->get('twig');
+        $templating = $this->container->get('twig');
 
 
         $logged_in = $is_super_admin = false;
@@ -814,11 +840,11 @@ class ODRCustomController extends \Symfony\Bundle\FrameworkBundle\Controller\Abs
         $em = $this->getDoctrine()->getManager();
 
         /** @var CloneThemeService $clone_theme_service */
-        $clone_theme_service = $this->container->get('odr.clone_theme_service');
+        $clone_theme_service = $this->clone_theme_service;
         /** @var EntityMetaModifyService $emm_service */
-        $emm_service = $this->container->get('odr.entity_meta_modify_service');
+        $emm_service = $this->entity_meta_modify_service;
         /** @var PermissionsManagementService $permissions_service */
-        $permissions_service = $this->container->get('odr.permissions_management_service');
+        $permissions_service = $this->permissions_management_service;
 
 
         // If the theme can't be synched, then there's no sense notifying the user of anything...

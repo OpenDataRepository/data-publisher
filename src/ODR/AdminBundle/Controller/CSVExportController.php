@@ -53,6 +53,27 @@ use Ddeboer\DataImport\Writer\CsvWriter;
 class CSVExportController extends ODRCustomController
 {
 
+    public function __construct(
+        $clone_theme_service,
+        $database_info_service,
+        $datarecord_info_service,
+        $datatree_info_service,
+        $entity_meta_modify_service,
+        $render_service,
+        $tab_helper_service,
+        $permissions_management_service,
+        $table_theme_helper_service,
+        $theme_info_service,
+        $search_service,
+        $search_key_service,
+        private readonly CSVExportHelperService $csv_export_helper_service,
+        private readonly SearchAPIService $search_api_service,
+        private readonly SearchRedirectService $search_redirect_service,
+        private readonly TrackedJobService $tracked_job_service
+    ) {
+        parent::__construct($clone_theme_service, $database_info_service, $datarecord_info_service, $datatree_info_service, $entity_meta_modify_service, $render_service, $tab_helper_service, $permissions_management_service, $table_theme_helper_service, $theme_info_service, $search_service, $search_key_service);
+    }
+
     /**
      * Sets up a csv export request made from a search results page.
      *
@@ -77,19 +98,19 @@ class CSVExportController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var ODRRenderService $odr_render_service */
-            $odr_render_service = $this->container->get('odr.render_service');
+            $odr_render_service = $this->render_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SearchAPIService $search_api_service */
-            $search_api_service = $this->container->get('odr.search_api_service');
+            $search_api_service = $this->search_api_service;
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
             /** @var SearchRedirectService $search_redirect_service */
-            $search_redirect_service = $this->container->get('odr.search_redirect_service');
+            $search_redirect_service = $this->search_redirect_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataType $datatype */
@@ -273,18 +294,18 @@ class CSVExportController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var CSVExportHelperService $csv_export_helper_service */
-            $csv_export_helper_service = $this->container->get('odr.csv_export_helper_service');
+            $csv_export_helper_service = $this->csv_export_helper_service;
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var TrackedJobService $tracked_job_service */
-            $tracked_job_service = $this->container->get('odr.tracked_job_service');
+            $tracked_job_service = $this->tracked_job_service;
 
             /** @var Logger $logger */
             $logger = $this->container->get('logger');
             /** @var Pheanstalk $pheanstalk */
-            $pheanstalk = $this->get('pheanstalk');
+            $pheanstalk = $this->container->get('pheanstalk');
 
 
             /** @var DataType $datatype */
@@ -300,7 +321,7 @@ class CSVExportController extends ODRCustomController
 
 
             // Need two more variables for the beanstalk job
-            $api_key = $this->container->getParameter('beanstalk_api_key');
+            $api_key = $this->getParameter('beanstalk_api_key');
             $url = $this->generateUrl('odr_csv_export_worker', [], UrlGeneratorInterface::ABSOLUTE_URL);
 
             // --------------------
@@ -524,7 +545,7 @@ class CSVExportController extends ODRCustomController
             // ----------------------------------------
             // Now that the tracked job exists, create a "finalize" job for the export...this is
             //  what actually tracks the progress
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
+            $redis_prefix = $this->getParameter('memcached_key_prefix');     // debug purposes only
 
             $priority = 1024;   // should be roughly default priority
             $payload = [
@@ -642,7 +663,7 @@ class CSVExportController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             /** @var TrackedJob $tracked_job */
@@ -680,7 +701,7 @@ class CSVExportController extends ODRCustomController
             if ( $datatype->getIsMasterType() )
                 throw new ODRBadRequestException('Unable to export from a master template');
 
-            $csv_export_path = $this->container->getParameter('odr_tmp_directory').'/user_'.$user_id.'/csv_export/';
+            $csv_export_path = $this->getParameter('odr_tmp_directory').'/user_'.$user_id.'/csv_export/';
             $filename = 'export_'.$user_id.'_'.$tracked_job_id.'.csv';
 
             $handle = fopen($csv_export_path.$filename, 'r');

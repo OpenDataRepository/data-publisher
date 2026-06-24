@@ -58,6 +58,28 @@ use Symfony\Component\Security\Csrf\CsrfTokenManager;
 class DatatypeController extends ODRCustomController
 {
 
+    public function __construct(
+        $clone_theme_service,
+        $database_info_service,
+        $datarecord_info_service,
+        $datatree_info_service,
+        $entity_meta_modify_service,
+        $render_service,
+        $tab_helper_service,
+        $permissions_management_service,
+        $table_theme_helper_service,
+        $theme_info_service,
+        $search_service,
+        $search_key_service,
+        private readonly CacheService $cache_service,
+        private readonly DatatypeCreateService $datatype_create_service,
+        private readonly EntityCreationService $entity_creation_service,
+        private readonly ODRUserGroupMangementService $user_group_management_service,
+        private readonly UUIDService $uuid_service
+    ) {
+        parent::__construct($clone_theme_service, $database_info_service, $datarecord_info_service, $datatree_info_service, $entity_meta_modify_service, $render_service, $tab_helper_service, $permissions_management_service, $table_theme_helper_service, $theme_info_service, $search_service, $search_key_service);
+    }
+
     /**
      * Update the database properties metadata and database metadata
      * to reflect the updated database name.
@@ -82,9 +104,9 @@ class DatatypeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
             // Don't need to verify permissions, firewall won't let this action be called unless user is admin
             /** @var ODRUser $user */
@@ -207,13 +229,13 @@ class DatatypeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var ODRRenderService $odr_render_service */
-            $odr_render_service = $this->container->get('odr.render_service');
+            $odr_render_service = $this->render_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
@@ -281,7 +303,7 @@ class DatatypeController extends ODRCustomController
                         // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
                         //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
                         /** @var EventDispatcherInterface $event_dispatcher */
-                        $dispatcher = $this->get('event_dispatcher');
+                        $dispatcher = $this->container->get('event_dispatcher');
                         $event = new DatarecordCreatedEvent($datarecord, $user, null);
                         $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
                     }
@@ -290,7 +312,7 @@ class DatatypeController extends ODRCustomController
                         //  this event.  In this case, a datarecord gets created, but the rest of
                         //  the values aren't saved and the provisioned flag never gets changed to
                         //  "false"...leaving the datarecord in a state that the user can't view/edit
-//                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        if ( $this->getParameter('kernel.environment') === 'dev' )
 //                            throw $e;
                     }
 
@@ -384,13 +406,13 @@ class DatatypeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var DatatreeInfoService $datatree_info_service */
-            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            $datatree_info_service = $this->datatree_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataType $datatype */
@@ -519,9 +541,9 @@ class DatatypeController extends ODRCustomController
                         'datatype_permissions' => $datatype_permissions,
                         'related_datatypes' => $datatypes,
                         'related_metadata' => $related_metadata,
-                        'odr_wordpress_integrated' => $this->container->getParameter('odr_wordpress_integrated'),
-                        'site_baseurl' => $this->container->getParameter('site_baseurl'),
-                        'wordpress_site_baseurl' => $this->container->getParameter('wordpress_site_baseurl'),
+                        'odr_wordpress_integrated' => $this->getParameter('odr_wordpress_integrated'),
+                        'site_baseurl' => $this->getParameter('site_baseurl'),
+                        'wordpress_site_baseurl' => $this->getParameter('wordpress_site_baseurl'),
                         'dashboard_graphs' => $dashboard_graphs,
                     ]
                 );
@@ -558,9 +580,9 @@ class DatatypeController extends ODRCustomController
     private function getDashboardGraphs($em, $graph_datatypes, $datatype_permissions)
     {
         /** @var CacheService $cache_service */
-        $cache_service = $this->container->get('odr.cache_service');
+        $cache_service = $this->cache_service;
         /** @var \Twig\Environment $templating */
-        $templating = $this->get('twig');
+        $templating = $this->container->get('twig');
 
         $conn = $em->getConnection();
 
@@ -696,13 +718,13 @@ class DatatypeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var DatatreeInfoService $datatree_info_service */
-            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            $datatree_info_service = $this->datatree_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             // --------------------
@@ -898,11 +920,11 @@ class DatatypeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatatreeInfoService $datatree_info_service */
-            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            $datatree_info_service = $this->datatree_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             // --------------------
@@ -991,11 +1013,11 @@ class DatatypeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatatreeInfoService $datatree_info_service */
-            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            $datatree_info_service = $this->datatree_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataType $datatype */
@@ -1100,9 +1122,9 @@ class DatatypeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatatreeInfoService $datatree_info_service */
-            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            $datatree_info_service = $this->datatree_info_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             // Grab user privileges to determine what they can do
@@ -1205,7 +1227,7 @@ class DatatypeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
             // TODO - verifies this works properly
 
@@ -1273,15 +1295,15 @@ class DatatypeController extends ODRCustomController
             }
 
             /** @var DatatypeCreateService $datatype_create_service */
-            $datatype_create_service = $this->container->get('odr.datatype_create_service');
+            $datatype_create_service = $this->datatype_create_service;
             $datatype = $datatype_create_service->direct_add_datatype(
                 $master_datatype_id,
                 $datatype_id,
                 $admin,
                 $bypass_queue,
-                $this->get('pheanstalk'),
-                $this->container->getParameter('memcached_key_prefix'),
-                $this->container->getParameter('beanstalk_api_key')
+                $this->container->get('pheanstalk'),
+                $this->getParameter('memcached_key_prefix'),
+                $this->getParameter('beanstalk_api_key')
 
             );
 
@@ -1292,14 +1314,14 @@ class DatatypeController extends ODRCustomController
 //                // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
 //                //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
 //                /** @var EventDispatcherInterface $event_dispatcher */
-//                $dispatcher = $this->get('event_dispatcher');
+//                $dispatcher = $this->container->get('event_dispatcher');
 //                $event = new DatatypeCreatedEvent($datatype, $admin);
 //                $dispatcher->dispatch(DatatypeCreatedEvent::NAME, $event);
 //            }
 //            catch (\Exception $e) {
 //                // ...don't want to rethrow the error since it'll interrupt everything after this
 //                //  event
-////                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+////                if ( $this->getParameter('kernel.environment') === 'dev' )
 ////                    throw $e;
 //            }
 
@@ -1347,13 +1369,13 @@ class DatatypeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var ODRUserGroupMangementService $usergroup_management_service */
-            $usergroup_management_service = $this->container->get('odr.user_group_management_service');
+            $usergroup_management_service = $this->user_group_management_service;
             /** @var UUIDService $uuid_service */
-            $uuid_service = $this->container->get('odr.uuid_service');
+            $uuid_service = $this->uuid_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             // Don't need to verify permissions, firewall won't let this action be called unless user is admin
@@ -1385,7 +1407,7 @@ class DatatypeController extends ODRCustomController
                     $description = $submitted_data->getDescription();
 
                 // Need to unescape this value if it's coming from a wordpress install...
-                $is_wordpress_integrated = $this->container->getParameter('odr_wordpress_integrated');
+                $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
                 if ( $is_wordpress_integrated ) {
                     $short_name = stripslashes($short_name);
                     $description = stripslashes($description);
@@ -1597,9 +1619,9 @@ class DatatypeController extends ODRCustomController
                         // If the datatype is being created from a master template...
                         if ($datatype->getMasterDatatype()) {
                             // Start the job to create the datatype from the template
-                            $pheanstalk = $this->get('pheanstalk');
-                            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-                            $api_key = $this->container->getParameter('beanstalk_api_key');
+                            $pheanstalk = $this->container->get('pheanstalk');
+                            $redis_prefix = $this->getParameter('memcached_key_prefix');
+                            $api_key = $this->getParameter('beanstalk_api_key');
 
                             // Insert the new job into the queue
                             $priority = 1024;   // should be roughly default priority
@@ -1649,14 +1671,14 @@ class DatatypeController extends ODRCustomController
                                 // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
                                 //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
                                 /** @var EventDispatcherInterface $event_dispatcher */
-                                $dispatcher = $this->get('event_dispatcher');
+                                $dispatcher = $this->container->get('event_dispatcher');
                                 $event = new DatatypeCreatedEvent($datatype, $admin);
                                 $dispatcher->dispatch(DatatypeCreatedEvent::NAME, $event);
                             }
                             catch (\Exception) {
                                 // ...don't want to rethrow the error since it'll interrupt everything after this
                                 //  event
-//                                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                                    throw $e;
                             }
 
@@ -1742,9 +1764,9 @@ class DatatypeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var ODRUserGroupMangementService $usergroup_management_service */
-            $usergroup_management_service = $this->container->get('odr.user_group_management_service');
+            $usergroup_management_service = $this->user_group_management_service;
 
 
             /** @var DataType $datatype */
@@ -1805,14 +1827,14 @@ class DatatypeController extends ODRCustomController
                 // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
                 //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
                 /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
+                $dispatcher = $this->container->get('event_dispatcher');
                 $event = new DatatypeCreatedEvent($new_metadata_datatype, $admin);
                 $dispatcher->dispatch(DatatypeCreatedEvent::NAME, $event);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -1821,14 +1843,14 @@ class DatatypeController extends ODRCustomController
                 // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
                 //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
                 /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
+                $dispatcher = $this->container->get('event_dispatcher');
                 $event = new DatatypeModifiedEvent($datatype, $admin);
                 $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -1866,13 +1888,13 @@ class DatatypeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatatreeInfoService $datatree_info_service */
-            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            $datatree_info_service = $this->datatree_info_service;
             /** @var CsrfTokenManager $token_generator */
-            $token_generator = $this->get('security.csrf.token_manager');
+            $token_generator = $this->container->get('security.csrf.token_manager');
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             // ----------------------------------------
@@ -2003,9 +2025,9 @@ class DatatypeController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var CsrfTokenManager $token_generator */
-            $token_generator = $this->get('security.csrf.token_manager');
+            $token_generator = $this->container->get('security.csrf.token_manager');
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
 
@@ -2093,9 +2115,9 @@ class DatatypeController extends ODRCustomController
 //                $clone_from_template
 //            );
 
-            $pheanstalk = $this->get('pheanstalk');
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-            $api_key = $this->container->getParameter('beanstalk_api_key');
+            $pheanstalk = $this->container->get('pheanstalk');
+            $redis_prefix = $this->getParameter('memcached_key_prefix');
+            $api_key = $this->getParameter('beanstalk_api_key');
             $priority = 1024;   // should be roughly default priority
             $delay = 0;
 

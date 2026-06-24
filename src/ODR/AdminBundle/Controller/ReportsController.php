@@ -44,6 +44,28 @@ use Symfony\Component\HttpFoundation\Response;
 class ReportsController extends ODRCustomController
 {
 
+    public function __construct(
+        $clone_theme_service,
+        $database_info_service,
+        $datarecord_info_service,
+        $datatree_info_service,
+        $entity_meta_modify_service,
+        $render_service,
+        $tab_helper_service,
+        $permissions_management_service,
+        $table_theme_helper_service,
+        $theme_info_service,
+        $search_service,
+        $search_key_service,
+        private readonly CacheService $cache_service,
+        private readonly DatafieldInfoService $datafield_info_service,
+        private readonly FieldtypeMigrationService $fieldtype_migration_service,
+        private readonly SortService $sort_service,
+        private readonly ODRUploadService $upload_service
+    ) {
+        parent::__construct($clone_theme_service, $database_info_service, $datarecord_info_service, $datatree_info_service, $entity_meta_modify_service, $render_service, $tab_helper_service, $permissions_management_service, $table_theme_helper_service, $theme_info_service, $search_service, $search_key_service);
+    }
+
     /**
      * Returns a list of all datarecords that have identical values in the given datafield.
      *
@@ -65,11 +87,11 @@ class ReportsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SortService $sort_service */
-            $sort_service = $this->container->get('odr.sort_service');
+            $sort_service = $this->sort_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataFields $datafield */
@@ -332,11 +354,11 @@ class ReportsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SortService $sort_service */
-            $sort_service = $this->container->get('odr.sort_service');
+            $sort_service = $this->sort_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataFields $datafield */
@@ -476,11 +498,11 @@ class ReportsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SortService $sort_service */
-            $sort_service = $this->container->get('odr.sort_service');
+            $sort_service = $this->sort_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataTree $datatree */
@@ -604,11 +626,11 @@ class ReportsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SortService $sort_service */
-            $sort_service = $this->container->get('odr.sort_service');
+            $sort_service = $this->sort_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataType $local_datatype */
@@ -732,11 +754,11 @@ class ReportsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SortService $sort_service */
-            $sort_service = $this->container->get('odr.sort_service');
+            $sort_service = $this->sort_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataFields $datafield */
@@ -893,11 +915,11 @@ class ReportsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SortService $sort_service */
-            $sort_service = $this->container->get('odr.sort_service');
+            $sort_service = $this->sort_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataFields $datafield */
@@ -1019,9 +1041,9 @@ class ReportsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
             $repo_datafields = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
 
@@ -1127,13 +1149,13 @@ class ReportsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var DatafieldInfoService $datafield_info_service */
-            $datafield_info_service = $this->container->get('odr.datafield_info_service');
+            $datafield_info_service = $this->datafield_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
             $repo_datafields = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
 
@@ -1619,7 +1641,7 @@ class ReportsController extends ODRCustomController
     private function DatafieldMigrations_ConvertToText($templating, $df_mapping, $new_fieldtype, $render_plugin_restrictions)
     {
         /** @var FieldtypeMigrationService $fieldtype_migration_service */
-        $fieldtype_migration_service = $this->container->get('odr.fieldtype_migration_service');
+        $fieldtype_migration_service = $this->fieldtype_migration_service;
 
         // Get a report for each datafield that is getting migrated
         $new_values_prevent_unique = [];
@@ -1655,7 +1677,7 @@ class ReportsController extends ODRCustomController
 
         // ----------------------------------------
         // Render and return a list of the records that would be changed
-        $baseurl = 'https:'.$this->container->getParameter('site_baseurl').'/admin#/view/';
+        $baseurl = 'https:'.$this->getParameter('site_baseurl').'/admin#/view/';
 
         $html = $templating->render(
             '@ODRAdmin/Reports/analyze_datafield_migration_to_text.html.twig',
@@ -1688,7 +1710,7 @@ class ReportsController extends ODRCustomController
     private function DatafieldMigrations_ConvertOtherToText($templating, $df_mapping, $new_fieldtype, $render_plugin_restrictions)
     {
         /** @var FieldtypeMigrationService $fieldtype_migration_service */
-        $fieldtype_migration_service = $this->container->get('odr.fieldtype_migration_service');
+        $fieldtype_migration_service = $this->fieldtype_migration_service;
 
         // Get a report for each datafield that is getting migrated
         $new_values_prevent_unique = [];
@@ -1727,7 +1749,7 @@ class ReportsController extends ODRCustomController
 
         // ----------------------------------------
         // Render and return a list of the records that would be changed
-        $baseurl = 'https:'.$this->container->getParameter('site_baseurl').'/admin#/view/';
+        $baseurl = 'https:'.$this->getParameter('site_baseurl').'/admin#/view/';
 
         $html = $templating->render(
             '@ODRAdmin/Reports/analyze_datafield_migration_to_text.html.twig',
@@ -1760,7 +1782,7 @@ class ReportsController extends ODRCustomController
     private function DatafieldMigrations_ConvertToInteger($templating, $df_mapping, $new_fieldtype, $render_plugin_restrictions)
     {
         /** @var FieldtypeMigrationService $fieldtype_migration_service */
-        $fieldtype_migration_service = $this->container->get('odr.fieldtype_migration_service');
+        $fieldtype_migration_service = $this->fieldtype_migration_service;
 
         // Get a report for each datafield that is getting migrated
         $new_values_prevent_unique = [];
@@ -1795,7 +1817,7 @@ class ReportsController extends ODRCustomController
 
         // ----------------------------------------
         // Render and return a list of the records that would be changed
-        $baseurl = 'https:'.$this->container->getParameter('site_baseurl').'/admin#/view/';
+        $baseurl = 'https:'.$this->getParameter('site_baseurl').'/admin#/view/';
 
         $html = $templating->render(
             '@ODRAdmin/Reports/analyze_datafield_migration_to_integer.html.twig',
@@ -1828,7 +1850,7 @@ class ReportsController extends ODRCustomController
     private function DatafieldMigrations_ConvertToDecimal($templating, $df_mapping, $new_fieldtype, $render_plugin_restrictions)
     {
         /** @var FieldtypeMigrationService $fieldtype_migration_service */
-        $fieldtype_migration_service = $this->container->get('odr.fieldtype_migration_service');
+        $fieldtype_migration_service = $this->fieldtype_migration_service;
 
         // Get a report for each datafield that is getting migrated
         $new_values_prevent_unique = [];
@@ -1863,7 +1885,7 @@ class ReportsController extends ODRCustomController
 
         // ----------------------------------------
         // Render and return a list of the records that would be changed
-        $baseurl = 'https:'.$this->container->getParameter('site_baseurl').'/admin#/view/';
+        $baseurl = 'https:'.$this->getParameter('site_baseurl').'/admin#/view/';
 
         $html = $templating->render(
             '@ODRAdmin/Reports/analyze_datafield_migration_to_decimal.html.twig',
@@ -1895,7 +1917,7 @@ class ReportsController extends ODRCustomController
     private function DatafieldMigration_ConvertToSingleRadio($templating, $df_mapping, $render_plugin_restrictions)
     {
         /** @var FieldtypeMigrationService $fieldtype_migration_service */
-        $fieldtype_migration_service = $this->container->get('odr.fieldtype_migration_service');
+        $fieldtype_migration_service = $this->fieldtype_migration_service;
 
         // Get a report for each datafield that is getting migrated
         $original_lengths = [];
@@ -1915,7 +1937,7 @@ class ReportsController extends ODRCustomController
 
         // ----------------------------------------
         // Render and return a list of the records that would be changed
-        $baseurl = 'https:'.$this->container->getParameter('site_baseurl').'/admin#/view/';
+        $baseurl = 'https:'.$this->getParameter('site_baseurl').'/admin#/view/';
 
         $html = $templating->render(
             '@ODRAdmin/Reports/analyze_datafield_migration_to_single_radio.html.twig',
@@ -1955,7 +1977,7 @@ class ReportsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             /** @var File $file */
@@ -2019,7 +2041,7 @@ class ReportsController extends ODRCustomController
 
             // Shouldn't really be necessary if the file is public, but including anyways for completeness/later use
             if ( $file->isPublic() ) {
-                $absolute_path = realpath( $this->container->getParameter('odr_web_directory').'/'.$file->getLocalFileName() );
+                $absolute_path = realpath( $this->getParameter('odr_web_directory').'/'.$file->getLocalFileName() );
 
                 if (!$absolute_path) {
                     // File doesn't exist, so no progress yet
@@ -2036,7 +2058,7 @@ class ReportsController extends ODRCustomController
                 // Determine temporary filename
                 $temp_filename = md5($file->getOriginalChecksum().'_'.$file_id.'_'.$user->getId());
                 $temp_filename .= '.'.$file->getExt();
-                $absolute_path = realpath( $this->container->getParameter('odr_web_directory').'/uploads/files/'.$temp_filename );
+                $absolute_path = realpath( $this->getParameter('odr_web_directory').'/uploads/files/'.$temp_filename );
 
                 if (!$absolute_path) {
                     // File doesn't exist, so no progress yet
@@ -2088,9 +2110,9 @@ class ReportsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var CacheService $cache_service*/
-            $cache_service = $this->container->get('odr.cache_service');
+            $cache_service = $this->cache_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
 
 
             /** @var File $file */
@@ -2172,7 +2194,7 @@ class ReportsController extends ODRCustomController
                 }
             }
             else {
-                $crypto_dir = $this->container->getParameter('dterranova_crypto.temp_folder').'/File_'.$file_id;
+                $crypto_dir = $this->getParameter('dterranova_crypto.temp_folder').'/File_'.$file_id;
                 $chunk_size = 2 * 1024 * 1024;  // 2Mb in bytes
 
                 $num_chunks = intval(floatval($file->getFilesize()) / floatval($chunk_size)) + 1;
@@ -2226,7 +2248,7 @@ class ReportsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var ODRUploadService $odr_upload_service */
-            $odr_upload_service = $this->container->get('odr.upload_service');
+            $odr_upload_service = $this->upload_service;
 
 
             /** @var File $file */
@@ -2273,7 +2295,7 @@ class ReportsController extends ODRCustomController
 
             // If the filepath is already pointing to the fully-uploaded path for some reason, then
             //  throw an error
-            $odr_files_directory = $this->container->getParameter('odr_files_directory');
+            $odr_files_directory = $this->getParameter('odr_files_directory');
             if ( str_contains($filepath, (string) $odr_files_directory) )
                 throw new ODRException('File '.$file->getId().' in invalid state to retry encryption');
             // NOTE: I don't think this can actually happen, but be safe
@@ -2337,7 +2359,7 @@ class ReportsController extends ODRCustomController
             if ($archive_filename == '0')
                 throw new ODRBadRequestException();
 
-            $archive_filepath = $this->container->getParameter('odr_tmp_directory').'/user_'.$user_id.'/'.$archive_filename;
+            $archive_filepath = $this->getParameter('odr_tmp_directory').'/user_'.$user_id.'/'.$archive_filename;
             if ( file_exists($archive_filepath) ) {
                 // Load the number of files currently in the archive
                 $zip_archive = new \ZipArchive();

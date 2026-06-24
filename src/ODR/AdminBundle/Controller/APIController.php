@@ -12,6 +12,8 @@
 
 namespace ODR\AdminBundle\Controller;
 
+use ODR\AdminBundle\Component\Service\StatisticsService;
+
 // Entities
 use ODR\AdminBundle\Entity\Boolean;
 use ODR\AdminBundle\Entity\DataFields;
@@ -101,6 +103,37 @@ use Symfony\Component\Routing\Router;
 
 class APIController extends ODRCustomController
 {
+
+    public function __construct(
+        $clone_theme_service,
+        $database_info_service,
+        $datarecord_info_service,
+        $datatree_info_service,
+        $entity_meta_modify_service,
+        $render_service,
+        $tab_helper_service,
+        $permissions_management_service,
+        $table_theme_helper_service,
+        $theme_info_service,
+        $search_service,
+        $search_key_service,
+        private readonly CacheService $cache_service,
+        private readonly CryptoService $crypto_service,
+        private readonly DatarecordExportService $datarecord_export_service,
+        private readonly DatatypeCreateService $datatype_create_service,
+        private readonly DatatypeExportService $datatype_export_service,
+        private readonly EntityCreationService $entity_creation_service,
+        private readonly EntityDeletionService $entity_deletion_service,
+        private readonly SearchAPIService $search_api_service,
+        private readonly SortService $sort_service,
+        private readonly StatisticsService $statistics_service,
+        private readonly TagHelperService $tag_helper_service,
+        private readonly ODRUploadService $upload_service,
+        private readonly ODRUserGroupMangementService $user_group_management_service,
+        private readonly UUIDService $uuid_service
+    ) {
+        parent::__construct($clone_theme_service, $database_info_service, $datarecord_info_service, $datatree_info_service, $entity_meta_modify_service, $render_service, $tab_helper_service, $permissions_management_service, $table_theme_helper_service, $theme_info_service, $search_service, $search_key_service);
+    }
     /**
      * Creates appropriate metadata info in JSON-LD to meet requirements
      * for discovery by Google Dataset Search and other search providers.
@@ -141,7 +174,7 @@ class APIController extends ODRCustomController
 
             // Now get the json record and update it with the correct user_id ant date times
             /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
+            $cache_service = $this->cache_service;
             $json_metadata_record = $cache_service
                 ->get('json_record_' . $metadata_record->getUniqueId());
 
@@ -345,16 +378,16 @@ class APIController extends ODRCustomController
                     'username' => $user->getUserString(),
                     'realname' => $user->getUserString(),
                     'email' => $user->getEmail(),
-                    'baseurl' => $this->container->getParameter('site_baseurl'),
+                    'baseurl' => $this->getParameter('site_baseurl'),
                 ];
 
                 if ($this->has('odr.jupyterhub_bridge.username_service'))
-                    $user_array['jupyterhub_username'] = $this->get('odr.jupyterhub_bridge.username_service')->getJupyterhubUsername($user);
+                    $user_array['jupyterhub_username'] = $this->container->get('odr.jupyterhub_bridge.username_service')->getJupyterhubUsername($user);
 
 
                 // Symfony already knows the request format due to use of the _format parameter in the route
                 $format = $request->getRequestFormat();
-                $data = $this->get('twig')->render(
+                $data = $this->container->get('twig')->render(
                     'ODRAdminBundle:API:userdata.' . $format . '.twig',
                     [
                         'user_data' => $user_array,
@@ -417,9 +450,9 @@ class APIController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatatreeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatree_info_service');
+            $dti_service = $this->datatree_info_service;
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
 
 
             // Get the user's permissions if applicable
@@ -520,7 +553,7 @@ class APIController extends ODRCustomController
 
             // Symfony already knows the request format due to use of the _format parameter in the route
             $format = $request->getRequestFormat();
-            $data = $this->get('twig')->render(
+            $data = $this->container->get('twig')->render(
                 'ODRAdminBundle:API:datatype_list.' . $format . '.twig',
                 [
                     'datatype_list' => $final_datatype_data,
@@ -626,11 +659,11 @@ class APIController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatatypeExportService $dte_service */
-            $dte_service = $this->container->get('odr.datatype_export_service');
+            $dte_service = $this->datatype_export_service;
             /** @var DatatreeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatree_info_service');
+            $dti_service = $this->datatree_info_service;
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
 
 
             /** @var DataType $datatype */
@@ -670,7 +703,7 @@ class APIController extends ODRCustomController
                 $request->getRequestFormat(),
                 $display_metadata,
                 $user,
-                $this->container->getParameter('site_baseurl')
+                $this->getParameter('site_baseurl')
             );
 
             // Set up a response to send the datatype back
@@ -710,11 +743,11 @@ class APIController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatatreeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatree_info_service');
+            $dti_service = $this->datatree_info_service;
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
             /** @var SortService $sort_service */
-            $sort_service = $this->container->get('odr.sort_service');
+            $sort_service = $this->sort_service;
 
 
             /** @var DataType $datatype */
@@ -836,7 +869,7 @@ class APIController extends ODRCustomController
             // return new JsonResponse(['done -> fdr' => count($final_datarecord_list)]);
             // This is the list - Now get descendants
             /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
+            $dri_service = $this->datarecord_info_service;
             $descendants = $dri_service->findAllDescendants($final_datarecord_list);
             $descendants = array_unique($descendants);
 
@@ -954,11 +987,11 @@ class APIController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatatreeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatree_info_service');
+            $dti_service = $this->datatree_info_service;
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
             /** @var SortService $sort_service */
-            $sort_service = $this->container->get('odr.sort_service');
+            $sort_service = $this->sort_service;
 
 
             /** @var DataType $datatype */
@@ -1128,7 +1161,7 @@ class APIController extends ODRCustomController
             // ----------------------------------------
             // Symfony already knows the request format due to use of the _format parameter in the route
             $format = $request->getRequestFormat();
-            $data = $this->get('twig')->render(
+            $data = $this->container->get('twig')->render(
                 'ODRAdminBundle:API:datarecord_list.' . $format . '.twig',
                 [
                     'datarecord_list' => $final_datarecord_list,
@@ -1184,9 +1217,9 @@ class APIController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatatreeInfoService $dti_service */
-            $dti_service = $this->container->get('odr.datatree_info_service');
+            $dti_service = $this->datatree_info_service;
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
 
 
             /** @var DataType $template_datatype */
@@ -1282,7 +1315,7 @@ class APIController extends ODRCustomController
 
             // Symfony already knows the request format due to use of the _format parameter in the route
             $format = $request->getRequestFormat();
-            $data = $this->get('twig')->render(
+            $data = $this->container->get('twig')->render(
                 'ODRAdminBundle:API:datatype_list.' . $format . '.twig',
                 [
                     'datatype_list' => $datatype_list,
@@ -1360,7 +1393,7 @@ class APIController extends ODRCustomController
 
             // Check if can Add Record
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
 
             if (!$pm_service->canAddDatarecord($user, $dataset_datatype))
                 throw new ODRForbiddenException();
@@ -1368,7 +1401,7 @@ class APIController extends ODRCustomController
             // Do we handle metadata datatypes??  Probably not...
             // A metadata datarecord doesn't exist...create one
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
 
             $delay_flush = true;
             $dataset_record = $entity_create_service
@@ -1416,14 +1449,14 @@ class APIController extends ODRCustomController
                 // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
                 //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
                 /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
+                $dispatcher = $this->container->get('event_dispatcher');
                 $event = new DatarecordCreatedEvent($dataset_record, $user, null);
                 $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
             } catch (\Exception $e) {
                 // ...don't particularly want to rethrow the error since it'll interrupt
                 //  everything downstream of the event (such as file encryption...), but
                 //  having the error disappear is less ideal on the dev environment...
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -1636,7 +1669,7 @@ class APIController extends ODRCustomController
                 $em->flush();
 
                 /** @var CacheService $cache_service */
-                $cache_service = $this->container->get('odr.cache_service');
+                $cache_service = $this->cache_service;
                 $cache_service->delete('user_' . $user->getId() . '_permissions');
 
                 // Now get the json record and update it with the correct user_id ant date times
@@ -1671,7 +1704,7 @@ class APIController extends ODRCustomController
                 $datatype = $metadata_datatype;
             } else {
                 /** @var DatatypeCreateService $dtc_service */
-                $dtc_service = $this->container->get('odr.datatype_create_service');
+                $dtc_service = $this->datatype_create_service;
 
                 /** @var DataType $datatype */
                 $datatype = $dtc_service->direct_add_datatype(
@@ -1688,14 +1721,14 @@ class APIController extends ODRCustomController
 //                    // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
 //                    //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
 //                    /** @var EventDispatcherInterface $event_dispatcher */
-//                    $dispatcher = $this->get('event_dispatcher');
+//                    $dispatcher = $this->container->get('event_dispatcher');
 //                    $event = new DatatypeCreatedEvent($datatype, $user);
 //                    $dispatcher->dispatch(DatatypeCreatedEvent::NAME, $event);
 //                }
 //                catch (\Exception $e) {
 //                    // ...don't want to rethrow the error since it'll interrupt everything after this
 //                    //  event
-////                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+////                if ( $this->getParameter('kernel.environment') === 'dev' )
 ////                    throw $e;
 //                }
 
@@ -1714,7 +1747,7 @@ class APIController extends ODRCustomController
             if (!$metadata_record) {
                 // A metadata datarecord doesn't exist...create one
                 /** @var EntityCreationService $entity_create_service */
-                $entity_create_service = $this->container->get('odr.entity_creation_service');
+                $entity_create_service = $this->entity_creation_service;
 
                 $delay_flush = true;
                 $metadata_record = $entity_create_service
@@ -1731,14 +1764,14 @@ class APIController extends ODRCustomController
                     // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
                     //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
                     /** @var EventDispatcherInterface $event_dispatcher */
-                    $dispatcher = $this->get('event_dispatcher');
+                    $dispatcher = $this->container->get('event_dispatcher');
                     $event = new DatarecordCreatedEvent($metadata_record, $user, null);
                     $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
                 } catch (\Exception) {
                     // ...don't particularly want to rethrow the error since it'll interrupt
                     //  everything downstream of the event (such as file encryption...), but
                     //  having the error disappear is less ideal on the dev environment...
-//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    if ( $this->getParameter('kernel.environment') === 'dev' )
 //                        throw $e;
                 }
             }
@@ -1753,7 +1786,7 @@ class APIController extends ODRCustomController
                 if (!$actual_data_record) {
                     // A metadata datarecord doesn't exist...create one
                     /** @var EntityCreationService $entity_create_service */
-                    $entity_create_service = $this->container->get('odr.entity_creation_service');
+                    $entity_create_service = $this->entity_creation_service;
 
                     $delay_flush = true;
                     $actual_data_record = $entity_create_service
@@ -1770,14 +1803,14 @@ class APIController extends ODRCustomController
                         // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
                         //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
                         /** @var EventDispatcherInterface $event_dispatcher */
-                        $dispatcher = $this->get('event_dispatcher');
+                        $dispatcher = $this->container->get('event_dispatcher');
                         $event = new DatarecordCreatedEvent($actual_data_record, $user, null);
                         $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
                     } catch (\Exception) {
                         // ...don't particularly want to rethrow the error since it'll interrupt
                         //  everything downstream of the event (such as file encryption...), but
                         //  having the error disappear is less ideal on the dev environment...
-//                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        if ( $this->getParameter('kernel.environment') === 'dev' )
 //                            throw $e;
                     }
                 }
@@ -1909,7 +1942,7 @@ class APIController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
 
 
             // ----------------------------------------
@@ -1988,7 +2021,7 @@ class APIController extends ODRCustomController
                     // Determine field type
                     $data_field = null;
                     // 0719c6187a235650b437bb742bf9
-            $logger = $this->get('logger');
+            $logger = $this->container->get('logger');
             $logger->info('Field: ' . $field['field_uuid']);
                     if ( 
                         isset($field['template_field_uuid']) 
@@ -3055,23 +3088,23 @@ class APIController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
+            $cache_service = $this->cache_service;
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var EntityDeletionService $entity_deletion_service */
-            $entity_deletion_service = $this->container->get('odr.entity_deletion_service');
+            $entity_deletion_service = $this->entity_deletion_service;
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
             /** @var UUIDService $uuid_service */
-            $uuid_service = $this->container->get('odr.uuid_service');
+            $uuid_service = $this->uuid_service;
 
             /** @var Router $router */
-            $router = $this->get('router');
+            $router = $this->container->get('router');
 
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
 
             // ----------------------------------------
@@ -3503,7 +3536,7 @@ class APIController extends ODRCustomController
                                 //  event.  In this case, a datarecord gets created, but the rest of the values
                                 //  aren't saved and the provisioned flag never gets changed to "false"...leaving
                                 //  the datarecord in a state that the user can't view/edit
-//                                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                                    throw $e;
                             }
 
@@ -3560,7 +3593,7 @@ class APIController extends ODRCustomController
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
                 }
             }
@@ -3574,7 +3607,7 @@ class APIController extends ODRCustomController
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
                 }
             }
@@ -3599,7 +3632,7 @@ class APIController extends ODRCustomController
                     catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
                         //  event
-//                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        if ( $this->getParameter('kernel.environment') === 'dev' )
 //                            throw $e;
                     }
                 }
@@ -3900,7 +3933,7 @@ class APIController extends ODRCustomController
         $grandparent_datatype_id = $datafield->getDataType()->getGrandparent()->getId();
 
         /** @var TagHelperService $tag_helper_service */
-        $tag_helper_service = $this->container->get('odr.tag_helper_service');
+        $tag_helper_service = $this->tag_helper_service;
 
         // TODO - should this instead be "inside" each option?
         $created = null;
@@ -4079,7 +4112,7 @@ class APIController extends ODRCustomController
                     //  to be deleted prior to selecting tags...
                     if ( is_null($cache_service) ) {
                         /** @var CacheService $cache_service */
-                        $cache_service = $this->container->get('odr.cache_service');
+                        $cache_service = $this->cache_service;
                     }
 
                     // These two cache entries need to be deleted here
@@ -4718,7 +4751,7 @@ class APIController extends ODRCustomController
             catch (\Exception) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -4784,7 +4817,7 @@ class APIController extends ODRCustomController
         if (!empty($content)) {
             $dataset_data = json_decode($content, true); // 2nd param to get as array
             $dataset = $dataset_data;
-            $logger = $this->get('logger');
+            $logger = $this->container->get('logger');
             $logger->info('DATA FROM UPDATEDATASET: ' . json_encode($dataset));
             $logger->info('DATA FROM UPDATEDATASET: ' . var_export($content, true));
             $logger->info('DATA FROM UPDATEDATASET: ' . var_export($_POST, true));
@@ -4799,7 +4832,7 @@ class APIController extends ODRCustomController
 
         /*
         $record_uuid = $dataset['record_uuid'];
-        $cache_service = $this->container->get('odr.cache_service');
+        $cache_service = $this->cache_service;
         $metadata_record = $cache_service
             ->get('json_record_' . $record_uuid);
 
@@ -4854,12 +4887,12 @@ class APIController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
+            $cache_service = $this->cache_service;
 
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             /** @var DataRecord $datarecord */
             $datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')->findOneBy(
@@ -4910,7 +4943,7 @@ class APIController extends ODRCustomController
             } catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -4972,7 +5005,7 @@ class APIController extends ODRCustomController
                 throw new ODRNotFoundException('DataType');
 
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
 
             // Determine if we're searching a metadata record or a normal dataset
             // Metadata datasets have one record each
@@ -5122,7 +5155,7 @@ class APIController extends ODRCustomController
                 }
 
                 /** @var PermissionsManagementService $pm_service */
-                $pm_service = $this->container->get('odr.permissions_management_service');
+                $pm_service = $this->permissions_management_service;
                 // Ensure user has permissions to be doing this
                 if (!$pm_service->isDatatypeAdmin($user, $datatype))
                     throw new ODRForbiddenException();
@@ -5202,14 +5235,14 @@ class APIController extends ODRCustomController
                 }
 
                 /** @var PermissionsManagementService $pm_service */
-                $pm_service = $this->container->get('odr.permissions_management_service');
+                $pm_service = $this->permissions_management_service;
                 // Ensure user has permissions to be doing this
                 if (!$pm_service->isDatatypeAdmin($user, $datatype))
                     throw new ODRForbiddenException();
                 // --------------------
 
                 /** @var EntityDeletionService $ed_service */
-                $ed_service = $this->container->get('odr.entity_deletion_service');
+                $ed_service = $this->entity_deletion_service;
                 $ed_service->deleteDatatype($datatype, $user);
 
                 // Delete datatype
@@ -5337,7 +5370,7 @@ class APIController extends ODRCustomController
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
 
             /** @var File $file */
@@ -5367,7 +5400,7 @@ class APIController extends ODRCustomController
                 throw new ODRNotFoundException('Datarecord');
 
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
             // Ensure user has permissions to be doing this
             // TODO - ROLE SUPER ADMIN??
             if (!$pm_service->canEditDatarecord($user, $data_record))
@@ -5422,7 +5455,7 @@ class APIController extends ODRCustomController
             } catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -5435,7 +5468,7 @@ class APIController extends ODRCustomController
                     // ...don't particularly want to rethrow the error since it'll interrupt
                     //  everything downstream of the event (such as file encryption...), but
                     //  having the error disappear is less ideal on the dev environment...
-//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    if ( $this->getParameter('kernel.environment') === 'dev' )
 //                        throw $e;
                 }
             }
@@ -5475,7 +5508,7 @@ class APIController extends ODRCustomController
         */
         $content = $request->request->all();
         if (!empty($content)) {
-            $logger = $this->get('logger');
+            $logger = $this->container->get('logger');
             $logger->info('DATA FROM PUBLISH: ' . var_export($content, true));
         }
 
@@ -5484,7 +5517,7 @@ class APIController extends ODRCustomController
             $data = $request->request->all();
 
             /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
+            $dri_service = $this->datarecord_info_service;
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -5565,13 +5598,13 @@ class APIController extends ODRCustomController
                 // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
                 //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
                 /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
+                $dispatcher = $this->container->get('event_dispatcher');
                 $event = new DatarecordPublicStatusChangedEvent($data_record, $user);
                 $dispatcher->dispatch(DatarecordPublicStatusChangedEvent::NAME, $event);
             } catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -5614,7 +5647,7 @@ class APIController extends ODRCustomController
         */
         $content = $request->request->all();
         if (!empty($content)) {
-            $logger = $this->get('logger');
+            $logger = $this->container->get('logger');
             $logger->info('DATA FROM PUBLISH: ' . var_export($content, true));
         }
 
@@ -5627,13 +5660,13 @@ class APIController extends ODRCustomController
 
 
             /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
+            $cache_service = $this->cache_service;
 
             /** @var DatarecordInfoService $dri_service */
-            $dri_service = $this->container->get('odr.datarecord_info_service');
+            $dri_service = $this->datarecord_info_service;
 
             /** @var DatabaseInfoService $dbi_service */
-            $dbi_service = $this->container->get('odr.database_info_service');
+            $dbi_service = $this->database_info_service;
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -5789,13 +5822,13 @@ class APIController extends ODRCustomController
                 // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
                 //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
                 /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
+                $dispatcher = $this->container->get('event_dispatcher');
                 $event = new DatarecordPublicStatusChangedEvent($data_record, $user);
                 $dispatcher->dispatch(DatarecordPublicStatusChangedEvent::NAME, $event);
             } catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -5804,13 +5837,13 @@ class APIController extends ODRCustomController
                 // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
                 //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
                 /** @var EventDispatcherInterface $event_dispatcher */
-                $dispatcher = $this->get('event_dispatcher');
+                $dispatcher = $this->container->get('event_dispatcher');
                 $event = new DatatypePublicStatusChangedEvent($data_type, $user);
                 $dispatcher->dispatch(DatatypePublicStatusChangedEvent::NAME, $event);
             } catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
 
@@ -5820,13 +5853,13 @@ class APIController extends ODRCustomController
                     // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
                     //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
                     /** @var EventDispatcherInterface $event_dispatcher */
-                    $dispatcher = $this->get('event_dispatcher');
+                    $dispatcher = $this->container->get('event_dispatcher');
                     $event = new DatarecordPublicStatusChangedEvent($actual_data_record, $user);
                     $dispatcher->dispatch(DatarecordPublicStatusChangedEvent::NAME, $event);
                 } catch (\Exception $e) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
                 }
 
@@ -5834,13 +5867,13 @@ class APIController extends ODRCustomController
                     // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
                     //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
                     /** @var EventDispatcherInterface $event_dispatcher */
-                    $dispatcher = $this->get('event_dispatcher');
+                    $dispatcher = $this->container->get('event_dispatcher');
                     $event = new DatatypePublicStatusChangedEvent($actual_data_type, $user);
                     $dispatcher->dispatch(DatatypePublicStatusChangedEvent::NAME, $event);
                 } catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
                 }
             }
@@ -5965,13 +5998,13 @@ class APIController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
+            $ec_service = $this->entity_creation_service;
             /** @var EntityDeletionService $ed_service */
-            $ed_service = $this->container->get('odr.entity_deletion_service');
+            $ed_service = $this->entity_deletion_service;
             /** @var ODRUploadService $odr_upload_service */
-            $odr_upload_service = $this->container->get('odr.upload_service');
+            $odr_upload_service = $this->upload_service;
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
             /** @var Logger $logger */
             $logger = $this->container->get('logger');
 
@@ -6112,7 +6145,7 @@ class APIController extends ODRCustomController
 
                 // Regardless of whether the file is "local" or not, it needs to get moved to this
                 //  directory so that ODRUploadService can find it
-                $destination_folder = $this->container->getParameter('odr_tmp_directory') . '/user_' . $user->getId() . '/chunks/completed';
+                $destination_folder = $this->getParameter('odr_tmp_directory') . '/user_' . $user->getId() . '/chunks/completed';
                 if (!file_exists($destination_folder))
                     mkdir($destination_folder, 0777, true);
 //                $logger->debug('ensured "'.$destination_folder.'" exists', array('APIController::addfileAction()'));
@@ -6124,7 +6157,7 @@ class APIController extends ODRCustomController
                     $original_filename = $file['original_file_name'];
 
                     // Additionally, it won't be in the "usual" place
-                    $current_folder = $this->container->getParameter('uploaded_files_path');
+                    $current_folder = $this->getParameter('uploaded_files_path');
 //                    $logger->debug('is local file...local_filename: "'.$local_filename.'", original_filename: "'.$original_filename.'", current_folder: "'.$current_folder.'"', array('APIController::addfileAction()'));
                 } else {
                     // Otherwise, the file will have been "uploaded" as part of the POST request
@@ -6133,7 +6166,7 @@ class APIController extends ODRCustomController
                     $original_filename = $file->getClientOriginalName();
 
                     // ...the "usual" place is same $destination given to FlowController::saveFile()
-                    $current_folder = $this->container->getParameter('odr_tmp_directory') . '/user_' . $user->getId() . '/chunks/completed';
+                    $current_folder = $this->getParameter('odr_tmp_directory') . '/user_' . $user->getId() . '/chunks/completed';
 //                    $logger->debug('not local file...local_filename: "'.$local_filename.'", original_filename: "'.$original_filename.'"', array('APIController::addfileAction()'));
 
                     // ...so get Symfony to move the file from the POST request to that location
@@ -6299,9 +6332,9 @@ class APIController extends ODRCustomController
         $em = $this->getDoctrine()->getManager();
 
         /** @var DatarecordExportService $dre_service */
-        $dre_service = $this->container->get('odr.datarecord_export_service');
+        $dre_service = $this->datarecord_export_service;
         /** @var PermissionsManagementService $pm_service */
-        $pm_service = $this->container->get('odr.permissions_management_service');
+        $pm_service = $this->permissions_management_service;
 
 
         /** @var DataRecord $datarecord */
@@ -6340,7 +6373,7 @@ class APIController extends ODRCustomController
 
         // TODO - system needs to delete these keys when record is updated elsewhere
         /** @var CacheService $cache_service */
-        $cache_service = $this->container->get('odr.cache_service');
+        $cache_service = $this->cache_service;
         $data = $cache_service
             ->get('json_record_' . $datarecord_uuid);
 
@@ -6355,7 +6388,7 @@ class APIController extends ODRCustomController
                 $format,
                 $display_metadata,
                 $user,
-                $this->container->getParameter('site_baseurl'),
+                $this->getParameter('site_baseurl'),
                 0
             );
 
@@ -6363,7 +6396,7 @@ class APIController extends ODRCustomController
             // Cache this data for faster retrieval
             // TODO work out how to expire this data...
             /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
+            $cache_service = $this->cache_service;
             $cache_service->set(
                 'json_record_' . $datarecord_uuid,
                 $data
@@ -6463,11 +6496,11 @@ class APIController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
             /** @var SearchAPIService $search_api_service */
-            $search_api_service = $this->container->get('odr.search_api_service');
+            $search_api_service = $this->search_api_service;
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
 
             /** @var DataType $template_datatype */
             $template_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
@@ -6540,7 +6573,7 @@ class APIController extends ODRCustomController
 
 
             /** @var DatatypeExportService $dte_service */
-            $dte_service = $this->container->get('odr.datatype_export_service');
+            $dte_service = $this->datatype_export_service;
 
             // Render the requested datatype
             $template_data = $dte_service->getData(
@@ -6549,7 +6582,7 @@ class APIController extends ODRCustomController
                 $request->getRequestFormat(),
                 false,
                 $user,
-                $this->container->getParameter('site_baseurl')
+                $this->getParameter('site_baseurl')
             );
 
             $template = json_decode($template_data, true);
@@ -6684,11 +6717,11 @@ class APIController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
             /** @var SearchAPIService $search_api_service */
-            $search_api_service = $this->container->get('odr.search_api_service');
+            $search_api_service = $this->search_api_service;
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
 
             /** @var DataType $template_datatype */
             $template_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
@@ -6790,7 +6823,7 @@ class APIController extends ODRCustomController
             // ----------------------------------------
             // Render the data in the requested format
             $format = $request->getRequestFormat();
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
             $data = $templating->render(
                 'ODRAdminBundle:API:field_stats.' . $format . '.twig',
                 [
@@ -6836,11 +6869,11 @@ class APIController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var CryptoService $crypto_service */
-            $crypto_service = $this->container->get('odr.crypto_service');
+            $crypto_service = $this->crypto_service;
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
             /** @var StatisticsService $statistics_service */
-            $statistics_service = $this->container->get('odr.statistics_service');
+            $statistics_service = $this->statistics_service;
 
 
             // This API action works on both files and images...
@@ -6904,7 +6937,7 @@ class APIController extends ODRCustomController
                 if (!$file->isPublic())
                     $filename = md5($file->getOriginalChecksum() . '_' . $file->getId() . '_' . $user->getId()) . '.' . $file->getExt();
 
-                $local_filepath = realpath($this->container->getParameter('odr_web_directory') . '/' . $file->getUploadDir() . '/' . $filename);
+                $local_filepath = realpath($this->getParameter('odr_web_directory') . '/' . $file->getUploadDir() . '/' . $filename);
                 if (!$local_filepath)
                     $local_filepath = $crypto_service->decryptFile($file->getId(), $filename);
 
@@ -6962,7 +6995,7 @@ class APIController extends ODRCustomController
                     $filename = md5($image->getOriginalChecksum() . '_' . $image->getId() . '_' . $user->getId()) . '.' . $image->getExt();
 
                 // Ensure the image exists in decrypted format
-                $image_path = realpath($this->container->getParameter('odr_web_directory') . '/' . $filename);     // realpath() returns false if file does not exist
+                $image_path = realpath($this->getParameter('odr_web_directory') . '/' . $filename);     // realpath() returns false if file does not exist
                 if (!$image->isPublic() || !$image_path)
                     $image_path = $crypto_service->decryptImage($image->getId(), $filename);
 
@@ -7190,7 +7223,7 @@ class APIController extends ODRCustomController
 
             // Grant
             /** @var ODRUserGroupMangementService $user_group_service */
-            $user_group_service = $this->container->get('odr.user_group_management_service');
+            $user_group_service = $this->user_group_management_service;
             $user_group_service->addUserToDefaultGroup(
                 $logged_in_user,
                 $user,
@@ -7656,7 +7689,7 @@ class APIController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             // /** @var PermissionsManagementService $pm_service */
-            // $pm_service = $this->container->get('odr.permissions_management_service');
+            // $pm_service = $this->permissions_management_service;
 
             // Check if user can add a tracked job
             // if (!$pm_service->canAddDatarecord($user, $dataset_datatype))
@@ -7790,7 +7823,7 @@ class APIController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             // /** @var PermissionsManagementService $pm_service */
-            // $pm_service = $this->container->get('odr.permissions_management_service');
+            // $pm_service = $this->permissions_management_service;
 
             // Check if user can add a tracked job
             // if (!$pm_service->canAddDatarecord($user, $dataset_datatype))
@@ -7859,7 +7892,7 @@ class APIController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             // /** @var PermissionsManagementService $pm_service */
-            // $pm_service = $this->container->get('odr.permissions_management_service');
+            // $pm_service = $this->permissions_management_service;
 
             // Check if user can add a tracked job
             // if (!$pm_service->canAddDatarecord($user, $dataset_datatype))
@@ -8152,7 +8185,7 @@ class APIController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             // /** @var PermissionsManagementService $pm_service */
-            // $pm_service = $this->container->get('odr.permissions_management_service');
+            // $pm_service = $this->permissions_management_service;
 
             // Check if user can add a tracked job
             // if (!$pm_service->canAddDatarecord($user, $dataset_datatype))
@@ -8231,7 +8264,7 @@ class APIController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             // /** @var PermissionsManagementService $pm_service */
-            // $pm_service = $this->container->get('odr.permissions_management_service');
+            // $pm_service = $this->permissions_management_service;
 
             // Check if user can add a tracked job
             // if (!$pm_service->canAddDatarecord($user, $dataset_datatype))

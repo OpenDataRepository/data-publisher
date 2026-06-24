@@ -47,7 +47,7 @@ class ODRSystemController extends ODRCustomController
             }
 
             // Path to the opcache-gui index.php
-            $opcacheGuiPath = $this->container->getParameter('kernel.root_dir')
+            $opcacheGuiPath = $this->getParameter('kernel.root_dir')
                 . '/../vendor/amnuts/opcache-gui/index.php';
 
             if (!file_exists($opcacheGuiPath)) {

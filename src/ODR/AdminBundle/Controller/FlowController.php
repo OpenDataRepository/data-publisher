@@ -51,6 +51,26 @@ use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
 class FlowController extends ODRCustomController
 {
 
+    public function __construct(
+        $clone_theme_service,
+        $database_info_service,
+        $datarecord_info_service,
+        $datatree_info_service,
+        $entity_meta_modify_service,
+        $render_service,
+        $tab_helper_service,
+        $permissions_management_service,
+        $table_theme_helper_service,
+        $theme_info_service,
+        $search_service,
+        $search_key_service,
+        private readonly EntityCreationService $entity_creation_service,
+        private readonly LockService $lock_service,
+        private readonly ODRUploadService $upload_service
+    ) {
+        parent::__construct($clone_theme_service, $database_info_service, $datarecord_info_service, $datatree_info_service, $entity_meta_modify_service, $render_service, $tab_helper_service, $permissions_management_service, $table_theme_helper_service, $theme_info_service, $search_service, $search_key_service);
+    }
+
     /** 
      * HTTP Status codes of 200 are interpreted by flow.js as "success"
      *
@@ -145,7 +165,7 @@ class FlowController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
 
 
             // uploads to file/image datafields MUST have datarecord/datafield ids
@@ -247,7 +267,7 @@ class FlowController extends ODRCustomController
 
             // ----------------------------------------
             // Load file validation parameters
-            $validation_params = $this->container->getParameter('file_validation');
+            $validation_params = $this->getParameter('file_validation');
             switch ($upload_type) {
 //                case 'xml':
 //                    $validation_params = $validation_params['xml'];
@@ -347,7 +367,7 @@ class FlowController extends ODRCustomController
             }
 
             // Check whether file is uploaded completely and properly
-            $path_prefix = $this->container->getParameter('odr_tmp_directory').'/';
+            $path_prefix = $this->getParameter('odr_tmp_directory').'/';
             $destination_folder = 'user_'.$user_id.'/chunks/completed';
             if ( !file_exists($path_prefix.$destination_folder) )
                 mkdir( $path_prefix.$destination_folder, 0777, true );
@@ -389,11 +409,11 @@ class FlowController extends ODRCustomController
                 else if ($datarecord_id != 0 && $datafield_id != 0) {
                     // Upload is meant for a file/image datafield
                     /** @var EntityCreationService $ec_service */
-                    $ec_service = $this->container->get('odr.entity_creation_service');
+                    $ec_service = $this->entity_creation_service;
                     $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
 
                     /** @var ODRUploadService $upload_service */
-                    $upload_service = $this->container->get('odr.upload_service');
+                    $upload_service = $this->upload_service;
                     if ( $upload_type === 'file' )
                         $upload_service->uploadNewFile($destination, $user, $drf);
                     else
@@ -437,7 +457,7 @@ class FlowController extends ODRCustomController
         $csv_file = new SymfonyFile($dirname.'/'.$original_filename);
 
         // Ensure a CSVImport directory exists for this user
-        $destination_folder = $this->container->getParameter('odr_tmp_directory').'/user_'.$user_id;
+        $destination_folder = $this->getParameter('odr_tmp_directory').'/user_'.$user_id;
         if ( !file_exists($destination_folder) )
             mkdir( $destination_folder );
         $destination_folder .= '/csv';
@@ -473,7 +493,7 @@ class FlowController extends ODRCustomController
         $xml_file = new SymfonyFile($filepath.'/'.$original_filename);
 
         // Ensure an XMLImport directory exists for this user
-        $destination_folder = $this->container->getParameter('odr_web_directory').'/uploads/xml';
+        $destination_folder = $this->getParameter('odr_web_directory').'/uploads/xml';
         if ( !file_exists($destination_folder) )
             mkdir( $destination_folder );
         $destination_folder .= '/user_'.$user_id;
@@ -520,7 +540,7 @@ class FlowController extends ODRCustomController
             throw new ODRBadRequestException('finishImportFileUpload(): invalid upload type "'.$upload_type.'"');
 
         // Ensure a CSV/XML Import directory exists for this user
-        $destination_folder = $this->container->getParameter('odr_tmp_directory').'/user_'.$user_id;
+        $destination_folder = $this->getParameter('odr_tmp_directory').'/user_'.$user_id;
         if ( !file_exists($destination_folder) )
             mkdir( $destination_folder );
         $destination_folder .= '/'.$type.'_storage';
@@ -552,7 +572,7 @@ class FlowController extends ODRCustomController
             throw new \Exception('failed to open destination file: '.$destination);
 
         /** @var LockService $lock_service */
-        $lock_service = $this->container->get('odr.lock_service');
+        $lock_service = $this->lock_service;
         $lockHandler = $lock_service->createLock('user_'.$user_id.'_'.$identifier.'.lock');
         if ( !$lockHandler->acquire() ) {
             // There's apparently another process attempting to splice these chunks together?
@@ -684,7 +704,7 @@ class FlowController extends ODRCustomController
      */
     private function getChunkPath($user_id, $identifier, $index)
     {
-        $chunk_upload_path = $this->container->getParameter('odr_tmp_directory').'/user_'.$user_id;
+        $chunk_upload_path = $this->getParameter('odr_tmp_directory').'/user_'.$user_id;
         if ( !file_exists($chunk_upload_path) )
             mkdir( $chunk_upload_path );
         $chunk_upload_path .= '/chunks';

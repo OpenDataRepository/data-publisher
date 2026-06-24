@@ -84,6 +84,31 @@ use \ForceUTF8\Encoding;
 class CSVImportController extends ODRCustomController
 {
 
+    public function __construct(
+        $clone_theme_service,
+        $database_info_service,
+        $datarecord_info_service,
+        $datatree_info_service,
+        $entity_meta_modify_service,
+        $render_service,
+        $tab_helper_service,
+        $permissions_management_service,
+        $table_theme_helper_service,
+        $theme_info_service,
+        $search_service,
+        $search_key_service,
+        private readonly CacheService $cache_service,
+        private readonly CSVImportHelperService $csv_import_helper_service,
+        private readonly EntityCreationService $entity_creation_service,
+        private readonly SortService $sort_service,
+        private readonly TagHelperService $tag_helper_service,
+        private readonly TrackedJobService $tracked_job_service,
+        private readonly ODRUploadService $upload_service,
+        private readonly UUIDService $uuid_service
+    ) {
+        parent::__construct($clone_theme_service, $database_info_service, $datarecord_info_service, $datatree_info_service, $entity_meta_modify_service, $render_service, $tab_helper_service, $permissions_management_service, $table_theme_helper_service, $theme_info_service, $search_service, $search_key_service);
+    }
+
     /**
      * Performs the initial setup for dealing with a CSV import request.
      *
@@ -106,13 +131,13 @@ class CSVImportController extends ODRCustomController
             $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
 
             /** @var DatatreeInfoService $datatree_info_service */
-            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            $datatree_info_service = $this->datatree_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var TrackedJobService $tracked_job_service */
-            $tracked_job_service = $this->container->get('odr.tracked_job_service');
+            $tracked_job_service = $this->tracked_job_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataType $datatype */
@@ -301,15 +326,15 @@ class CSVImportController extends ODRCustomController
             $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var DatatreeInfoService $datatree_info_service */
-            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            $datatree_info_service = $this->datatree_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var TrackedJobService $tracked_job_service */
-            $tracked_job_service = $this->container->get('odr.tracked_job_service');
+            $tracked_job_service = $this->tracked_job_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             /** @var DataType $source_datatype */
@@ -448,7 +473,7 @@ class CSVImportController extends ODRCustomController
 
 
             // Ensure the file exists before attempting to read it...
-            $csv_import_path = $this->container->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv/';
+            $csv_import_path = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv/';
             $csv_filename = $session->get('csv_file');
 
             if ( !file_exists($csv_import_path.$csv_filename) )
@@ -841,7 +866,7 @@ class CSVImportController extends ODRCustomController
             if ( !$session->has('csv_delimiter') )
                 throw new ODRBadRequestException('No delimiter set');
 
-            $csv_import_path = $this->container->getParameter('odr_tmp_directory').'/user_'.$user_id.'/csv/';
+            $csv_import_path = $this->getParameter('odr_tmp_directory').'/user_'.$user_id.'/csv/';
             $csv_filename = $session->get('csv_file');
             $absolute_filepath = $csv_import_path.$csv_filename;
 
@@ -924,7 +949,7 @@ class CSVImportController extends ODRCustomController
 
             // Get all files in the given user's 'upload' directory
             $uploaded_files = [];
-            $upload_directory = $this->container->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv_storage';
+            $upload_directory = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv_storage';
             if ( file_exists($upload_directory) )
                 $uploaded_files = scandir($upload_directory);
 
@@ -976,7 +1001,7 @@ class CSVImportController extends ODRCustomController
 
             // Get all files in the given user's 'upload' directory
             $uploaded_files = [];
-            $upload_directory = $this->container->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv_storage';
+            $upload_directory = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv_storage';
             if ( file_exists($upload_directory) )
                 $uploaded_files = scandir($upload_directory);
 
@@ -1025,7 +1050,7 @@ class CSVImportController extends ODRCustomController
             if ( $session->has('csv_file') ) {
                 // Delete the file if it exists
                 $filename = $session->get('csv_file');
-                $csv_import_path = $this->container->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv/';
+                $csv_import_path = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv/';
                 if ( file_exists($csv_import_path.$filename) )
                     unlink($csv_import_path.$filename);
 
@@ -1137,9 +1162,9 @@ class CSVImportController extends ODRCustomController
             // ----------------------------------------
             // Load symfony objects
             $session = $request->getSession();
-            $pheanstalk = $this->get('pheanstalk');
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            $pheanstalk = $this->container->get('pheanstalk');
+            $redis_prefix = $this->getParameter('memcached_key_prefix');
+            $beanstalk_api_key = $this->getParameter('beanstalk_api_key');
 
             $url = $this->generateUrl('odr_csv_import_validate', [], UrlGeneratorInterface::ABSOLUTE_URL);
 
@@ -1151,11 +1176,11 @@ class CSVImportController extends ODRCustomController
 
 
             /** @var CSVImportHelperService $csv_helper_service */
-            $csv_helper_service = $this->container->get('odr.csv_import_helper_service');
+            $csv_helper_service = $this->csv_import_helper_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var TrackedJobService $tracked_job_service */
-            $tracked_job_service = $this->container->get('odr.tracked_job_service');
+            $tracked_job_service = $this->tracked_job_service;
 
 
             // Need to store fieldtype ids and fieldtype typenames
@@ -1418,7 +1443,7 @@ class CSVImportController extends ODRCustomController
 
             // ----------------------------------------
             // Attempt to load csv file
-            $csv_import_path = $this->container->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv/';
+            $csv_import_path = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv/';
             $csv_filename = $session->get('csv_file');
             $delimiter = $session->get('csv_delimiter');
 
@@ -1728,13 +1753,13 @@ class CSVImportController extends ODRCustomController
 
 
             // Load symfony objects
-            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            $beanstalk_api_key = $this->getParameter('beanstalk_api_key');
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatarecordInfoService $datarecord_info_service */
-            $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
+            $datarecord_info_service = $this->datarecord_info_service;
 
             $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
             $repo_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
@@ -1964,7 +1989,7 @@ class CSVImportController extends ODRCustomController
                         if ( $value !== '' && isset($column_delimiters[$column_num]) ) {
                             // Due to validation in self::processAction(), this will exist when the
                             //  datafield is a file/image
-                            $upload_dir = $this->container->getParameter('odr_tmp_directory').'/user_'.$user_id.'/csv_storage/';
+                            $upload_dir = $this->getParameter('odr_tmp_directory').'/user_'.$user_id.'/csv_storage/';
 
                             // Grab a list of the files already uploaded to this datafield
                             $already_uploaded_files = [];
@@ -2025,7 +2050,7 @@ class CSVImportController extends ODRCustomController
                                 }
                                 else {
                                     // File/Image exists, ensure it has a valid mimetype
-                                    $validation_params = $this->container->getParameter('file_validation');
+                                    $validation_params = $this->getParameter('file_validation');
                                     $validation_params = $validation_params[ strtolower($typeclass) ];
 
                                     $uploaded_file = new SymfonyFile($upload_dir.$filename);
@@ -2363,17 +2388,17 @@ class CSVImportController extends ODRCustomController
             $repo_tracked_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob');
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var DatatreeInfoService $datatree_info_service */
-            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            $datatree_info_service = $this->datatree_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var TagHelperService $tag_helper_service */
-            $tag_helper_service = $this->container->get('odr.tag_helper_service');
+            $tag_helper_service = $this->tag_helper_service;
             /** @var TrackedJobService $tracked_job_service */
-            $tracked_job_service = $this->container->get('odr.tracked_job_service');
+            $tracked_job_service = $this->tracked_job_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             // ----------------------------------------
@@ -2530,7 +2555,7 @@ class CSVImportController extends ODRCustomController
 
             // ----------------------------------------
             // Read column names from the file
-            $csv_import_path = $this->container->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv/';
+            $csv_import_path = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv/';
             $csv_filename = $presets['csv_filename'];
             $delimiter = $presets['delimiter'];
 
@@ -2722,28 +2747,28 @@ class CSVImportController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
+            $cache_service = $this->cache_service;
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SortService $sort_service */
-            $sort_service = $this->container->get('odr.sort_service');
+            $sort_service = $this->sort_service;
             /** @var TagHelperService $tag_helper_service */
-            $tag_helper_service = $this->container->get('odr.tag_helper_service');
+            $tag_helper_service = $this->tag_helper_service;
             /** @var ThemeInfoService $theme_service */
-            $theme_service = $this->container->get('odr.theme_info_service');
+            $theme_service = $this->theme_info_service;
             /** @var TrackedJobService $tracked_job_service */
-            $tracked_job_service = $this->container->get('odr.tracked_job_service');
+            $tracked_job_service = $this->tracked_job_service;
             /** @var UUIDService $uuid_service */
-            $uuid_service = $this->container->get('odr.uuid_service');
+            $uuid_service = $this->uuid_service;
             /** @var Logger $logger */
-            $logger = $this->get('logger');
+            $logger = $this->container->get('logger');
 
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
@@ -2809,7 +2834,7 @@ class CSVImportController extends ODRCustomController
 
             // ----------------------------------------
             // Read column names from the file
-            $csv_import_path = $this->container->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv/';
+            $csv_import_path = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv/';
             $csv_filename = $job_data['csv_filename'];
             $delimiter = $job_data['delimiter'];
 
@@ -2854,10 +2879,10 @@ class CSVImportController extends ODRCustomController
 
             // ----------------------------------------
             // Load symfony objects
-            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
-            $pheanstalk = $this->get('pheanstalk');
+            $beanstalk_api_key = $this->getParameter('beanstalk_api_key');
+            $pheanstalk = $this->container->get('pheanstalk');
 
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
+            $redis_prefix = $this->getParameter('memcached_key_prefix');
 
 
             // Extract data from the tracked job
@@ -3014,7 +3039,7 @@ class CSVImportController extends ODRCustomController
                     catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
                         //  event
-//                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        if ( $this->getParameter('kernel.environment') === 'dev' )
 //                            throw $e;
                     }
 
@@ -3127,14 +3152,14 @@ print_r($new_mapping);
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
-//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    if ( $this->getParameter('kernel.environment') === 'dev' )
 //                        throw $e;
                 }
             }
 
             // ----------------------------------------
             // Re-read the csv file so a beanstalk job can be created for each line in the file
-            $csv_import_path = $this->container->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv/';
+            $csv_import_path = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv/';
             $csv_filename = $job_data['csv_filename'];
             $delimiter = $job_data['delimiter'];
 
@@ -3365,7 +3390,7 @@ print_r($new_mapping);
 
             // ----------------------------------------
             // Load symfony objects
-            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            $beanstalk_api_key = $this->getParameter('beanstalk_api_key');
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -3374,26 +3399,26 @@ print_r($new_mapping);
             $repo_user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User');
 
             /** @var DatarecordInfoService $datarecord_info_service */
-            $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
+            $datarecord_info_service = $this->datarecord_info_service;
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var DatatreeInfoService $datatree_info_service */
-            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            $datatree_info_service = $this->datatree_info_service;
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var EntityMetaModifyService $entity_modify_service */
-            $entity_modify_service = $this->container->get('odr.entity_meta_modify_service');
+            $entity_modify_service = $this->entity_meta_modify_service;
             /** @var SortService $sort_service */
-            $sort_service = $this->container->get('odr.sort_service');
+            $sort_service = $this->sort_service;
             /** @var TagHelperService $tag_helper_service */
-            $tag_helper_service = $this->container->get('odr.tag_helper_service');
+            $tag_helper_service = $this->tag_helper_service;
             /** @var ODRUploadService $upload_service */
-            $upload_service = $this->container->get('odr.upload_service');
+            $upload_service = $this->upload_service;
             /** @var Logger $logger */
-            $logger = $this->get('logger');
+            $logger = $this->container->get('logger');
 
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
@@ -3605,7 +3630,7 @@ exit();
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event.
-//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    if ( $this->getParameter('kernel.environment') === 'dev' )
 //                        throw $e;
                 }
             }
@@ -3739,7 +3764,7 @@ exit();
                             $drf = $entity_create_service->createDatarecordField($user, $datarecord, $datafield);
 
                             // Store the path to the user's upload area...
-                            $storage_filepath = $this->container->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv_storage';
+                            $storage_filepath = $this->getParameter('odr_tmp_directory').'/user_'.$user->getId().'/csv_storage';
 
                             // Grab a list of the files/images already uploaded to this datafield
                             $existing_files = [];
@@ -3814,7 +3839,7 @@ exit();
                                     //  remain on the server
                                     $old_obj = $existing_files[$csv_filename];
                                     if ($typeclass == 'File') {
-                                        $filepath = $this->container->getParameter('odr_web_directory').'/'.$old_obj->getLocalFileName();
+                                        $filepath = $this->getParameter('odr_web_directory').'/'.$old_obj->getLocalFileName();
                                         if ( file_exists($filepath) )
                                             unlink($filepath);
                                     }
@@ -3825,7 +3850,7 @@ exit();
                                         $old_images[] = $old_obj;
 
                                         foreach ($old_images as $img) {
-                                            $filepath = $this->container->getParameter('odr_web_directory').'/'.$img->getLocalFileName();
+                                            $filepath = $this->getParameter('odr_web_directory').'/'.$img->getLocalFileName();
                                             if ( file_exists($filepath) )
                                                 unlink($filepath);
                                         }
@@ -3865,7 +3890,7 @@ exit();
                                         $status .= '      ...'.$typeclass.' ("'.$original_filename.'") not listed in csv file, deleting...'."\n";
 
                                         // Delete the decrypted version of this file from the server, if it exists
-                                        $file_upload_path = $this->container->getParameter('odr_web_directory').'/uploads/files/';
+                                        $file_upload_path = $this->getParameter('odr_web_directory').'/uploads/files/';
                                         $filename = 'File_'.$file->getId().'.'.$file->getExt();
                                         $absolute_path = realpath($file_upload_path).'/'.$filename;
 
@@ -3901,7 +3926,7 @@ exit();
 
                                         // Ensure no decrypted version of the image (or thumbnails)
                                         //  exists on the server
-                                        $local_filepath = $this->container->getParameter('odr_web_directory').'/uploads/images/Image_'.$file->getId().'.'.$file->getExt();
+                                        $local_filepath = $this->getParameter('odr_web_directory').'/uploads/images/Image_'.$file->getId().'.'.$file->getExt();
                                         if ( file_exists($local_filepath) )
                                             unlink($local_filepath);
 
@@ -4297,7 +4322,7 @@ exit();
                     catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
                         //  event
-//                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        if ( $this->getParameter('kernel.environment') === 'dev' )
 //                            throw $e;
                     }
                 }
@@ -4311,7 +4336,7 @@ exit();
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
-//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    if ( $this->getParameter('kernel.environment') === 'dev' )
 //                        throw $e;
                 }
                 $status .= ' == deleting all search cache entries for datatype '.$datatype->getId().' ("'.$datatype->getShortName().'")'."\n";
@@ -4333,7 +4358,7 @@ exit();
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
             $status .= ' == updating datarecord cache entry for datarecord '.$datarecord->getId()."\n";
@@ -4486,7 +4511,7 @@ exit();
 
             // ----------------------------------------
             // Load symfony objects
-            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
+            $beanstalk_api_key = $this->getParameter('beanstalk_api_key');
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
@@ -4494,14 +4519,14 @@ exit();
             $repo_user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User');
 
             /** @var DatarecordInfoService $datarecord_info_service */
-            $datarecord_info_service = $this->container->get('odr.datarecord_info_service');
+            $datarecord_info_service = $this->datarecord_info_service;
             /** @var EntityCreationService $entity_create_service */
-            $entity_create_service = $this->container->get('odr.entity_creation_service');
+            $entity_create_service = $this->entity_creation_service;
             /** @var Logger $logger */
-            $logger = $this->get('logger');
+            $logger = $this->container->get('logger');
 
             /** @var EventDispatcherInterface $event_dispatcher */
-            $dispatcher = $this->get('event_dispatcher');
+            $dispatcher = $this->container->get('event_dispatcher');
 
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
@@ -4616,7 +4641,7 @@ exit();
                 catch (\Exception $e) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
                 }
 
@@ -4629,7 +4654,7 @@ exit();
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                if ( $this->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
                 }
 

@@ -114,12 +114,12 @@ class XMLImportController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
 
-            $api_key = $this->container->getParameter('beanstalk_api_key');
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-            $pheanstalk = $this->get('pheanstalk');
-            $router = $this->get('router');
+            $api_key = $this->getParameter('beanstalk_api_key');
+            $redis_prefix = $this->getParameter('memcached_key_prefix');
+            $pheanstalk = $this->container->get('pheanstalk');
+            $router = $this->container->get('router');
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
@@ -138,7 +138,7 @@ class XMLImportController extends ODRCustomController
 
 
             // Generate the url for cURL to use
-            $url = $this->container->getParameter('site_baseurl');
+            $url = $this->getParameter('site_baseurl');
             $url .= $router->generate('odr_xml_import_start');
 
             // Insert the new job into the queue
@@ -197,10 +197,10 @@ class XMLImportController extends ODRCustomController
             $api_key = $post['api_key'];
 
             // Load symfony objects
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
-            $pheanstalk = $this->get('pheanstalk');
-            $router = $this->get('router');
+            $redis_prefix = $this->getParameter('memcached_key_prefix');
+            $beanstalk_api_key = $this->getParameter('beanstalk_api_key');
+            $pheanstalk = $this->container->get('pheanstalk');
+            $router = $this->container->get('router');
             $redis = $this->container->get('snc_redis.default');;
             // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
 
@@ -250,7 +250,7 @@ class XMLImportController extends ODRCustomController
                     continue;
 
                 // Queue the file for a full import...
-                $url = $this->container->getParameter('site_baseurl');
+                $url = $this->getParameter('site_baseurl');
                 $url .= $router->generate('odr_xml_import_validate');
 
                 $payload = json_encode(
@@ -313,11 +313,11 @@ class XMLImportController extends ODRCustomController
             $api_key = $post['api_key'];
 
             // Load symfony objects
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
-            $pheanstalk = $this->get('pheanstalk');
-            $logger = $this->get('logger');
-            $router = $this->get('router');
+            $redis_prefix = $this->getParameter('memcached_key_prefix');
+            $beanstalk_api_key = $this->getParameter('beanstalk_api_key');
+            $pheanstalk = $this->container->get('pheanstalk');
+            $logger = $this->container->get('logger');
+            $router = $this->container->get('router');
             $redis = $this->container->get('snc_redis.default');;
             // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
 
@@ -391,7 +391,7 @@ class XMLImportController extends ODRCustomController
                     $ret .= 'Validated "'.$xml_filename.'"'."\n";
 
                     // Queue the file for a full import...
-                    $url = $this->container->getParameter('site_baseurl');
+                    $url = $this->getParameter('site_baseurl');
                     $url .= $router->generate('odr_xml_import_worker');
 
                     $payload = json_encode(
@@ -459,9 +459,9 @@ class XMLImportController extends ODRCustomController
             $api_key = $post['api_key'];
 
             // Load symfony objects
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
-            $logger = $this->get('logger');
+            $redis_prefix = $this->getParameter('memcached_key_prefix');
+            $beanstalk_api_key = $this->getParameter('beanstalk_api_key');
+            $logger = $this->container->get('logger');
             $redis = $this->container->get('snc_redis.default');;
             // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
 
@@ -1013,11 +1013,11 @@ if ($write) {
             return $return;
         }
 
-        $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-        $api_key = $this->container->getParameter('beanstalk_api_key');
+        $redis_prefix = $this->getParameter('memcached_key_prefix');
+        $api_key = $this->getParameter('beanstalk_api_key');
         $router = $this->container->get('router');
-        $pheanstalk = $this->get('pheanstalk');
-        $url = $this->container->getParameter('site_baseurl');
+        $pheanstalk = $this->container->get('pheanstalk');
+        $url = $this->getParameter('site_baseurl');
         $url .= $router->generate('odr_xml_import_file_download');
 
 
@@ -1520,10 +1520,10 @@ if ($write) {
 
 
             // Load symfony objects
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');
-            $beanstalk_api_key = $this->container->getParameter('beanstalk_api_key');
-            $pheanstalk = $this->get('pheanstalk');
-            $logger = $this->get('logger');
+            $redis_prefix = $this->getParameter('memcached_key_prefix');
+            $beanstalk_api_key = $this->getParameter('beanstalk_api_key');
+            $pheanstalk = $this->container->get('pheanstalk');
+            $logger = $this->container->get('logger');
             $redis = $this->container->get('snc_redis.default');;
             // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
 

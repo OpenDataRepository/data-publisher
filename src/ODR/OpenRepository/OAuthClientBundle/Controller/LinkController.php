@@ -60,13 +60,13 @@ class LinkController extends ODRCustomController
 
             // Ensure the requested OAuth resource owner exists
             /** @var OAuthUtils $oauth_utils */
-            $oauth_utils = $this->get('hwi_oauth.security.oauth_utils');
+            $oauth_utils = $this->container->get('hwi_oauth.security.oauth_utils');
             $resource_owners = $oauth_utils->getResourceOwners();
             if ( !in_array($resource, $resource_owners) )
                 throw new ODRNotFoundException('Invalid resource', true);
 
             /** @var AbstractResourceOwner $resource_owner */
-            $resource_owner = $this->get('hwi_oauth.resource_owner.'.$resource);
+            $resource_owner = $this->container->get('hwi_oauth.resource_owner.'.$resource);
 
             // Don't continue if already connected to this resource
             $user_link = $em->getRepository('ODR\OpenRepository\OAuthClientBundle\Entity\UserLink')->findOneBy( ['user' => $user->getId(), 'providerName' => strtolower($resource)] );
@@ -77,13 +77,13 @@ class LinkController extends ODRCustomController
             // ----------------------------------------
             // Generate the correct route for the external OAuth provider to redirect back to
             /** @var ResourceOwnerMap $resource_ownermap */
-            $resource_ownermap = $this->get('hwi_oauth.resource_ownermap.main');
+            $resource_ownermap = $this->container->get('hwi_oauth.resource_ownermap.main');
             $oauth_redirect_url_fragment = $resource_ownermap->getResourceOwnerCheckPath($resource);
             $auth_url = $resource_owner->getAuthorizationUrl($site_baseurl.$oauth_redirect_url_fragment);
 
             // Determine the name of the route from the redirection fragment...don't bother catching any exception thrown by match()
             /** @var UrlMatcherInterface $matcher */
-            $matcher = $this->get('router')->getMatcher();
+            $matcher = $this->container->get('router')->getMatcher();
             $params = $matcher->match($oauth_redirect_url_fragment);
             $route_name = $params['_route'];
 
@@ -155,7 +155,7 @@ class LinkController extends ODRCustomController
 
             // Ensure the requested OAuth resource owner exists
             /** @var OAuthUtils $oauth_utils */
-            $oauth_utils = $this->get('hwi_oauth.security.oauth_utils');
+            $oauth_utils = $this->container->get('hwi_oauth.security.oauth_utils');
             $resource_owners = $oauth_utils->getResourceOwners();
             if ( !in_array($resource, $resource_owners) )
                 throw new ODRNotFoundException('Invalid resource', true);

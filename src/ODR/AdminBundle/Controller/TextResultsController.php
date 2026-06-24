@@ -45,6 +45,26 @@ use Symfony\Component\HttpFoundation\Response;
 class TextResultsController extends ODRCustomController
 {
 
+    public function __construct(
+        $clone_theme_service,
+        $database_info_service,
+        $datarecord_info_service,
+        $datatree_info_service,
+        $entity_meta_modify_service,
+        $render_service,
+        $tab_helper_service,
+        $permissions_management_service,
+        $table_theme_helper_service,
+        $theme_info_service,
+        $search_service,
+        $search_key_service,
+        private readonly PaginationHelperService $pagination_helper_service,
+        private readonly SearchAPIService $search_api_service,
+        private readonly SortService $sort_service
+    ) {
+        parent::__construct($clone_theme_service, $database_info_service, $datarecord_info_service, $datatree_info_service, $entity_meta_modify_service, $render_service, $tab_helper_service, $permissions_management_service, $table_theme_helper_service, $theme_info_service, $search_service, $search_key_service);
+    }
+
     /**
      * Takes an AJAX request from the jQuery DataTables plugin and builds an array of TextResults
      * rows for the plugin to display.  This function does not get used when the layout is configured
@@ -114,17 +134,17 @@ class TextResultsController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var ODRTabHelperService $odr_tab_service */
-            $odr_tab_service = $this->container->get('odr.tab_helper_service');
+            $odr_tab_service = $this->tab_helper_service;
             /** @var PaginationHelperService $pagination_helper_service */
-            $pagination_helper_service = $this->container->get('odr.pagination_helper_service');
+            $pagination_helper_service = $this->pagination_helper_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SearchAPIService $search_api_service */
-            $search_api_service = $this->container->get('odr.search_api_service');
+            $search_api_service = $this->search_api_service;
             /** @var SortService $sort_service */
-            $sort_service = $this->container->get('odr.sort_service');
+            $sort_service = $this->sort_service;
             /** @var TableThemeHelperService $table_theme_helper_service */
-            $table_theme_helper_service = $this->container->get('odr.table_theme_helper_service');
+            $table_theme_helper_service = $this->table_theme_helper_service;
 
 
             /** @var DataType $datatype */
@@ -325,7 +345,7 @@ class TextResultsController extends ODRCustomController
 
             // -----------------------------------
             // Determine where on the page to scroll to if possible
-            $session = $this->get('session');
+            $session = $this->container->get('session');
             $scroll_target = '';
             if ($session->has('scroll_target')) {
                 $scroll_target = $session->get('scroll_target');
@@ -418,7 +438,7 @@ class TextResultsController extends ODRCustomController
             unset( $post['odr_tab_id'] );
 
             /** @var ODRTabHelperService $odr_tab_service */
-            $odr_tab_service = $this->container->get('odr.tab_helper_service');
+            $odr_tab_service = $this->tab_helper_service;
 
             // Get any existing data for this tab
             $tab_data = $odr_tab_service->getTabData($odr_tab_id);
@@ -461,7 +481,7 @@ class TextResultsController extends ODRCustomController
                 }
                 else {
                     /** @var TableThemeHelperService $table_theme_helper_service */
-                    $table_theme_helper_service = $this->container->get('odr.table_theme_helper_service');
+                    $table_theme_helper_service = $this->table_theme_helper_service;
 
                     /** @var ODRUser $user */
                     $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
@@ -523,9 +543,9 @@ class TextResultsController extends ODRCustomController
             $odr_tab_id = $post['odr_tab_id'];
 
             /** @var ODRTabHelperService $odr_tab_service */
-            $odr_tab_service = $this->container->get('odr.tab_helper_service');
+            $odr_tab_service = $this->tab_helper_service;
             /** @var TableThemeHelperService $table_theme_helper_service */
-            $table_theme_helper_service = $this->container->get('odr.table_theme_helper_service');
+            $table_theme_helper_service = $this->table_theme_helper_service;
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
@@ -681,13 +701,13 @@ class TextResultsController extends ODRCustomController
             $repo_datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord');
 
             /** @var DatatreeInfoService $datatree_info_service */
-            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            $datatree_info_service = $this->datatree_info_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var TableThemeHelperService $table_theme_helper_service */
-            $table_theme_helper_service = $this->container->get('odr.table_theme_helper_service');
+            $table_theme_helper_service = $this->table_theme_helper_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
 
             // Grab the datatypes from the database

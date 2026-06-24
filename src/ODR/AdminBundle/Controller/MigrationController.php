@@ -42,6 +42,24 @@ use Symfony\Component\Routing\Router;
 class MigrationController extends ODRCustomController
 {
 
+    public function __construct(
+        $clone_theme_service,
+        $database_info_service,
+        $datarecord_info_service,
+        $datatree_info_service,
+        $entity_meta_modify_service,
+        $render_service,
+        $tab_helper_service,
+        $permissions_management_service,
+        $table_theme_helper_service,
+        $theme_info_service,
+        $search_service,
+        $search_key_service,
+        private readonly CacheService $cache_service
+    ) {
+        parent::__construct($clone_theme_service, $database_info_service, $datarecord_info_service, $datatree_info_service, $entity_meta_modify_service, $render_service, $tab_helper_service, $permissions_management_service, $table_theme_helper_service, $theme_info_service, $search_service, $search_key_service);
+    }
+
 
     /**
      * Performs the following migration actions to update the backend database from ODR v1.0 to v1.1
@@ -72,7 +90,7 @@ class MigrationController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var CacheService $cache_service */
-            $cache_service = $this->container->get('odr.cache_service');
+            $cache_service = $this->cache_service;
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
 
@@ -724,7 +742,7 @@ class MigrationController extends ODRCustomController
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
-            if ( $this->container->getParameter('kernel.environment') !== 'dev' )
+            if ( $this->getParameter('kernel.environment') !== 'dev' )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -732,9 +750,9 @@ class MigrationController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
@@ -814,7 +832,7 @@ class MigrationController extends ODRCustomController
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
-            if ( $this->container->getParameter('kernel.environment') !== 'dev' )
+            if ( $this->getParameter('kernel.environment') !== 'dev' )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -826,9 +844,9 @@ class MigrationController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
             /** @var DataFields $src_datafield */
             $src_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($src_datafield_id);
@@ -909,7 +927,7 @@ class MigrationController extends ODRCustomController
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
-            if ( $this->container->getParameter('kernel.environment') !== 'dev' )
+            if ( $this->getParameter('kernel.environment') !== 'dev' )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -951,7 +969,7 @@ class MigrationController extends ODRCustomController
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
-            if ( $this->container->getParameter('kernel.environment') !== 'dev' )
+            if ( $this->getParameter('kernel.environment') !== 'dev' )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -992,7 +1010,7 @@ class MigrationController extends ODRCustomController
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
-            if ( $this->container->getParameter('kernel.environment') !== 'dev' )
+            if ( $this->getParameter('kernel.environment') !== 'dev' )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1000,9 +1018,9 @@ class MigrationController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatatreeInfoService $datatree_info_service */
-            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            $datatree_info_service = $this->datatree_info_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
             // Need to get a list of top-level datatypes and top-level templates...
             $top_level_datatypes = array_flip( $datatree_info_service->getTopLevelDatatypes() );
@@ -1100,7 +1118,7 @@ class MigrationController extends ODRCustomController
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
-            if ( $this->container->getParameter('kernel.environment') !== 'dev' )
+            if ( $this->getParameter('kernel.environment') !== 'dev' )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1122,7 +1140,7 @@ class MigrationController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
 
             /** @var DataType $src_datatype */
             $src_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($src_dt_id);
@@ -1332,7 +1350,7 @@ class MigrationController extends ODRCustomController
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
-            if ( $this->container->getParameter('kernel.environment') !== 'dev' )
+            if ( $this->getParameter('kernel.environment') !== 'dev' )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1340,9 +1358,9 @@ class MigrationController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatatreeInfoService $datatree_info_service */
-            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            $datatree_info_service = $this->datatree_info_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
             // Need to get a list of all top-level datatypes...
             $top_level_datatypes = $datatree_info_service->getTopLevelDatatypes();
@@ -1411,7 +1429,7 @@ class MigrationController extends ODRCustomController
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
-            if ( $this->container->getParameter('kernel.environment') !== 'dev' )
+            if ( $this->getParameter('kernel.environment') !== 'dev' )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1433,7 +1451,7 @@ class MigrationController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
 
             /** @var DataType $src_datatype */
             $src_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($src_dt_id);
@@ -1814,7 +1832,7 @@ class MigrationController extends ODRCustomController
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
-            if ( $this->container->getParameter('kernel.environment') !== 'dev' )
+            if ( $this->getParameter('kernel.environment') !== 'dev' )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1822,9 +1840,9 @@ class MigrationController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatatreeInfoService $datatree_info_service */
-            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            $datatree_info_service = $this->datatree_info_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
             // Going to be easier to use the datatree array here...
             $datatree_array = $datatree_info_service->getDatatreeArray();
@@ -1920,7 +1938,7 @@ class MigrationController extends ODRCustomController
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
-            if ( $this->container->getParameter('kernel.environment') !== 'dev' )
+            if ( $this->getParameter('kernel.environment') !== 'dev' )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1935,11 +1953,11 @@ class MigrationController extends ODRCustomController
             $conn = $em->getConnection();
 
             /** @var DatatreeInfoService $datatree_info_service */
-            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            $datatree_info_service = $this->datatree_info_service;
             /** @var ThemeInfoService $theme_info_service */
-            $theme_info_service = $this->container->get('odr.theme_info_service');
+            $theme_info_service = $this->theme_info_service;
             /** @var Router $router */
-            $router = $this->get('router');
+            $router = $this->container->get('router');
 
             /** @var DataType $target_datatype */
             $target_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($target_dt_id);
@@ -2207,7 +2225,7 @@ class MigrationController extends ODRCustomController
             $metadata_lines[] = $hash;
             $metadata_str = implode("</br>", $metadata_lines);
 
-            $odr_tmp_directory = $this->container->getParameter('odr_tmp_directory');
+            $odr_tmp_directory = $this->getParameter('odr_tmp_directory');
             $handle = fopen($odr_tmp_directory.'/user_'.$user->getId().'/tmp.dmp', 'w');
             if ( !$handle )
                 throw new ODRException('Unable to open file');
@@ -2256,7 +2274,7 @@ class MigrationController extends ODRCustomController
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
-            if ( $this->container->getParameter('kernel.environment') !== 'dev' )
+            if ( $this->getParameter('kernel.environment') !== 'dev' )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -2266,9 +2284,9 @@ class MigrationController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatatreeInfoService $datatree_info_service */
-            $datatree_info_service = $this->container->get('odr.datatree_info_service');
+            $datatree_info_service = $this->datatree_info_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
             // Going to be easier to use the datatree array here...
             $datatree_array = $datatree_info_service->getDatatreeArray();
@@ -2363,7 +2381,7 @@ class MigrationController extends ODRCustomController
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
-            if ( $this->container->getParameter('kernel.environment') !== 'dev' )
+            if ( $this->getParameter('kernel.environment') !== 'dev' )
                 throw new ODRForbiddenException();
             // --------------------
 

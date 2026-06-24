@@ -36,6 +36,24 @@ use Symfony\Component\HttpFoundation\Response;
 class DebugController extends ODRCustomController
 {
 
+    public function __construct(
+        $clone_theme_service,
+        $database_info_service,
+        $datarecord_info_service,
+        $datatree_info_service,
+        $entity_meta_modify_service,
+        $render_service,
+        $tab_helper_service,
+        $permissions_management_service,
+        $table_theme_helper_service,
+        $theme_info_service,
+        $search_service,
+        $search_key_service,
+        private readonly CSVExportHelperService $csv_export_helper_service
+    ) {
+        parent::__construct($clone_theme_service, $database_info_service, $datarecord_info_service, $datatree_info_service, $entity_meta_modify_service, $render_service, $tab_helper_service, $permissions_management_service, $table_theme_helper_service, $theme_info_service, $search_service, $search_key_service);
+    }
+
     /**
      * Renders a barebones page to set up a CSVExport for the purpose of debugging the actual export
      * process.
@@ -65,11 +83,11 @@ class DebugController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
-            $database_info_service = $this->container->get('odr.database_info_service');
+            $database_info_service = $this->database_info_service;
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
             /** @var \Twig\Environment $templating */
-            $templating = $this->get('twig');
+            $templating = $this->container->get('twig');
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
@@ -168,11 +186,11 @@ class DebugController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var CSVExportHelperService $csv_export_helper_service */
-            $csv_export_helper_service = $this->container->get('odr.csv_export_helper_service');
+            $csv_export_helper_service = $this->csv_export_helper_service;
             /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->container->get('odr.permissions_management_service');
+            $permissions_service = $this->permissions_management_service;
             /** @var SearchKeyService $search_key_service */
-            $search_key_service = $this->container->get('odr.search_key_service');
+            $search_key_service = $this->search_key_service;
 
             // Should validate the search key first...
             $search_params = $search_key_service->validateSearchKey($search_key);
@@ -202,8 +220,8 @@ class DebugController extends ODRCustomController
 
             // ----------------------------------------
             // Create the required url and the parameters to send
-            $api_key = $this->container->getParameter('beanstalk_api_key');
-            $redis_prefix = $this->container->getParameter('memcached_key_prefix');     // debug purposes only
+            $api_key = $this->getParameter('beanstalk_api_key');
+            $redis_prefix = $this->getParameter('memcached_key_prefix');     // debug purposes only
 
             $datarecord_ids = [];
             $complete_datarecord_list_array = [];
