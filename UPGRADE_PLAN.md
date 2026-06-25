@@ -10,7 +10,9 @@
 > **Companion docs:** [`SYMFONY_5_DEPRECATION_CLEANUP.md`](SYMFONY_5_DEPRECATION_CLEANUP.md) — repeatable
 > playbook for the 4.4 → 5.0 deprecation cleanup (route/template/templating/exception-controller/
 > controller-DI work, already done; see Phase 4). [`PHASE_4_PLAN.md`](PHASE_4_PLAN.md) — detailed,
-> code-grounded plan for the Phase 4 bundle removals. [`TEST_URLS.md`](TEST_URLS.md) — regression URL list.
+> code-grounded plan for the Phase 4 bundle removals. [`PHASE_5_PLAN.md`](PHASE_5_PLAN.md) — detailed,
+> code-grounded plan for the Phase 5 (5.4 → 6.4) metapackage decomposition + security-authenticator
+> migration. [`TEST_URLS.md`](TEST_URLS.md) — regression URL list.
 
 ---
 
@@ -300,6 +302,14 @@ php bin/console lint:yaml config/
 ---
 
 ## Phase 5: Symfony 5.4 → 6.4
+
+> **Execution plan: [`PHASE_5_PLAN.md`](PHASE_5_PLAN.md)** — detailed, code-grounded plan. Order:
+> **5.1** decompose the `symfony/symfony` metapackage into individual components (prerequisite —
+> the metapackage is removed in 6.0), **5.2** migrate Security to the authenticator system
+> (`enable_authenticator_manager`, `password_hashers`, drop `anonymous`, lexik `guard`→`jwt`),
+> **5.3** remove `sensio/framework-extra-bundle`, **5.4** swiftmailer→`symfony/mailer`, **5.5** bump
+> components to `6.4.*`. Structural/auth changes are done on 5.4 first (reversible), then the bump.
+> The notes below predate that plan and are kept for reference.
 
 ### 5.1 — PHP 8.0 Minimum
 
