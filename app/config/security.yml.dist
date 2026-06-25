@@ -1,13 +1,11 @@
-jms_security_extra:
-    secure_all_services: false
-    expressions: true
-    util:
-        secure_random: ~
-
 # app/config/security.yml
 security:
+    # Opt into the authenticator-based security system (the only system in Symfony 6.0; the legacy
+    # anonymous/guard system is removed there). Enables jwt:, removes the need for anonymous:.
+    enable_authenticator_manager: true
+
     # sha512 kept so the existing password hashes (migrated from FOSUserBundle) still validate
-    encoders:
+    password_hashers:
         ODR\OpenRepository\UserBundle\Entity\User: sha512
 
     role_hierarchy:
@@ -27,7 +25,6 @@ security:
         login0:
             pattern: /api/v5/token
             stateless: true
-            anonymous: true
             provider: fos_userbundle
             json_login:
                 check_path: api_login_check_main
@@ -38,7 +35,6 @@ security:
         login1:
             pattern:  /api/v4/token
             stateless: true
-            anonymous: true
             provider: fos_userbundle
             json_login:
                 check_path:               api_login_check_v4
@@ -52,7 +48,6 @@ security:
         login2:
             pattern:  /api/v3/token
             stateless: true
-            anonymous: true
             provider: fos_userbundle
             json_login:
                 check_path:               api_login_check
@@ -67,7 +62,6 @@ security:
         login3:
             pattern:  /odr/api/v3/token
             stateless: true
-            anonymous: true
             provider: fos_userbundle
             json_login:
                 check_path:               api_login_check
@@ -78,7 +72,6 @@ security:
         login4:
             pattern: /odr_rruff/api/v3/token
             stateless: true
-            anonymous: true
             provider: fos_userbundle
             json_login:
                 check_path: api_login_check
@@ -89,7 +82,6 @@ security:
         login5:
             pattern: /odr_rruff/api/v5/token
             stateless: true
-            anonymous: true
             provider: fos_userbundle
             json_login:
                 check_path: api_login_check_v5
@@ -108,9 +100,8 @@ security:
             #    query_parameter:
             #        enabled: true
             #        name:    bearer
-            guard:
-                authenticators:
-                    - lexik_jwt_authentication.jwt_token_authenticator
+            # lexik-jwt's native authenticator (replaces the removed-in-6.0 guard authenticator)
+            jwt: ~
             context: odr_firewall   # logging in through this firewall should grant the user "logged-in" status everywhere
 
 
@@ -127,7 +118,7 @@ security:
                 provider: fos_userbundle
                 login_path: fos_user_security_login
                 check_path: fos_user_security_check
-                csrf_token_generator: security.csrf.token_manager
+                enable_csrf: true
 
                 # always force sucessful logins through this firewall (regular username/password login to ODR) to redirect to this path
                 default_target_path:  odr_redirect
@@ -142,7 +133,6 @@ security:
             logout:
                 path:   fos_user_security_logout
                 target: /
-            anonymous:    true
 
             context: odr_firewall   # logging in through this firewall should grant the user "logged-in" status everywhere
 
@@ -150,31 +140,31 @@ security:
 ##########
 # API control
 
-        - { path: ^/api/v3/token, role: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: ^/api/v3/token, role: PUBLIC_ACCESS }
         - { path: ^/api,       role: IS_AUTHENTICATED_FULLY }
-#        - { path: ^/api, role: IS_AUTHENTICATED_ANONYMOUSLY }
+#        - { path: ^/api, role: PUBLIC_ACCESS }
 
-#        - { path: ^/api, role: IS_AUTHENTICATED_ANONYMOUSLY }
-#        - { path: ^/admin/datatype_export, role: IS_AUTHENTICATED_ANONYMOUSLY }   # allows json/xml download of datatype specs, controller restricts access as needed
-#        - { path: ^/admin/datarecord_export, role: IS_AUTHENTICATED_ANONYMOUSLY } # allows json/xml download of datarecords, controller restricts access as needed
+#        - { path: ^/api, role: PUBLIC_ACCESS }
+#        - { path: ^/admin/datatype_export, role: PUBLIC_ACCESS }   # allows json/xml download of datatype specs, controller restricts access as needed
+#        - { path: ^/admin/datarecord_export, role: PUBLIC_ACCESS } # allows json/xml download of datarecords, controller restricts access as needed
 
 ##########
 # These need to stay anonymous, otherwise users are unable to log in
-        - { path: ^/login$, role: IS_AUTHENTICATED_ANONYMOUSLY }
-        - { path: ^/register, role: IS_AUTHENTICATED_ANONYMOUSLY }
-        - { path: ^/resetting, role: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: ^/login$, role: PUBLIC_ACCESS }
+        - { path: ^/register, role: PUBLIC_ACCESS }
+        - { path: ^/resetting, role: PUBLIC_ACCESS }
 
-        - { path: ^/save_fragment, role: IS_AUTHENTICATED_ANONYMOUSLY }  # assists in redirecting after logging in
+        - { path: ^/save_fragment, role: PUBLIC_ACCESS }  # assists in redirecting after logging in
 
 ##########
 # These need to stay anonymous
-        - { path: ^/search, role: IS_AUTHENTICATED_ANONYMOUSLY }     # search page
-        - { path: ^/view, role: IS_AUTHENTICATED_ANONYMOUSLY }       # display mode
-        - { path: ^/session, role: IS_AUTHENTICATED_ANONYMOUSLY }    # changing pagelength or using a different layout
-        - { path: ^/beanstalk, role: IS_AUTHENTICATED_ANONYMOUSLY }  # beanstalk doesn't have a login, uses secret key defined in parameters.yml for authentication
+        - { path: ^/search, role: PUBLIC_ACCESS }     # search page
+        - { path: ^/view, role: PUBLIC_ACCESS }       # display mode
+        - { path: ^/session, role: PUBLIC_ACCESS }    # changing pagelength or using a different layout
+        - { path: ^/beanstalk, role: PUBLIC_ACCESS }  # beanstalk doesn't have a login, uses secret key defined in parameters.yml for authentication
 
-        - { path: ^/csvexport, role: IS_AUTHENTICATED_ANONYMOUSLY }    # CSV Export
-        - { path: ^/jobs/refresh, role: IS_AUTHENTICATED_ANONYMOUSLY } # Active Jobs page
+        - { path: ^/csvexport, role: PUBLIC_ACCESS }    # CSV Export
+        - { path: ^/jobs/refresh, role: PUBLIC_ACCESS } # Active Jobs page
 
 ##########
 # Regular use of site for logged-in users
