@@ -55,13 +55,13 @@
         "php-http/httplug-bundle": "^1.18",
         "ddeboer/data-import": "^0.20.0",
         "incenteev/composer-parameter-handler": "^2.1",
-        "sensio/framework-extra-bundle": "^6.0",
         "doctrine/orm": "^2.7",
         "doctrine/doctrine-bundle": "^2.0",
         "lexik/jwt-authentication-bundle": "^2.10",
         "nyholm/psr7": "^1.4",
         "ml/json-ld": "^1.2",
-        "amnuts/opcache-gui": "*"
+        "amnuts/opcache-gui": "*",
+        "doctrine/annotations": "^2.0"
     },
     "scripts": {
         "post-install-cmd": [
