@@ -1,5 +1,5 @@
 Open Data Repository Data Publisher
-Version 2.35
+Version 2.36
 ===================================
 
 The Open Data Repository's Data Publisher aims to create a simple tool
@@ -14,15 +14,18 @@ to the project, this edition is viable for these purposes only.
 1) Installation
 ----------------------------------
 
-This project is based on Symfony 3.4 and installs by cloning this 
-repository and then using cmposer to install the required Symfony 
-dependencies.
+This project runs on Symfony 6.4 (LTS) and PHP 8.1+ (developed/tested on PHP
+8.3); it installs by cloning this repository and then using Composer to install
+the required Symfony dependencies.  (The codebase is mid-migration toward
+Symfony 7.4 LTS — see UPGRADE_PLAN.md for status.)
 
-Additionally, you must have the following support libraries to 
+Additionally, you must have the following support services to
 run the publisher engine:
 
-beanstalkd - https://github.com/kr/beanstalkd
-memcached - http://memcached.org
+beanstalkd - https://github.com/kr/beanstalkd  (job queue)
+memcached  - http://memcached.org             (Doctrine + session cache)
+redis      - https://redis.io                 (caching / locks)
+Node.js    - https://nodejs.org               (background_services/ workers)
 
 > git clone https://github.com/OpenDataRepository/data-publisher.git
 
