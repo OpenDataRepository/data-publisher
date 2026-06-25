@@ -11,7 +11,7 @@ const tube = 'create_graph_preview';
 let browser;
 
 async function app() {
-    browser = await puppeteer.launch({headless:'new'});
+    browser = await puppeteer.launch({headless:'new', acceptInsecureCerts: !!process.env.ODR_CHROME_IGNORE_CERT, args: process.env.ODR_CHROME_NO_SANDBOX ? ['--no-sandbox','--disable-setuid-sandbox'] : []});
     client.watch(tube).onSuccess(function(data) {
         function resJob() {
             client.reserve().onSuccess(async function(job) {

@@ -17,7 +17,7 @@ function delay(time) {
 }
 
 async function app() {
-    browser = await puppeteer.launch({headless:'new'});
+    browser = await puppeteer.launch({headless:'new', acceptInsecureCerts: !!process.env.ODR_CHROME_IGNORE_CERT, args: process.env.ODR_CHROME_NO_SANDBOX ? ['--no-sandbox','--disable-setuid-sandbox'] : []});
     console.log('Clearing Cell Params Record Builder...');
     client.watch(tube).onSuccess(function(data) {
         function resJob() {
