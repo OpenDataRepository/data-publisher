@@ -127,7 +127,7 @@ class JobController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             $jobs = preg_split('/,/',$job_ids);
             foreach($jobs as $job_id) {
@@ -179,7 +179,7 @@ class JobController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             $tracked_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob')
                 ->findOneBy( [
@@ -223,7 +223,7 @@ class JobController extends ODRCustomController
             $tracked_job_service = $this->tracked_job_service;
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $tracked_jobs = [];
             if ($user !== 'anon.') {
                 // Get Jobs as array and pass to interface
@@ -268,7 +268,7 @@ class JobController extends ODRCustomController
             $tracked_job_service = $this->tracked_job_service;
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 //            if ($user === 'anon.')
 //                throw new ODRForbiddenException();
 
@@ -362,7 +362,7 @@ class JobController extends ODRCustomController
                 else {
                     // Since the Job and the Datatype still exist, check whether the user has permission to delete this Job
                     /** @var ODRUser $user */
-                    $user = $this->container->get('security.token_storage')->getToken()->getUser();
+                    $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
                     $datatype_permissions = $permissions_service->getDatatypePermissions($user);
 
                     if ( !(isset($datatype_permissions[$datatype_id]) && isset($datatype_permissions[$datatype_id]['dt_admin'])) )   // TODO - change from is_admin permission?

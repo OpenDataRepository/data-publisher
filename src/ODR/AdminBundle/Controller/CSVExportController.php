@@ -146,7 +146,7 @@ class CSVExportController extends ODRCustomController
 
             // --------------------
             /** @var ODRUser|null $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             // Easier for the rest of ODR if anonymous users get converted into null
             if ( $user === 'anon.' )
                 $user = null;
@@ -326,7 +326,7 @@ class CSVExportController extends ODRCustomController
 
             // --------------------
             /** @var ODRUser|null $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             // Easier for the rest of ODR if anonymous users get converted into null
             if ( $user === 'anon.' )
                 $user = null;
@@ -685,7 +685,7 @@ class CSVExportController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // TODO - create some method to legitimately download csv's created by other users?
             $user_id = 0;

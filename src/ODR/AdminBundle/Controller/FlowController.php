@@ -213,7 +213,7 @@ class FlowController extends ODRCustomController
             // ----------------------------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $user_id = $user->getId();
 
             // Ensure user has permissions to be doing this

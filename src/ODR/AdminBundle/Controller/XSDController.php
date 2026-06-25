@@ -87,7 +87,7 @@ class XSDController extends ODRCustomController
             // ----------------------------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
 
             if ( !$pm_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
@@ -150,7 +150,7 @@ class XSDController extends ODRCustomController
         // ----------------------------------------
         // Determine user privileges
         /** @var User $user */
-        $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+        $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
         $user_permissions = $pm_service->getUserPermissionsArray($user);
         // ----------------------------------------
 

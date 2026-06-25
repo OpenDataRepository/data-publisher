@@ -115,7 +115,7 @@ class FakeEditController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             if ( !$permissions_service->canAddDatarecord($user, $datatype) )
                 throw new ODRForbiddenException();
@@ -284,7 +284,7 @@ class FakeEditController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             if ( !$permissions_service->canAddDatarecord($user, $datatype) )
                 throw new ODRForbiddenException();
@@ -830,7 +830,7 @@ class FakeEditController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             if ( !$permissions_service->canAddDatarecord($user, $datatype) )
                 throw new ODRForbiddenException();
@@ -1008,7 +1008,7 @@ class FakeEditController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             if ( !$permissions_service->canEditDatarecord($user, $parent_datarecord) )
                 throw new ODRForbiddenException();

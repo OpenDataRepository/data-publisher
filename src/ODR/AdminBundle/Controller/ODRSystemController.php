@@ -39,7 +39,7 @@ class ODRSystemController extends ODRCustomController
     {
         try {
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Only super admins can access this page
             if ($user === 'anon.' || !$user->hasRole('ROLE_SUPER_ADMIN')) {

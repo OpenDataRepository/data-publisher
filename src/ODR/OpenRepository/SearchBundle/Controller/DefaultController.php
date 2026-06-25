@@ -104,7 +104,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
             // ------------------------------
             // Grab user and their permissions if possible
             /** @var ODRUser $admin_user */
-            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $admin_user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
             // If using Wordpress - check for Wordpress User and Log them in.
             if($this->getParameter('odr_wordpress_integrated')) {
                 $odr_wordpress_user = getenv("WORDPRESS_USER");
@@ -397,7 +397,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
             // ------------------------------
             // Grab user and their permissions if possible
             /** @var ODRUser $admin_user */
-            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $admin_user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
 
             $user_permissions = $permissions_service->getUserPermissionsArray($admin_user);
             $datatype_permissions = $user_permissions['datatypes'];
@@ -722,7 +722,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
             }
             $new_search_key = $search_key_service->encodeSearchKey($search_params);
 
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
 
             // use whatever default theme this datatype has
             $search_theme_id = 0;
@@ -817,7 +817,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
             if ( is_null($datatype) )
                 throw new ODRNotFoundException('Datatype');
 
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
             if ( !$permissions_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
 
@@ -1010,7 +1010,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
 
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $user_permissions = $permissions_service->getUserPermissionsArray($user);
             if ( !$permissions_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
@@ -1248,7 +1248,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
 
             // ----------------------------------------
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $user_permissions = $permissions_service->getUserPermissionsArray($user);
 
             if ( !$permissions_service->canViewDatatype($user, $datatype) )

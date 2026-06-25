@@ -434,7 +434,7 @@ class SessionController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $is_super_admin = false;
             if ( $user !== 'anon.' && $user->hasRole('ROLE_SUPER_ADMIN') )
                 $is_super_admin = true;
@@ -536,7 +536,7 @@ class SessionController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $is_super_admin = false;
             if ( $user !== 'anon.' && $user->hasRole('ROLE_SUPER_ADMIN') )
                 $is_super_admin = true;
@@ -654,7 +654,7 @@ class SessionController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $user_permissions = $permissions_service->getUserPermissionsArray($user);
 
             if ( !$permissions_service->canViewDatatype($user, $datatype) )

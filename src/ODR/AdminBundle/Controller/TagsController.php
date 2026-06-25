@@ -127,7 +127,7 @@ class TagsController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $datatype_permissions = $permissions_service->getDatatypePermissions($user);
 
             // Tag stuff doesn't necessarily require datatype admin to modify...
@@ -338,7 +338,7 @@ class TagsController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Tag stuff doesn't necessarily require datatype admin to modify...
             if ( $datafield->getTagsAllowNonAdminEdit() ) {
@@ -606,7 +606,7 @@ class TagsController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Tag stuff doesn't necessarily require datatype admin to modify...
             if ( $datafield->getTagsAllowNonAdminEdit() ) {
@@ -840,7 +840,7 @@ class TagsController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Tag stuff doesn't necessarily require datatype admin to modify...
             if ( $datafield->getTagsAllowNonAdminEdit() ) {
@@ -1247,7 +1247,7 @@ class TagsController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Tag stuff doesn't necessarily require datatype admin to modify...
             if ( $datafield->getTagsAllowNonAdminEdit() ) {
@@ -1679,7 +1679,7 @@ class TagsController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Tag stuff doesn't necessarily require datatype admin to modify...
             if ( $datafield->getTagsAllowNonAdminEdit() ) {
@@ -2219,7 +2219,7 @@ class TagsController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Tag stuff doesn't necessarily require datatype admin to modify...
             if ( $datafield->getTagsAllowNonAdminEdit() ) {
@@ -2442,7 +2442,7 @@ class TagsController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Tag stuff doesn't necessarily require datatype admin to modify...
             if ( $datafield->getTagsAllowNonAdminEdit() ) {

@@ -778,7 +778,7 @@ class PluginsController extends ODRCustomController
             // ----------------------------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
             // ----------------------------------------
@@ -1698,7 +1698,7 @@ class PluginsController extends ODRCustomController
             // ----------------------------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
             // ----------------------------------------
@@ -1991,7 +1991,7 @@ class PluginsController extends ODRCustomController
             // ----------------------------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
             // ----------------------------------------
@@ -2100,7 +2100,7 @@ class PluginsController extends ODRCustomController
             // ----------------------------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
             // ----------------------------------------
@@ -2232,7 +2232,7 @@ class PluginsController extends ODRCustomController
             // ----------------------------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
             // ----------------------------------------
@@ -2843,7 +2843,7 @@ class PluginsController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Ensure user has permissions to be doing this
 //            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
@@ -3092,7 +3092,7 @@ class PluginsController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Ensure user has permissions to be doing this
 //            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
@@ -3681,7 +3681,7 @@ class PluginsController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Ensure user has permissions to be doing this
             if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
@@ -3980,7 +3980,7 @@ class PluginsController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Ensure user has permissions to be doing this
             if ( !$permissions_service->isDatatypeAdmin($user, $target_datatype) )
@@ -4469,7 +4469,7 @@ class PluginsController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Ensure user has permissions to be doing this
 //            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
@@ -4678,7 +4678,7 @@ class PluginsController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Ensure user has permissions to be doing this
 //            if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
@@ -5006,7 +5006,7 @@ class PluginsController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Ensure user has permissions to be doing this
             if ( !$permissions_service->isDatatypeAdmin($user, $target_datatype) )

@@ -130,7 +130,7 @@ class XMLImportController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var User $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             if ( !$pm_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();

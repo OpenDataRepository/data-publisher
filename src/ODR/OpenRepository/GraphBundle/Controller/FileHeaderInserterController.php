@@ -94,7 +94,7 @@ class FileHeaderInserterController extends ODRCustomController
             // ----------------------------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
             $permissions_array = $permissions_service->getUserPermissionsArray($user);
 
             // Ensure the user is allowed to edit the datafield
@@ -293,7 +293,7 @@ class FileHeaderInserterController extends ODRCustomController
             // ----------------------------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
 
             // Ensure the user is allowed to edit the datafield
             if ( !$permissions_service->canEditDatafield($user, $datafield) )

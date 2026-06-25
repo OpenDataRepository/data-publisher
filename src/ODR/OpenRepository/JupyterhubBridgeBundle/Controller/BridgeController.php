@@ -117,7 +117,7 @@ class BridgeController extends ODRCustomController
 
             // ----------------------------------------
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
             if ($user === 'anon.')
                 throw new ODRForbiddenException();
 
@@ -207,7 +207,7 @@ class BridgeController extends ODRCustomController
 
             // ----------------------------------------
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
             if ($user === 'anon.')
                 throw new ODRForbiddenException();
 
@@ -433,7 +433,7 @@ class BridgeController extends ODRCustomController
             // ----------------------------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
             if (!$user->hasRole('ROLE_SUPER_ADMIN'))
                 throw new ODRForbiddenException();
 

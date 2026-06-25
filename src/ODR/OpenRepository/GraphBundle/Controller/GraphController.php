@@ -113,7 +113,7 @@ class GraphController extends ODRCustomController
             // ----------------------------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = $permissions_service->getUserPermissionsArray($user);
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
@@ -386,7 +386,7 @@ class GraphController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Ensure user has permissions to be doing this
             if ( !$permissions_service->canEditDatatype($user, $datatype) )
@@ -453,7 +453,7 @@ class GraphController extends ODRCustomController
 
                     // Determine user privileges
                     /** @var ODRUser $user */
-                    $user = $this->container->get('security.token_storage')->getToken()->getUser();
+                    $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
                     if ( $permissions_service->canViewDatatype($user, $datatype) ) {
                         $cookie_key = 'ODRGraph_'.$render_plugin_instance_id.'_xaxisdir';
                         $cookie_value = $direction;

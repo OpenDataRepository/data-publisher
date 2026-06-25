@@ -88,7 +88,7 @@ class RRUFFInstrumentUsageController extends ODRCustomController
             // ----------------------------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
 
             if ( !$permissions_service->canViewDatarecord($user, $datarecord) )
                 throw new ODRForbiddenException();

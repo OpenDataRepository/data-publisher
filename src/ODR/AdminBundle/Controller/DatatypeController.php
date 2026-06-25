@@ -110,7 +110,7 @@ class DatatypeController extends ODRCustomController
 
             // Don't need to verify permissions, firewall won't let this action be called unless user is admin
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Create new DataType form
             $submitted_data = new DataTypeMeta();
@@ -243,7 +243,7 @@ class DatatypeController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // ----------------------------------------
             // Check if this is a master template based datatype that is still in the creation process...
@@ -422,7 +422,7 @@ class DatatypeController extends ODRCustomController
             $grandparent_datatype = $datatype->getGrandparent();
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // ----------------------------------------
             // Check if this is a master template based datatype that is still in the creation process...
@@ -730,7 +730,7 @@ class DatatypeController extends ODRCustomController
             // --------------------
             // Grab user privileges to determine what they can do
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $datatype_permissions = $permissions_service->getDatatypePermissions($user);
             // --------------------
 
@@ -930,7 +930,7 @@ class DatatypeController extends ODRCustomController
             // --------------------
             // Grab user privileges to determine what they can do
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $datatype_permissions = $permissions_service->getDatatypePermissions($user);
 
             if ( $user === 'anon.' )
@@ -1029,7 +1029,7 @@ class DatatypeController extends ODRCustomController
             // --------------------
             // Grab user privileges to determine what they can do
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $datatype_permissions = $permissions_service->getDatatypePermissions($user);
 
             // Check if user is datatype admin
@@ -1129,7 +1129,7 @@ class DatatypeController extends ODRCustomController
 
             // Grab user privileges to determine what they can do
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ( $user === 'anon.' )
                 throw new ODRForbiddenException();
 
@@ -1239,7 +1239,7 @@ class DatatypeController extends ODRCustomController
             // --------------------
             // Grab user privileges to determine what they can do
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Check if user is datatype admin
             if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
@@ -1291,7 +1291,7 @@ class DatatypeController extends ODRCustomController
             // Don't need to verify permissions, firewall won't let this action be called unless user is admin
             /** @var ODRUser $admin */
             if($admin === null) {
-                $admin = $this->container->get('security.token_storage')->getToken()->getUser();
+                $admin = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             }
 
             /** @var DatatypeCreateService $datatype_create_service */
@@ -1380,7 +1380,7 @@ class DatatypeController extends ODRCustomController
 
             // Don't need to verify permissions, firewall won't let this action be called unless user is admin
             /** @var ODRUser $admin */
-            $admin = $this->container->get('security.token_storage')->getToken()->getUser();
+            $admin = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Create new DataType form
             $submitted_data = new DataTypeMeta();
@@ -1782,7 +1782,7 @@ class DatatypeController extends ODRCustomController
 
             // Don't need to verify permissions, firewall won't let this action be called unless user is admin
             /** @var ODRUser $admin */
-            $admin = $this->container->get('security.token_storage')->getToken()->getUser();
+            $admin = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Create a new metadata datatype
             $new_metadata_datatype = $entity_create_service->createDatatype($admin, $datatype->getShortName()." Properties", true);    // don't flush immediately...
@@ -1899,7 +1899,7 @@ class DatatypeController extends ODRCustomController
 
             // ----------------------------------------
             /** @var ODRUser $admin */
-            $admin = $this->container->get('security.token_storage')->getToken()->getUser();
+            $admin = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ( !$admin->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
             // ----------------------------------------
@@ -2054,7 +2054,7 @@ class DatatypeController extends ODRCustomController
 
             // ----------------------------------------
             /** @var ODRUser $admin */
-            $admin = $this->container->get('security.token_storage')->getToken()->getUser();
+            $admin = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Only allow super admins to do this...
             if ( !$admin->hasRole('ROLE_SUPER_ADMIN') )

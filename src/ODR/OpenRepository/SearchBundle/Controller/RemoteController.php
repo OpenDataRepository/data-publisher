@@ -81,7 +81,7 @@ class RemoteController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
             // --------------------
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Don't actually care about the user here, but should keep datarecord counts accurate
             $datatype_permissions = $permissions_service->getDatatypePermissions($user);
@@ -211,7 +211,7 @@ class RemoteController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
             // --------------------
             /** @var ODRUser $user */
-//            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+//            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             // Don't actually care about the user here, only displaying public datatypes/datafields
             // --------------------
 
@@ -371,7 +371,7 @@ class RemoteController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
             // --------------------
 //            /** @var ODRUser $user */
-//            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+//            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             // Don't actually care about the user here, only displaying public datatypes/datafields
             // --------------------
 

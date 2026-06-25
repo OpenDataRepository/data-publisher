@@ -134,7 +134,7 @@ class TrackingController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $datafield_permissions = $permissions_service->getDatafieldPermissions($user);
 
             // Ensure user has permissions to be doing this
@@ -275,7 +275,7 @@ class TrackingController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $admin */
-            $admin = $this->container->get('security.token_storage')->getToken()->getUser();
+            $admin = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $user_permissions = $permissions_service->getUserPermissionsArray($admin);
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
@@ -421,7 +421,7 @@ class TrackingController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $datafield_permissions = $permissions_service->getDatafieldPermissions($user);
 
             // Ensure user has permissions to be doing this
@@ -538,7 +538,7 @@ class TrackingController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $admin */
-            $admin = $this->container->get('security.token_storage')->getToken()->getUser();
+            $admin = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $datatype_permissions = $permissions_service->getDatatypePermissions($admin);
 
             // Determine whether the user is an admin for any datatype
@@ -778,7 +778,7 @@ class TrackingController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $admin */
-            $admin = $this->container->get('security.token_storage')->getToken()->getUser();
+            $admin = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $user_permissions = $permissions_service->getUserPermissionsArray($admin);
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
@@ -2558,7 +2558,7 @@ class TrackingController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $admin */
-            $admin = $this->container->get('security.token_storage')->getToken()->getUser();
+            $admin = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $datatype_permissions = $permissions_service->getDatatypePermissions($admin);
             $datafield_permissions = $permissions_service->getDatafieldPermissions($admin);
 
@@ -2713,7 +2713,7 @@ class TrackingController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $datatype_permissions = $permissions_service->getDatatypePermissions($user);
 
             // Need to determine which datatypes the user is allowed to edit...

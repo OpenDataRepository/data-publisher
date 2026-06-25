@@ -97,7 +97,7 @@ class ValidationController extends ODRCustomController
 
         try {
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
@@ -314,7 +314,7 @@ class ValidationController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
@@ -403,7 +403,7 @@ class ValidationController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
@@ -959,7 +959,7 @@ class ValidationController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
             if (!$user->hasRole('ROLE_SUPER_ADMIN'))
                 throw new ODRForbiddenException();
 
@@ -1095,7 +1095,7 @@ class ValidationController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
             if (!$user->hasRole('ROLE_SUPER_ADMIN'))
                 throw new ODRForbiddenException();
 
@@ -1211,7 +1211,7 @@ class ValidationController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if (!$user->hasRole('ROLE_SUPER_ADMIN'))
                 throw new ODRForbiddenException();
 
@@ -1289,7 +1289,7 @@ class ValidationController extends ODRCustomController
             $conn = $em->getConnection();
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
@@ -1535,7 +1535,7 @@ class ValidationController extends ODRCustomController
             $conn = $em->getConnection();
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
@@ -1868,7 +1868,7 @@ class ValidationController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
@@ -1941,7 +1941,7 @@ class ValidationController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
@@ -2149,7 +2149,7 @@ class ValidationController extends ODRCustomController
             $conn = $em->getConnection();
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
@@ -2245,7 +2245,7 @@ class ValidationController extends ODRCustomController
             $conn = $em->getConnection();
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
@@ -2319,7 +2319,7 @@ class ValidationController extends ODRCustomController
             $conn = $em->getConnection();
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
@@ -2490,7 +2490,7 @@ class ValidationController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
@@ -2562,7 +2562,7 @@ class ValidationController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
@@ -2630,7 +2630,7 @@ class ValidationController extends ODRCustomController
             $conn->beginTransaction();
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
@@ -2815,7 +2815,7 @@ class ValidationController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
@@ -2994,7 +2994,7 @@ class ValidationController extends ODRCustomController
             $database_info_service = $this->database_info_service;
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
@@ -3205,7 +3205,7 @@ class ValidationController extends ODRCustomController
             $conn = $em->getConnection();
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
@@ -3733,7 +3733,7 @@ class ValidationController extends ODRCustomController
             $conn = $em->getConnection();
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
@@ -4024,7 +4024,7 @@ class ValidationController extends ODRCustomController
             $conn = $em->getConnection();
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if (!$user->hasRole('ROLE_SUPER_ADMIN'))
                 throw new ODRForbiddenException();
 
@@ -4118,7 +4118,7 @@ class ValidationController extends ODRCustomController
             $conn = $em->getConnection();
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if (!$user->hasRole('ROLE_SUPER_ADMIN'))
                 throw new ODRForbiddenException();
 
@@ -4208,7 +4208,7 @@ class ValidationController extends ODRCustomController
             $conn = $em->getConnection();
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if (!$user->hasRole('ROLE_SUPER_ADMIN'))
                 throw new ODRForbiddenException();
 
@@ -4317,7 +4317,7 @@ class ValidationController extends ODRCustomController
             $conn = $em->getConnection();
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if (!$user->hasRole('ROLE_SUPER_ADMIN'))
                 throw new ODRForbiddenException();
 
@@ -4432,7 +4432,7 @@ class ValidationController extends ODRCustomController
             $conn = $em->getConnection();
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if (!$user->hasRole('ROLE_SUPER_ADMIN'))
                 throw new ODRForbiddenException();
 

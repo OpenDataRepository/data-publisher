@@ -47,7 +47,7 @@ class DefaultController extends ODRCustomController
 
             // Grab the current user
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
             $site_baseurl = $this->getParameter('site_baseurl');

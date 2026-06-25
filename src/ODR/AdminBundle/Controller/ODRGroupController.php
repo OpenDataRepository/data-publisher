@@ -110,7 +110,7 @@ class ODRGroupController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Ensure user has permissions to be doing this
             if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
@@ -185,7 +185,7 @@ class ODRGroupController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Ensure user has permissions to be doing this
             if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
@@ -277,7 +277,7 @@ class ODRGroupController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Ensure user has permissions to be doing this
             if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
@@ -354,7 +354,7 @@ class ODRGroupController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Ensure user has permissions to be doing this
             if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
@@ -499,7 +499,7 @@ class ODRGroupController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $is_super_admin = $user->hasRole('ROLE_SUPER_ADMIN');
 
             // Ensure user has permissions to be doing this
@@ -666,7 +666,7 @@ class ODRGroupController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Ensure user has permissions to be doing this
             if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
@@ -774,7 +774,7 @@ class ODRGroupController extends ODRCustomController
             // --------------------
             // Ensure calling user has permissions to be doing this
             /** @var ODRUser $admin_user */
-            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $admin_user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $datatype_permissions = $permissions_service->getDatatypePermissions($admin_user);
 
             // Deny access when the user isn't an admin of any datatype
@@ -979,7 +979,7 @@ class ODRGroupController extends ODRCustomController
             // --------------------
             // Ensure user has permissions to be doing this
             /** @var ODRUser $admin_user */
-            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $admin_user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // If requesting user isn't an admin for this datatype, don't allow them to make changes
             if ( !$permissions_service->isDatatypeAdmin($admin_user, $datatype) )
@@ -1100,7 +1100,7 @@ class ODRGroupController extends ODRCustomController
             // --------------------
             // Ensure user has permissions to be doing this
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $is_super_admin = $user->hasRole('ROLE_SUPER_ADMIN');
 
             // If requesting user isn't an admin for this datatype, don't allow them to make changes
@@ -1250,7 +1250,7 @@ class ODRGroupController extends ODRCustomController
             // --------------------
             // Ensure user has permissions to be doing this
             /** @var ODRUser $admin_user */
-            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $admin_user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // If requesting user isn't an admin for this datatype, don't allow them to make changes
             if ( !$permissions_service->isDatatypeAdmin($admin_user, $group->getDataType()) )
@@ -1493,7 +1493,7 @@ class ODRGroupController extends ODRCustomController
             // --------------------
             // Ensure user has permissions to be doing this
             /** @var ODRUser $admin_user */
-            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $admin_user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // If requesting user isn't an admin for this datatype, don't allow them to make changes
             if ( !$permissions_service->isDatatypeAdmin($admin_user, $group->getDataType()) )

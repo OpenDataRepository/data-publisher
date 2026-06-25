@@ -164,7 +164,7 @@ class TextResultsController extends ODRCustomController
             // ----------------------------------------
             // Determine whether user is logged in or not
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = $permissions_service->getUserPermissionsArray($user);
 
             // Store whether the user is permitted to edit at least one datarecord for this datatype
@@ -484,7 +484,7 @@ class TextResultsController extends ODRCustomController
                     $table_theme_helper_service = $this->table_theme_helper_service;
 
                     /** @var ODRUser $user */
-                    $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+                    $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
 
                     // Determine which datafield(s) datatables.js is currently using as its sort column(s)
                     foreach ($sort_cols as $display_order => $col) {
@@ -548,7 +548,7 @@ class TextResultsController extends ODRCustomController
             $table_theme_helper_service = $this->table_theme_helper_service;
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
 
             // The datatables.js instance used for the search results page needs to know both its
             //  previous state (to restore the table when returning from Display/Edit mode), and
@@ -751,7 +751,7 @@ class TextResultsController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             if ( !$permissions_service->canViewDatatype($user, $ancestor_datatype) )
                 throw new ODRForbiddenException();

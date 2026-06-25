@@ -685,7 +685,7 @@ $ret .= '  Set current to '.$count."\n";
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 //            $user_permissions = parent::getPermissionsArray($user->getId(), $request);
             // TODO - check for permissions?  restrict rebuild of thumbnails to certain datatypes?
 
@@ -1050,7 +1050,7 @@ $ret .= '  Set current to '.$count."\n";
             // --------------------
             // Ensure user has permissions to be doing this
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
             // --------------------
@@ -1463,7 +1463,7 @@ $ret .= '  Set current to '.$count."\n";
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 
@@ -1538,7 +1538,7 @@ $ret .= '  Set current to '.$count."\n";
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
 

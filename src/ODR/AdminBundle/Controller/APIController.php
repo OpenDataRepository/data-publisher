@@ -369,7 +369,7 @@ class APIController extends ODRCustomController
     {
         try {
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
 
             if ($user != 'anon.' /*&& $user->hasRole('ROLE_JUPYTERHUB_USER')*/) {
                 $user_array = [
@@ -456,7 +456,7 @@ class APIController extends ODRCustomController
 
             // Get the user's permissions if applicable
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
             $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
             $top_level_datatype_ids = $dti_service->getTopLevelDatatypes();
@@ -687,7 +687,7 @@ class APIController extends ODRCustomController
             // ----------------------------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
 
             if (!$pm_service->canViewDatatype($user, $datatype))
                 throw new ODRForbiddenException();
@@ -767,7 +767,7 @@ class APIController extends ODRCustomController
             // ----------------------------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
             $can_view_datarecord = $pm_service->canViewNonPublicDatarecords($user, $datatype);
 
             if (!$pm_service->canViewDatatype($user, $datatype))
@@ -1011,7 +1011,7 @@ class APIController extends ODRCustomController
             // ----------------------------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
             $can_view_datarecord = $pm_service->canViewNonPublicDatarecords($user, $datatype);
 
             if (!$pm_service->canViewDatatype($user, $datatype))
@@ -1240,7 +1240,7 @@ class APIController extends ODRCustomController
             // ----------------------------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
             $datatype_permissions = $pm_service->getDatatypePermissions($user);
 
             // TODO - enforce permissions on template?
@@ -1368,7 +1368,7 @@ class APIController extends ODRCustomController
 
             // Check if user exists & throw user not found error
             /** @var ODRUser $user */  // Anon when nobody is logged in.
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ($user->hasRole('ROLE_SUPER_ADMIN') && $user_email !== null) {
                 // Save which user started this creation process
                 $user_manager = $this->container->get('fos_user.user_manager');
@@ -1505,7 +1505,7 @@ class APIController extends ODRCustomController
             // We must check if the logged in user is acting as a user
             // When acting as a user, the logged in user must be a SuperAdmin
             /** @var ODRUser $logged_in_user */
-            $logged_in_user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $logged_in_user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
             if ($user_email === '') {
                 // User is setting up dataset for themselves - always allowed
                 $user_email = $logged_in_user->getEmail();
@@ -4852,7 +4852,7 @@ class APIController extends ODRCustomController
             // on behalf of another user
 
             /** @var ODRUser $logged_in_user */  // Anon when nobody is logged in.
-            $logged_in_user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $logged_in_user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ($logged_in_user == 'anon.')
                 throw new ODRForbiddenException();
 
@@ -4984,7 +4984,7 @@ class APIController extends ODRCustomController
 
             // This is the API User - system admin
             /** @var ODRUser $user */  // Anon when nobody is logged in.
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // $user_manager = $this->container->get('fos_user.user_manager');
             // $user = $user_manager->findUserBy(array('email' => ''));
@@ -5342,7 +5342,7 @@ class APIController extends ODRCustomController
             // We must check if the logged in user is acting as a user
             // When acting as a user, the logged in user must be a SuperAdmin
             /** @var ODRUser $logged_in_user */
-            $logged_in_user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $logged_in_user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
             if ($user_email === '') {
                 $user_email = $logged_in_user->getEmail();
             } else if (!$logged_in_user->hasRole('ROLE_SUPER_ADMIN')) {
@@ -5522,7 +5522,7 @@ class APIController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var ODRUser $logged_in_user */  // Anon when nobody is logged in.
-            $logged_in_user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $logged_in_user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ($logged_in_user == 'anon.')
                 throw new ODRForbiddenException();
 
@@ -5671,7 +5671,7 @@ class APIController extends ODRCustomController
             $em = $this->getDoctrine()->getManager();
 
             /** @var ODRUser $logged_in_user */  // Anon when nobody is logged in.
-            $logged_in_user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $logged_in_user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ($logged_in_user == 'anon.')
                 throw new ODRForbiddenException();
 
@@ -6064,7 +6064,7 @@ class APIController extends ODRCustomController
             // ----------------------------------------
             // Determine user privileges
             /** @var ODRUser $logged_in_user */
-            $logged_in_user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $logged_in_user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
             /** @var ODRUser $user */
             $user = null;
 
@@ -6288,7 +6288,7 @@ class APIController extends ODRCustomController
             // $user_manager = $this->container->get('fos_user.user_manager');
             // $user = $user_manager->findUserBy(array('email' => 'nate@opendatarepository.org'));
 
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if (is_null($user))
                 throw new ODRNotFoundException('User');
 
@@ -6358,7 +6358,7 @@ class APIController extends ODRCustomController
         // Determine user privileges
         /** @var ODRUser $user */
         if ($user === null) {
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
         }
 
         // If either the datatype or the datarecord is not public, and the user doesn't have
@@ -6536,7 +6536,7 @@ class APIController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             // $token = $this->container->get('security.token_storage')->getToken();   // <-- will return 'anon.' when nobody is logged in
-            // $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            // $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
 
 
             // TODO this is currently used by public searches only.  Need to improve call to allow private.
@@ -6754,7 +6754,7 @@ class APIController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             // $token = $this->container->get('security.token_storage')->getToken();   // <-- will return 'anon.' when nobody is logged in
-            // $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            // $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
 
 
             // TODO this is currently used by public searches only.  Need to improve call to allow private.
@@ -6911,7 +6911,7 @@ class APIController extends ODRCustomController
             // Determine user privileges
             // TODO - Determine how to make this work for "act-as" users
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
 
             if ($typeclass === 'File') {
                 if (!$pm_service->canViewFile($user, $obj))
@@ -7188,7 +7188,7 @@ class APIController extends ODRCustomController
             // We must check if the logged in user is acting as a user
             // When acting as a user, the logged in user must be a SuperAdmin
             /** @var ODRUser $logged_in_user */
-            $logged_in_user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $logged_in_user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
             if ($user_email === '') {
                 // User is setting up dataset for themselves - always allowed
                 $user_email = $logged_in_user->getEmail();
@@ -7276,7 +7276,7 @@ class APIController extends ODRCustomController
             // We must check if the logged in user is acting as a user
             // When acting as a user, the logged in user must be a SuperAdmin
             /** @var ODRUser $logged_in_user */
-            $logged_in_user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $logged_in_user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
             if (strlen((string) $user_email) < 5)
                 throw new ODRNotFoundException('User Email Parameter');
 
@@ -7466,7 +7466,7 @@ class APIController extends ODRCustomController
                 }
             }
 
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Use get record to build array
             $output_records = [];
@@ -7673,7 +7673,7 @@ class APIController extends ODRCustomController
 
             // Check if user exists & throw user not found error
             /** @var ODRUser $user */  // Anon when nobody is logged in.
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ($user->hasRole('ROLE_SUPER_ADMIN') && $user_email !== null) {
                 // Save which user started this creation process
                 $user_manager = $this->container->get('fos_user.user_manager');
@@ -7807,7 +7807,7 @@ class APIController extends ODRCustomController
             $user_email = null;
 
             /** @var ODRUser $user */  // Anon when nobody is logged in.
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ($user->hasRole('ROLE_SUPER_ADMIN') && $user_email !== null) {
                 // Save which user started this creation process
                 $user_manager = $this->container->get('fos_user.user_manager');
@@ -7876,7 +7876,7 @@ class APIController extends ODRCustomController
             $user_email = null;
 
             /** @var ODRUser $user */  // Anon when nobody is logged in.
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ($user->hasRole('ROLE_SUPER_ADMIN') && $user_email !== null) {
                 // Save which user started this creation process
                 $user_manager = $this->container->get('fos_user.user_manager');
@@ -7937,7 +7937,7 @@ class APIController extends ODRCustomController
             $user_email = null;
 
             /** @var ODRUser $user */  // Anon when nobody is logged in.
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ($user->hasRole('ROLE_SUPER_ADMIN') && $user_email !== null) {
                 // Save which user started this creation process
                 $user_manager = $this->container->get('fos_user.user_manager');
@@ -8038,7 +8038,7 @@ class APIController extends ODRCustomController
             $user_email = null;
 
             /** @var ODRUser $user */  // Anon when nobody is logged in.
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ($user->hasRole('ROLE_SUPER_ADMIN') && $user_email !== null) {
                 // Save which user started this creation process
                 $user_manager = $this->container->get('fos_user.user_manager');
@@ -8107,7 +8107,7 @@ class APIController extends ODRCustomController
             $user_email = null;
 
             /** @var ODRUser $user */  // Anon when nobody is logged in.
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ($user->hasRole('ROLE_SUPER_ADMIN') && $user_email !== null) {
                 // Save which user started this creation process
                 $user_manager = $this->container->get('fos_user.user_manager');
@@ -8169,7 +8169,7 @@ class APIController extends ODRCustomController
 
             // Check if user exists & throw user not found error
             /** @var ODRUser $user */  // Anon when nobody is logged in.
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ($user->hasRole('ROLE_SUPER_ADMIN') && $user_email !== null) {
                 // Save which user started this creation process
                 $user_manager = $this->container->get('fos_user.user_manager');
@@ -8248,7 +8248,7 @@ class APIController extends ODRCustomController
 
             // Check if user exists & throw user not found error
             /** @var ODRUser $user */  // Anon when nobody is logged in.
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ($user->hasRole('ROLE_SUPER_ADMIN') && $user_email !== null) {
                 // Save which user started this creation process
                 $user_manager = $this->container->get('fos_user.user_manager');

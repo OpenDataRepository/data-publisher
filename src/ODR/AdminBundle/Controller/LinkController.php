@@ -127,7 +127,7 @@ class LinkController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $datatype_permissions = $permissions_service->getDatatypePermissions($user);
 
             // Ensure user has permissions to be doing this
@@ -302,7 +302,7 @@ class LinkController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Ensure user has permissions to be creating a link to another datatype
             if (!$permissions_service->isDatatypeAdmin($user, $local_datatype))
@@ -481,7 +481,7 @@ class LinkController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $datatype_permissions = $permissions_service->getDatatypePermissions($user);
 
             // Ensure user has permissions to be doing this
@@ -890,7 +890,7 @@ class LinkController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $datatype_permissions = $permissions_service->getDatatypePermissions($user);
 
             // Ensure user has permissions to be doing this
@@ -1111,7 +1111,7 @@ class LinkController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Ensure user has permissions to be creating a link to another datatype
             if (!$permissions_service->isDatatypeAdmin($user, $local_datatype))
@@ -1891,7 +1891,7 @@ class LinkController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $is_super_admin = $user->hasRole('ROLE_SUPER_ADMIN');
             $datatype_permissions = $permissions_service->getDatatypePermissions($user);
 
@@ -2332,7 +2332,7 @@ class LinkController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $user_permissions = $permissions_service->getUserPermissionsArray($user);
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
@@ -2649,7 +2649,7 @@ class LinkController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $datatype_permissions = $permissions_service->getDatatypePermissions($user);
 
             $can_view_ancestor_datatype = $permissions_service->canViewDatatype($user, $ancestor_datatype);
@@ -3111,7 +3111,7 @@ class LinkController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $datatype_permissions = $permissions_service->getDatatypePermissions($user);
 
             $can_view_ancestor_datatype = $permissions_service->canViewDatatype($user, $ancestor_datatype);
@@ -3350,7 +3350,7 @@ class LinkController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             if ( !$permissions_service->canEditDatarecord($user, $parent_datarecord) )
                 throw new ODRForbiddenException();
@@ -3416,7 +3416,7 @@ class LinkController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             if ( !$user->isSuperAdmin() )
                 throw new ODRForbiddenException();
@@ -3526,7 +3526,7 @@ class LinkController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             if ( !$user->isSuperAdmin() )
                 throw new ODRForbiddenException();
@@ -3724,7 +3724,7 @@ class LinkController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             if ( !$user->isSuperAdmin() )
                 throw new ODRForbiddenException();

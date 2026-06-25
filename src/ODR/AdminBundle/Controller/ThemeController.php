@@ -108,7 +108,7 @@ class ThemeController extends ODRCustomController
 
             // --------------------
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $is_datatype_admin = $permissions_service->isDatatypeAdmin($user, $datatype);
 
             $is_super_admin = false;
@@ -332,7 +332,7 @@ class ThemeController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Throw an exception if the user isn't allowed to do this
             self::canModifyTheme($user, $theme);
@@ -402,7 +402,7 @@ class ThemeController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Throw an exception if the user isn't allowed to do this
             self::canModifyTheme($user, $theme);
@@ -523,7 +523,7 @@ class ThemeController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Throw an exception if the user isn't allowed to do this
             self::canModifyTheme($user, $theme);
@@ -633,7 +633,7 @@ class ThemeController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // The user must be an admin of the relevant datatype to change this
             if ($user === "anon.")
@@ -754,7 +754,7 @@ class ThemeController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // The user must be an admin of the relevant datatype to change this
             if ($user === "anon.")
@@ -846,7 +846,7 @@ class ThemeController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // The user has to be logged in to manage their layout preferences
             if ($user === "anon.")
@@ -942,7 +942,7 @@ class ThemeController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Require users to be logged in...
             if ($user === "anon.")
@@ -1068,7 +1068,7 @@ class ThemeController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Require users to be logged in and able to view the datatype before doing this...
             if ($user === 'anon.')
@@ -1148,7 +1148,7 @@ class ThemeController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Throw an exception if the user isn't allowed to do this
             self::canModifyTheme($user, $theme);
@@ -1241,7 +1241,7 @@ class ThemeController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Throw an exception if the user isn't allowed to do this
             self::canModifyTheme($user, $theme);
@@ -1334,7 +1334,7 @@ class ThemeController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Throw an exception if the user isn't allowed to do this
             self::canModifyTheme($user, $theme);
@@ -1465,7 +1465,7 @@ class ThemeController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Throw an exception if the user isn't allowed to do this
             self::canModifyTheme($user, $theme);
@@ -1553,7 +1553,7 @@ class ThemeController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Throw an exception if the user isn't allowed to do this
             self::canModifyTheme($user, $theme);
@@ -1643,7 +1643,7 @@ class ThemeController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Throw an exception if the user isn't allowed to do this
             self::canModifyTheme($user, $theme);
@@ -1723,7 +1723,7 @@ class ThemeController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Throw an exception if the user isn't allowed to do this
             self::canModifyTheme($user, $theme);
@@ -1825,7 +1825,7 @@ class ThemeController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Throw an exception if the user isn't allowed to do this
             self::canModifyTheme($user, $theme);
@@ -1937,7 +1937,7 @@ class ThemeController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Throw an exception if the user isn't allowed to do this
             self::canModifyTheme($user, $theme);
@@ -2069,7 +2069,7 @@ class ThemeController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Throw an exception if the user isn't allowed to do this
             self::canModifyTheme($user, $theme, $datafield);
@@ -2178,7 +2178,7 @@ class ThemeController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Throw an exception if the user isn't allowed to do this
             self::canModifyTheme($user, $theme, $datafield);
@@ -2301,7 +2301,7 @@ class ThemeController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Throw an exception if the user isn't allowed to do this
             self::canModifyTheme($user, $theme, $datafield);
@@ -2408,7 +2408,7 @@ class ThemeController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Throw an exception if the user isn't allowed to do this
             self::canModifyTheme($user, $theme, $datafield);
@@ -2515,7 +2515,7 @@ class ThemeController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Throw an exception if the user isn't allowed to do this
             self::canModifyTheme($user, $theme, $datafield);
@@ -2609,7 +2609,7 @@ class ThemeController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Throw an exception if the user isn't allowed to do this
             self::canModifyTheme($user, $theme);

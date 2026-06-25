@@ -106,7 +106,7 @@ class SearchSidebarController extends ODRCustomController
 
             // --------------------
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             if ( !$permissions_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
@@ -198,7 +198,7 @@ class SearchSidebarController extends ODRCustomController
 
             // --------------------
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $user_permissions = $permissions_service->getUserPermissionsArray($user);
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
@@ -407,7 +407,7 @@ class SearchSidebarController extends ODRCustomController
 
             // --------------------
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $user_permissions = $permissions_service->getUserPermissionsArray($user);
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
@@ -530,7 +530,7 @@ class SearchSidebarController extends ODRCustomController
 
             // --------------------
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $user_permissions = $permissions_service->getUserPermissionsArray($user);
             $datatype_permissions = $user_permissions['datatypes'];
             $datafield_permissions = $user_permissions['datafields'];
@@ -649,7 +649,7 @@ class SearchSidebarController extends ODRCustomController
 
             // --------------------
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $is_datatype_admin = $permissions_service->isDatatypeAdmin($user, $datatype);
 
             $is_super_admin = false;
@@ -802,7 +802,7 @@ class SearchSidebarController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Throw an exception if the user isn't allowed to do this
             if ( !$permissions_service->canViewDatatype($user, $datatype) )
@@ -889,7 +889,7 @@ class SearchSidebarController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Throw an exception if the user isn't allowed to do this
             self::canModifySidebarLayout($user, $sidebar_layout);
@@ -975,7 +975,7 @@ class SearchSidebarController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Throw an exception if the user isn't allowed to do this
             self::canModifySidebarLayout($user, $sidebar_layout);
@@ -1093,7 +1093,7 @@ class SearchSidebarController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )
                 throw new ODRForbiddenException();
@@ -1166,7 +1166,7 @@ class SearchSidebarController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Throw an exception if the user isn't allowed to do this
             self::canModifySidebarLayout($user, $sidebar_layout);
@@ -1253,7 +1253,7 @@ class SearchSidebarController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // The user must be an admin of the relevant datatype to change this
             if ($user === "anon.")
@@ -1362,7 +1362,7 @@ class SearchSidebarController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // The user must be an admin of the relevant datatype to change this
             if ($user === "anon.")
@@ -1447,7 +1447,7 @@ class SearchSidebarController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // The user must be an admin of the relevant datatype to change this
             if ($user === "anon.")
@@ -1547,7 +1547,7 @@ class SearchSidebarController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Require users to be logged in and able to view the datatype before doing this...
             if ($user === "anon.")
@@ -1688,7 +1688,7 @@ class SearchSidebarController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Require users to be logged in and able to view the datatype before doing this...
             if ($user === 'anon.')
@@ -1845,7 +1845,7 @@ class SearchSidebarController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $user_permissions = $permissions_service->getUserPermissionsArray($user);
 
             // Throw an exception if the user isn't allowed to do this
@@ -2020,7 +2020,7 @@ class SearchSidebarController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Complain if the user isn't allowed to modify this sidebar layout
             self::canModifySidebarLayout($user, $sidebar_layout);

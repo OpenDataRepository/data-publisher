@@ -762,7 +762,7 @@ class SearchAPIServiceNoConflict
         $user = 'anon.';
         /*
         if ($user === null) {
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
         }
         */
 

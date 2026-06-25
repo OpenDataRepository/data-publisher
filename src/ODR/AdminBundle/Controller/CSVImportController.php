@@ -149,7 +149,7 @@ class CSVImportController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $datatype_permissions = $permissions_service->getDatatypePermissions($user);
 
             // Ensure user has permissions to be doing this
@@ -352,7 +352,7 @@ class CSVImportController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Ensure user has permissions to be doing this
             if ( !$permissions_service->isDatatypeAdmin($user, $source_datatype) )    // TODO - less restrictive permissions?
@@ -856,7 +856,7 @@ class CSVImportController extends ODRCustomController
             $response = new StreamedResponse();
 
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $user_id = $user->getId();
 
             // Attempt to load the previously uploaded csv file
@@ -945,7 +945,7 @@ class CSVImportController extends ODRCustomController
         try {
             // Don't need to check permissions
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Get all files in the given user's 'upload' directory
             $uploaded_files = [];
@@ -997,7 +997,7 @@ class CSVImportController extends ODRCustomController
         try {
             // Don't need to check permissions
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Get all files in the given user's 'upload' directory
             $uploaded_files = [];
@@ -1045,7 +1045,7 @@ class CSVImportController extends ODRCustomController
         try {
             // Attempt to locate the csv file stored in the user's session
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $session = $request->getSession();
             if ( $session->has('csv_file') ) {
                 // Delete the file if it exists
@@ -1220,7 +1220,7 @@ class CSVImportController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Ensure user has permissions to be doing this
             if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )    // TODO - less restrictive permissions?
@@ -2425,7 +2425,7 @@ class CSVImportController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $datatype_permissions = $permissions_service->getDatatypePermissions($user);
 
             // Ensure user has permissions to be doing this
@@ -2802,7 +2802,7 @@ class CSVImportController extends ODRCustomController
             // --------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Ensure user has permissions to be doing this
             if ( !$permissions_service->isDatatypeAdmin($user, $datatype) )    // TODO - less restrictive permissions?

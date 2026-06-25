@@ -221,7 +221,7 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = $permissions_service->getUserPermissionsArray($user);
 
             // Store whether the user is permitted to edit at least one datarecord for this datatype
@@ -423,7 +423,7 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             // First, ensure user is permitted to download
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             if ( !$permissions_service->canViewDatarecord($user, $grandparent_datarecord) )
                 throw new ODRForbiddenException();
@@ -520,7 +520,7 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             // First, ensure user is permitted to download
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             if ( !$permissions_service->canViewFile($user, $file) )
                 throw new ODRForbiddenException();
@@ -725,7 +725,7 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             // First, ensure user is permitted to download
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             if ( !$permissions_service->canViewFile($user, $file) )
                 throw new ODRForbiddenException();
@@ -835,7 +835,7 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             // First, ensure user is permitted to download
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             if ( !$permissions_service->canViewFile($user, $file) )
                 throw new ODRForbiddenException();
@@ -1003,7 +1003,7 @@ class DisplayController extends ODRCustomController
 
             // Get user for statistics logging
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
             // Images that aren't done encrypting shouldn't be downloaded
             if ($image->getEncryptKey() == '')
@@ -1183,7 +1183,7 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             // Ensure user has permissions to be doing this
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $user_permissions = $permissions_service->getUserPermissionsArray($user);
 
             // Ensure the user can view the grandparent datarecord/datatype
@@ -1550,7 +1550,7 @@ class DisplayController extends ODRCustomController
 
             // ----------------------------------------
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $user_permissions = $permissions_service->getUserPermissionsArray($user);
             // Don't need to verify any permissions, filterByGroupPermissions() will take care of it
 
@@ -1752,7 +1752,7 @@ class DisplayController extends ODRCustomController
 
             // ----------------------------------------
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $user_permissions = $permissions_service->getUserPermissionsArray($user);
 
             // TODO - loosen restrictions even more?
@@ -1904,7 +1904,7 @@ class DisplayController extends ODRCustomController
 
             // ----------------------------------------
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $user_permissions = $permissions_service->getUserPermissionsArray($user);
 
             // TODO - loosen restrictions even more?
@@ -2254,7 +2254,7 @@ class DisplayController extends ODRCustomController
         try {
             // ----------------------------------------
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             // Don't need to check user's permissions
 
             // Need a user id for the temp directory to work...
@@ -2368,7 +2368,7 @@ class DisplayController extends ODRCustomController
 
             // ----------------------------------------
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             if ( !$permissions_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
             // ----------------------------------------
@@ -2458,7 +2458,7 @@ class DisplayController extends ODRCustomController
 
             // ----------------------------------------
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
             $user_permissions = $permissions_service->getUserPermissionsArray($user);
             // Don't need to verify any permissions, filterByGroupPermissions() will take care of it
 

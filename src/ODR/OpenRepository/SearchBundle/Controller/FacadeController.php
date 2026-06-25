@@ -280,7 +280,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             // ----------------------------------------
             // Determine user privileges
             /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = $pm_service->getUserPermissionsArray($user);
 
             // TODO - enforce permissions on template side?
@@ -388,7 +388,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
         // Render the base html for the page...$this->render() apparently creates and automatically returns a full Reponse object
         // Grab the current user
         /** @var ODRUser $user */
-        $user = $this->container->get('security.token_storage')->getToken()->getUser();
+        $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
         $html = $this->renderView(
             '@ODROpenRepositorySearch/Default/test.html.twig',
             [
@@ -487,7 +487,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             // ------------------------------
             // Grab user and their permissions if possible
             /** @var ODRUser $admin_user */
-            $admin_user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $admin_user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
             // If using Wordpress - check for Wordpress User and Log them in.
             if($this->getParameter('odr_wordpress_integrated')) {
                 $odr_wordpress_user = getenv("WORDPRESS_USER");
@@ -1592,7 +1592,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             // TODO Determine a better way to determine how API Users should get public/private records
             // TODO - act as user should be passed on this call?
             $user = "anon.";
-            // $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            // $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
             $user_permissions = $pm_service->getUserPermissionsArray($user);
 
             // TODO - enforce permissions on template side?
