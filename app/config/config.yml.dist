@@ -13,15 +13,11 @@ framework:
     # ODR's custom error rendering (AJAX-aware); replaces the removed-in-5.0 twig.exception_controller
     error_controller: 'ODR.exception_controller::showAction'
     router:
-        resource: "%kernel.root_dir%/config/routing.yml"
+        resource: "%kernel.project_dir%/app/config/routing.yml"
         strict_requirements: "%kernel.debug%"
     form:            true
     csrf_protection: true
     validation:      { enabled: true, enable_annotations: false }
-    # Retained ONLY for FOSOAuthServerBundle's authorize controller (which type-hints the
-    # deprecated EngineInterface). All ODR code now renders via @twig directly; this service
-    # stays lazy and is not instantiated on normal requests. Remove with FOSOAuthServer in Phase 4.
-    templating:      { engines: ['twig'] }
     default_locale:  "%locale%"
     session:
         gc_probability: 0
@@ -94,21 +90,21 @@ doctrine:
                 type: annotation
                 alias: Gedmo
                 prefix: Gedmo\Translatable\Entity
-                dir: "%kernel.root_dir%/../vendor/gedmo/doctrine-extensions/lib/Gedmo/Translatable/Entity"
+                dir: "%kernel.project_dir%/vendor/gedmo/doctrine-extensions/lib/Gedmo/Translatable/Entity"
             loggable:
                 type: annotation
                 alias: Gedmo
                 prefix: Gedmo\Loggable\Entity
-                dir: "%kernel.root_dir%/../vendor/gedmo/doctrine-extensions/lib/Gedmo/Loggable/Entity"
+                dir: "%kernel.project_dir%/vendor/gedmo/doctrine-extensions/lib/Gedmo/Loggable/Entity"
             tree:
                 type: annotation
                 alias: Gedmo
                 prefix: Gedmo\Tree\Entity
-                dir: "%kernel.root_dir%/../vendor/gedmo/doctrine-extensions/lib/Gedmo/Tree/Entity"
+                dir: "%kernel.project_dir%/vendor/gedmo/doctrine-extensions/lib/Gedmo/Tree/Entity"
 
 lexik_jwt_authentication:
-    secret_key:       '%kernel.root_dir%/config/jwt/private.pem' # required for token creation
-    public_key:       '%kernel.root_dir%/config/jwt/public.pem'  # required for token verification
+    secret_key:       '%kernel.project_dir%/app/config/jwt/private.pem' # required for token creation
+    public_key:       '%kernel.project_dir%/app/config/jwt/public.pem'  # required for token verification
     pass_phrase:      'opendatarepository' # required for token creation, usage of an environment variable is recommended
     token_ttl:        360000
 
@@ -122,7 +118,7 @@ swiftmailer:
 
 # dterranovaCrypto Configuration
 dterranova_crypto:
-    temp_folder: "%kernel.root_dir%/../app/crypto_dir"
+    temp_folder: "%kernel.project_dir%/app/crypto_dir"
     chunk_file_size: 2 # The size (in Mb) of chunked files, more it is big more it will consume memory 
 
 snc_redis:
@@ -134,12 +130,14 @@ snc_redis:
             # TODO: https://github.com/snc/SncRedisBundle/pull/199/files
             #serialization: php
 
-drymek_pheanstalk:
-    server:  127.0.0.1
-    port:    11300
-    timeout: 3
-
 services:
+    # Replaces the abandoned drymek/pheanstalk-bundle (incompatible with Symfony 5) with a direct
+    # service definition for the beanstalkd client. Keeps the "pheanstalk" service id unchanged.
+    pheanstalk:
+        public: true
+        class: Pheanstalk\Pheanstalk
+        arguments: ['127.0.0.1', 11300, 3]
+
     ajax.listener:
         class: ODR\AdminBundle\Component\Event\AjaxAuthenticationListener
         tags:

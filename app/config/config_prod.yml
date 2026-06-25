@@ -2,7 +2,7 @@ imports:
     - { resource: config.yml }
 
 framework:
-    router:   { resource: "%kernel.root_dir%/config/routing.yml" }
+    router:   { resource: "%kernel.project_dir%/app/config/routing.yml" }
     #profiler: { only_exceptions: true }
 
 monolog:

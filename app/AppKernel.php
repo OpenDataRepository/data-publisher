@@ -21,7 +21,6 @@ class AppKernel extends Kernel
 
 	        new Http\HttplugBundle\HttplugBundle(),
             new Doctrine\Bundle\DoctrineBundle\DoctrineBundle(),
-            new drymek\PheanstalkBundle\drymekPheanstalkBundle(),
             new dterranova\Bundle\CryptoBundle\dterranovaCryptoBundle(),
             new Knp\Bundle\MarkdownBundle\KnpMarkdownBundle(),
             new Snc\RedisBundle\SncRedisBundle(),
