@@ -38,7 +38,7 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 // Other
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 
@@ -121,7 +121,7 @@ class CloneTemplateService
      * @param ThemeInfoService $ti_service
      * @param UUIDService $uuid_service
      * @param EventDispatcherInterface $event_dispatcher
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
     public function __construct(
         private readonly EntityManager $em,
@@ -136,7 +136,7 @@ class CloneTemplateService
         private readonly ThemeInfoService $ti_service,
         private readonly UUIDService $uuid_service,
         private readonly EventDispatcherInterface $event_dispatcher,
-        private readonly Logger $logger
+        private readonly LoggerInterface $logger
     ) {
         $this->template_datatypes = [];
         $this->template_datafields = [];

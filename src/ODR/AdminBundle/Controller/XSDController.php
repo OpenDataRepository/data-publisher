@@ -60,7 +60,7 @@ class XSDController extends ODRCustomController
             throw new ODRNotImplementedException();
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatatypeInfoService $dti_service */
             $dti_service = $this->container->get('odr.datatype_info_service'); // NOTE: pre-existing ref to a non-existent service

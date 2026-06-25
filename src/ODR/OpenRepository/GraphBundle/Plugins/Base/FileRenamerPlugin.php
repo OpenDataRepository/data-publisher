@@ -75,7 +75,7 @@ use ODR\OpenRepository\GraphBundle\Plugins\PluginSettingsDialogOverrideInterface
 use ODR\OpenRepository\GraphBundle\Plugins\MassEditTriggerEventInterface;
 // Symfony
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSettingsDialogOverrideInterface, MassEditTriggerEventInterface, FileRenamerPluginInterface
 {
 
@@ -88,9 +88,9 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
      * @param DatatreeInfoService $datatree_info_service
      * @param EntityMetaModifyService $entity_modify_service
      * @param \Twig\Environment $templating
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly DatabaseInfoService $database_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly DatatreeInfoService $datatree_info_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly \Twig\Environment $templating, private readonly Logger $logger)
+    public function __construct(private readonly EntityManager $em, private readonly DatabaseInfoService $database_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly DatatreeInfoService $datatree_info_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly \Twig\Environment $templating, private readonly LoggerInterface $logger)
     {
     }
 

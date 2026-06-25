@@ -85,7 +85,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var ODRTabHelperService $odr_tab_service */
             $odr_tab_service = $this->tab_helper_service;
@@ -378,7 +378,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var ODRTabHelperService $odr_tab_service */
             $odr_tab_service = $this->tab_helper_service;
@@ -798,7 +798,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
 
             // ----------------------------------------
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->permissions_management_service;
@@ -969,7 +969,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
         try {
             // Grab default objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var ODRTabHelperService $odr_tab_service */
             $odr_tab_service = $this->tab_helper_service;
@@ -1133,7 +1133,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var SearchKeyService $search_key_service */
             $search_key_service = $this->search_key_service;
@@ -1202,7 +1202,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
             $datatype_id = intval($post['dt_id']);
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatarecordInfoService $datarecord_info_service */
             $datarecord_info_service = $this->datarecord_info_service;

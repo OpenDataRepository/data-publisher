@@ -29,7 +29,7 @@ use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Utility\UniqueUtility;
 // Other
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 
 
 class SearchKeyService
@@ -45,9 +45,9 @@ class SearchKeyService
      * @param DatatreeInfoService $datatree_info_service
      * @param SearchService $search_service
      * @param UserManager $user_manager
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly string $search_key_char_limit, private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly DatabaseInfoService $database_info_service, private readonly DatatreeInfoService $datatree_info_service, private readonly SearchService $search_service, private readonly UserManager $user_manager, private readonly Logger $logger)
+    public function __construct(private readonly string $search_key_char_limit, private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly DatabaseInfoService $database_info_service, private readonly DatatreeInfoService $datatree_info_service, private readonly SearchService $search_service, private readonly UserManager $user_manager, private readonly LoggerInterface $logger)
     {
     }
 

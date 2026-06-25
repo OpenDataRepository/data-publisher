@@ -25,8 +25,8 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Component\Utility\UserUtility;
 // Other
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
-use Symfony\Component\HttpFoundation\Session\Session;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 
 class ThemeInfoService
@@ -69,10 +69,10 @@ class ThemeInfoService
      * @param CacheService $cache_service
      * @param DatatreeInfoService $datatree_info_service
      * @param PermissionsManagementService $permissions_service
-     * @param Session $session
-     * @param Logger $logger
+     * @param RequestStack $request_stack
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly DatatreeInfoService $datatree_info_service, private readonly PermissionsManagementService $permissions_service, private readonly Session $session, private readonly Logger $logger)
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly DatatreeInfoService $datatree_info_service, private readonly PermissionsManagementService $permissions_service, private readonly RequestStack $request_stack, private readonly LoggerInterface $logger)
     {
     }
 
@@ -269,8 +269,8 @@ class ThemeInfoService
 
 
         // If the user has changed any theme for their current session...
-        if ( $this->session->has('session_themes') ) {
-            $session_themes = $this->session->get('session_themes');
+        if ( $this->request_stack->getSession()->has('session_themes') ) {
+            $session_themes = $this->request_stack->getSession()->get('session_themes');
 
             // ...see if they have a theme for this datatype/page_type combo
             if ( isset($session_themes[$datatype_id][$page_type]) )
@@ -299,15 +299,15 @@ class ThemeInfoService
 
         // Load any existing session themes
         $session_themes = [];
-        if ( $this->session->has('session_themes') )
-            $session_themes = $this->session->get('session_themes');
+        if ( $this->request_stack->getSession()->has('session_themes') )
+            $session_themes = $this->request_stack->getSession()->get('session_themes');
 
         if ( !isset($session_themes[$datatype_id]) )
             $session_themes[$datatype_id] = [];
 
         // Save the theme choice in the session
         $session_themes[$datatype_id][$page_type] = $theme_id;
-        $this->session->set('session_themes', $session_themes);
+        $this->request_stack->getSession()->set('session_themes', $session_themes);
     }
 
 
@@ -328,8 +328,8 @@ class ThemeInfoService
 
         // Load any existing session themes
         $session_themes = [];
-        if ( $this->session->has('session_themes') )
-            $session_themes = $this->session->get('session_themes');
+        if ( $this->request_stack->getSession()->has('session_themes') )
+            $session_themes = $this->request_stack->getSession()->get('session_themes');
 
         // If the page type was not set, then just unset anything stored for this datatype
         if ( $page_type === '' )
@@ -338,7 +338,7 @@ class ThemeInfoService
             unset( $session_themes[$datatype_id][$page_type] );
 
         // Save back to session
-        $this->session->set("session_themes", $session_themes);
+        $this->request_stack->getSession()->set("session_themes", $session_themes);
     }
 
 

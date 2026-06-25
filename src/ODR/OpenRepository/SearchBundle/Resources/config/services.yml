@@ -47,7 +47,7 @@ services:
             $datatree_info_service: "@odr.datatree_info_service"
             $permissions_service: "@odr.permissions_management_service"
             $user_manager: "@fos_user.user_manager"
-            $session: "@session"
+            $request_stack: "@request_stack"
             $logger: "@logger"
 
     odr.search_api_service:

@@ -104,7 +104,7 @@ class BridgeController extends ODRCustomController
             // ----------------------------------------
             // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->permissions_management_service;
@@ -173,7 +173,7 @@ class BridgeController extends ODRCustomController
             // ----------------------------------------
             // Get Entity Manager and setup repo
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->permissions_management_service;

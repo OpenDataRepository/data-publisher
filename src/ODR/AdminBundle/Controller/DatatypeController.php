@@ -101,7 +101,7 @@ class DatatypeController extends ODRCustomController
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->permissions_management_service;
@@ -226,7 +226,7 @@ class DatatypeController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var EntityCreationService $entity_create_service */
             $entity_create_service = $this->entity_creation_service;
@@ -403,7 +403,7 @@ class DatatypeController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
             $database_info_service = $this->database_info_service;
@@ -715,7 +715,7 @@ class DatatypeController extends ODRCustomController
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
             $database_info_service = $this->database_info_service;
@@ -917,7 +917,7 @@ class DatatypeController extends ODRCustomController
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatatreeInfoService $datatree_info_service */
             $datatree_info_service = $this->datatree_info_service;
@@ -1010,7 +1010,7 @@ class DatatypeController extends ODRCustomController
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatatreeInfoService $datatree_info_service */
             $datatree_info_service = $this->datatree_info_service;
@@ -1119,7 +1119,7 @@ class DatatypeController extends ODRCustomController
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatatreeInfoService $datatree_info_service */
             $datatree_info_service = $this->datatree_info_service;
@@ -1224,7 +1224,7 @@ class DatatypeController extends ODRCustomController
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->permissions_management_service;
@@ -1366,7 +1366,7 @@ class DatatypeController extends ODRCustomController
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var EntityCreationService $entity_create_service */
             $entity_create_service = $this->entity_creation_service;
@@ -1761,7 +1761,7 @@ class DatatypeController extends ODRCustomController
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var EntityCreationService $entity_create_service */
             $entity_create_service = $this->entity_creation_service;
@@ -1885,7 +1885,7 @@ class DatatypeController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatatreeInfoService $datatree_info_service */
             $datatree_info_service = $this->datatree_info_service;
@@ -2022,7 +2022,7 @@ class DatatypeController extends ODRCustomController
 
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var EntityCreationService $entity_create_service */
             $entity_create_service = $this->entity_creation_service;

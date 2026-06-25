@@ -19,7 +19,7 @@ use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Exception\ODRException;
 // Symfony
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 
 class DatatreeInfoService
 {
@@ -29,9 +29,9 @@ class DatatreeInfoService
      *
      * @param EntityManager $em
      * @param CacheService $cache_service
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly Logger $logger)
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly LoggerInterface $logger)
     {
     }
 

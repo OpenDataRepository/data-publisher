@@ -28,7 +28,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
 use Doctrine\DBAL\Connection as DBALConnection;
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
@@ -52,7 +52,7 @@ class ODREventSubscriber implements EventSubscriberInterface
      * @param DatarecordInfoService $datarecord_info_service
      * @param DatatreeInfoService $datatree_info_service
      * @param SearchService $search_service
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
     public function __construct(
         private readonly string $env,
@@ -62,7 +62,7 @@ class ODREventSubscriber implements EventSubscriberInterface
         private readonly DatarecordInfoService $datarecord_info_service,
         private readonly DatatreeInfoService $datatree_info_service,
         private readonly SearchService $search_service,
-        private readonly Logger $logger
+        private readonly LoggerInterface $logger
     ) {
         //        $this->debug = false;
         $this->debug = true;

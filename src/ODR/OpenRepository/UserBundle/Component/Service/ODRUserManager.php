@@ -19,17 +19,17 @@ namespace ODR\OpenRepository\UserBundle\Component\Service;
 
 use Doctrine\ORM\EntityManagerInterface;
 use ODR\OpenRepository\UserBundle\Entity\User;
-use Symfony\Component\Security\Core\Encoder\UserPasswordEncoderInterface;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 class ODRUserManager
 {
     /** @var EntityManagerInterface */
     private $em;
 
-    /** @var UserPasswordEncoderInterface */
+    /** @var UserPasswordHasherInterface */
     private $password_encoder;
 
-    public function __construct(EntityManagerInterface $em, UserPasswordEncoderInterface $password_encoder)
+    public function __construct(EntityManagerInterface $em, UserPasswordHasherInterface $password_encoder)
     {
         $this->em = $em;
         $this->password_encoder = $password_encoder;
@@ -128,7 +128,7 @@ class ODRUserManager
         $user->setEmailCanonical($this->canonicalize($user->getEmail()));
 
         if (null !== $user->getPlainPassword() && '' !== $user->getPlainPassword()) {
-            $user->setPassword($this->password_encoder->encodePassword($user, $user->getPlainPassword()));
+            $user->setPassword($this->password_encoder->hashPassword($user, $user->getPlainPassword()));
             $user->eraseCredentials();
         }
 

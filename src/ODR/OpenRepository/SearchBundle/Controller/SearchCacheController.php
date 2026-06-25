@@ -46,7 +46,7 @@ class SearchCacheController extends \Symfony\Bundle\FrameworkBundle\Controller\A
         // print $site_baseurl;exit();
         // Get Datatype
         /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
+        $em = $this->container->get('doctrine')->getManager();
 
         /** @var DataType $datatype */
         $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);

@@ -23,7 +23,7 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Component\Utility\UniqueUtility;
 // Symfony
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
@@ -39,9 +39,9 @@ class TagHelperService
      * @param EntityMetaModifyService $entity_modify_service
      * @param LockService $lock_service
      * @param CsrfTokenManager $token_manager
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly EntityCreationService $entity_create_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly LockService $lock_service, private readonly CsrfTokenManager $token_manager, private readonly Logger $logger)
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly EntityCreationService $entity_create_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly LockService $lock_service, private readonly CsrfTokenManager $token_manager, private readonly LoggerInterface $logger)
     {
     }
 

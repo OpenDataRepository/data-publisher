@@ -25,7 +25,7 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Other
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 
 
 class TrackedJobService
@@ -56,9 +56,9 @@ class TrackedJobService
      * @param EntityManager $em
      * @param DatatreeInfoService $datatree_info_service
      * @param PermissionsManagementService $permissions_service
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly DatatreeInfoService $datatree_info_service, private readonly PermissionsManagementService  $permissions_service, private readonly Logger $logger)
+    public function __construct(private readonly EntityManager $em, private readonly DatatreeInfoService $datatree_info_service, private readonly PermissionsManagementService  $permissions_service, private readonly LoggerInterface $logger)
     {
     }
 

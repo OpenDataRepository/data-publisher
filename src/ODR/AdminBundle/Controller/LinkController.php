@@ -101,7 +101,7 @@ class LinkController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->permissions_management_service;
@@ -269,7 +269,7 @@ class LinkController extends ODRCustomController
 
             // Load necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var EntityCreationService $entity_create_service */
             $entity_create_service = $this->entity_creation_service;
@@ -452,7 +452,7 @@ class LinkController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatatreeInfoService $datatree_info_service */
             $datatree_info_service = $this->datatree_info_service;
@@ -854,7 +854,7 @@ class LinkController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
             $entity_modify_service = $this->entity_meta_modify_service;
@@ -1049,7 +1049,7 @@ class LinkController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
@@ -1866,7 +1866,7 @@ class LinkController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->permissions_management_service;
@@ -2261,7 +2261,7 @@ class LinkController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
             $repo_datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord');
 
@@ -2585,7 +2585,7 @@ class LinkController extends ODRCustomController
 
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
             $repo_datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord');
 
@@ -3053,7 +3053,7 @@ class LinkController extends ODRCustomController
 
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
             $repo_datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord');
 
@@ -3302,7 +3302,7 @@ class LinkController extends ODRCustomController
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var ODRRenderService $odr_render_service */
             $odr_render_service = $this->render_service;
@@ -3424,7 +3424,7 @@ class LinkController extends ODRCustomController
 
             // Load necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             /** @var \Twig\Environment $templating */
             $templating = $this->container->get('twig');
 
@@ -3554,7 +3554,7 @@ class LinkController extends ODRCustomController
 
             // Load necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatarecordInfoService $datarecord_info_service */
             $datarecord_info_service = $this->datarecord_info_service;
@@ -3749,7 +3749,7 @@ class LinkController extends ODRCustomController
 
             // Load necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var CacheService $cache_service */
             $cache_service = $this->cache_service;

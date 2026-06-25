@@ -26,7 +26,7 @@ use ODR\AdminBundle\Component\Utility\UserUtility;
 // Other
 use Doctrine\DBAL\Connection as DBALConnection;
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
@@ -41,9 +41,9 @@ class DatarecordInfoService
      * @param DatatreeInfoService $datatree_info_service
      * @param TagHelperService $tag_helper_service
      * @param CsrfTokenManager $token_manager
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly DatatreeInfoService $datatree_info_service, private readonly TagHelperService $tag_helper_service, private readonly CsrfTokenManager $token_manager, private readonly Logger $logger)
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly DatatreeInfoService $datatree_info_service, private readonly TagHelperService $tag_helper_service, private readonly CsrfTokenManager $token_manager, private readonly LoggerInterface $logger)
     {
     }
 

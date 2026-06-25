@@ -67,7 +67,7 @@ use ODR\AdminBundle\Component\Service\TrackedJobService;
 use ODR\AdminBundle\Component\Service\UUIDService;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
 // Symfony
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
@@ -127,7 +127,7 @@ class CSVImportController extends ODRCustomController
         try {
             // Get necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
 
             /** @var DatatreeInfoService $datatree_info_service */
@@ -321,7 +321,7 @@ class CSVImportController extends ODRCustomController
         try {
             // Get necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $session = $request->getSession();
             $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
 
@@ -1169,7 +1169,7 @@ class CSVImportController extends ODRCustomController
             $url = $this->generateUrl('odr_csv_import_validate', [], UrlGeneratorInterface::ABSOLUTE_URL);
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
             $repo_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
             $repo_fieldtype = $em->getRepository('ODR\AdminBundle\Entity\FieldType');
@@ -1756,7 +1756,7 @@ class CSVImportController extends ODRCustomController
             $beanstalk_api_key = $this->getParameter('beanstalk_api_key');
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatarecordInfoService $datarecord_info_service */
             $datarecord_info_service = $this->datarecord_info_service;
@@ -2334,7 +2334,7 @@ class CSVImportController extends ODRCustomController
         catch (\Exception $e) {
             // Update the job tracker even if an error occurred...right? TODO
             if ($tracked_job_id !== -1) {
-                $em = $this->getDoctrine()->getManager();
+                $em = $this->container->get('doctrine')->getManager();
                 $tracked_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob')->find($tracked_job_id);
 
                 $total = $tracked_job->getTotal();
@@ -2382,7 +2382,7 @@ class CSVImportController extends ODRCustomController
             // ----------------------------------------
             // Get necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
             $repo_fieldtype = $em->getRepository('ODR\AdminBundle\Entity\FieldType');
             $repo_tracked_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob');
@@ -2744,7 +2744,7 @@ class CSVImportController extends ODRCustomController
             // ----------------------------------------
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var CacheService $cache_service */
             $cache_service = $this->cache_service;
@@ -2764,7 +2764,7 @@ class CSVImportController extends ODRCustomController
             $tracked_job_service = $this->tracked_job_service;
             /** @var UUIDService $uuid_service */
             $uuid_service = $this->uuid_service;
-            /** @var Logger $logger */
+            /** @var LoggerInterface $logger */
             $logger = $this->container->get('logger');
 
             /** @var EventDispatcherInterface $event_dispatcher */
@@ -3393,7 +3393,7 @@ print_r($new_mapping);
             $beanstalk_api_key = $this->getParameter('beanstalk_api_key');
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
             $repo_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
             $repo_user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User');
@@ -3414,7 +3414,7 @@ print_r($new_mapping);
             $tag_helper_service = $this->tag_helper_service;
             /** @var ODRUploadService $upload_service */
             $upload_service = $this->upload_service;
-            /** @var Logger $logger */
+            /** @var LoggerInterface $logger */
             $logger = $this->container->get('logger');
 
             /** @var EventDispatcherInterface $event_dispatcher */
@@ -4373,7 +4373,7 @@ exit();
 
             // Update the job tracker even if an error occurred...right? TODO
             if ($tracked_job_id !== -1) {
-                $em = $this->getDoctrine()->getManager();
+                $em = $this->container->get('doctrine')->getManager();
                 $tracked_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob')->find($tracked_job_id);
 
                 $total = $tracked_job->getTotal();
@@ -4514,7 +4514,7 @@ exit();
             $beanstalk_api_key = $this->getParameter('beanstalk_api_key');
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
             $repo_user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User');
 
@@ -4522,7 +4522,7 @@ exit();
             $datarecord_info_service = $this->datarecord_info_service;
             /** @var EntityCreationService $entity_create_service */
             $entity_create_service = $this->entity_creation_service;
-            /** @var Logger $logger */
+            /** @var LoggerInterface $logger */
             $logger = $this->container->get('logger');
 
             /** @var EventDispatcherInterface $event_dispatcher */
@@ -4688,7 +4688,7 @@ exit();
 
             // Update the job tracker even if an error occurred...right? TODO
             if ($tracked_job_id !== -1) {
-                $em = $this->getDoctrine()->getManager();
+                $em = $this->container->get('doctrine')->getManager();
                 $tracked_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob')->find($tracked_job_id);
 
                 $total = $tracked_job->getTotal();

@@ -31,7 +31,7 @@ use ODR\OpenRepository\GraphBundle\Plugins\SortOverrideInterface;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Other
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 
@@ -46,9 +46,9 @@ class SortService
      * @param CacheService $cache_service
      * @param EntityMetaModifyService $entity_modify_service
      * @param SearchService $search_service
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly ContainerInterface $container, private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly SearchService $search_service, private readonly Logger $logger)
+    public function __construct(private readonly ContainerInterface $container, private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly SearchService $search_service, private readonly LoggerInterface $logger)
     {
     }
 

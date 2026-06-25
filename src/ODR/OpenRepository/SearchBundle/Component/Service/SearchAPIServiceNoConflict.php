@@ -31,7 +31,7 @@ use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\OpenRepository\GraphBundle\Plugins\SearchPluginInterface;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 
 
 class SearchAPIServiceNoConflict
@@ -48,9 +48,9 @@ class SearchAPIServiceNoConflict
      * @param SearchKeyService $search_key_service
      * @param SortService $sort_service
      * @param CacheService $cache_service
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly DatatreeInfoService $dti_service, private readonly DatarecordExportService $dre_service, private readonly SearchService $search_service, private readonly SearchCacheService $search_cache_service, private readonly SearchKeyService $search_key_service, private readonly SortService $sort_service, private readonly CacheService $cache_service, private readonly Logger $logger)
+    public function __construct(private readonly EntityManager $em, private readonly DatatreeInfoService $dti_service, private readonly DatarecordExportService $dre_service, private readonly SearchService $search_service, private readonly SearchCacheService $search_cache_service, private readonly SearchKeyService $search_key_service, private readonly SortService $sort_service, private readonly CacheService $cache_service, private readonly LoggerInterface $logger)
     {
     }
 

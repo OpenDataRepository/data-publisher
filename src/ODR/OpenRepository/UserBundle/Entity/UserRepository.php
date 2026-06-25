@@ -16,18 +16,17 @@ namespace ODR\OpenRepository\UserBundle\Entity;
 
 use Doctrine\ORM\EntityRepository;
 use Symfony\Bridge\Doctrine\Security\User\UserLoaderInterface;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 class UserRepository extends EntityRepository implements UserLoaderInterface
 {
     /**
      * Loads a user for authentication by username or email (case-insensitive, via the canonical columns).
-     *
-     * @param string $username
-     * @return User|null
+     * Symfony 6 renamed UserLoaderInterface::loadUserByUsername() to loadUserByIdentifier().
      */
-    public function loadUserByUsername($username)
+    public function loadUserByIdentifier(string $identifier): ?UserInterface
     {
-        $canonical = mb_strtolower(trim((string)$username));
+        $canonical = mb_strtolower(trim($identifier));
 
         return $this->createQueryBuilder('u')
             ->where('u.usernameCanonical = :c OR u.emailCanonical = :c')

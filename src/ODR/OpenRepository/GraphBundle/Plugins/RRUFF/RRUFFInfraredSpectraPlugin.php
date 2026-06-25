@@ -16,7 +16,7 @@ namespace ODR\OpenRepository\GraphBundle\Plugins\RRUFF;
 // ODR
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 // Symfony
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 
 
 class RRUFFInfraredSpectraPlugin implements DatatypePluginInterface
@@ -25,9 +25,9 @@ class RRUFFInfraredSpectraPlugin implements DatatypePluginInterface
     /**
      * RRUFF Infrared Spectra Plugin constructor
      *
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly Logger $logger)
+    public function __construct(private readonly LoggerInterface $logger)
     {
     }
 

@@ -25,7 +25,7 @@ use ODR\AdminBundle\Entity\XYZData;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 class XYZDataHelperService
@@ -38,9 +38,9 @@ class XYZDataHelperService
      * @param EntityCreationService $entity_create_service
      * @param EntityMetaModifyService $entity_modify_service
      * @param EventDispatcherInterface $event_dispatcher
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly EntityCreationService $entity_create_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly Logger $logger)
+    public function __construct(private readonly EntityManager $em, private readonly EntityCreationService $entity_create_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly LoggerInterface $logger)
     {
     }
 

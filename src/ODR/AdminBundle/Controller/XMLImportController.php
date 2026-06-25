@@ -111,7 +111,7 @@ class XMLImportController extends ODRCustomController
 
             // Grab required objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->permissions_management_service;
@@ -205,7 +205,7 @@ class XMLImportController extends ODRCustomController
             // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid job data');
@@ -322,7 +322,7 @@ class XMLImportController extends ODRCustomController
             // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             if ($api_key !== $beanstalk_api_key)
                 throw new \Exception('Invalid job data');
@@ -466,7 +466,7 @@ class XMLImportController extends ODRCustomController
             // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var User $user */
             $user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find($user_id);
@@ -1528,7 +1528,7 @@ if ($write) {
             // $redis->setOption(\Redis::OPT_SERIALIZER, \Redis::SERIALIZER_PHP);
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             $repo_file = $em->getRepository('ODR\AdminBundle\Entity\File');
             $repo_image = $em->getRepository('ODR\AdminBundle\Entity\Image');

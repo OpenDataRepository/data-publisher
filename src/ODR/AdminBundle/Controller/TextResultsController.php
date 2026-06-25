@@ -131,7 +131,7 @@ class TextResultsController extends ODRCustomController
             // ----------------------------------------
             // Get Entity Manager and setup objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var ODRTabHelperService $odr_tab_service */
             $odr_tab_service = $this->tab_helper_service;
@@ -345,7 +345,7 @@ class TextResultsController extends ODRCustomController
 
             // -----------------------------------
             // Determine where on the page to scroll to if possible
-            $session = $this->container->get('session');
+            $session = $this->container->get('request_stack')->getSession();
             $scroll_target = '';
             if ($session->has('scroll_target')) {
                 $scroll_target = $session->get('scroll_target');
@@ -696,7 +696,7 @@ class TextResultsController extends ODRCustomController
             $theme_id = $post['remote_theme_id'];
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
             $repo_datarecord = $em->getRepository('ODR\AdminBundle\Entity\DataRecord');
 

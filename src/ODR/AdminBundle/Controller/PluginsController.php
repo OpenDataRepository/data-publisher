@@ -769,7 +769,7 @@ class PluginsController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var \Twig\Environment $templating */
             $templating = $this->container->get('twig');
@@ -1693,7 +1693,7 @@ class PluginsController extends ODRCustomController
             $plugin_classname = $post['plugin_classname'];
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             // ----------------------------------------
             // Determine user privileges
@@ -1982,7 +1982,7 @@ class PluginsController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var \Twig\Environment $templating */
             $templating = $this->container->get('twig');
@@ -2091,7 +2091,7 @@ class PluginsController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var \Twig\Environment $templating */
             $templating = $this->container->get('twig');
@@ -2220,7 +2220,7 @@ class PluginsController extends ODRCustomController
             $plugin_classname = $post['plugin_classname'];
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $repo_render_plugin_fields = $em->getRepository('ODR\AdminBundle\Entity\RenderPluginFields');
             $repo_render_plugin_options = $em->getRepository('ODR\AdminBundle\Entity\RenderPluginOptionsDef');    // TODO - rename to RenderPluginOptions
             $repo_render_plugin_events = $em->getRepository('ODR\AdminBundle\Entity\RenderPluginEvents');
@@ -2798,7 +2798,7 @@ class PluginsController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->permissions_management_service;
@@ -3046,7 +3046,7 @@ class PluginsController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
             $repo_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
 
@@ -3632,7 +3632,7 @@ class PluginsController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
@@ -3889,7 +3889,7 @@ class PluginsController extends ODRCustomController
             // ----------------------------------------
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
@@ -4429,7 +4429,7 @@ class PluginsController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->permissions_management_service;
@@ -4631,7 +4631,7 @@ class PluginsController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
             $repo_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
 
@@ -4910,7 +4910,7 @@ class PluginsController extends ODRCustomController
             // ----------------------------------------
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode

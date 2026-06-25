@@ -28,7 +28,7 @@ use ODR\AdminBundle\Component\Service\LockService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 // Symfony
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 
@@ -43,9 +43,9 @@ class IMAStatusNotesPlugin implements DatatypePluginInterface
      * @param LockService $lock_service
      * @param EventDispatcherInterface $event_dispatcher
      * @param \Twig\Environment $templating
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly EntityCreationService $entity_create_service, private readonly LockService $lock_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly \Twig\Environment $templating, private readonly Logger $logger)
+    public function __construct(private readonly EntityManager $em, private readonly EntityCreationService $entity_create_service, private readonly LockService $lock_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly \Twig\Environment $templating, private readonly LoggerInterface $logger)
     {
     }
 

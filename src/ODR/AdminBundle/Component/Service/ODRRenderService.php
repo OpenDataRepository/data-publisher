@@ -38,7 +38,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchSidebarService;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Pheanstalk\Pheanstalk;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Form\FormFactory;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Routing\Router;
@@ -72,9 +72,9 @@ class ODRRenderService
      * @param \Twig\Environment $templating
      * @param Pheanstalk $pheanstalk
      * @param Router $router
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly string $site_baseurl, private readonly bool $odr_wordpress_integrated, private readonly string $odr_web_dir, private readonly string $api_key, private readonly string $redis_prefix, private readonly EntityManager $em, private readonly DatabaseInfoService $database_info_service, private readonly DatafieldInfoService $datafield_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly DatatreeInfoService $datatree_info_service, private readonly PermissionsManagementService $permissions_service, private readonly ThemeInfoService $theme_info_service, private readonly CloneThemeService $clone_theme_service, private readonly CloneTemplateService $clone_template_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly ODRNameFieldHelperService $namefield_helper_service, private readonly SearchKeyService $search_key_service, private readonly SearchSidebarService $search_sidebar_service, private readonly FormFactory $form_factory, private readonly \Twig\Environment $templating, private readonly Pheanstalk $pheanstalk, private readonly Router $router, private readonly Logger $logger)
+    public function __construct(private readonly string $site_baseurl, private readonly bool $odr_wordpress_integrated, private readonly string $odr_web_dir, private readonly string $api_key, private readonly string $redis_prefix, private readonly EntityManager $em, private readonly DatabaseInfoService $database_info_service, private readonly DatafieldInfoService $datafield_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly DatatreeInfoService $datatree_info_service, private readonly PermissionsManagementService $permissions_service, private readonly ThemeInfoService $theme_info_service, private readonly CloneThemeService $clone_theme_service, private readonly CloneTemplateService $clone_template_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly ODRNameFieldHelperService $namefield_helper_service, private readonly SearchKeyService $search_key_service, private readonly SearchSidebarService $search_sidebar_service, private readonly FormFactory $form_factory, private readonly \Twig\Environment $templating, private readonly Pheanstalk $pheanstalk, private readonly Router $router, private readonly LoggerInterface $logger)
     {
     }
 

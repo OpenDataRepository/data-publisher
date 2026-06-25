@@ -28,7 +28,7 @@ use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\TableResultsOverrideInterface;
 // Symfony
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Routing\Router;
 
 
@@ -40,7 +40,7 @@ class RRUFFInstrumentUsagePlugin implements DatafieldPluginInterface, TableResul
      *
      * @param \Twig\Environment $templating
      */
-    public function __construct(private readonly string $environment, private readonly string $site_baseurl, private readonly DatabaseInfoService $database_info_service, private readonly Router $router, private readonly \Twig\Environment $templating, private readonly Logger $logger)
+    public function __construct(private readonly string $environment, private readonly string $site_baseurl, private readonly DatabaseInfoService $database_info_service, private readonly Router $router, private readonly \Twig\Environment $templating, private readonly LoggerInterface $logger)
     {
     }
 

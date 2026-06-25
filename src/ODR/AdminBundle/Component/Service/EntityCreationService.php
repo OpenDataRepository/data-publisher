@@ -82,7 +82,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Component\Event\PostUpdateEvent;
 // Other
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\File\File as SymfonyFile;
 
@@ -98,9 +98,9 @@ class EntityCreationService
      * @param LockService $lock_service
      * @param UUIDService $uuid_service
      * @param EventDispatcherInterface $event_dispatcher
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly LockService $lock_service, private readonly UUIDService $uuid_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly Logger $logger)
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly LockService $lock_service, private readonly UUIDService $uuid_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly LoggerInterface $logger)
     {
     }
 

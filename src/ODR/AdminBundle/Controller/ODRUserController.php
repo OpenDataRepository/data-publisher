@@ -247,7 +247,7 @@ class ODRUserController extends ODRCustomController
 
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             /** @var Router $router */
             $router = $this->container->get('router');
 
@@ -437,7 +437,7 @@ class ODRUserController extends ODRCustomController
         try {
             // Grab the specified user
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var \Twig\Environment $templating */
             $templating = $this->container->get('twig');
@@ -611,7 +611,7 @@ class ODRUserController extends ODRCustomController
             $user_id = intval( $post['ODRUserProfileForm']['user_id'] );
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var ODRUser $target_user */
             $target_user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find($user_id);
@@ -671,7 +671,7 @@ class ODRUserController extends ODRCustomController
     {
         // Get required objects
         /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
+        $em = $this->container->get('doctrine')->getManager();
 
         /** @var UserManager $user_manager */
         $user_manager = $this->container->get('fos_user.user_manager');
@@ -739,7 +739,7 @@ class ODRUserController extends ODRCustomController
         try {
             // Grab the specified user
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var \Twig\Environment $templating */
             $templating = $this->container->get('twig');
@@ -830,7 +830,7 @@ class ODRUserController extends ODRCustomController
 
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
@@ -1072,7 +1072,7 @@ class ODRUserController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var CacheService $cache_service*/
             $cache_service = $this->cache_service;
@@ -1194,7 +1194,7 @@ class ODRUserController extends ODRCustomController
             // --------------------
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var CacheService $cache_service*/
             $cache_service = $this->cache_service;
@@ -1294,7 +1294,7 @@ class ODRUserController extends ODRCustomController
             // --------------------
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
@@ -1355,7 +1355,7 @@ class ODRUserController extends ODRCustomController
         try {
             // Required objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatatreeInfoService $dti_service */
             $dti_service = $this->datatree_info_service;
@@ -1460,7 +1460,7 @@ class ODRUserController extends ODRCustomController
         try {
             // Required objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatatreeInfoService $dti_service */
             $dti_service = $this->datatree_info_service;

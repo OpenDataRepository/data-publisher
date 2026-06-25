@@ -22,7 +22,7 @@ use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Other
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 
 class PaginationHelperService
 {
@@ -33,9 +33,9 @@ class PaginationHelperService
      * @param ODRTabHelperService $odr_tab_service
      * @param SearchKeyService $search_key_service
      * @param SearchAPIService $search_api_service
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly ODRTabHelperService $odr_tab_service, private readonly SearchKeyService $search_key_service, private readonly SearchAPIService $search_api_service, private readonly Logger $logger)
+    public function __construct(private readonly ODRTabHelperService $odr_tab_service, private readonly SearchKeyService $search_key_service, private readonly SearchAPIService $search_api_service, private readonly LoggerInterface $logger)
     {
     }
 

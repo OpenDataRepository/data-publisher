@@ -80,7 +80,7 @@ class DebugController extends ODRCustomController
 
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
             $database_info_service = $this->database_info_service;
@@ -183,7 +183,7 @@ class DebugController extends ODRCustomController
 
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var CSVExportHelperService $csv_export_helper_service */
             $csv_export_helper_service = $this->csv_export_helper_service;

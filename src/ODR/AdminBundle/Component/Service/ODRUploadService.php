@@ -31,7 +31,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Other
 use Doctrine\ORM\EntityManager;
 use Pheanstalk\Pheanstalk;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Routing\Router;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -51,9 +51,9 @@ class ODRUploadService
      * @param Router $router
      * @param string $redis_prefix
      * @param string $api_key
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly CryptoService $crypto_service, private readonly EntityCreationService $entity_creation_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly Pheanstalk $pheanstalk, private readonly Router $router, private readonly string $redis_prefix, private readonly string $api_key, private readonly Logger $logger)
+    public function __construct(private readonly EntityManager $em, private readonly CryptoService $crypto_service, private readonly EntityCreationService $entity_creation_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly Pheanstalk $pheanstalk, private readonly Router $router, private readonly string $redis_prefix, private readonly string $api_key, private readonly LoggerInterface $logger)
     {
     }
 

@@ -165,7 +165,7 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             // Load required objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $session = $request->getSession();
 
             /** @var ODRTabHelperService $odr_tab_service */
@@ -401,7 +401,7 @@ class DisplayController extends ODRCustomController
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->permissions_management_service;
@@ -489,7 +489,7 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $redis_prefix = $this->getParameter('memcached_key_prefix');     // debug purposes only
 
             /** @var PermissionsManagementService $permissions_service */
@@ -635,7 +635,7 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var CryptoService $crypto_service */
             $crypto_service = $this->crypto_service;
@@ -801,7 +801,7 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var CryptoService $crypto_service */
             $crypto_service = $this->crypto_service;
@@ -976,7 +976,7 @@ class DisplayController extends ODRCustomController
             // $start = microtime(true);
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             // print microtime(true) - $start . "<br />";
             /** @var CryptoService $crypto_service */
@@ -1157,7 +1157,7 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             // Get necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
             $database_info_service = $this->database_info_service;
@@ -1528,7 +1528,7 @@ class DisplayController extends ODRCustomController
 
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
             $database_info_service = $this->database_info_service;
@@ -1724,7 +1724,7 @@ class DisplayController extends ODRCustomController
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
             $database_info_service = $this->database_info_service;
@@ -1856,7 +1856,7 @@ class DisplayController extends ODRCustomController
 
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatatreeInfoService $datatree_info_service */
             $datatree_info_service = $this->datatree_info_service;
@@ -2354,7 +2354,7 @@ class DisplayController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->permissions_management_service;
@@ -2446,7 +2446,7 @@ class DisplayController extends ODRCustomController
 
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
             $database_info_service = $this->database_info_service;

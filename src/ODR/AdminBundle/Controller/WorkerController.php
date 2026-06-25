@@ -51,7 +51,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
 use Doctrine\DBAL\Connection as DBALConnection;
 use Pheanstalk\Pheanstalk;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -119,11 +119,11 @@ class WorkerController extends ODRCustomController
             // Load symfony objects
             $beanstalk_api_key = $this->getParameter('beanstalk_api_key');
 
-            /** @var Logger $logger */
+            /** @var LoggerInterface $logger */
             $logger = $this->container->get('logger');
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $repo_fieldtype = $em->getRepository('ODR\AdminBundle\Entity\FieldType');
 
 
@@ -140,7 +140,7 @@ class WorkerController extends ODRCustomController
 
             // Grab necessary objects
             /** @var ODRUser $user */
-            $user = $this->getDoctrine()->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find( $user_id );
+            $user = $this->container->get('doctrine')->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find( $user_id );
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find( $datafield_id );
             if ( is_null($datafield) )
@@ -607,7 +607,7 @@ $ret .= '  Set current to '.$count."\n";
             $beanstalk_api_key = $this->getParameter('beanstalk_api_key');
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var CloneTemplateService $clone_template_service */
             $clone_template_service = $this->clone_template_service;
@@ -669,7 +669,7 @@ $ret .= '  Set current to '.$count."\n";
 
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             $pheanstalk = $this->container->get('pheanstalk');
             $router = $this->container->get('router');
@@ -800,7 +800,7 @@ $ret .= '  Set current to '.$count."\n";
 
             // ----------------------------------------
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var CryptoService $crypto_service */
             $crypto_service = $this->crypto_service;
@@ -872,7 +872,7 @@ $ret .= '  Set current to '.$count."\n";
         catch (\Exception $e) {
             // Update the job tracker even if an error occurred...right? TODO
             if ($tracked_job_id !== -1) {
-                $em = $this->getDoctrine()->getManager();
+                $em = $this->container->get('doctrine')->getManager();
                 /** @var TrackedJob $tracked_job */
                 $tracked_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob')->find($tracked_job_id);
 
@@ -948,7 +948,7 @@ $ret .= '  Set current to '.$count."\n";
 
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var CryptoService $crypto_service */
             $crypto_service = $this->crypto_service;
@@ -1040,7 +1040,7 @@ $ret .= '  Set current to '.$count."\n";
             throw new ODRException('Do not continue');
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             $pheanstalk = $this->container->get('pheanstalk');
             $redis_prefix = $this->getParameter('memcached_key_prefix');
@@ -1147,11 +1147,11 @@ $ret .= '  Set current to '.$count."\n";
                 throw new ODRBadRequestException('Invalid Form');
 
 
-            /** @var Logger $logger */
+            /** @var LoggerInterface $logger */
             $logger = $this->container->get('logger');
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $conn = $em->getConnection();
 
             $query =
@@ -1262,12 +1262,12 @@ $ret .= '  Set current to '.$count."\n";
 
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $repo_datarecordfields = $em->getRepository('ODR\AdminBundle\Entity\DataRecordFields');
 
             /** @var TagHelperService $tag_helper_service */
             $tag_helper_service = $this->tag_helper_service;
-            /** @var Logger $logger */
+            /** @var LoggerInterface $logger */
             $logger = $this->container->get('logger');
 
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
@@ -1277,7 +1277,7 @@ $ret .= '  Set current to '.$count."\n";
 
 
             /** @var ODRUser $user */
-            $user = $this->getDoctrine()->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find($user_id);
+            $user = $this->container->get('doctrine')->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find($user_id);
 
             /** @var DataFields $datafield */
             $datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields')->find($datafield_id);
@@ -1547,7 +1547,7 @@ $ret .= '  Set current to '.$count."\n";
             // --------------------
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $conn = $em->getConnection();
 
             $query =

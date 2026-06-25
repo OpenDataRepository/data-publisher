@@ -20,7 +20,7 @@ use ODR\AdminBundle\Exception\ODRNotImplementedException;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\ORM\EntityManager;
 // Symfony
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 
 
 class SearchQueryService
@@ -36,11 +36,11 @@ class SearchQueryService
      * SearchQueryService constructor.
      *
      * @param EntityManager $em
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
     public function __construct(
         private readonly EntityManager $em,
-        private readonly Logger $logger
+        private readonly LoggerInterface $logger
     ) {
         $this->typeclass_map = [
             // All of these are searched via their "value" field in the backend database

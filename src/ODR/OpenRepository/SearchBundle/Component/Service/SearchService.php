@@ -29,7 +29,7 @@ use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 // Other
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 
 
 class SearchService
@@ -42,9 +42,9 @@ class SearchService
      * @param CacheService $cache_service
      * @param DatatreeInfoService $datatree_info_service
      * @param SearchQueryService $search_query_service
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly DatatreeInfoService $datatree_info_service, private readonly SearchQueryService $search_query_service, private readonly Logger $logger)
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly DatatreeInfoService $datatree_info_service, private readonly SearchQueryService $search_query_service, private readonly LoggerInterface $logger)
     {
     }
 

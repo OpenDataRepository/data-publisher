@@ -22,7 +22,7 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Symfony
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 
 
 class ODRUserGroupMangementService
@@ -33,9 +33,9 @@ class ODRUserGroupMangementService
      * @param EntityManager $em
      * @param CacheService $cache_service
      * @param EntityCreationService $ec_service
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly EntityCreationService $ec_service, private readonly Logger $logger)
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly EntityCreationService $ec_service, private readonly LoggerInterface $logger)
     {
     }
 

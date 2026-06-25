@@ -55,7 +55,7 @@ use ODR\OpenRepository\GraphBundle\Plugins\MassEditTriggerEventInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\TableResultsOverrideInterface;
 // Symfony
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
@@ -78,9 +78,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      * @param EventDispatcherInterface $event_dispatcher
      * @param CsrfTokenManager $token_manager
      * @param \Twig\Environment $templating
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly CryptoService $crypto_service, private readonly DatabaseInfoService $database_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly EntityCreationService $entity_create_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly LockService $lock_service, private readonly ODRUploadService $upload_service, private readonly XYZDataHelperService $xyzdata_helper_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly CsrfTokenManager $token_manager, private readonly \Twig\Environment $templating, private readonly Logger $logger)
+    public function __construct(private readonly EntityManager $em, private readonly CryptoService $crypto_service, private readonly DatabaseInfoService $database_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly EntityCreationService $entity_create_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly LockService $lock_service, private readonly ODRUploadService $upload_service, private readonly XYZDataHelperService $xyzdata_helper_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly CsrfTokenManager $token_manager, private readonly \Twig\Environment $templating, private readonly LoggerInterface $logger)
     {
     }
 

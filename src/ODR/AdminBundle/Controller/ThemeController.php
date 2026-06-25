@@ -91,7 +91,7 @@ class ThemeController extends ODRCustomController
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->permissions_management_service;
@@ -301,7 +301,7 @@ class ThemeController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var ODRRenderService $odr_render_service */
             $odr_render_service = $this->render_service;
@@ -377,7 +377,7 @@ class ThemeController extends ODRCustomController
         try {
             // Grab objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
             $entity_modify_service = $this->entity_meta_modify_service;
@@ -498,7 +498,7 @@ class ThemeController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
             $entity_modify_service = $this->entity_meta_modify_service;
@@ -606,7 +606,7 @@ class ThemeController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
             $entity_modify_service = $this->entity_meta_modify_service;
@@ -727,7 +727,7 @@ class ThemeController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
             $entity_modify_service = $this->entity_meta_modify_service;
@@ -823,7 +823,7 @@ class ThemeController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->permissions_management_service;
@@ -923,7 +923,7 @@ class ThemeController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var CacheService $cache_service */
             $cache_service = $this->cache_service;
@@ -1041,7 +1041,7 @@ class ThemeController extends ODRCustomController
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var CacheService $cache_service */
             $cache_service = $this->cache_service;
@@ -1125,7 +1125,7 @@ class ThemeController extends ODRCustomController
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var EntityCreationService $entity_create_service */
             $entity_create_service = $this->entity_creation_service;
@@ -1216,7 +1216,7 @@ class ThemeController extends ODRCustomController
         try {
             // Get Current User
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->theme_info_service;
@@ -1307,7 +1307,7 @@ class ThemeController extends ODRCustomController
         try {
             // Grab objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
             $entity_modify_service = $this->entity_meta_modify_service;
@@ -1436,7 +1436,7 @@ class ThemeController extends ODRCustomController
             $post = $request->request->all();
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $repo_theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement');
 
             /** @var EntityMetaModifyService $entity_modify_service */
@@ -1528,7 +1528,7 @@ class ThemeController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
             $entity_modify_service = $this->entity_meta_modify_service;
@@ -1618,7 +1618,7 @@ class ThemeController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
             $entity_modify_service = $this->entity_meta_modify_service;
@@ -1704,7 +1704,7 @@ class ThemeController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var ODRRenderService $odr_render_service */
             $odr_render_service = $this->render_service;
@@ -1777,7 +1777,7 @@ class ThemeController extends ODRCustomController
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->permissions_management_service;
@@ -1896,7 +1896,7 @@ class ThemeController extends ODRCustomController
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
             $entity_modify_service = $this->entity_meta_modify_service;
@@ -2028,7 +2028,7 @@ class ThemeController extends ODRCustomController
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var \Twig\Environment $templating */
             $templating = $this->container->get('twig');
@@ -2136,7 +2136,7 @@ class ThemeController extends ODRCustomController
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
             $entity_modify_service = $this->entity_meta_modify_service;
@@ -2261,7 +2261,7 @@ class ThemeController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
             $entity_modify_service = $this->entity_meta_modify_service;
@@ -2363,7 +2363,7 @@ class ThemeController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
             $entity_modify_service = $this->entity_meta_modify_service;
@@ -2470,7 +2470,7 @@ class ThemeController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
             $entity_modify_service = $this->entity_meta_modify_service;
@@ -2579,7 +2579,7 @@ class ThemeController extends ODRCustomController
 //print_r($post);  return;
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $repo_theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement');
 
             /** @var EntityMetaModifyService $entity_modify_service */

@@ -31,7 +31,7 @@ services:
         class: ODR\OpenRepository\UserBundle\Component\Service\ODRUserManager
         arguments:
             $em: '@doctrine.orm.entity_manager'
-            $password_encoder: '@security.password_encoder'
+            $password_encoder: '@security.user_password_hasher'
     fos_user.user_manager:
         alias: odr.user_manager
         public: true

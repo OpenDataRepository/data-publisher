@@ -22,7 +22,7 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
 // Symfony
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 class FieldtypeMigrationService
@@ -33,9 +33,9 @@ class FieldtypeMigrationService
      * @param EntityManager $em
      * @param CacheService $cache_service
      * @param EventDispatcherInterface $event_dispatcher
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly Logger $logger)
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly LoggerInterface $logger)
     {
     }
 

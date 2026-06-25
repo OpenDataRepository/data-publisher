@@ -70,7 +70,7 @@ use ODR\AdminBundle\Component\Event\PostUpdateEvent;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
 // Other
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 
@@ -84,9 +84,9 @@ class EntityMetaModifyService
      * @param CacheService $cache_service
      * @param DatatreeInfoService $datatree_info_service
      * @param EventDispatcherInterface $event_dispatcher
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly DatatreeInfoService $datatree_info_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly Logger $logger)
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly DatatreeInfoService $datatree_info_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly LoggerInterface $logger)
     {
     }
 

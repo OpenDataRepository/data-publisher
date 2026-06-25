@@ -32,7 +32,7 @@ use Ddeboer\DataImport\Writer\CsvWriter;
 use Doctrine\DBAL\Connection as DBALConnection;
 use Doctrine\ORM\EntityManager;
 use ODR\OpenRepository\UserBundle\Component\Service\ODRTokenGenerator as TokenGenerator;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 
@@ -51,9 +51,9 @@ class CSVExportHelperService
      * @param SearchAPIService $search_api_service
      * @param SearchKeyService $search_key_service
      * @param TokenGenerator $token_generator
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly ContainerInterface $container, private readonly EntityManager $em, private readonly DatabaseInfoService $database_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly DatatreeInfoService $datatree_info_service, private readonly PermissionsManagementService $permissions_service, private readonly SearchAPIService $search_api_service, private readonly SearchKeyService $search_key_service, private readonly TokenGenerator $token_generator, private readonly Logger $logger)
+    public function __construct(private readonly ContainerInterface $container, private readonly EntityManager $em, private readonly DatabaseInfoService $database_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly DatatreeInfoService $datatree_info_service, private readonly PermissionsManagementService $permissions_service, private readonly SearchAPIService $search_api_service, private readonly SearchKeyService $search_key_service, private readonly TokenGenerator $token_generator, private readonly LoggerInterface $logger)
     {
     }
 

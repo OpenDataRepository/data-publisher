@@ -50,7 +50,7 @@ use ODR\OpenRepository\GraphBundle\Plugins\ArrayPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\ArrayPluginReturn;
 use ODR\OpenRepository\GraphBundle\Plugins\PluginSettingsDialogOverrideInterface;
 // Symfony
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 class LinkedDescendantMergerPlugin implements ArrayPluginInterface, PluginSettingsDialogOverrideInterface
 {
 
@@ -60,9 +60,9 @@ class LinkedDescendantMergerPlugin implements ArrayPluginInterface, PluginSettin
      * @param DatabaseInfoService $database_info_service
      * @param SortService $sort_service
      * @param \Twig\Environment $templating
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly DatabaseInfoService $database_info_service, private readonly SortService $sort_service, private readonly \Twig\Environment $templating, private readonly Logger $logger)
+    public function __construct(private readonly DatabaseInfoService $database_info_service, private readonly SortService $sort_service, private readonly \Twig\Environment $templating, private readonly LoggerInterface $logger)
     {
     }
 

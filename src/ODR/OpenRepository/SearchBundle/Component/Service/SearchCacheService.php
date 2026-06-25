@@ -39,7 +39,7 @@ use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 // Symfony
 use Doctrine\DBAL\Connection as DBALConnection;
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 
@@ -57,13 +57,13 @@ class SearchCacheService implements EventSubscriberInterface
      * @param EntityManager $em
      * @param CacheService $cache_service
      * @param DatatreeInfoService $datatree_info_service
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
     public function __construct(
         private readonly EntityManager $em,
         private readonly CacheService $cache_service,
         private readonly DatatreeInfoService $datatree_info_service,
-        private readonly Logger $logger
+        private readonly LoggerInterface $logger
     ) {
         //        $this->debug = false;
         $this->debug = true;

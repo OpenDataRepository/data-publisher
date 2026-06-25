@@ -18,7 +18,6 @@ use Predis;
 // Symfony
 use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Lock\Store\RedisStore;
-use Symfony\Component\Lock\Store\RetryTillSaveStore;
 
 class LockService
 {
@@ -39,10 +38,11 @@ class LockService
         Predis\Client $redis_client,
         private $cache_prefix
     ) {
+        // Symfony 6 removed RetryTillSaveStore; the retry-till-save behaviour is now built into the
+        // Lock itself (acquire(true) blocks/retries for non-blocking stores like RedisStore).
         $redis_store = new RedisStore($redis_client);
-        $blocking_redis_store = new RetryTillSaveStore($redis_store);    // 100ms retry delay, unlimited times
 
-        $this->lock_factory = new LockFactory($blocking_redis_store);
+        $this->lock_factory = new LockFactory($redis_store);
     }
 
 

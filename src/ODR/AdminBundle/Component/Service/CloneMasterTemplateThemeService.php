@@ -25,7 +25,7 @@ use ODR\AdminBundle\Entity\ThemeRenderPluginInstance;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Other
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 
 
 class CloneMasterTemplateThemeService
@@ -40,9 +40,9 @@ class CloneMasterTemplateThemeService
      * CloneMasterTemplateThemeService constructor.
      *
      * @param EntityManager $em
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly Logger $logger)
+    public function __construct(private readonly EntityManager $em, private readonly LoggerInterface $logger)
     {
     }
 

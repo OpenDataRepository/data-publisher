@@ -28,7 +28,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Other
 use Doctrine\ORM\EntityManager;
 use ODR\AdminBundle\Component\Crypto\CryptoAdapter;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 
@@ -55,7 +55,7 @@ class CryptoService
      * @param CryptoAdapter $crypto_adapter
      * @param string $crypto_dir
      * @param string $odr_web_dir
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
     public function __construct(
         private readonly EntityManager $em,
@@ -64,7 +64,7 @@ class CryptoService
         private readonly CryptoAdapter $crypto_adapter,
         string $crypto_dir,
         string $odr_web_dir,
-        private readonly Logger $logger
+        private readonly LoggerInterface $logger
     ) {
         $this->crypto_dir = realpath($crypto_dir);
         $this->odr_web_dir = realpath($odr_web_dir);

@@ -50,7 +50,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
 use Doctrine\DBAL\ParameterType;
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 
 
 class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOverrideInterface
@@ -76,7 +76,7 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
      * @param SearchService $search_service
      * @param SortService $sort_service
      * @param \Twig\Environment $templating
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
     public function __construct(
         private readonly EntityManager $em,
@@ -84,7 +84,7 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
         private readonly SearchService $search_service,
         private readonly SortService $sort_service,
         private readonly \Twig\Environment $templating,
-        private readonly Logger $logger
+        private readonly LoggerInterface $logger
     ) {
         $this->typeclass_map = [
             // All of these are searched via their "value" field in the backend database

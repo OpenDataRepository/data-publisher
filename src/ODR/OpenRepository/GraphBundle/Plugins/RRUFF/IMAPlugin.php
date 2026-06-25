@@ -50,7 +50,7 @@ use ODR\OpenRepository\GraphBundle\Plugins\TableResultsOverrideInterface;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
@@ -71,9 +71,9 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
      * @param EventDispatcherInterface $event_dispatcher
      * @param CsrfTokenManager $token_manager
      * @param \Twig\Environment $templating
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly DatabaseInfoService $database_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly EntityCreationService $entity_create_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly LockService $lock_service, private readonly SearchService $search_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly CsrfTokenManager $token_manager, private readonly \Twig\Environment $templating, private readonly Logger $logger)
+    public function __construct(private readonly EntityManager $em, private readonly DatabaseInfoService $database_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly EntityCreationService $entity_create_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly LockService $lock_service, private readonly SearchService $search_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly CsrfTokenManager $token_manager, private readonly \Twig\Environment $templating, private readonly LoggerInterface $logger)
     {
     }
 

@@ -29,7 +29,7 @@ use ODR\OpenRepository\GraphBundle\Plugins\SearchOverrideInterface;
 // Symfony
 use Doctrine\DBAL\Connection as DBALConnection;
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 
@@ -94,9 +94,9 @@ class SearchAPIService
      * @param SearchKeyService $search_key_service
      * @param SortService $sort_service
      * @param CacheService $cache_service
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly string $search_key_char_limit, private readonly ContainerInterface $container, private readonly EntityManager $em, private readonly DatatreeInfoService $datatree_info_service, private readonly SearchService $search_service, private readonly SearchKeyService $search_key_service, private readonly SortService $sort_service, private readonly CacheService $cache_service, private readonly Logger $logger)
+    public function __construct(private readonly string $search_key_char_limit, private readonly ContainerInterface $container, private readonly EntityManager $em, private readonly DatatreeInfoService $datatree_info_service, private readonly SearchService $search_service, private readonly SearchKeyService $search_key_service, private readonly SortService $sort_service, private readonly CacheService $cache_service, private readonly LoggerInterface $logger)
     {
     }
 

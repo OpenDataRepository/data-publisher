@@ -15,7 +15,7 @@ namespace ODR\OpenRepository\GraphBundle\Plugins;
 
 
 // Symfony
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 // Other
 use Pheanstalk\Pheanstalk;
 
@@ -29,9 +29,9 @@ abstract class ODRGraphPlugin
      * @param string $site_baseurl
      * @param string $odr_web_directory
      * @param string $odr_files_directory
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly \Twig\Environment $templating, private readonly Pheanstalk $pheanstalk, private readonly string $site_baseurl, private readonly string $odr_web_directory, private readonly string $odr_files_directory, private readonly Logger $logger)
+    public function __construct(private readonly \Twig\Environment $templating, private readonly Pheanstalk $pheanstalk, private readonly string $site_baseurl, private readonly string $odr_web_directory, private readonly string $odr_files_directory, private readonly LoggerInterface $logger)
     {
     }
 

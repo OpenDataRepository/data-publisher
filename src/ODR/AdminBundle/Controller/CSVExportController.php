@@ -40,7 +40,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchRedirectService;
 // Symfony
 use Pheanstalk\Pheanstalk;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -95,7 +95,7 @@ class CSVExportController extends ODRCustomController
         try {
             // ----------------------------------------
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var ODRRenderService $odr_render_service */
             $odr_render_service = $this->render_service;
@@ -291,7 +291,7 @@ class CSVExportController extends ODRCustomController
 
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var CSVExportHelperService $csv_export_helper_service */
             $csv_export_helper_service = $this->csv_export_helper_service;
@@ -302,7 +302,7 @@ class CSVExportController extends ODRCustomController
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->tracked_job_service;
 
-            /** @var Logger $logger */
+            /** @var LoggerInterface $logger */
             $logger = $this->container->get('logger');
             /** @var Pheanstalk $pheanstalk */
             $pheanstalk = $this->container->get('pheanstalk');
@@ -660,7 +660,7 @@ class CSVExportController extends ODRCustomController
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->permissions_management_service;

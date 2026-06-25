@@ -88,7 +88,7 @@ class RadioOptionsController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var CloneTemplateService $clone_template_service */
             $clone_template_service = $this->clone_template_service;
@@ -211,7 +211,7 @@ class RadioOptionsController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var CloneTemplateService $clone_template_service */
             $clone_template_service = $this->clone_template_service;
@@ -416,7 +416,7 @@ class RadioOptionsController extends ODRCustomController
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var CacheService $cache_service */
             $cache_service = $this->cache_service;
@@ -664,7 +664,7 @@ class RadioOptionsController extends ODRCustomController
 
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var CloneTemplateService $clone_template_service */
             $clone_template_service = $this->clone_template_service;
@@ -865,7 +865,7 @@ class RadioOptionsController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var CacheService $cache_service */
             $cache_service = $this->cache_service;
@@ -1080,7 +1080,7 @@ class RadioOptionsController extends ODRCustomController
             $post = $request->request->all();
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
             $entity_modify_service = $this->entity_meta_modify_service;
@@ -1246,7 +1246,7 @@ class RadioOptionsController extends ODRCustomController
                 throw new ODRBadRequestException();
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var CloneTemplateService $clone_template_service */
             $clone_template_service = $this->clone_template_service;
@@ -1486,7 +1486,7 @@ class RadioOptionsController extends ODRCustomController
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $repo_radio_selection = $em->getRepository('ODR\AdminBundle\Entity\RadioSelection');
 
             /** @var EntityCreationService $entity_create_service */

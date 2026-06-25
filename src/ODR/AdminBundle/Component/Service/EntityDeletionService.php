@@ -41,7 +41,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Symfony
 use Doctrine\DBAL\Connection as DBALConnection;
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 
@@ -71,7 +71,7 @@ class EntityDeletionService
      * @param ThemeInfoService $theme_info_service
      * @param EventDispatcherInterface $event_dispatcher
      * @param string $odr_web_dir
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
     public function __construct(
         private readonly EntityManager $em,
@@ -85,7 +85,7 @@ class EntityDeletionService
         private readonly ThemeInfoService $theme_info_service,
         private readonly EventDispatcherInterface $event_dispatcher,
         string $odr_web_dir,
-        private readonly Logger $logger
+        private readonly LoggerInterface $logger
     ) {
         $this->odr_web_dir = realpath($odr_web_dir);
     }

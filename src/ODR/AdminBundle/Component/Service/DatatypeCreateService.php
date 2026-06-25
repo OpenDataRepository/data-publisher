@@ -23,7 +23,7 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Other
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 // Utility
 use ODR\AdminBundle\Component\Utility\UniqueUtility;
 use ODR\AdminBundle\Component\Utility\UserUtility;
@@ -40,9 +40,9 @@ class DatatypeCreateService
      * @param CloneMasterDatatypeService $cdm_service
      * @param UUIDService $uuid_service
      * @param string $odr_web_dir
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly CloneMasterDatatypeService $cdm_service, private readonly UUIDService $uuid_service, private $odr_web_dir, private readonly Logger $logger)
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly CloneMasterDatatypeService $cdm_service, private readonly UUIDService $uuid_service, private $odr_web_dir, private readonly LoggerInterface $logger)
     {
     }
 

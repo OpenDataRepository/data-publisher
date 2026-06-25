@@ -67,7 +67,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchRedirectService;
 // Symfony
 use ODR\OpenRepository\UserBundle\Component\Service\ODRUserManager as UserManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -120,7 +120,7 @@ class MassEditController extends ODRCustomController
         try {
             // ----------------------------------------
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
             $database_info_service = $this->database_info_service;
@@ -372,7 +372,7 @@ class MassEditController extends ODRCustomController
 
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $repo_datafield = $em->getRepository('ODR\AdminBundle\Entity\DataFields');
 
             /** @var DatabaseInfoService $database_info_service */
@@ -960,7 +960,7 @@ class MassEditController extends ODRCustomController
 //            $logger = $this->container->get('logger');
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var EntityMetaModifyService $entity_modify_service */
             $entity_modify_service = $this->entity_meta_modify_service;
@@ -1133,7 +1133,7 @@ class MassEditController extends ODRCustomController
             $beanstalk_api_key = $this->getParameter('beanstalk_api_key');
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $repo_radio_option = $em->getRepository('ODR\AdminBundle\Entity\RadioOptions');
             $repo_radio_selection = $em->getRepository('ODR\AdminBundle\Entity\RadioSelection');
 
@@ -1149,7 +1149,7 @@ class MassEditController extends ODRCustomController
             $tag_helper_service = $this->tag_helper_service;
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
-            /** @var Logger $logger */
+            /** @var LoggerInterface $logger */
             $logger = $this->container->get('logger');
 
             /** @var EventDispatcherInterface $event_dispatcher */
@@ -1682,7 +1682,7 @@ class MassEditController extends ODRCustomController
         try {
             // ----------------------------------------
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var CacheService $cache_service */
             $cache_service = $this->cache_service;

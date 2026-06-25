@@ -25,7 +25,7 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 // Other
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 
 
 class PermissionsManagementService
@@ -38,9 +38,9 @@ class PermissionsManagementService
      * @param CacheService $cache_service
      * @param DatatreeInfoService $datatree_info_service
      * @param SearchAPIService $search_api_service
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly DatatreeInfoService $datatree_info_service, private readonly SearchAPIService $search_api_service, private readonly Logger $logger)
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly DatatreeInfoService $datatree_info_service, private readonly SearchAPIService $search_api_service, private readonly LoggerInterface $logger)
     {
     }
 

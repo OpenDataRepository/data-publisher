@@ -232,7 +232,7 @@ class StatisticsController extends ODRCustomController
             $file_id = intval($post['file_id']);
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var File $file */
             $file = $em->getRepository('ODR\AdminBundle\Entity\File')->find($file_id);
@@ -304,7 +304,7 @@ class StatisticsController extends ODRCustomController
     {
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->permissions_management_service;
@@ -371,7 +371,7 @@ class StatisticsController extends ODRCustomController
     {
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->permissions_management_service;
@@ -437,7 +437,7 @@ class StatisticsController extends ODRCustomController
     {
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->permissions_management_service;
@@ -511,7 +511,7 @@ class StatisticsController extends ODRCustomController
     {
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->permissions_management_service;
@@ -577,7 +577,7 @@ class StatisticsController extends ODRCustomController
     {
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
@@ -731,7 +731,7 @@ class StatisticsController extends ODRCustomController
             /** @var \ODR\AdminBundle\Component\Service\DatatreeInfoService $datatree_info_service */
             $datatree_info_service = $this->datatree_info_service;
 
-            /** @var \Symfony\Bridge\Monolog\Logger $logger */
+            /** @var \Symfony\Bridge\Monolog\LoggerInterface $logger */
             $logger = $this->container->get('logger');
 
             $logger->info('StatisticsController::getSummaryAction() - Starting download aggregation');
@@ -880,7 +880,7 @@ class StatisticsController extends ODRCustomController
     {
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
@@ -998,7 +998,7 @@ class StatisticsController extends ODRCustomController
             }
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             // Get the system user for created_by/updated_by
             /** @var ODRUser $user */
@@ -1091,7 +1091,7 @@ class StatisticsController extends ODRCustomController
     {
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             // Get all active bot patterns
             $bots = $em->getRepository('ODR\AdminBundle\Entity\StatisticsBotList')
@@ -1147,7 +1147,7 @@ class StatisticsController extends ODRCustomController
             $date = new \DateTime($date_str);
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             // Get the system user
             /** @var ODRUser $user */
@@ -1340,7 +1340,7 @@ class StatisticsController extends ODRCustomController
             $cutoff_date = new \DateTime($cutoff_str);
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             // Soft delete hourly statistics older than cutoff date
             $query = $em->createQueryBuilder()
@@ -1392,7 +1392,7 @@ class StatisticsController extends ODRCustomController
             }
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             // Get the system user
             /** @var ODRUser $user */

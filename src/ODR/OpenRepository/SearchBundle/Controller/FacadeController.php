@@ -73,7 +73,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
     {
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DataTypeMeta $datatype_meta */
             $datatype_meta = $em->getRepository('ODR\AdminBundle\Entity\DataTypeMeta')->findOneBy(['searchSlug' => $search_slug]);
@@ -124,7 +124,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
     {
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DataTypeMeta $datatype_meta */
             $datatype_meta = $em->getRepository('ODR\AdminBundle\Entity\DataTypeMeta')->findOneBy(['searchSlug' => $search_slug]);
@@ -173,7 +173,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
     {
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DataTypeMeta $datatype_meta */
             $datatype_meta = $em->getRepository('ODR\AdminBundle\Entity\DataTypeMeta')->findOneBy(['searchSlug' => $search_slug]);
@@ -244,7 +244,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
             // ----------------------------------------
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatarecordExportService $dre_service */
             $dre_service = $this->datarecord_export_service;
@@ -356,7 +356,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
     public function searchTemplateGetTestAction($search_key, $version, $limit, $offset, Request $request) {
         /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
+        $em = $this->container->get('doctrine')->getManager();
 
         /** @var SearchKeyService $search_key_service */
         $search_key_service = $this->search_key_service;
@@ -408,7 +408,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
     public function elasticSearchAction($version, $limit, $offset, Request $request) {
 
         /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
+        $em = $this->container->get('doctrine')->getManager();
 
         /** @var SearchKeyService $search_key_service */
         $search_key_service = $this->search_key_service;
@@ -472,7 +472,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             if($limit === 0) $limit = 10;
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var ODRTabHelperService $odr_tab_service */
             $odr_tab_service = $this->tab_helper_service;
@@ -709,7 +709,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
      */
     public function seedElasticRecordAction($record_uuid, $version, Request $request) {
         /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
+        $em = $this->container->get('doctrine')->getManager();
 
         /** @var DataRecord $record */
         $record = $em->getRepository('ODR\AdminBundle\Entity\DataRecord')
@@ -796,7 +796,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
      */
     public function seedElasticAction($version, Request $request) {
         /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
+        $em = $this->container->get('doctrine')->getManager();
         $log = "";
 
         // Array of dataset UUIDs from parameters.yml
@@ -1164,7 +1164,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
     public function IMAListRebuildAction($recent, $version, Request $request) {
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             // Determine API URL for record lists
             /*
@@ -1400,7 +1400,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
     ) {
 
         /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
+        $em = $this->container->get('doctrine')->getManager();
 
         $params = json_decode(base64_decode((string) $search_key), true);
 
@@ -1478,7 +1478,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
     public function searchTemplatePostOptimizedAction($version, $limit, $offset, Request $request) {
 
         /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
+        $em = $this->container->get('doctrine')->getManager();
 
         /** @var SearchKeyService $search_key_service */
         $search_key_service = $this->search_key_service;
@@ -1547,7 +1547,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
             // ----------------------------------------
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatarecordExportService $dre_service */
             $dre_service = $this->datarecord_export_service;

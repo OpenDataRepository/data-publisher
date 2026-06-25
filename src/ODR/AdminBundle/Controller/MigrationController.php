@@ -87,7 +87,7 @@ class MigrationController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var CacheService $cache_service */
             $cache_service = $this->cache_service;
@@ -388,7 +388,7 @@ class MigrationController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
@@ -747,7 +747,7 @@ class MigrationController extends ODRCustomController
             // --------------------
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
             $database_info_service = $this->database_info_service;
@@ -841,7 +841,7 @@ class MigrationController extends ODRCustomController
 
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
             $database_info_service = $this->database_info_service;
@@ -1015,7 +1015,7 @@ class MigrationController extends ODRCustomController
             // --------------------
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatatreeInfoService $datatree_info_service */
             $datatree_info_service = $this->datatree_info_service;
@@ -1137,7 +1137,7 @@ class MigrationController extends ODRCustomController
 
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
             $database_info_service = $this->database_info_service;
@@ -1355,7 +1355,7 @@ class MigrationController extends ODRCustomController
             // --------------------
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatatreeInfoService $datatree_info_service */
             $datatree_info_service = $this->datatree_info_service;
@@ -1448,7 +1448,7 @@ class MigrationController extends ODRCustomController
 
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatabaseInfoService $database_info_service */
             $database_info_service = $this->database_info_service;
@@ -1837,7 +1837,7 @@ class MigrationController extends ODRCustomController
             // --------------------
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatatreeInfoService $datatree_info_service */
             $datatree_info_service = $this->datatree_info_service;
@@ -1949,7 +1949,7 @@ class MigrationController extends ODRCustomController
             $target_dt_id = intval($post['target_dt_id']);
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $conn = $em->getConnection();
 
             /** @var DatatreeInfoService $datatree_info_service */
@@ -2281,7 +2281,7 @@ class MigrationController extends ODRCustomController
             throw new ODRNotImplementedException();
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatatreeInfoService $datatree_info_service */
             $datatree_info_service = $this->datatree_info_service;
@@ -2395,7 +2395,7 @@ class MigrationController extends ODRCustomController
             $new_top_level_dt_id = intval($post['child_dt_id']);
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $conn = $em->getConnection();
 
             /** @var DataType $original_parent_dt */

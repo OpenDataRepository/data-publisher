@@ -124,7 +124,7 @@ class JobController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
@@ -176,7 +176,7 @@ class JobController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
@@ -320,7 +320,7 @@ class JobController extends ODRCustomController
             // ----------------------------------------
             // Get necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatatreeInfoService $datatree_info_service */
             $datatree_info_service = $this->datatree_info_service;

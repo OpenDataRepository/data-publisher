@@ -19,7 +19,7 @@ use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 use ODR\AdminBundle\Entity\FieldType;
 // Symfony
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 
 
 class DatafieldInfoService
@@ -29,9 +29,9 @@ class DatafieldInfoService
      * DatafieldInfoService constructor.
      *
      * @param EntityManager $em
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly Logger $logger)
+    public function __construct(private readonly EntityManager $em, private readonly LoggerInterface $logger)
     {
     }
 

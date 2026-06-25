@@ -16,7 +16,7 @@ namespace ODR\OpenRepository\GraphBundle\Plugins\Chemin;
 // ODR
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 // Symfony
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 class CheminETRPlugin implements DatatypePluginInterface
 {
 
@@ -24,9 +24,9 @@ class CheminETRPlugin implements DatatypePluginInterface
      * CheminETRPlugin constructor.
      *
      * @param \Twig\Environment $templating
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly \Twig\Environment $templating, private readonly Logger $logger)
+    public function __construct(private readonly \Twig\Environment $templating, private readonly LoggerInterface $logger)
     {
     }
 

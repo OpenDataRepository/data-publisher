@@ -17,7 +17,7 @@ use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRException;
 // Other
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 
@@ -29,9 +29,9 @@ class ODRNameFieldHelperService
      *
      * @param ContainerInterface $container
      * @param CacheService $cache_service
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly ContainerInterface $container, private readonly CacheService $cache_service, private readonly Logger $logger)
+    public function __construct(private readonly ContainerInterface $container, private readonly CacheService $cache_service, private readonly LoggerInterface $logger)
     {
     }
 

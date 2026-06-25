@@ -92,7 +92,7 @@ class ODRCustomController extends AbstractController
     {
         // -----------------------------------
         // Grab necessary objects
-        $session = $this->container->get('session');    // NOTE: has to be $this->get(), not $request->get()
+        $session = $this->container->get('request_stack')->getSession();    // NOTE: has to be $this->get(), not $request->get()
 
         $use_jupyterhub = false;
         $jupyterhub_config = $this->getParameter('jupyterhub_config');
@@ -103,7 +103,7 @@ class ODRCustomController extends AbstractController
 
 
         /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
+        $em = $this->container->get('doctrine')->getManager();
 
         /** @var CloneThemeService $clone_theme_service */
         $clone_theme_service = $this->clone_theme_service;
@@ -837,7 +837,7 @@ class ODRCustomController extends AbstractController
     protected function notifyOfThemeSync($theme, $user)
     {
         /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
+        $em = $this->container->get('doctrine')->getManager();
 
         /** @var CloneThemeService $clone_theme_service */
         $clone_theme_service = $this->clone_theme_service;

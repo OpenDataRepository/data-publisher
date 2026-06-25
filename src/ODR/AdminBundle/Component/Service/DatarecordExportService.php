@@ -18,7 +18,7 @@ namespace ODR\AdminBundle\Component\Service;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Symfony
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 class DatarecordExportService
 {
 
@@ -30,9 +30,9 @@ class DatarecordExportService
      * @param DatarecordInfoService $dri_service
      * @param PermissionsManagementService $pm_service
      * @param \Twig\Environment $templating
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly DatabaseInfoService $dbi_service, private readonly DatarecordInfoService $dri_service, private readonly PermissionsManagementService $pm_service, private readonly \Twig\Environment $templating, private readonly Logger $logger)
+    public function __construct(private readonly EntityManager $em, private readonly DatabaseInfoService $dbi_service, private readonly DatarecordInfoService $dri_service, private readonly PermissionsManagementService $pm_service, private readonly \Twig\Environment $templating, private readonly LoggerInterface $logger)
     {
     }
 

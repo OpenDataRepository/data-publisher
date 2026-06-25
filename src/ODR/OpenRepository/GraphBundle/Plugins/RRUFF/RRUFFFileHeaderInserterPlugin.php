@@ -52,7 +52,7 @@ use ODR\OpenRepository\GraphBundle\Plugins\PluginSettingsDialogOverrideInterface
 use ODR\OpenRepository\GraphBundle\Plugins\MassEditTriggerEventInterface;
 // Symfony
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, PluginSettingsDialogOverrideInterface, MassEditTriggerEventInterface
 {
 
@@ -122,9 +122,9 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
      * @param ODRUploadService $upload_service
      * @param string $odr_tmp_directory
      * @param \Twig\Environment $templating
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly CryptoService $crypto_service, private readonly DatabaseInfoService $database_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly DatatreeInfoService $datatree_info_service, private readonly EntityDeletionService $entity_deletion_service, private readonly ODRUploadService $upload_service, private readonly string $odr_tmp_directory, private readonly \Twig\Environment $templating, private readonly Logger $logger)
+    public function __construct(private readonly EntityManager $em, private readonly CryptoService $crypto_service, private readonly DatabaseInfoService $database_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly DatatreeInfoService $datatree_info_service, private readonly EntityDeletionService $entity_deletion_service, private readonly ODRUploadService $upload_service, private readonly string $odr_tmp_directory, private readonly \Twig\Environment $templating, private readonly LoggerInterface $logger)
     {
     }
 

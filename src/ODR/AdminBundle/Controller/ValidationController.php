@@ -102,7 +102,7 @@ class ValidationController extends ODRCustomController
                 throw new ODRForbiddenException();
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $em->getFilters()->disable('softdeleteable');
 
             $has_created = $has_updated = $has_deleted = $has_publicdate = [];
@@ -311,7 +311,7 @@ class ValidationController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
@@ -400,7 +400,7 @@ class ValidationController extends ODRCustomController
             // ----------------------------------------
             // Load required objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
@@ -956,7 +956,7 @@ class ValidationController extends ODRCustomController
             // ----------------------------------------
             // Load required objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
@@ -1092,7 +1092,7 @@ class ValidationController extends ODRCustomController
             // ----------------------------------------
             // Load required objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
@@ -1208,7 +1208,7 @@ class ValidationController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
@@ -1285,7 +1285,7 @@ class ValidationController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $conn = $em->getConnection();
 
             /** @var ODRUser $user */
@@ -1531,7 +1531,7 @@ class ValidationController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $conn = $em->getConnection();
 
             /** @var ODRUser $user */
@@ -1865,7 +1865,7 @@ class ValidationController extends ODRCustomController
     {
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
@@ -1938,7 +1938,7 @@ class ValidationController extends ODRCustomController
     {
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
@@ -2145,7 +2145,7 @@ class ValidationController extends ODRCustomController
     {
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $conn = $em->getConnection();
 
             /** @var ODRUser $user */
@@ -2241,7 +2241,7 @@ class ValidationController extends ODRCustomController
     {
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $conn = $em->getConnection();
 
             /** @var ODRUser $user */
@@ -2315,7 +2315,7 @@ class ValidationController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $conn = $em->getConnection();
 
             /** @var ODRUser $user */
@@ -2487,7 +2487,7 @@ class ValidationController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
@@ -2559,7 +2559,7 @@ class ValidationController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
@@ -2625,7 +2625,7 @@ class ValidationController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $conn = $em->getConnection();
             $conn->beginTransaction();
 
@@ -2812,7 +2812,7 @@ class ValidationController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
@@ -2987,7 +2987,7 @@ class ValidationController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $site_baseurl = $this->getParameter('site_baseurl');
 
             /** @var DatabaseInfoService $database_info_service */
@@ -3201,7 +3201,7 @@ class ValidationController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $conn = $em->getConnection();
 
             /** @var ODRUser $user */
@@ -3729,7 +3729,7 @@ class ValidationController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             $conn = $em->getConnection();
 
             /** @var ODRUser $user */
@@ -4019,7 +4019,7 @@ class ValidationController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             // Don't want to deal with the soft-deleted filter, so use raw sql
             $conn = $em->getConnection();
 
@@ -4113,7 +4113,7 @@ class ValidationController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             // Don't want to deal with the soft-deleted filter, so use raw sql
             $conn = $em->getConnection();
 
@@ -4203,7 +4203,7 @@ class ValidationController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             // Don't want to deal with the soft-deleted filter, so use raw sql
             $conn = $em->getConnection();
 
@@ -4312,7 +4312,7 @@ class ValidationController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             // Don't want to deal with the soft-deleted filter, so use raw sql
             $conn = $em->getConnection();
 
@@ -4427,7 +4427,7 @@ class ValidationController extends ODRCustomController
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
             // Don't want to deal with the soft-deleted filter, so use raw sql
             $conn = $em->getConnection();
 

@@ -88,7 +88,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use ODR\OpenRepository\UserBundle\Component\Service\ODRUserManager as UserManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -151,7 +151,7 @@ class APIController extends ODRCustomController
             // Get first record/main record - metadata can only have one record
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
@@ -446,7 +446,7 @@ class APIController extends ODRCustomController
             // ----------------------------------------
             // Load required objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatatreeInfoService $dti_service */
             $dti_service = $this->datatree_info_service;
@@ -655,7 +655,7 @@ class APIController extends ODRCustomController
 
             // ----------------------------------------
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatatypeExportService $dte_service */
             $dte_service = $this->datatype_export_service;
@@ -739,7 +739,7 @@ class APIController extends ODRCustomController
             // ----------------------------------------
             // Load required objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatatreeInfoService $dti_service */
             $dti_service = $this->datatree_info_service;
@@ -983,7 +983,7 @@ class APIController extends ODRCustomController
             // ----------------------------------------
             // Load required objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatatreeInfoService $dti_service */
             $dti_service = $this->datatree_info_service;
@@ -1213,7 +1213,7 @@ class APIController extends ODRCustomController
             // ----------------------------------------
             // Load required objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DatatreeInfoService $dti_service */
             $dti_service = $this->datatree_info_service;
@@ -1380,7 +1380,7 @@ class APIController extends ODRCustomController
 
             // Check if template is valid
             /** @var EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
             /** @var DataType $dataset_datatype */
@@ -1590,7 +1590,7 @@ class APIController extends ODRCustomController
 
             // Check if template is valid
             /** @var EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
             /** @var DataType $master_datatype */
@@ -1938,7 +1938,7 @@ class APIController extends ODRCustomController
             $exception_source = 0xc8b8c8b7;
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->permissions_management_service;
@@ -3084,7 +3084,7 @@ class APIController extends ODRCustomController
             $exception_source = 0xf9e3ed29;
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var CacheService $cache_service */
             $cache_service = $this->cache_service;
@@ -4883,7 +4883,7 @@ class APIController extends ODRCustomController
             $record_uuid = $dataset['record_uuid'];
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var CacheService $cache_service */
             $cache_service = $this->cache_service;
@@ -4980,7 +4980,7 @@ class APIController extends ODRCustomController
         try {
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             // This is the API User - system admin
             /** @var ODRUser $user */  // Anon when nobody is logged in.
@@ -5126,7 +5126,7 @@ class APIController extends ODRCustomController
         // get user from post body
         try {
             /** @var EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             $content = $request->getContent();
             if (!empty($content)) {
@@ -5206,7 +5206,7 @@ class APIController extends ODRCustomController
         // get user from post body
         try {
             /** @var EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             $content = $request->getContent();
             if (!empty($content)) {
@@ -5364,7 +5364,7 @@ class APIController extends ODRCustomController
             // ----------------------------------------
             // Load required objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
@@ -5519,7 +5519,7 @@ class APIController extends ODRCustomController
             $dri_service = $this->datarecord_info_service;
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var ODRUser $logged_in_user */  // Anon when nobody is logged in.
             $logged_in_user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
@@ -5668,7 +5668,7 @@ class APIController extends ODRCustomController
             $dbi_service = $this->database_info_service;
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var ODRUser $logged_in_user */  // Anon when nobody is logged in.
             $logged_in_user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
@@ -5907,7 +5907,7 @@ class APIController extends ODRCustomController
     private function makeDatarecordPublic($record_data, $public_date, $user)
     {
         /** @var EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
+        $em = $this->container->get('doctrine')->getManager();
 
         // Probably should check if user owns record here?
 
@@ -5994,7 +5994,7 @@ class APIController extends ODRCustomController
 
 
             /** @var EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var EntityCreationService $ec_service */
             $ec_service = $this->entity_creation_service;
@@ -6004,7 +6004,7 @@ class APIController extends ODRCustomController
             $odr_upload_service = $this->upload_service;
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->permissions_management_service;
-            /** @var Logger $logger */
+            /** @var LoggerInterface $logger */
             $logger = $this->container->get('logger');
 
 
@@ -6328,7 +6328,7 @@ class APIController extends ODRCustomController
     {
         // ----------------------------------------
         /** @var \Doctrine\ORM\EntityManager $em */
-        $em = $this->getDoctrine()->getManager();
+        $em = $this->container->get('doctrine')->getManager();
 
         /** @var DatarecordExportService $dre_service */
         $dre_service = $this->datarecord_export_service;
@@ -6492,7 +6492,7 @@ class APIController extends ODRCustomController
 
             // ----------------------------------------
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->permissions_management_service;
@@ -6713,7 +6713,7 @@ class APIController extends ODRCustomController
 
             // ----------------------------------------
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->permissions_management_service;
@@ -6865,7 +6865,7 @@ class APIController extends ODRCustomController
             // ----------------------------------------
             // Load required objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var CryptoService $crypto_service */
             $crypto_service = $this->crypto_service;
@@ -7093,7 +7093,7 @@ class APIController extends ODRCustomController
         try {
             // Need to load the file to convert the id into a uuid...
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var File $file */
             $file = $em->getRepository('ODR\AdminBundle\Entity\File')->find($file_id);
@@ -7134,7 +7134,7 @@ class APIController extends ODRCustomController
         try {
             // Need to load the file to convert the id into a uuid...
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var Image $image */
             $image = $em->getRepository('ODR\AdminBundle\Entity\Image')->find($image_id);
@@ -7208,7 +7208,7 @@ class APIController extends ODRCustomController
                 throw new ODRNotFoundException('unrecognized email: "' . $user_email . '"');
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
@@ -7287,7 +7287,7 @@ class APIController extends ODRCustomController
             }
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             // Check if user exists & throw user not found error
             // Save which user started this creation process
@@ -7419,7 +7419,7 @@ class APIController extends ODRCustomController
     {
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')
@@ -7685,7 +7685,7 @@ class APIController extends ODRCustomController
 
             // Check if template is valid
             /** @var EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             // /** @var PermissionsManagementService $pm_service */
             // $pm_service = $this->permissions_management_service;
@@ -7819,7 +7819,7 @@ class APIController extends ODRCustomController
 
             // Check if template is valid
             /** @var EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             // /** @var PermissionsManagementService $pm_service */
             // $pm_service = $this->permissions_management_service;
@@ -7888,7 +7888,7 @@ class APIController extends ODRCustomController
 
             // Check if template is valid
             /** @var EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             // /** @var PermissionsManagementService $pm_service */
             // $pm_service = $this->permissions_management_service;
@@ -7949,7 +7949,7 @@ class APIController extends ODRCustomController
 
             // Check if template is valid
             /** @var EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             // Get the Job
             $repo_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob');
@@ -8050,7 +8050,7 @@ class APIController extends ODRCustomController
 
             // Check if template is valid
             /** @var EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             if(preg_match('/\|/', (string) $job_type)) {
                 $job_type = explode('|', (string) $job_type);
@@ -8119,7 +8119,7 @@ class APIController extends ODRCustomController
 
             // Check if template is valid
             /** @var EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             // Get the Job
             $repo_job = $em->getRepository('ODR\AdminBundle\Entity\TrackedJob');
@@ -8181,7 +8181,7 @@ class APIController extends ODRCustomController
 
             // Check if template is valid
             /** @var EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             // /** @var PermissionsManagementService $pm_service */
             // $pm_service = $this->permissions_management_service;
@@ -8260,7 +8260,7 @@ class APIController extends ODRCustomController
 
             // Check if template is valid
             /** @var EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             // /** @var PermissionsManagementService $pm_service */
             // $pm_service = $this->permissions_management_service;

@@ -162,7 +162,7 @@ class FlowController extends ODRCustomController
             // ----------------------------------------
             // Grab required objects...
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var PermissionsManagementService $pm_service */
             $pm_service = $this->permissions_management_service;

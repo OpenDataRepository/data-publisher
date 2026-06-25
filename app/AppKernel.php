@@ -8,7 +8,7 @@ class AppKernel extends Kernel
     /**
      * @inheritdoc
      */
-    public function registerBundles()
+    public function registerBundles(): iterable
     {
         $bundles = array(
             // new Symfony\Bundle\AsseticBundle\AsseticBundle(),
@@ -42,7 +42,7 @@ class AppKernel extends Kernel
     /**
      * @inheritdoc
      */
-    public function registerContainerConfiguration(LoaderInterface $loader)
+    public function registerContainerConfiguration(LoaderInterface $loader): void
     {
         $loader->load(__DIR__.'/config/config_'.$this->getEnvironment().'.yml');
     }

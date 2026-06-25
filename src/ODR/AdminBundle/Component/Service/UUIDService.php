@@ -18,7 +18,7 @@ namespace ODR\AdminBundle\Component\Service;
 // Services
 use ODR\AdminBundle\Component\Utility\UniqueUtility;
 // Other
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 
 
 class UUIDService
@@ -27,9 +27,9 @@ class UUIDService
     /**
      * UUIDService constructor.
      *
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly Logger $logger)
+    public function __construct(private readonly LoggerInterface $logger)
     {
     }
 

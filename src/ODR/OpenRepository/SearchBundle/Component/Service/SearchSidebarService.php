@@ -29,8 +29,8 @@ use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Other
 use Doctrine\ORM\EntityManager;
 use ODR\OpenRepository\UserBundle\Component\Service\ODRUserManager as UserManager;
-use Symfony\Bridge\Monolog\Logger;
-use Symfony\Component\HttpFoundation\Session\Session;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 
 class SearchSidebarService
@@ -57,10 +57,10 @@ class SearchSidebarService
      * @param DatatreeInfoService $datatree_info_service
      * @param PermissionsManagementService $permissions_service
      * @param UserManager $user_manager
-     * @param Session $session
-     * @param Logger $logger
+     * @param RequestStack $request_stack
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly DatabaseInfoService $database_info_service, private readonly DatatreeInfoService $datatree_info_service, private readonly PermissionsManagementService $permissions_service, private readonly UserManager $user_manager, private readonly Session $session, private readonly Logger $logger)
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly DatabaseInfoService $database_info_service, private readonly DatatreeInfoService $datatree_info_service, private readonly PermissionsManagementService $permissions_service, private readonly UserManager $user_manager, private readonly RequestStack $request_stack, private readonly LoggerInterface $logger)
     {
     }
 
@@ -1041,8 +1041,8 @@ class SearchSidebarService
 
 
         // If the user has changed any layout for their current session...
-        if ( $this->session->has('session_sidebar_layouts') ) {
-            $session_layouts = $this->session->get('session_sidebar_layouts');
+        if ( $this->request_stack->getSession()->has('session_sidebar_layouts') ) {
+            $session_layouts = $this->request_stack->getSession()->get('session_sidebar_layouts');
 
             // ...see if they have a layout for this datatype/intent combo
             if ( isset($session_layouts[$datatype_id][$intent]) )
@@ -1071,15 +1071,15 @@ class SearchSidebarService
 
         // Load any existing session layouts
         $session_layouts = [];
-        if ( $this->session->has('session_sidebar_layouts') )
-            $session_layouts = $this->session->get('session_sidebar_layouts');
+        if ( $this->request_stack->getSession()->has('session_sidebar_layouts') )
+            $session_layouts = $this->request_stack->getSession()->get('session_sidebar_layouts');
 
         if ( !isset($session_layouts[$datatype_id]) )
             $session_layouts[$datatype_id] = [];
 
         // Save the layout choice in the session
         $session_layouts[$datatype_id][$intent] = $sidebar_layout_id;
-        $this->session->set('session_sidebar_layouts', $session_layouts);
+        $this->request_stack->getSession()->set('session_sidebar_layouts', $session_layouts);
     }
 
 
@@ -1100,8 +1100,8 @@ class SearchSidebarService
 
         // Load any existing session layouts
         $session_layouts = [];
-        if ( $this->session->has('session_sidebar_layouts') )
-            $session_layouts = $this->session->get('session_sidebar_layouts');
+        if ( $this->request_stack->getSession()->has('session_sidebar_layouts') )
+            $session_layouts = $this->request_stack->getSession()->get('session_sidebar_layouts');
 
         // If the page type was not set, then just unset anything stored for this datatype
         if ( $intent === '' )
@@ -1110,7 +1110,7 @@ class SearchSidebarService
             unset( $session_layouts[$datatype_id][$intent] );
 
         // Save back to session
-        $this->session->set("session_sidebar_layouts", $session_layouts);
+        $this->request_stack->getSession()->set("session_sidebar_layouts", $session_layouts);
     }
 
 

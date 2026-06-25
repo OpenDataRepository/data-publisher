@@ -8,7 +8,7 @@ use Symfony\Component\HttpKernel\Event\ControllerEvent;
 use Symfony\Component\HttpKernel\Event\FilterControllerEvent;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\KernelEvents;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use ODR\OpenRepository\UserBundle\Component\Service\ODRUserManager as UserManager;
 // use FOS\UserBundle\Model\UserManagerInterface;
@@ -25,9 +25,9 @@ class WPAutoLoginSubscriber implements EventSubscriberInterface
      * @param string $env
      * @param ContainerInterface $container
      * @param UserManager $user_manager
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly string $env, private readonly ContainerInterface $container, private readonly UserManager $user_manager, private readonly Logger $logger)
+    public function __construct(private readonly string $env, private readonly ContainerInterface $container, private readonly UserManager $user_manager, private readonly LoggerInterface $logger)
     {
     }
 

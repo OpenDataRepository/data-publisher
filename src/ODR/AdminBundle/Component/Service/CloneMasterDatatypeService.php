@@ -44,7 +44,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\OpenRepository\UserBundle\Component\Service\ODRUserManager as UserManagerInterface;
 // Other
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 
@@ -128,7 +128,7 @@ class CloneMasterDatatypeService
      * @param UUIDService $uuid_service
      * @param UserManagerInterface $user_manager
      * @param EventDispatcherInterface $event_dispatcher
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
     public function __construct(
         private readonly EntityManager $em,
@@ -139,7 +139,7 @@ class CloneMasterDatatypeService
         private readonly UUIDService $uuid_service,
         private readonly UserManagerInterface $user_manager,
         private readonly EventDispatcherInterface $event_dispatcher,
-        private readonly Logger $logger
+        private readonly LoggerInterface $logger
     ) {
         $this->original_datatype = null;
     }

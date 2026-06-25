@@ -21,7 +21,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Other
 use Ddeboer\DataImport\Reader\CsvReader;
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 
 
 class CSVImportHelperService
@@ -34,9 +34,9 @@ class CSVImportHelperService
      * @param DatatreeInfoService $dti_service
      * @param SearchService $search_service
      * @param SortService $sort_service
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly DatatreeInfoService $dti_service, private readonly SearchService $search_service, private readonly SortService $sort_service, private readonly Logger $logger)
+    public function __construct(private readonly EntityManager $em, private readonly DatatreeInfoService $dti_service, private readonly SearchService $search_service, private readonly SortService $sort_service, private readonly LoggerInterface $logger)
     {
     }
 

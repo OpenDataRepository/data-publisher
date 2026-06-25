@@ -118,6 +118,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, LegacyP
         return $this->username;
     }
 
+    /**
+     * Symfony 6 UserInterface identifier (replaces getUsername() for authentication).
+     */
+    public function getUserIdentifier(): string
+    {
+        return (string)$this->username;
+    }
+
     public function getPassword(): ?string
     {
         return $this->password;
@@ -133,7 +141,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, LegacyP
      *
      * @return string[]
      */
-    public function getRoles()
+    public function getRoles(): array
     {
         $roles = $this->roles;
         $roles[] = static::ROLE_DEFAULT;

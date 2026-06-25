@@ -37,7 +37,7 @@ use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\ODRGraphPlugin;
 use ODR\OpenRepository\GraphBundle\Plugins\PluginSettingsDialogOverrideInterface;
 // Symfony
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 // Other
 use Pheanstalk\Pheanstalk;
 use Ramsey\Uuid\Uuid;
@@ -63,7 +63,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
     private $odr_files_directory;
 
     /**
-     * @var Logger
+     * @var LoggerInterface
      */
     private $logger;
 
@@ -79,7 +79,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
      * @param string $site_baseurl
      * @param string $odr_web_directory
      * @param string $odr_files_directory
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
     public function __construct(
         private readonly RequestStack $request_stack,
@@ -90,7 +90,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
         string $site_baseurl,
         string $odr_web_directory,
         string $odr_files_directory,
-        Logger $logger
+        LoggerInterface $logger
     ) {
         parent::__construct($templating, $pheanstalk, $site_baseurl, $odr_web_directory, $odr_files_directory, $logger);
         $this->templating = $templating;

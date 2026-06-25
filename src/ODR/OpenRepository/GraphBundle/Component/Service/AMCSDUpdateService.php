@@ -33,7 +33,7 @@ use ODR\AdminBundle\Component\Service\ODRUploadService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -53,9 +53,9 @@ class AMCSDUpdateService
      * @param EntityCreationService $entity_creation_service
      * @param ODRUploadService $odr_upload_service
      * @param SearchService $search_service
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly string $odr_tmp_directory, private readonly string $odr_web_directory, private readonly EventDispatcherInterface $event_dispatcher, private readonly CryptoService $crypto_service, private readonly EntityCreationService $entity_creation_service, private readonly ODRUploadService $odr_upload_service, private readonly SearchService $search_service, private readonly Logger $logger)
+    public function __construct(private readonly EntityManager $em, private readonly string $odr_tmp_directory, private readonly string $odr_web_directory, private readonly EventDispatcherInterface $event_dispatcher, private readonly CryptoService $crypto_service, private readonly EntityCreationService $entity_creation_service, private readonly ODRUploadService $odr_upload_service, private readonly SearchService $search_service, private readonly LoggerInterface $logger)
     {
     }
 

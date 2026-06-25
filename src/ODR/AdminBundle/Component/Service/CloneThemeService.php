@@ -26,7 +26,7 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 // Other
 use Doctrine\ORM\EntityManager;
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 
 
 class CloneThemeService
@@ -40,9 +40,9 @@ class CloneThemeService
      * @param LockService $lock_service
      * @param PermissionsManagementService $pm_service
      * @param ThemeInfoService $theme_service
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly LockService $lock_service, private readonly PermissionsManagementService $pm_service, private readonly ThemeInfoService $theme_service, private readonly Logger $logger)
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly LockService $lock_service, private readonly PermissionsManagementService $pm_service, private readonly ThemeInfoService $theme_service, private readonly LoggerInterface $logger)
     {
     }
 

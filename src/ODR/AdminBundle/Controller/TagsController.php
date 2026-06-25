@@ -90,7 +90,7 @@ class TagsController extends ODRCustomController
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var CloneTemplateService $clone_template_service */
             $clone_template_service = $this->clone_template_service;
@@ -297,7 +297,7 @@ class TagsController extends ODRCustomController
 
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var CloneTemplateService $clone_template_service */
             $clone_template_service = $this->clone_template_service;
@@ -567,7 +567,7 @@ class TagsController extends ODRCustomController
 
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var CloneTemplateService $clone_template_service */
             $clone_template_service = $this->clone_template_service;
@@ -791,7 +791,7 @@ class TagsController extends ODRCustomController
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var CloneTemplateService $clone_template_service */
             $clone_template_service = $this->clone_template_service;
@@ -1197,7 +1197,7 @@ class TagsController extends ODRCustomController
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var CloneTemplateService $clone_template_service */
             $clone_template_service = $this->clone_template_service;
@@ -1563,7 +1563,7 @@ class TagsController extends ODRCustomController
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var CloneTemplateService $clone_template_service */
             $clone_template_service = $this->clone_template_service;
@@ -2173,7 +2173,7 @@ class TagsController extends ODRCustomController
 
 
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var CloneTemplateService $clone_template_service */
             $clone_template_service = $this->clone_template_service;
@@ -2388,7 +2388,7 @@ class TagsController extends ODRCustomController
         try {
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->getDoctrine()->getManager();
+            $em = $this->container->get('doctrine')->getManager();
 
             /** @var EntityCreationService $entity_create_service */
             $entity_create_service = $this->entity_creation_service;

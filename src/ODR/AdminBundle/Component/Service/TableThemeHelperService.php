@@ -19,7 +19,7 @@ use ODR\AdminBundle\Exception\ODRException;
 // Services
 use ODR\OpenRepository\GraphBundle\Plugins\TableResultsOverrideInterface;
 // Symfony
-use Symfony\Bridge\Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\Routing\Router;
 
@@ -44,7 +44,7 @@ class TableThemeHelperService
      * @param PermissionsManagementService $permissions_service
      * @param ThemeInfoService $theme_info_service
      * @param Router $router
-     * @param Logger $logger
+     * @param LoggerInterface $logger
      */
     public function __construct(
         private readonly ContainerInterface $container,
@@ -55,7 +55,7 @@ class TableThemeHelperService
         private readonly PermissionsManagementService $permissions_service,
         private readonly ThemeInfoService $theme_info_service,
         private readonly Router $router,
-        private readonly Logger $logger
+        private readonly LoggerInterface $logger
     ) {
         $this->valid_fieldtypes = [
             'Boolean',
