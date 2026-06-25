@@ -40,7 +40,6 @@
         "symfony/twig-bundle": "5.4.*",
         "symfony/validator": "5.4.*",
         "symfony/yaml": "5.4.*",
-        "symfony/swiftmailer-bundle": "^3.5",
         "symfony/monolog-bundle": "^3.5",
         "gedmo/doctrine-extensions": "^3.0",
         "paragonie/random_compat": ">=1 <9.99",
@@ -61,7 +60,8 @@
         "nyholm/psr7": "^1.4",
         "ml/json-ld": "^1.2",
         "amnuts/opcache-gui": "*",
-        "doctrine/annotations": "^2.0"
+        "doctrine/annotations": "^2.0",
+        "symfony/mailer": "5.4.*"
     },
     "scripts": {
         "post-install-cmd": [

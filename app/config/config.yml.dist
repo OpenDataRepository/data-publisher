@@ -20,6 +20,9 @@ framework:
     validation:      { enabled: true, enable_annotations: false }
     # Registers the Twig asset() function; was previously implied by framework.templating (removed in SF5)
     assets:          ~
+    # Replaces the abandoned swiftmailer-bundle (not SF6-compatible). DSN built from %mailer_dsn%.
+    mailer:
+        dsn: '%mailer_dsn%'
     default_locale:  "%locale%"
     session:
         gc_probability: 0
@@ -116,15 +119,6 @@ lexik_jwt_authentication:
     public_key:       '%kernel.project_dir%/app/config/jwt/public.pem'  # required for token verification
     pass_phrase:      'opendatarepository' # required for token creation, usage of an environment variable is recommended
     token_ttl:        360000
-
-# Swiftmailer Configuration
-swiftmailer:
-    transport: "%mailer_transport%"
-    host:      "%mailer_host%"
-    username:  "%mailer_user%"
-    password:  "%mailer_password%"
-    spool:     { type: memory }
-
 snc_redis:
     clients:
         default:

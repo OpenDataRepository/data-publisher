@@ -35,7 +35,7 @@ class ResettingController
         private readonly Environment $twig,
         private readonly ODRUserManager $user_manager,
         private readonly ODRTokenGenerator $token_generator,
-        private readonly \Swift_Mailer $mailer,
+        private readonly \Symfony\Component\Mailer\MailerInterface $mailer,
         private readonly RouterInterface $router,
         private readonly FormFactoryInterface $form_factory,
         private readonly TokenStorageInterface $token_storage,
@@ -196,10 +196,11 @@ class ResettingController
             $from = 'noreply@'.$host;
         }
 
-        $message = (new \Swift_Message('Password Reset Request'))
-            ->setFrom($from)
-            ->setTo($user->getEmail())
-            ->setBody($body, 'text/plain');
+        $message = (new \Symfony\Component\Mime\Email())
+            ->subject('Password Reset Request')
+            ->from($from)
+            ->to($user->getEmail())
+            ->text($body);
 
         $this->mailer->send($message);
     }

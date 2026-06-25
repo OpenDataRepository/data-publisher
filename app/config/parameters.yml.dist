@@ -9,6 +9,8 @@ parameters:
     mailer_host: localhost
     mailer_user: null
     mailer_password: null
+    # symfony/mailer DSN (replaces swiftmailer). null://null discards mail; set smtp://user:pass@host or a real transport in production.
+    mailer_dsn: 'null://null'
     locale: en
     secret: [[ ENTER RANDOM KEY HERE - Text String ]]
 
