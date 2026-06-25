@@ -3,7 +3,7 @@
 {% set datafield_meta = datafield.dataFieldMeta %}
 
 <fieldset>
-    <div class="ODRMarkdownContent" title="{{ datafield_meta.description }}">{% if datafield_meta.markdownText != null %}{{ datafield_meta.markdownText|markdown }}{% endif %}</div>
+    <div class="ODRMarkdownContent" title="{{ datafield_meta.description }}">{% if datafield_meta.markdownText != null %}{{ datafield_meta.markdownText|markdown_to_html }}{% endif %}</div>
 </fieldset>
 
 {% endapply %}

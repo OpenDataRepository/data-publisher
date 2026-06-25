@@ -1,5 +1,5 @@
 Open Data Repository Data Publisher
-Version 2.36
+Version 2.37
 ===================================
 
 The Open Data Repository's Data Publisher aims to create a simple tool
@@ -14,10 +14,10 @@ to the project, this edition is viable for these purposes only.
 1) Installation
 ----------------------------------
 
-This project runs on Symfony 6.4 (LTS) and PHP 8.1+ (developed/tested on PHP
+This project runs on Symfony 7.4 (LTS) and PHP 8.2+ (developed/tested on PHP
 8.3); it installs by cloning this repository and then using Composer to install
-the required Symfony dependencies.  (The codebase is mid-migration toward
-Symfony 7.4 LTS — see UPGRADE_PLAN.md for status.)
+the required Symfony dependencies.  (See UPGRADE_PLAN.md for the history of the
+3.4 → 7.4 upgrade.)
 
 Additionally, you must have the following support services to
 run the publisher engine:

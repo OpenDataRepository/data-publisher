@@ -19,7 +19,7 @@ use ODR\AdminBundle\Entity\DataType;
 // Services
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Other
-use Ddeboer\DataImport\Reader\CsvReader;
+use ODR\AdminBundle\Component\Utility\ODRCsvReader as CsvReader;
 use Doctrine\ORM\EntityManager;
 use Psr\Log\LoggerInterface;
 

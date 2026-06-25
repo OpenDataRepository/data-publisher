@@ -196,7 +196,7 @@
             </label>
 
             <div class="ODRMarkdownContent">
-                {% if datafield_meta.markdownText != null %}{{ datafield_meta.markdownText|markdown }}{% endif %}
+                {% if datafield_meta.markdownText != null %}{{ datafield_meta.markdownText|markdown_to_html }}{% endif %}
             </div>
         </fieldset>
     {% endif %}

@@ -22,7 +22,7 @@
 <div id="ODRSearchPageNotes_{{ position }}" class="ODRSearchPageNotes_wrapper pure-u-1{%  if(content == "") %} ODRHidden{% endif %}">
 
     <div id="{{ position }}_rendered" class="ODRSearchPageNotes_rendered pure-u-1">
-        {{ content|markdown }}
+        {{ content|markdown_to_html }}
     </div>
 
     {% if is_datatype_admin %}

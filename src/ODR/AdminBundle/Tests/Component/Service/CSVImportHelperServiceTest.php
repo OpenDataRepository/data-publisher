@@ -23,7 +23,7 @@ use ODR\AdminBundle\Exception\ODRException;
 // Services
 use ODR\AdminBundle\Component\Service\CSVImportHelperService;
 // Symfony
-use Ddeboer\DataImport\Reader\CsvReader;
+use ODR\AdminBundle\Component\Utility\ODRCsvReader as CsvReader;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 

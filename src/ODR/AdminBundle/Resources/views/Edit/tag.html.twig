@@ -32,7 +32,7 @@
             {% if is_selected == 1 %}checked{% endif %}
             {% if inline_search_link %}disabled{% endif %}    {# TODO - disabled for inline searching...need to figure out a good way of handling it #}
         />&nbsp;
-        {{ tag.tagMeta.tagName|markdown }}
+        {{ tag.tagMeta.tagName|markdown_to_html }}
     </label>
 
 {% if has_children %}

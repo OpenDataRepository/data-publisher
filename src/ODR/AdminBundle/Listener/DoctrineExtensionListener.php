@@ -4,17 +4,16 @@
 
 namespace ODR\AdminBundle\Listener;
 
-use Symfony\Component\HttpKernel\Event\GetResponseEvent;
-use Symfony\Component\DependencyInjection\ContainerAwareInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
- * TODO: short description.
- * 
- * TODO: long description.
- * 
+ * Listens for kernel.request to wire up the gedmo translatable locale + loggable username.
+ *
+ * Symfony 7 removed ContainerAwareInterface/Trait; this listener keeps its own setContainer() +
+ * $container (the full container is injected explicitly via doctrine_extensions.yml), so it no
+ * longer implements the removed interface.
  */
-class DoctrineExtensionListener implements ContainerAwareInterface
+class DoctrineExtensionListener
 {
     /**
      * @var ContainerInterface
@@ -28,7 +27,7 @@ class DoctrineExtensionListener implements ContainerAwareInterface
      * 
      * @return TODO
      */
-    public function setContainer(ContainerInterface $container = null)
+    public function setContainer(?ContainerInterface $container = null)
     {
         $this->container = $container;
     }

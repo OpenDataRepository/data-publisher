@@ -36,7 +36,7 @@
             <i class="fa {{ fa_class }}"></i>
             <input type="hidden" rel="{{ tag_id }}" value="{{ t_val }}" />
         </span>
-        {{ tag.tagMeta.tagName|markdown }}
+        {{ tag.tagMeta.tagName|markdown_to_html }}
     </label>
 
 {% if has_children %}

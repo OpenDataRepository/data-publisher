@@ -608,6 +608,10 @@ services:
         public: true
         class: ODR\AdminBundle\Component\Service\ODRMarkdownParserService
 
+    # Make twig/markdown-extra's "markdown_to_html" filter use ODR's CommonMark parser (which strips
+    # HTML input) instead of the bundle default. Replaces the removed KnpMarkdownBundle integration.
+    Twig\Extra\Markdown\MarkdownInterface: '@odr.markdown.parser'
+
     # Defines an event subscriber to disseminate events to relevant render plugins
     odr.event_subscriber:
         public: true

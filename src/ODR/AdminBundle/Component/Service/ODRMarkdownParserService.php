@@ -16,11 +16,11 @@
 
 namespace ODR\AdminBundle\Component\Service;
 
-use Knp\Bundle\MarkdownBundle\MarkdownParserInterface;
 use League\CommonMark\CommonMarkConverter;
+use Twig\Extra\Markdown\MarkdownInterface;
 
 
-class ODRMarkdownParserService extends CommonMarkConverter implements MarkdownParserInterface
+class ODRMarkdownParserService extends CommonMarkConverter implements MarkdownInterface
 {
 
     /**
@@ -54,17 +54,29 @@ class ODRMarkdownParserService extends CommonMarkConverter implements MarkdownPa
 
 
     /**
-     * Converts text to html using markdown rules
+     * Converts markdown text to html. This is the Twig\Extra\Markdown\MarkdownInterface method that
+     * the twig/markdown-extra "markdown_to_html" filter calls (replaces the old KnpMarkdownBundle
+     * transformMarkdown() entry point).
      *
-     * @param string $text plain text
-     *
+     * @param string $body plain text
      * @return string rendered html
      */
-    function transformMarkdown($text)
+    public function convert(string $body): string
     {
         // Coerce null/non-string to '' -- CommonMarkConverter::convertToHtml() type-hints a string,
-        // and on PHP 8 passing null (e.g. an empty markdown field or unguarded |markdown filter)
-        // throws a TypeError instead of silently rendering nothing as it did on PHP 7.
-        return parent::convertToHtml((string) $text);
+        // and on PHP 8 passing null (e.g. an empty markdown field) throws a TypeError instead of
+        // silently rendering nothing as it did on PHP 7.
+        return parent::convertToHtml((string) $body);
+    }
+
+    /**
+     * Backwards-compatible alias for the former KnpMarkdownBundle entry point.
+     *
+     * @param string $text plain text
+     * @return string rendered html
+     */
+    public function transformMarkdown($text)
+    {
+        return $this->convert((string) $text);
     }
 }

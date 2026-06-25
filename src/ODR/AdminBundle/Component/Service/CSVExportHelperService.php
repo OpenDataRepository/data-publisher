@@ -28,7 +28,7 @@ use ODR\OpenRepository\GraphBundle\Plugins\ExportOverrideInterface;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Other
-use Ddeboer\DataImport\Writer\CsvWriter;
+use ODR\AdminBundle\Component\Utility\ODRCsvWriter as CsvWriter;
 use Doctrine\DBAL\Connection as DBALConnection;
 use Doctrine\ORM\EntityManager;
 use ODR\OpenRepository\UserBundle\Component\Service\ODRTokenGenerator as TokenGenerator;

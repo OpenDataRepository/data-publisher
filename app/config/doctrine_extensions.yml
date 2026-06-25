@@ -1,6 +1,14 @@
 # services to handle doctrine extensions
 # import it in config.yml
 services:
+    # Symfony 7 removed the framework "annotation_reader" service (annotations -> attributes), but
+    # ODR's entities are still annotation-mapped and the gedmo listeners below call
+    # setAnnotationReader(). Provide a plain Doctrine annotation reader (doctrine/annotations ^2).
+    # NOTE: gedmo 3 logs a deprecation for annotation use; migrating entities to #[attributes] is a
+    # future cleanup that will let this service (and the setAnnotationReader calls) be removed.
+    annotation_reader:
+        class: Doctrine\Common\Annotations\AnnotationReader
+
     # KernelRequest listener
     extension.listener:
         class: ODR\AdminBundle\Listener\DoctrineExtensionListener

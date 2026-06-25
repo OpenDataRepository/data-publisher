@@ -1,9 +1,5 @@
 # app/config/security.yml
 security:
-    # Opt into the authenticator-based security system (the only system in Symfony 6.0; the legacy
-    # anonymous/guard system is removed there). Enables jwt:, removes the need for anonymous:.
-    enable_authenticator_manager: true
-
     # sha512 kept so the existing password hashes (migrated from FOSUserBundle) still validate
     password_hashers:
         ODR\OpenRepository\UserBundle\Entity\User: sha512

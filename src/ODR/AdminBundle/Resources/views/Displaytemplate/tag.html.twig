@@ -15,7 +15,7 @@
     <span class="ODRTagSpacer"></span>
 {% endif %}
 
-    <label class="ODRTagLabel">{{ tag.tagMeta.tagName|markdown }}</label>
+    <label class="ODRTagLabel">{{ tag.tagMeta.tagName|markdown_to_html }}</label>
 
     {% if has_children %}
     <ul class="ODRTagGroup ODRHidden">    {# Have the tag tree start out collapsed #}

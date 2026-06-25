@@ -45,7 +45,7 @@
             {% if is_selected == 1 %}checked{% endif %}
             disabled
         />&nbsp;
-        {{ tag.tagMeta.tagName|markdown }}
+        {{ tag.tagMeta.tagName|markdown_to_html }}
     </label>
 
 {% if has_children %}

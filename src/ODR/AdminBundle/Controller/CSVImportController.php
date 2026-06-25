@@ -76,7 +76,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 // CSV Reader
-use Ddeboer\DataImport\Reader\CsvReader;
+use ODR\AdminBundle\Component\Utility\ODRCsvReader as CsvReader;
 // ForceUTF8
 use \ForceUTF8\Encoding;
 

@@ -17,7 +17,7 @@ framework:
         strict_requirements: "%kernel.debug%"
     form:            true
     csrf_protection: true
-    validation:      { enabled: true, enable_annotations: false }
+    validation:      { enabled: true, enable_attributes: false }
     # Registers the Twig asset() function; was previously implied by framework.templating (removed in SF5)
     assets:          ~
     # Replaces the abandoned swiftmailer-bundle (not SF6-compatible). DSN built from %mailer_dsn%.
@@ -55,11 +55,6 @@ twig:
         config_wordpress_site_baseurl: '%odr_wordpress_integrated%'
         config_files_directory: '%odr_files_directory%'
         config_images_directory: '%odr_images_directory%'
-
-# Knp Markdown Configuration
-knp_markdown:
-    parser:
-        service: odr.markdown.parser
 
 # Doctrine Configuration
 doctrine:

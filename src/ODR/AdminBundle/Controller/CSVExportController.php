@@ -47,7 +47,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 // CSV Reader
-use Ddeboer\DataImport\Writer\CsvWriter;
+use ODR\AdminBundle\Component\Utility\ODRCsvWriter as CsvWriter;
 
 
 class CSVExportController extends ODRCustomController
