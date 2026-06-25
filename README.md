@@ -1,5 +1,5 @@
 Open Data Repository Data Publisher
-Version 2.34
+Version 2.35
 ===================================
 
 The Open Data Repository's Data Publisher aims to create a simple tool
@@ -44,6 +44,27 @@ Next run "regenerate_and_update.sh" to ensure your database is properly
 created and up-to-date.
 
 > bash regenerate_and_update.sh
+
+### JWT keys (required for the API)
+
+The API token endpoints (/api/v3/token, /api/v4/token, /api/v5/token) sign their
+JSON Web Tokens with an RSA key pair.  These keys are environment-specific
+secrets and are intentionally NOT committed to version control
+(app/config/jwt/ is gitignored), so **every environment — dev, staging, and
+production — must generate its own key pair**:
+
+> php app/console lexik:jwt:generate-keypair
+
+This writes:
+
+    app/config/jwt/private.pem   (signs tokens)
+    app/config/jwt/public.pem    (verifies tokens)
+
+The key paths and the (passphrase) are configured under
+"lexik_jwt_authentication" in app/config/config.yml; the keys must be generated
+with the same pass_phrase that is set there.  Without these keys, requesting an
+API token fails with "Unable to create a signed JWT from the given
+configuration".  Regenerating the keys invalidates any tokens already issued.
 
 
 
