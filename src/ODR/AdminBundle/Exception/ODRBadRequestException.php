@@ -35,7 +35,7 @@ class ODRBadRequestException extends ODRException
      * @inheritdoc
      */
     #[\Override]
-    public function getStatusCode()
+    public function getStatusCode(): int
     {
         return 400;
     }
