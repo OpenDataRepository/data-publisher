@@ -35,7 +35,7 @@ use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 // Symfony
-use FOS\UserBundle\Doctrine\UserManager;
+use ODR\OpenRepository\UserBundle\Component\Service\ODRUserManager as UserManager;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Router;

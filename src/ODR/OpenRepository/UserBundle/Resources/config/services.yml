@@ -22,23 +22,49 @@ services:
             $requestStack: "@request_stack"
 
 
-    # override of change password form
-    odr_user.change_password.form.type:
-        public: true
-        class: ODR\OpenRepository\UserBundle\Form\Type\ChangePasswordFormType
-        tags:
-            - { name: form.type, alias: odr_user_change_password }
+    # --- Native auth services (replace FOSUserBundle) ---
 
-    # event listeners
-    odr_user.password_resetting:
+    # Replacement for fos_user.user_manager. Aliased to the old id so ~50 existing call sites
+    # ($this->container->get('fos_user.user_manager')->...) keep working unchanged.
+    odr.user_manager:
         public: true
-        class: ODR\OpenRepository\UserBundle\EventListener\PasswordResettingListener
-        arguments: ["@router", site_baseurl]
-        tags:
-            - { name: kernel.event_subscriber }
-    odr_user.change_password:
+        class: ODR\OpenRepository\UserBundle\Component\Service\ODRUserManager
+        arguments:
+            $em: '@doctrine.orm.entity_manager'
+            $password_encoder: '@security.password_encoder'
+    fos_user.user_manager:
+        alias: odr.user_manager
         public: true
-        class: ODR\OpenRepository\UserBundle\EventListener\ChangePasswordListener
-        arguments: ["@router", site_baseurl]
-        tags:
-            - { name: kernel.event_subscriber }
+
+    # Replacement for fos_user.util.token_generator (used for misc random tokens, not just resets).
+    odr.token_generator:
+        public: true
+        class: ODR\OpenRepository\UserBundle\Component\Service\ODRTokenGenerator
+    fos_user.util.token_generator:
+        alias: odr.token_generator
+        public: true
+
+    # Login form controller (login_check/logout are handled by the firewall)
+    ODR\OpenRepository\UserBundle\Controller\SecurityController:
+        public: true
+        arguments:
+            $twig: '@twig'
+            $authenticationUtils: '@security.authentication_utils'
+            $csrfTokenManager: '@security.csrf.token_manager'
+        tags: ['controller.service_arguments']
+
+    # Password-reset flow controller
+    ODR\OpenRepository\UserBundle\Controller\ResettingController:
+        public: true
+        arguments:
+            $twig: '@twig'
+            $user_manager: '@odr.user_manager'
+            $token_generator: '@odr.token_generator'
+            $mailer: '@mailer'
+            $router: '@router'
+            $form_factory: '@form.factory'
+            $token_storage: '@security.token_storage'
+            $site_baseurl: '%site_baseurl%'
+            $from_email: '%mailer_user%'
+            $reset_token_ttl: 86400
+        tags: ['controller.service_arguments']

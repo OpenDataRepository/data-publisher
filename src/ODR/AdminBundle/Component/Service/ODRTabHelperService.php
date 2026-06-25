@@ -17,7 +17,7 @@ namespace ODR\AdminBundle\Component\Service;
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 // Other
-use FOS\UserBundle\Util\TokenGenerator;
+use ODR\OpenRepository\UserBundle\Component\Service\ODRTokenGenerator as TokenGenerator;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 

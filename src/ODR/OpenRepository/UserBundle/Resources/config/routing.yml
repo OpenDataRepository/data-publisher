@@ -1,8 +1,41 @@
+# --- Security (login/logout) -- replaces FOSUserBundle's @FOSUserBundle/.../security.xml routes.
+# login_check + logout are intercepted by the firewall; the controller actions are never reached.
+fos_user_security_login:
+    path: /login
+    defaults: { _controller: ODR\OpenRepository\UserBundle\Controller\SecurityController::loginAction }
+
+fos_user_security_check:
+    path: /login_check
+    defaults: { _controller: ODR\OpenRepository\UserBundle\Controller\SecurityController::checkAction }
+    methods: [POST]
+
+fos_user_security_logout:
+    path: /logout
+    defaults: { _controller: ODR\OpenRepository\UserBundle\Controller\SecurityController::logoutAction }
+
+# --- Password resetting -- replaces FOSUserBundle's @FOSUserBundle/.../resetting.xml routes.
+fos_user_resetting_request:
+    path: /resetting/request
+    defaults: { _controller: ODR\OpenRepository\UserBundle\Controller\ResettingController::requestAction }
+
+fos_user_resetting_send_email:
+    path: /resetting/send-email
+    defaults: { _controller: ODR\OpenRepository\UserBundle\Controller\ResettingController::sendEmailAction }
+    methods: [POST]
+
+fos_user_resetting_check_email:
+    path: /resetting/check-email
+    defaults: { _controller: ODR\OpenRepository\UserBundle\Controller\ResettingController::checkEmailAction }
+
+fos_user_resetting_reset:
+    path: /resetting/reset/{token}
+    defaults: { _controller: ODR\OpenRepository\UserBundle\Controller\ResettingController::resetAction }
+
 # FOSUserBundle - Allows users to resend a password reset email
 fos_user_resetting_resend_email:
     path:  /resetting/resend-email   # needs to have the same prefix as the fos_user_resetting resource in /app/config/routing.yml
     defaults: { _controller: ODR\OpenRepository\UserBundle\Controller\ResettingController::resendAction }
-    requirements: { methods: POST }
+    methods: [POST]
 
 # Utility routes to seamlessly redirect to the initial page...only an issue because HWIOAuthBundle hijacks the entire login flow when it's used
 odr_save_url:

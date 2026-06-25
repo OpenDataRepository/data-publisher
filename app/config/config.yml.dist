@@ -125,21 +125,6 @@ dterranova_crypto:
     temp_folder: "%kernel.root_dir%/../app/crypto_dir"
     chunk_file_size: 2 # The size (in Mb) of chunked files, more it is big more it will consume memory 
 
-fos_user:
-    db_driver: orm # other valid values are 'mongodb', 'couchdb' and 'propel'
-    firewall_name: main
-    user_class: ODR\OpenRepository\UserBundle\Entity\User
-    from_email:
-#        address: "%mailer_user%"
-#        sender_name: "%mailer_user%"
-    # apparently FOSUserBundle currently DEMANDS non-empty values for these, even if you're not using the mailer service...no way to disable it either from the looks of it
-        address: admin@localhost
-        sender_name: admin
-    change_password:
-        form:
-            type: odr_user_change_password
-
-
 snc_redis:
     clients:
         default:

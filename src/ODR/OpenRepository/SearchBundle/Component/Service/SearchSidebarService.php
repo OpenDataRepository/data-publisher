@@ -28,7 +28,7 @@ use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Other
 use Doctrine\ORM\EntityManager;
-use FOS\UserBundle\Doctrine\UserManager;
+use ODR\OpenRepository\UserBundle\Component\Service\ODRUserManager as UserManager;
 use Symfony\Bridge\Monolog\Logger;
 use Symfony\Component\HttpFoundation\Session\Session;
 

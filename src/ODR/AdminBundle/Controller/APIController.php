@@ -87,7 +87,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
 use Doctrine\ORM\EntityManager;
-use FOS\UserBundle\Doctrine\UserManager;
+use ODR\OpenRepository\UserBundle\Component\Service\ODRUserManager as UserManager;
 use Symfony\Bridge\Monolog\Logger;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;

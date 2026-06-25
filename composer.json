@@ -25,7 +25,6 @@
         "neitanod/forceutf8": "^2.0",
         "php-http/guzzle6-adapter": "^2.0",
         "php-http/httplug-bundle": "^1.18",
-        "friendsofsymfony/user-bundle": "^2.1",
         "ddeboer/data-import": "^0.20.0",
         "incenteev/composer-parameter-handler": "^2.1",
         "sensio/framework-extra-bundle": "^6.0",

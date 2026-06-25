@@ -41,7 +41,7 @@ use ODR\AdminBundle\Component\Event\DatatypeCreatedEvent;
 use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
-use FOS\UserBundle\Model\UserManagerInterface;
+use ODR\OpenRepository\UserBundle\Component\Service\ODRUserManager as UserManagerInterface;
 // Other
 use Doctrine\ORM\EntityManager;
 use Symfony\Bridge\Monolog\Logger;

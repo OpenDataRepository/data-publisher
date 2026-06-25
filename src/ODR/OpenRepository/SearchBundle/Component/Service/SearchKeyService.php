@@ -22,7 +22,7 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 use ODR\AdminBundle\Exception\ODRNotImplementedException;
 // Services
-use FOS\UserBundle\Doctrine\UserManager;
+use ODR\OpenRepository\UserBundle\Component\Service\ODRUserManager as UserManager;
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;

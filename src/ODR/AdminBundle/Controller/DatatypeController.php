@@ -45,7 +45,7 @@ use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\AdminBundle\Component\Service\UUIDService;
 use ODR\AdminBundle\Component\Utility\UserUtility;
-use FOS\UserBundle\Doctrine\UserManager;
+use ODR\OpenRepository\UserBundle\Component\Service\ODRUserManager as UserManager;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;

@@ -21,21 +21,21 @@
 
     <fieldset>
         <div class="pure-control-group">
-            <input id="username" name="_username" type="email" placeholder="{{ 'security.login.username'|trans({}, 'FOSUserBundle') }}" required="required" size="25"/>
+            <input id="username" name="_username" type="email" placeholder="Email" required="required" size="25"/>
         </div>
         <div class="pure-control-group">
-            <input id="password" name="_password" type="password" placeholder="{{ 'security.login.password'|trans({}, 'FOSUserBundle') }}" required="required" size="25"/>
+            <input id="password" name="_password" type="password" placeholder="Password" required="required" size="25"/>
         </div>
     </fieldset>
 
     <fieldset>
         <div class="pure-controls">
             <label for="remember">
-                <input id="remember" type="checkbox"> {{ 'security.login.remember_me'|trans({}, 'FOSUserBundle') }}
+                <input id="remember" type="checkbox"> Remember me
             </label>
         </div>
         <div>
-            <button class="pure-button pure-button-primary"><input type="submit" id="_submit" name="_submit" value="{{ 'security.login.submit'|trans({}, 'FOSUserBundle') }}" /></button>
+            <button class="pure-button pure-button-primary"><input type="submit" id="_submit" name="_submit" value="Log in" /></button>
         </div>
     {% if not app.user %}
         <div class="pure-controls">

@@ -23,7 +23,6 @@ class AppKernel extends Kernel
             new Doctrine\Bundle\DoctrineBundle\DoctrineBundle(),
             new drymek\PheanstalkBundle\drymekPheanstalkBundle(),
             new dterranova\Bundle\CryptoBundle\dterranovaCryptoBundle(),
-            new FOS\UserBundle\FOSUserBundle(),
             new Knp\Bundle\MarkdownBundle\KnpMarkdownBundle(),
             new Snc\RedisBundle\SncRedisBundle(),
 

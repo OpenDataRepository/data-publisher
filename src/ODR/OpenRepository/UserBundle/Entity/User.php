@@ -2,27 +2,34 @@
 
 /**
  * Open Data Repository Data Publisher
- * User Entity (override)
+ * User Entity
  * (C) 2015 by Nathan Stone (nate.stone@opendatarepository.org)
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * Extends the default FOS User Entity to add some additional data,
- * and adds a password validation function.
+ * Standalone user entity. Previously extended FOSUserBundle's BaseUser; FOSUserBundle is
+ * incompatible with Symfony 5, so the model it provided is reimplemented here directly against the
+ * existing "fos_user" table (column names unchanged so existing data / password hashes keep working).
+ * Authentication uses Symfony Security with the sha512 encoder (see security.yml) -- getSalt()/
+ * getPassword() expose the stored values so the existing password hashes still validate.
  */
 
 namespace ODR\OpenRepository\UserBundle\Entity;
 
-use FOS\UserBundle\Model\User as BaseUser;
+use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 /**
- * @ORM\Entity
+ * @ORM\Entity(repositoryClass="ODR\OpenRepository\UserBundle\Entity\UserRepository")
  * @ORM\Table(name="fos_user")
  */
-class User extends BaseUser
+class User implements UserInterface
 {
+    const ROLE_DEFAULT = 'ROLE_USER';
+    const ROLE_SUPER_ADMIN = 'ROLE_SUPER_ADMIN';
+
     /**
      * @ORM\Id
      * @ORM\Column(type="integer")
@@ -30,133 +37,304 @@ class User extends BaseUser
      */
     protected $id;
 
+    /** @ORM\Column(type="string", length=180) */
+    protected $username;
+
+    /** @ORM\Column(name="username_canonical", type="string", length=180) */
+    protected $usernameCanonical;
+
+    /** @ORM\Column(type="string", length=180) */
+    protected $email;
+
+    /** @ORM\Column(name="email_canonical", type="string", length=180) */
+    protected $emailCanonical;
+
+    /** @ORM\Column(type="boolean") */
+    protected $enabled = false;
+
+    /** @ORM\Column(type="string", nullable=true) */
+    protected $salt;
+
+    /** @ORM\Column(type="string") */
+    protected $password;
+
+    /** Transient -- never persisted */
+    protected $plainPassword;
+
+    /** @ORM\Column(name="last_login", type="datetime", nullable=true) */
+    protected $lastLogin;
+
+    /** @ORM\Column(name="confirmation_token", type="string", length=180, nullable=true) */
+    protected $confirmationToken;
+
+    /** @ORM\Column(name="password_requested_at", type="datetime", nullable=true) */
+    protected $passwordRequestedAt;
+
+    /** @ORM\Column(type="array") */
+    protected $roles = [];
+
+    /** @ORM\Column(type="string", length=64, nullable=true) */
+    protected $firstName;
+
+    /** @ORM\Column(type="string", length=64, nullable=true) */
+    protected $lastName;
+
+    /** @ORM\Column(type="string", length=64, nullable=true) */
+    protected $institution;
+
+    /** @ORM\Column(type="string", length=64, nullable=true) */
+    protected $position;
+
+    /** @ORM\Column(type="string", length=32, nullable=true) */
+    protected $phoneNumber;
+
     /**
-     * @inheritdoc
+     * @var \Doctrine\Common\Collections\Collection
+     * @ORM\OneToMany(targetEntity="\ODR\AdminBundle\Entity\UserGroup", mappedBy="user")
+     * @ORM\JoinTable(name="odr_user_group")
      */
+    private $userGroups;
+
+
     public function __construct()
     {
-        parent::__construct();
-
-        $this->userGroups = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->salt = base_convert(bin2hex(random_bytes(23)), 16, 36);
+        $this->roles = [];
+        $this->userGroups = new ArrayCollection();
     }
 
-    /**
-     * Get id
-     *
-     * @return integer 
-     */
-    #[\Override]
+
+    // -------------------- Symfony Security UserInterface (Symfony 4.4) --------------------
+
     public function getId()
     {
         return $this->id;
     }
 
+    public function getUsername()
+    {
+        return $this->username;
+    }
+
+    public function getPassword()
+    {
+        return $this->password;
+    }
+
+    public function getSalt()
+    {
+        return $this->salt;
+    }
+
     /**
-     * Set email
-     * Also ensure username is identical to email field.
+     * Always includes ROLE_USER, mirroring FOSUserBundle's behaviour.
      *
-     * @param string $email
-     * @return User
+     * @return string[]
      */
-    #[\Override]
+    public function getRoles()
+    {
+        $roles = $this->roles;
+        $roles[] = static::ROLE_DEFAULT;
+
+        return array_values(array_unique($roles));
+    }
+
+    public function eraseCredentials()
+    {
+        $this->plainPassword = null;
+    }
+
+
+    // -------------------- setters / role helpers (FOSUser-compatible API) --------------------
+
+    public function setUsername($username)
+    {
+        $this->username = $username;
+        return $this;
+    }
+
+    public function getUsernameCanonical()
+    {
+        return $this->usernameCanonical;
+    }
+
+    public function setUsernameCanonical($usernameCanonical)
+    {
+        $this->usernameCanonical = $usernameCanonical;
+        return $this;
+    }
+
+    public function getEmail()
+    {
+        return $this->email;
+    }
+
+    /**
+     * Setting the email also keeps username identical to it (ODR logs in by email).
+     */
     public function setEmail($email)
     {
         $this->username = $email;
         $this->email = $email;
-
-        return parent::setEmail($email);
+        return $this;
     }
 
-    /**
-     * Set emailCanonical
-     * Also ensure username is identical to email field.
-     *
-     * @param string $emailCanonical
-     * @return User
-     */
-    #[\Override]
+    public function getEmailCanonical()
+    {
+        return $this->emailCanonical;
+    }
+
     public function setEmailCanonical($emailCanonical)
     {
         $this->usernameCanonical = $emailCanonical;
         $this->emailCanonical = $emailCanonical;
-
-        return parent::setEmailCanonical($emailCanonical);
+        return $this;
     }
 
-    /**
-     * @ORM\Column(type="string", length=64, nullable=true)
-     */
-    protected $firstName;
-
-    /**
-     * @ORM\Column(type="string", length=64, nullable=true)
-     */
-    protected $lastName;
-
-    /**
-     * @ORM\Column(type="string", length=64, nullable=true)
-     */
-    protected $institution;
-
-    /**
-     * @ORM\Column(type="string", length=64, nullable=true)
-     */
-    protected $position;
-
-    /**
-     * @ORM\Column(type="string", length=32, nullable=true)
-     */
-    protected $phoneNumber;
-
-
-    /**
-     * Set firstName
-     *
-     * @param string $firstName
-     * @return User
-     */
-    public function setFirstName($firstName)
+    public function isEnabled()
     {
-        $this->firstName = $firstName;
+        return $this->enabled;
+    }
 
+    public function setEnabled($enabled)
+    {
+        $this->enabled = (bool)$enabled;
+        return $this;
+    }
+
+    public function setPassword($password)
+    {
+        $this->password = $password;
+        return $this;
+    }
+
+    public function setSalt($salt)
+    {
+        $this->salt = $salt;
+        return $this;
+    }
+
+    public function getPlainPassword()
+    {
+        return $this->plainPassword;
+    }
+
+    public function setPlainPassword($plainPassword)
+    {
+        $this->plainPassword = $plainPassword;
+        return $this;
+    }
+
+    public function getLastLogin()
+    {
+        return $this->lastLogin;
+    }
+
+    public function setLastLogin(?\DateTime $time = null)
+    {
+        $this->lastLogin = $time;
+        return $this;
+    }
+
+    public function getConfirmationToken()
+    {
+        return $this->confirmationToken;
+    }
+
+    public function setConfirmationToken($confirmationToken)
+    {
+        $this->confirmationToken = $confirmationToken;
+        return $this;
+    }
+
+    public function getPasswordRequestedAt()
+    {
+        return $this->passwordRequestedAt;
+    }
+
+    public function setPasswordRequestedAt(?\DateTime $date = null)
+    {
+        $this->passwordRequestedAt = $date;
         return $this;
     }
 
     /**
-     * Get firstName
-     *
-     * @return string 
+     * Whether the password-reset request is still within the given TTL (seconds).
      */
+    public function isPasswordRequestNonExpired($ttl)
+    {
+        return $this->passwordRequestedAt instanceof \DateTime
+            && $this->passwordRequestedAt->getTimestamp() + $ttl > time();
+    }
+
+    public function setRoles(array $roles)
+    {
+        $this->roles = [];
+        foreach ($roles as $role)
+            $this->addRole($role);
+
+        return $this;
+    }
+
+    public function addRole($role)
+    {
+        $role = strtoupper($role);
+        if ($role === static::ROLE_DEFAULT)
+            return $this;
+
+        if (!in_array($role, $this->roles, true))
+            $this->roles[] = $role;
+
+        return $this;
+    }
+
+    public function removeRole($role)
+    {
+        if (false !== $key = array_search(strtoupper($role), $this->roles, true)) {
+            unset($this->roles[$key]);
+            $this->roles = array_values($this->roles);
+        }
+
+        return $this;
+    }
+
+    public function hasRole($role)
+    {
+        return in_array(strtoupper($role), $this->getRoles(), true);
+    }
+
+    public function isSuperAdmin()
+    {
+        return $this->hasRole(static::ROLE_SUPER_ADMIN);
+    }
+
+
+    // -------------------- ODR custom fields --------------------
+
+    public function setFirstName($firstName)
+    {
+        $this->firstName = $firstName;
+        return $this;
+    }
+
     public function getFirstName()
     {
         return $this->firstName;
     }
 
-    /**
-     * Set lastName
-     *
-     * @param string $lastName
-     * @return User
-     */
     public function setLastName($lastName)
     {
         $this->lastName = $lastName;
-
         return $this;
     }
 
-    /**
-     * Get lastName
-     *
-     * @return string 
-     */
     public function getLastName()
     {
         return $this->lastName;
     }
 
     /**
-     * Get userString
+     * Get userString -- a friendly display name, falling back to the email.
      *
      * @return string
      */
@@ -168,70 +346,34 @@ class User extends BaseUser
             return $this->firstName.' '.$this->lastName;
     }
 
-    /**
-     * Set institution
-     *
-     * @param string $institution
-     * @return User
-     */
     public function setInstitution($institution)
     {
         $this->institution = $institution;
-
         return $this;
     }
 
-    /**
-     * Get institution
-     *
-     * @return string 
-     */
     public function getInstitution()
     {
         return $this->institution;
     }
 
-    /**
-     * Set position
-     *
-     * @param string $position
-     * @return User
-     */
     public function setPosition($position)
     {
         $this->position = $position;
-
         return $this;
     }
 
-    /**
-     * Get position
-     *
-     * @return string 
-     */
     public function getPosition()
     {
         return $this->position;
     }
 
-    /**
-     * Set phoneNumber
-     *
-     * @param string $phoneNumber
-     * @return User
-     */
     public function setPhoneNumber($phoneNumber)
     {
         $this->phoneNumber = $phoneNumber;
-
         return $this;
     }
 
-    /**
-     * Get phoneNumber
-     *
-     * @return string 
-     */
     public function getPhoneNumber()
     {
         return $this->phoneNumber;
@@ -268,46 +410,45 @@ class User extends BaseUser
 
 
     // -------------------- Groups --------------------
-    /**
-     * @var \ODR\AdminBundle\Entity\UserGroup
-     *
-     * @ORM\OneToMany(targetEntity="\ODR\AdminBundle\Entity\UserGroup", mappedBy="user")
-     * @ORM\JoinTable(name="odr_user_group")
-     */
-    private $userGroups;
 
-    /**
-     * Add userGroup
-     *
-     * @param \ODR\AdminBundle\Entity\UserGroup $userGroup
-     * @return User
-     */
     public function addUserGroup(\ODR\AdminBundle\Entity\UserGroup $userGroup)
     {
         $this->userGroups[] = $userGroup;
-
         return $this;
     }
 
-    /**
-     * Remove userGroup
-     *
-     * @param \ODR\AdminBundle\Entity\UserGroup $userGroup
-     */
     public function removeUserGroup(\ODR\AdminBundle\Entity\UserGroup $userGroup)
     {
         $this->userGroups->removeElement($userGroup);
     }
 
-    /**
-     * Get userGroup
-     *
-     * @return \Doctrine\Common\Collections\Collection
-     */
     public function getUserGroups()
     {
         return $this->userGroups;
     }
 
 
+    // -------------------- Session serialization (minimal; user is refreshed from DB each request) --------------------
+
+    public function __serialize(): array
+    {
+        return [
+            'id'       => $this->id,
+            'username' => $this->username,
+            'email'    => $this->email,
+            'salt'     => $this->salt,
+            'password' => $this->password,
+            'enabled'  => $this->enabled,
+        ];
+    }
+
+    public function __unserialize(array $data): void
+    {
+        $this->id       = $data['id'] ?? null;
+        $this->username = $data['username'] ?? null;
+        $this->email    = $data['email'] ?? null;
+        $this->salt     = $data['salt'] ?? null;
+        $this->password = $data['password'] ?? null;
+        $this->enabled  = $data['enabled'] ?? false;
+    }
 }

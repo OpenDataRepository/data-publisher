@@ -39,12 +39,12 @@
                     <div class="ODRInnerBox pure-u-1">
                         <h3 class="ODRHeader" style="padding-left: 0px;"><i class="fa fa-md fa-user fa-fw"></i>
                         {% if is_granted("IS_AUTHENTICATED_REMEMBERED") %}
-                            {{ 'layout.logged_in_as'|trans({'%username%': app.user.username}, 'FOSUserBundle') }} |
+                            Logged in as {{ app.user.username }} |
                             <a href="{{ path('fos_user_security_logout') }}">
-                                {{ 'layout.logout'|trans({}, 'FOSUserBundle') }}
+                                Log out
                             </a>
                         {% else %}
-                            <a href="{{ path('fos_user_security_login') }}">{{ 'layout.login'|trans({}, 'FOSUserBundle') }}</a>
+                            <a href="{{ path('fos_user_security_login') }}">Log in</a>
                         {% endif %}
                         </h3>
                         <div class="ODRBodyContent">

@@ -40,7 +40,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 // Other
-use FOS\UserBundle\Util\TokenGenerator;
+use ODR\OpenRepository\UserBundle\Component\Service\ODRTokenGenerator as TokenGenerator;
 use Symfony\Component\Intl\Tests\Data\Provider\Json\JsonRegionDataProviderTest;
 
 

@@ -10,7 +10,7 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Bridge\Monolog\Logger;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use FOS\UserBundle\Doctrine\UserManager;
+use ODR\OpenRepository\UserBundle\Component\Service\ODRUserManager as UserManager;
 // use FOS\UserBundle\Model\UserManagerInterface;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;

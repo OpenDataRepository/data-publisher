@@ -1,6 +1,5 @@
 {# This is an override of the default FOS password request form...the one that works by sending a link in an email #}
 
-{% trans_default_domain 'FOSUserBundle' %}
 
 <form action="{{ path('fos_user_resetting_send_email') }}" method="POST" class="fos_user_resetting_request pure-form ODRLoginForm">
     <fieldset>
@@ -10,7 +9,7 @@
 
         <div class="pure-control-group">
         {% if invalid_username is defined %}
-            <p>{{ 'resetting.request.invalid_username'|trans({'%username%': invalid_username}) }}</p>
+            <p>No account was found for "{{ invalid_username }}".</p>
         {% endif %}
             <label for="username">Email:</label>
             <input type="text" id="username" name="username" required="required" />

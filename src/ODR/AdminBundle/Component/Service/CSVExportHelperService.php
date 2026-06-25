@@ -31,7 +31,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use Ddeboer\DataImport\Writer\CsvWriter;
 use Doctrine\DBAL\Connection as DBALConnection;
 use Doctrine\ORM\EntityManager;
-use FOS\UserBundle\Util\TokenGenerator;
+use ODR\OpenRepository\UserBundle\Component\Service\ODRTokenGenerator as TokenGenerator;
 use Symfony\Bridge\Monolog\Logger;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 

@@ -40,7 +40,7 @@ use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 // Symfony
-use FOS\UserBundle\Doctrine\UserManager;
+use ODR\OpenRepository\UserBundle\Component\Service\ODRUserManager as UserManager;
 use Symfony\Bundle\FrameworkBundle\Routing\Router;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;

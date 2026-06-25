@@ -14,28 +14,8 @@ api_login_check_v4:
 #    resource: "@FrameworkBundle/Resources/config/routing/internal.xml"
 #    prefix:   /_internal
 
-fos_user_security:
-    resource: "@FOSUserBundle/Resources/config/routing/security.xml"
-
-# routes are unused, but required so FoS:ResettingController and FoS:ChangePasswordController don't throw errors
-#fos_user_profile:
-#    resource: "@FOSUserBundle/Resources/config/routing/profile.xml"
-#    prefix: /profile
-
-# currently not allowing users to self-register to the site
-#fos_user_register:
-#    resource: "@FOSUserBundle/Resources/config/routing/registration.xml"
-#    prefix: /admin/register
-
-# using FoS built-in password reset functionality
-fos_user_resetting:
-    resource: "@FOSUserBundle/Resources/config/routing/resetting.xml"
-    prefix: /odr/resetting
-
-# also using FoS built-in password change functionality
-#fos_user_change_password:
-#    resource: "@FOSUserBundle/Resources/config/routing/change_password.xml"
-#    prefix: /profile
+# FOSUserBundle removed in the Symfony 5 upgrade; security + resetting routes are defined in
+# @ODROpenRepositoryUser/Resources/config/routing.yml
 
 # ----------------------------------------
 

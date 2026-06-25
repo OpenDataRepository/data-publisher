@@ -18,7 +18,7 @@ namespace ODR\OpenRepository\GraphBundle\Plugins\Base;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 // Symfony
 // Other
-use FOS\UserBundle\Util\TokenGenerator;
+use ODR\OpenRepository\UserBundle\Component\Service\ODRTokenGenerator as TokenGenerator;
 
 
 class MapPlugin implements DatatypePluginInterface

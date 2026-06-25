@@ -1,6 +1,5 @@
-{% trans_default_domain 'FOSUserBundle' %}
 
-<form id="ODRPasswordResetForm" action="{{ path('fos_user_resetting_reset', {'token': token}) }}" {{ form_enctype(form) }} method="POST" class="fos_user_resetting_reset pure-form pure-form-aligned">
+<form id="ODRPasswordResetForm" action="{{ path('fos_user_resetting_reset', {'token': token}) }}" method="POST" class="fos_user_resetting_reset pure-form pure-form-aligned">
     <fieldset>
         <div id="form_errors">
             {{ form_errors(form) }}
@@ -22,7 +21,7 @@
 
     <fieldset>
         <div class="pure-control-group">
-            <input type="button" class="pure-button pure-button-primary" value="{{ 'resetting.reset.submit'|trans }}" onclick="submitForm();"/>
+            <input type="button" class="pure-button pure-button-primary" value="Reset Password" onclick="submitForm();"/>
         </div>
     </fieldset>
 

@@ -6,8 +6,9 @@ jms_security_extra:
 
 # app/config/security.yml
 security:
+    # sha512 kept so the existing password hashes (migrated from FOSUserBundle) still validate
     encoders:
-        FOS\UserBundle\Model\UserInterface: sha512
+        ODR\OpenRepository\UserBundle\Entity\User: sha512
 
     role_hierarchy:
         ROLE_USER:            ROLE_USER
@@ -17,7 +18,8 @@ security:
 
     providers:
         fos_userbundle:
-            id: fos_user.user_provider.username
+            entity:
+                class: ODR\OpenRepository\UserBundle\Entity\User
 #        odr_user_provider:
 #            id: odr.openrepository.oauthclient.oauth_user_provider
 
@@ -123,6 +125,8 @@ security:
             pattern: ^/
             form_login:
                 provider: fos_userbundle
+                login_path: fos_user_security_login
+                check_path: fos_user_security_check
                 csrf_token_generator: security.csrf.token_manager
 
                 # always force sucessful logins through this firewall (regular username/password login to ODR) to redirect to this path
@@ -136,7 +140,7 @@ security:
                 domain:   ~
 
             logout:
-                path:   /logout
+                path:   fos_user_security_logout
                 target: /
             anonymous:    true
 

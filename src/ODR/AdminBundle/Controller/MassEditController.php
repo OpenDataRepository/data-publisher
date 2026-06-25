@@ -66,7 +66,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchRedirectService;
 // Symfony
-use FOS\UserBundle\Doctrine\UserManager;
+use ODR\OpenRepository\UserBundle\Component\Service\ODRUserManager as UserManager;
 use Symfony\Bridge\Monolog\Logger;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
