@@ -156,7 +156,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
             }
             else if ( $context === 'display' ) {
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:Base:UnitConversion/unit_conversion_display_datafield.html.twig',
+                    '@ODROpenRepositoryGraph/Base/UnitConversion/unit_conversion_display_datafield.html.twig',
                     [
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,
@@ -174,7 +174,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
                     $is_datatype_admin = $rendering_options['is_datatype_admin'];
 
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:Base:UnitConversion/unit_conversion_edit_datafield.html.twig',
+                    '@ODROpenRepositoryGraph/Base/UnitConversion/unit_conversion_edit_datafield.html.twig',
                     [
                         'is_datatype_admin' => $is_datatype_admin,
 
@@ -189,7 +189,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
             }
             else if ( $context === 'csv_export' ) {
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:Base:UnitConversion/unit_conversion_csvexport_datafield.html.twig',
+                    '@ODROpenRepositoryGraph/Base/UnitConversion/unit_conversion_csvexport_datafield.html.twig',
                     [
                         'datafield' => $datafield,
 
@@ -252,7 +252,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
 
         // Render the datafield for the search sidebar
         $output = $this->templating->render(
-            'ODROpenRepositoryGraphBundle:Base:UnitConversion/unit_conversion_search_datafield.html.twig',
+            '@ODROpenRepositoryGraph/Base/UnitConversion/unit_conversion_search_datafield.html.twig',
             [
                 'datatype' => $datatype,
                 'datafield' => $datafield,
@@ -469,7 +469,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
 
                 // ...which allows a template to be rendered
                 $custom_rpo_html[$rpo->getId()] = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:Base:UnitConversion/plugin_settings_dialog_field_list_override.html.twig',
+                    '@ODROpenRepositoryGraph/Base/UnitConversion/plugin_settings_dialog_field_list_override.html.twig',
                     [
                         'rpo_id' => $rpo->getId(),
 

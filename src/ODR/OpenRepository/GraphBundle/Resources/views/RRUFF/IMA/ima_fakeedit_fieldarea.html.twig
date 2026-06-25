@@ -111,7 +111,7 @@
                             } %}
                         {% elseif derived_datafield_id is not null %}
                             {# The "source" datafields require slightly different saving javascript #}
-                            {% include 'ODROpenRepositoryGraphBundle:RRUFF:IMA/ima_fakeedit_datafield.html.twig' with {
+                            {% include '@ODROpenRepositoryGraph/RRUFF/IMA/ima_fakeedit_datafield.html.twig' with {
                                 'datatype': datatype,
                                 'datarecord': datarecord,
                                 'datafield': datafield,

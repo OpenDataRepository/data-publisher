@@ -182,7 +182,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
                 // TODO - also work in the 'display' context?  but finding errors to display is expensive...
 
 //                $output = $this->templating->render(
-//                    'ODROpenRepositoryGraphBundle:RRUFF:FileRenamer/display_file_datafield.html.twig',
+//                    '@ODROpenRepositoryGraph/RRUFF/FileRenamer/display_file_datafield.html.twig',
 //                    array(
 //                        'datafield' => $datafield,
 //                        'datarecord' => $datarecord,
@@ -193,7 +193,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
             }
             else if ( $rendering_options['context'] === 'edit' ) {
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:RRUFF:RRUFFFileHeaderInserter/rruff_file_header_inserter_edit_addon.html.twig',
+                    '@ODROpenRepositoryGraph/RRUFF/RRUFFFileHeaderInserter/rruff_file_header_inserter_edit_addon.html.twig',
                     [
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,
@@ -1200,7 +1200,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
 
         // Get twig to render the header
         $header_text = $this->templating->render(
-            'ODROpenRepositoryGraphBundle:RRUFF:RRUFFFileHeaderInserter/file_header.txt.twig',
+            '@ODROpenRepositoryGraph/RRUFF/RRUFFFileHeaderInserter/file_header.txt.twig',
             [
                 'header_values' => $header_values,
 
@@ -1799,7 +1799,7 @@ class RRUFFFileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, P
 
                 // ...which allows a template to be rendered
                 $custom_rpo_html[$rpo->getId()] = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:RRUFF:RRUFFFileHeaderInserter/plugin_settings_dialog_field_list_override.html.twig',
+                    '@ODROpenRepositoryGraph/RRUFF/RRUFFFileHeaderInserter/plugin_settings_dialog_field_list_override.html.twig',
                     [
                         'rpo_id' => $rpo->getId(),
 

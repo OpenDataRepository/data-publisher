@@ -142,7 +142,7 @@ class FileUpdaterHelperPlugin implements ThemeElementPluginInterface
             // ----------------------------------------
             // Otherwise, render and return a bit of HTML for the themeElement to display
             return $this->templating->render(
-                'ODROpenRepositoryGraphBundle:Base:FileUpdaterHelper/file_updater_helper_themeElement.html.twig',
+                '@ODROpenRepositoryGraph/Base/FileUpdaterHelper/file_updater_helper_themeElement.html.twig',
                 [
                     'active_plugins' => $related_plugins,
 
@@ -195,7 +195,7 @@ class FileUpdaterHelperPlugin implements ThemeElementPluginInterface
     {
         // Render the placeholder html
         return $this->templating->render(
-            'ODROpenRepositoryGraphBundle:Base:FileUpdaterHelper/file_updater_helper_placeholder.html.twig'
+            '@ODROpenRepositoryGraph/Base/FileUpdaterHelper/file_updater_helper_placeholder.html.twig'
         );
     }
 }

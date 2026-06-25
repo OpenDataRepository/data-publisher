@@ -13,7 +13,6 @@
         "symfony/monolog-bundle": "^3.5",
         "gedmo/doctrine-extensions": "^3.0",
         "paragonie/random_compat": ">=1 <9.99",
-        "dterranova/crypto-bundle": "dev-master",
         "mrpoundsign/pheanstalk-5.3": "dev-master",
         "knplabs/knp-markdown-bundle": "^1.9",
         "league/commonmark": "^1.0",

@@ -161,7 +161,7 @@ class CheminEEAPlugin implements DatatypePluginInterface
 
             // Render and return the graph html
             $output = $this->templating->render(
-                'ODROpenRepositoryGraphBundle:Chemin:CheminEEA/chemin_eea.html.twig',
+                '@ODROpenRepositoryGraph/Chemin/CheminEEA/chemin_eea.html.twig',
                 [
                     'file_data' => $file_data,
                     'chemin_eea_table' => 'chemin_eea_table_'.$datarecord_id,

@@ -2194,7 +2194,7 @@ class ReportsController extends ODRCustomController
                 }
             }
             else {
-                $crypto_dir = $this->getParameter('dterranova_crypto.temp_folder').'/File_'.$file_id;
+                $crypto_dir = $this->getParameter('odr.crypto.temp_folder').'/File_'.$file_id;
                 $chunk_size = 2 * 1024 * 1024;  // 2Mb in bytes
 
                 $num_chunks = intval(floatval($file->getFilesize()) / floatval($chunk_size)) + 1;

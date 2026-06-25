@@ -11,6 +11,10 @@ services:
         resource: '../../Command/'
         public: true
         tags: ['console.command']
+        # ContainerAwareCommand was removed in Symfony 5; ODR's base class restores getContainer()
+        # from the full container injected here.
+        calls:
+            - [setContainer, ['@service_container']]
 
     odr.amcsd_update_service:
         public: true

@@ -116,7 +116,7 @@ class LinkPlugin implements DatatypePluginInterface
             // ----------------------------------------
             // This will only be called on a linked datatype in display mode...
             $output = $this->templating->render(
-                'ODROpenRepositoryGraphBundle:Base:Link/link.html.twig',
+                '@ODROpenRepositoryGraph/Base/Link/link.html.twig',
                 [
                     'datatype' => $datatype,
                     'datarecord_array' => $datarecords,

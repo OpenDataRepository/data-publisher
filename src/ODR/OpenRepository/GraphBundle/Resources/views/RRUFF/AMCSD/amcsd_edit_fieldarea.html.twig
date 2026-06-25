@@ -96,7 +96,7 @@
                                 } %}
                             {% elseif is_file_datafield %}
                                 {# the "AMC File", "CIF File", and "DIF File" datafields require slightly different file upload javascript #}
-                                {% include 'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_file_datafield.html.twig' with {
+                                {% include '@ODROpenRepositoryGraph/RRUFF/AMCSD/amcsd_file_datafield.html.twig' with {
                                     'datarecord': datarecord,
                                     'datafield': datafield,
 

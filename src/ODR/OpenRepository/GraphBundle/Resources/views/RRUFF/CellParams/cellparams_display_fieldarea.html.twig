@@ -52,7 +52,7 @@
                         {% if datafield.dataFieldMeta.fieldType.typeName == "Markdown" %}
                             {% include '@ODRAdmin/Display/display_markdown.html.twig' with {'datafield': datafield} %}
                         {% elseif is_modified_field %}
-                            {% include 'ODROpenRepositoryGraphBundle:RRUFF:CellParams/cellparams_display_datafield.html.twig' with {
+                            {% include '@ODROpenRepositoryGraph/RRUFF/CellParams/cellparams_display_datafield.html.twig' with {
                                 'datarecord': datarecord,
                                 'datafield': datafield,
 

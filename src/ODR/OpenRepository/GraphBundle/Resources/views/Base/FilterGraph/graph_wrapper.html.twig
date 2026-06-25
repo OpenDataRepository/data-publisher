@@ -32,7 +32,7 @@
         {# Any datarecord id can be used for this #}
         {% set rollup_id = 'rollup_' ~ parent_datarecord.id %}
 
-        {% include "ODROpenRepositoryGraphBundle:Base:FilterGraph/graph.html.twig" with {
+        {% include "@ODROpenRepositoryGraph/Base/FilterGraph/graph.html.twig" with {
             'plugin_options': plugin_options,
 
             'datatype_array': datatype_array,
@@ -96,7 +96,7 @@
                 </div>
 
                 <div id="{{ odr_chart_id }}_filter" class="ODRFilterGraphPlugin_fields">
-                    {% include "ODROpenRepositoryGraphBundle:Base:FilterGraph/graph_filter_fieldarea.html.twig" with {
+                    {% include "@ODROpenRepositoryGraph/Base/FilterGraph/graph_filter_fieldarea.html.twig" with {
                         'datatype_array': datatype_array,
                         'theme_array': theme_array,
 

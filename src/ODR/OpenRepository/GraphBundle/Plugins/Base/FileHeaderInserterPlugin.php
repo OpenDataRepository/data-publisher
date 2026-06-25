@@ -157,7 +157,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
                 // TODO - also work in the 'display' context?  but finding errors to display is expensive...
 
 //                $output = $this->templating->render(
-//                    'ODROpenRepositoryGraphBundle:Base:FileRenamer/display_file_datafield.html.twig',
+//                    '@ODROpenRepositoryGraph/Base/FileRenamer/display_file_datafield.html.twig',
 //                    array(
 //                        'datafield' => $datafield,
 //                        'datarecord' => $datarecord,
@@ -168,7 +168,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
             }
             else if ( $rendering_options['context'] === 'edit' ) {
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:Base:FileHeaderInserter/file_header_inserter_edit_addon.html.twig',
+                    '@ODROpenRepositoryGraph/Base/FileHeaderInserter/file_header_inserter_edit_addon.html.twig',
                     [
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,
@@ -1627,7 +1627,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
 
                 // ...which allows a template to be rendered
                 $custom_rpo_html[$rpo->getId()] = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:Base:FileHeaderInserter/plugin_settings_dialog_field_list_override.html.twig',
+                    '@ODROpenRepositoryGraph/Base/FileHeaderInserter/plugin_settings_dialog_field_list_override.html.twig',
                     [
                         'rpo_id' => $rpo->getId(),
 

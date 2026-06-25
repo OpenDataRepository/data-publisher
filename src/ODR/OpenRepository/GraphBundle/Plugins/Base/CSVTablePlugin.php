@@ -127,7 +127,7 @@ class CSVTablePlugin implements DatafieldPluginInterface
             $output = '';
             if ( $rendering_options['context'] === 'display' ) {
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:Base:CSVTable/csvtable_display_datafield.html.twig',
+                    '@ODROpenRepositoryGraph/Base/CSVTable/csvtable_display_datafield.html.twig',
                     [
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,

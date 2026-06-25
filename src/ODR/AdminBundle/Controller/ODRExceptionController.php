@@ -168,22 +168,37 @@ class ODRExceptionController
 
         // For error pages, try to find a template for the specific HTTP status code and format
         if (!$showException) {
-            $template = sprintf('@Twig/Exception/%s%s.%s.twig', $name, $code, $format);
+            $template = sprintf('@ODRException/%s%s.%s.twig', $name, $code, $format);
             if ($this->templateExists($template)) {
                 return $template;
             }
         }
 
         // try to find a template for the given format
-        $template = sprintf('@Twig/Exception/%s.%s.twig', $name, $format);
+        $template = sprintf('@ODRException/%s.%s.twig', $name, $format);
         if ($this->templateExists($template)) {
             return $template;
         }
 
-        // default to a generic HTML exception
+        // default to a generic HTML page: try the detailed dev exception page, then the branded
+        // (prod) error page. ODR no longer ships exception_full.html.twig (it used to fall back to
+        // TwigBundle's, removed in SF5), so the standalone exception.html.twig is the dev default.
         $request->setRequestFormat('html');
 
-        return sprintf('@Twig/Exception/%s.html.twig', $showException ? 'exception_full' : $name);
+        $candidates = array();
+        if ($showException) {
+            $candidates[] = '@ODRException/exception_full.html.twig';
+            $candidates[] = '@ODRException/exception.html.twig';
+        }
+        $candidates[] = '@ODRException/error.html.twig';
+
+        foreach ($candidates as $candidate) {
+            if ($this->templateExists($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return '@ODRException/error.html.twig';
     }
 
 

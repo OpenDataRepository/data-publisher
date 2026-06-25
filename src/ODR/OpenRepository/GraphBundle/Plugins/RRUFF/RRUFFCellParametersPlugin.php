@@ -217,7 +217,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                     $record_display_view = $rendering_options['record_display_view'];
 
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:RRUFF:CellParams/cellparams_display_fieldarea.html.twig',
+                    '@ODROpenRepositoryGraph/RRUFF/CellParams/cellparams_display_fieldarea.html.twig',
                     [
                         'datatype_array' => [$initial_datatype_id => $datatype],
                         'datarecord' => $datarecord,
@@ -264,7 +264,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                 $edit_behavior = $rendering_options['edit_behavior'];
 
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:RRUFF:CellParams/cellparams_edit_fieldarea.html.twig',
+                    '@ODROpenRepositoryGraph/RRUFF/CellParams/cellparams_edit_fieldarea.html.twig',
                     [
                         'datatype_array' => [$initial_datatype_id => $datatype],
                         'datarecord_array' => [$datarecord['id'] => $datarecord],
@@ -327,7 +327,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                 $space_groups = self::sortSpaceGroups();
 
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:RRUFF:CellParams/cellparams_fakeedit_fieldarea.html.twig',
+                    '@ODROpenRepositoryGraph/RRUFF/CellParams/cellparams_fakeedit_fieldarea.html.twig',
                     [
                         'datatype_array' => [$initial_datatype_id => $datatype],
                         'datarecord_array' => [$datarecord['id'] => $datarecord],
@@ -1309,7 +1309,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
                 //  plugin's template instead of the default
                 return [
                     'token_list' => [],    // so ODRRenderService generates CSRF tokens
-                    'template_name' => 'ODROpenRepositoryGraphBundle:RRUFF:CellParams/cellparams_edit_datafield_reload.html.twig',
+                    'template_name' => '@ODROpenRepositoryGraph/RRUFF/CellParams/cellparams_edit_datafield_reload.html.twig',
                     'problem_fields' => $derivation_problems,
                 ];
             }
@@ -1363,7 +1363,7 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
 
             return [
                 'token_list' => [],    // so ODRRenderService generates CSRF tokens
-                'template_name' => 'ODROpenRepositoryGraphBundle:RRUFF:CellParams/cellparams_edit_symmetry_datafield.html.twig',
+                'template_name' => '@ODROpenRepositoryGraph/RRUFF/CellParams/cellparams_edit_symmetry_datafield.html.twig',
 
                 'field_identifiers' => $field_identifiers,
                 'form_token' => $form_token,

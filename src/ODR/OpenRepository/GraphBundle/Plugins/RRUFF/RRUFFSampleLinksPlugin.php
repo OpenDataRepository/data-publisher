@@ -296,7 +296,7 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
             // ----------------------------------------
             // Otherwise, render and return a bit of HTML for the themeElement to display
             return $this->templating->render(
-                'ODROpenRepositoryGraphBundle:RRUFF:RRUFFSampleLinks/rruff_sample_links_themeElement.html.twig',
+                '@ODROpenRepositoryGraph/RRUFF/RRUFFSampleLinks/rruff_sample_links_themeElement.html.twig',
                 [
                     'mineral_name_value' => $mineral_name_value,
                     'mineral_search_url' => $mineral_search_url,
@@ -439,7 +439,7 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
     {
         // Render the placeholder html
         return $this->templating->render(
-            'ODROpenRepositoryGraphBundle:RRUFF:RRUFFSampleLinks/rruff_sample_links_placeholder.html.twig'
+            '@ODROpenRepositoryGraph/RRUFF/RRUFFSampleLinks/rruff_sample_links_placeholder.html.twig'
         );
     }
 }

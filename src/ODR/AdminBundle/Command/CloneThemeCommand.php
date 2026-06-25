@@ -13,7 +13,7 @@
 
 namespace ODR\AdminBundle\Command;
 
-use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
+use ODR\AdminBundle\Command\ContainerAwareCommand;
 
 // Entities
 use ODR\AdminBundle\Entity\Theme;

@@ -649,7 +649,7 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
                     }
 
                     // Trigger puppeteer to make a graph for this file
-                    $page_data['template_name'] = 'ODROpenRepositoryGraphBundle:Base:Graph/graph_builder.html.twig';
+                    $page_data['template_name'] = '@ODROpenRepositoryGraph/Base/Graph/graph_builder.html.twig';
                     parent::buildGraph($page_data, $graph_filepath, $builder_filepath, $files_to_delete);
                 }
             }
@@ -659,9 +659,9 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
             // What to return depends on what called this plugin...
             if ( !isset($rendering_options['build_graph']) ) {
                 // ...if called via twig, then render and return the graph html
-                $template = 'ODROpenRepositoryGraphBundle:Base:Graph/graph_wrapper_below.html.twig';
+                $template = '@ODROpenRepositoryGraph/Base/Graph/graph_wrapper_below.html.twig';
                 if ( isset($options['graph_above_data']) && $options['graph_above_data'] === 'above' )
-                    $template = 'ODROpenRepositoryGraphBundle:Base:Graph/graph_wrapper_above.html.twig';
+                    $template = '@ODROpenRepositoryGraph/Base/Graph/graph_wrapper_above.html.twig';
 
                 $output = $this->templating->render(
                     $template,

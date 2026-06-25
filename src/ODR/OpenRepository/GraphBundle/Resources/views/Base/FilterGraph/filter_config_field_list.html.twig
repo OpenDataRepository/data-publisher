@@ -20,7 +20,7 @@
     {% if dt['descendants'] is defined and dt['descendants']|length > 0 %}
         {% for child_dt_id, child_dt_info in dt['descendants'] %}
             {% set child_dt = child_dt_info['datatype'][child_dt_id] %}
-            {% include 'ODROpenRepositoryGraphBundle:Base:FilterGraph/filter_config_field_list.html.twig' with {
+            {% include '@ODROpenRepositoryGraph/Base/FilterGraph/filter_config_field_list.html.twig' with {
                 'dt': child_dt,
 
                 'current_filter_fields': current_filter_fields,

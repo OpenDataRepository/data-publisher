@@ -135,7 +135,7 @@ class URLPlugin implements DatafieldPluginInterface, TableResultsOverrideInterfa
             }
             else if ( $rendering_options['context'] === 'display' ) {
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:Base:URL/url_display_datafield.html.twig',
+                    '@ODROpenRepositoryGraph/Base/URL/url_display_datafield.html.twig',
                     [
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,

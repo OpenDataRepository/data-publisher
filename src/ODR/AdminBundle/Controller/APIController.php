@@ -387,7 +387,7 @@ class APIController extends ODRCustomController
                 // Symfony already knows the request format due to use of the _format parameter in the route
                 $format = $request->getRequestFormat();
                 $data = $this->container->get('twig')->render(
-                    'ODRAdminBundle:API:userdata.' . $format . '.twig',
+                    '@ODRAdmin/API/userdata.' . $format . '.twig',
                     [
                         'user_data' => $user_array,
                     ]
@@ -553,7 +553,7 @@ class APIController extends ODRCustomController
             // Symfony already knows the request format due to use of the _format parameter in the route
             $format = $request->getRequestFormat();
             $data = $this->container->get('twig')->render(
-                'ODRAdminBundle:API:datatype_list.' . $format . '.twig',
+                '@ODRAdmin/API/datatype_list.' . $format . '.twig',
                 [
                     'datatype_list' => $final_datatype_data,
                 ]
@@ -1161,7 +1161,7 @@ class APIController extends ODRCustomController
             // Symfony already knows the request format due to use of the _format parameter in the route
             $format = $request->getRequestFormat();
             $data = $this->container->get('twig')->render(
-                'ODRAdminBundle:API:datarecord_list.' . $format . '.twig',
+                '@ODRAdmin/API/datarecord_list.' . $format . '.twig',
                 [
                     'datarecord_list' => $final_datarecord_list,
                 ]
@@ -1315,7 +1315,7 @@ class APIController extends ODRCustomController
             // Symfony already knows the request format due to use of the _format parameter in the route
             $format = $request->getRequestFormat();
             $data = $this->container->get('twig')->render(
-                'ODRAdminBundle:API:datatype_list.' . $format . '.twig',
+                '@ODRAdmin/API/datatype_list.' . $format . '.twig',
                 [
                     'datatype_list' => $datatype_list,
                 ]
@@ -6824,7 +6824,7 @@ class APIController extends ODRCustomController
             $format = $request->getRequestFormat();
             $templating = $this->container->get('twig');
             $data = $templating->render(
-                'ODRAdminBundle:API:field_stats.' . $format . '.twig',
+                '@ODRAdmin/API/field_stats.' . $format . '.twig',
                 [
                     'field_stats' => $data
                 ]

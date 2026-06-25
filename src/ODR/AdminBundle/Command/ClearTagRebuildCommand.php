@@ -14,7 +14,7 @@
 namespace ODR\AdminBundle\Command;
 
 //use Symfony\Component\Console\Command\Command;
-use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
+use ODR\AdminBundle\Command\ContainerAwareCommand;
 
 
 use Symfony\Component\Console\Input\InputArgument;

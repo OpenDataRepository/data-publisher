@@ -331,7 +331,7 @@ class GraphController extends ODRCustomController
         $templating = $this->container->get('twig');
 
         return $templating->render(
-            'ODROpenRepositoryGraphBundle:Base:Graph/graph_error.html.twig',
+            '@ODROpenRepositoryGraph/Base/Graph/graph_error.html.twig',
             [
                 'message' => $message,
                 'detail' => $detail

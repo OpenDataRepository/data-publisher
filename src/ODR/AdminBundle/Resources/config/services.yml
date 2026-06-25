@@ -3,6 +3,10 @@
 # Opening up to application/octet-stream allows valid binaries to be uploaded.
 # Major security issue if directory structure is not protected.
 parameters:
+    # File-encryption settings (extracted from the removed dterranova/crypto-bundle)
+    odr.crypto.temp_folder: "%kernel.project_dir%/app/crypto_dir"
+    odr.crypto.chunk_file_size: 2
+
     file_validation:
         xml:
             maxSize: 100   # maximum allowed filesize (in Mb) for this type of uploaded file
@@ -588,6 +592,10 @@ services:
         resource: '../../Command/'
         public: true
         tags: ['console.command']
+        # ContainerAwareCommand was removed in Symfony 5; ODR's base class restores getContainer()
+        # from the full container injected here.
+        calls:
+            - [setContainer, ['@service_container']]
 
     odr.twig.plug_extension:
         public: true
@@ -688,6 +696,18 @@ services:
             $theme_service: "@odr.theme_info_service"
             $logger: "@monolog.logger.clone_theme"
 
+    # File-encryption services extracted from the removed dterranova/crypto-bundle (same algorithm)
+    odr.crypto.aes:
+        class: ODR\AdminBundle\Component\Crypto\Cipher\AES
+
+    odr.crypto_adapter:
+        public: true
+        class: ODR\AdminBundle\Component\Crypto\CryptoAdapter
+        arguments:
+            - '@odr.crypto.aes'
+            - '%odr.crypto.temp_folder%'
+            - '%odr.crypto.chunk_file_size%'
+
     odr.crypto_service:
         public: true
         class: ODR\AdminBundle\Component\Service\CryptoService
@@ -695,8 +715,8 @@ services:
             $em: "@doctrine.orm.entity_manager"
             $lock_service: "@odr.lock_service"
             $event_dispatcher: "@event_dispatcher"
-            $crypto_adapter: "@dterranova_crypto.crypto_adapter"
-            $crypto_dir: "%dterranova_crypto.temp_folder%"
+            $crypto_adapter: "@odr.crypto_adapter"
+            $crypto_dir: "%odr.crypto.temp_folder%"
             $odr_web_dir: "%odr_web_directory%"
             $logger: "@logger"
 

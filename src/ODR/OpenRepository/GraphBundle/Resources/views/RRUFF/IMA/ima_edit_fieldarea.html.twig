@@ -101,7 +101,7 @@
                                 } %}
                             {% elseif is_chemistry_field %}
                                 {# The two chemistry datafields require slightly different saving javascript #}
-                                {% include 'ODROpenRepositoryGraphBundle:RRUFF:IMA/ima_edit_chemistry_datafield.html.twig' with {
+                                {% include '@ODROpenRepositoryGraph/RRUFF/IMA/ima_edit_chemistry_datafield.html.twig' with {
                                     'datarecord': datarecord,
                                     'datafield': datafield,
 
@@ -114,7 +114,7 @@
                                 } %}
                             {% elseif is_ascii_field %}
                                 {# The mineral ascii name datafield also requires slightly different saving javascript #}
-                                {% include 'ODROpenRepositoryGraphBundle:RRUFF:IMA/ima_edit_ascii_name_datafield.html.twig' with {
+                                {% include '@ODROpenRepositoryGraph/RRUFF/IMA/ima_edit_ascii_name_datafield.html.twig' with {
                                     'datarecord': datarecord,
                                     'datafield': datafield,
 

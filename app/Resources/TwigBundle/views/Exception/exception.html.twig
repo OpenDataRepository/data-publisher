@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+{#
+   Standalone dev exception page. ODR historically relied on TwigBundle's exception_full.html.twig
+   for the detailed dev error page, but that (and the @Twig namespace) was removed in Symfony 5.
+   This deliberately does NOT extend the app layout (base/body), so it renders even when the normal
+   page context vars are absent and strict_variables is on.
+#}
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>{{ status_code }} {{ status_text }} | ODR (dev)</title>
+    <style>
+        body { font-family: monospace; margin: 2em; color: #222; }
+        h1 { color: #b00; }
+        .msg { background: #fee; border: 1px solid #b00; padding: 1em; margin: 1em 0; white-space: pre-wrap; }
+        .frame { padding: 0.25em 0; border-bottom: 1px solid #eee; }
+        .cls { color: #06c; }
+    </style>
+</head>
+<body>
+    <h1>{{ status_code }} {{ status_text }}</h1>
+    <div class="msg"><strong>{{ exception.class }}</strong>: {{ exception.message }}</div>
+    {% if exception_source is defined %}<p>Source: {{ exception_source }}</p>{% endif %}
+
+    {% for i, e in exception.toarray %}
+        <h3>[{{ i + 1 }}] <span class="cls">{{ e.class }}</span>: {{ e.message }}</h3>
+        {% for trace in e.trace %}
+            <div class="frame">
+                {% if trace.class is defined and trace.class %}{{ trace.class }}{{ trace.type }}{{ trace.function }}(){% elseif trace.function is defined %}{{ trace.function }}(){% endif %}
+                {% if trace.file is defined and trace.file %} &mdash; {{ trace.file }}:{{ trace.line }}{% endif %}
+            </div>
+        {% endfor %}
+    {% endfor %}
+</body>
+</html>

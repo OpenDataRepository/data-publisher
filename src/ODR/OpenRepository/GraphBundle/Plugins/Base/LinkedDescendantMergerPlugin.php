@@ -586,7 +586,7 @@ class LinkedDescendantMergerPlugin implements ArrayPluginInterface, PluginSettin
 
                 // ...which allows a template to be rendered
                 $custom_rpo_html[$rpo->getId()] = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:Base:LinkedMerger/plugin_settings_dialog_field_list_override.html.twig',
+                    '@ODROpenRepositoryGraph/Base/LinkedMerger/plugin_settings_dialog_field_list_override.html.twig',
                     [
                         'rpo_id' => $rpo->getId(),
 

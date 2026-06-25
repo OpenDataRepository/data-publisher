@@ -840,7 +840,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
                     }
 
                     // Trigger puppeteer to make a graph for this file
-                    $page_data['template_name'] = 'ODROpenRepositoryGraphBundle:Base:FilterGraph/graph_builder.html.twig';
+                    $page_data['template_name'] = '@ODROpenRepositoryGraph/Base/FilterGraph/graph_builder.html.twig';
                     parent::buildGraph($page_data, $graph_filepath, $builder_filepath, $files_to_delete);
                 }
             }
@@ -851,7 +851,7 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
             if ( !isset($rendering_options['build_graph']) ) {
                 // ...if called via twig, then render and return the graph html
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:Base:FilterGraph/graph_wrapper.html.twig', $page_data
+                    '@ODROpenRepositoryGraph/Base/FilterGraph/graph_wrapper.html.twig', $page_data
                 );
 
                 return $output;
@@ -1371,9 +1371,9 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
             /** @var RenderPluginOptionsDef $rpo */
             if ( $rpo->getUsesCustomRender() ) {
                 if ( $rpo->getName() === 'plugin_config' )
-                    $template_name = 'ODROpenRepositoryGraphBundle:Base:FilterGraph/dialog_field_list_override_plugin_config.html.twig';
+                    $template_name = '@ODROpenRepositoryGraph/Base/FilterGraph/dialog_field_list_override_plugin_config.html.twig';
                 else if ( $rpo->getName() === 'filter_config' )
-                    $template_name = 'ODROpenRepositoryGraphBundle:Base:FilterGraph/dialog_field_list_override_filter_config.html.twig';
+                    $template_name = '@ODROpenRepositoryGraph/Base/FilterGraph/dialog_field_list_override_filter_config.html.twig';
 
                 if ( $template_name !== '' ) {
                     $custom_rpo_html[$rpo->getId()] = $this->templating->render(

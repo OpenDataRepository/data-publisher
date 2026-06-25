@@ -121,7 +121,7 @@ class ChildRRUFFIDPlugin implements DatafieldPluginInterface
             $output = "";
             if ( $rendering_options['context'] === 'fake_edit' ) {
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:RRUFF:ChildRRUFFID/childrruffid_fake_edit_datafield.html.twig',
+                    '@ODROpenRepositoryGraph/RRUFF/ChildRRUFFID/childrruffid_fake_edit_datafield.html.twig',
                     [
                         'datarecord' => $datarecord,
                         'datafield' => $datafield,

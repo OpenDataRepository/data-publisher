@@ -110,7 +110,7 @@
                                 } %}
                             {% elseif is_symmetry_field %}
                                 {# These three fields use a popup interface for editing, because changing one could mean changing the other two #}
-                                {% include 'ODROpenRepositoryGraphBundle:RRUFF:CellParams/cellparams_edit_symmetry_datafield.html.twig' with {
+                                {% include '@ODROpenRepositoryGraph/RRUFF/CellParams/cellparams_edit_symmetry_datafield.html.twig' with {
                                     'datarecord': datarecord,
                                     'datafield': datafield,
 
@@ -127,7 +127,7 @@
                                 } %}
                             {% elseif is_dimension_field %}
                                 {# The a/b/c/alpha/beta/gamma fields use different reloading javascript, and the volume field needs an info icon #}
-                                {% include 'ODROpenRepositoryGraphBundle:RRUFF:CellParams/cellparams_edit_dimension_datafield.html.twig' with {
+                                {% include '@ODROpenRepositoryGraph/RRUFF/CellParams/cellparams_edit_dimension_datafield.html.twig' with {
                                     'datarecord': datarecord,
                                     'datafield': datafield,
 

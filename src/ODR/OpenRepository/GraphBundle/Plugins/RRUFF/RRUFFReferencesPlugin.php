@@ -289,7 +289,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
                 $is_top_level = $rendering_options['is_top_level'];
 
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:RRUFF:RRUFFReferences/rruffreferences_display.html.twig',
+                    '@ODROpenRepositoryGraph/RRUFF/RRUFFReferences/rruffreferences_display.html.twig',
                     [
                         'datarecord' => $datarecord,
                         'mapping' => $datafield_mapping,
@@ -358,7 +358,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
 
 
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:RRUFF:RRUFFReferences/rruffreferences_fakeedit_fieldarea.html.twig',
+                    '@ODROpenRepositoryGraph/RRUFF/RRUFFReferences/rruffreferences_fakeedit_fieldarea.html.twig',
                     [
                         'datatype_array' => [$initial_datatype_id => $datatype],
                         'datarecord_array' => [$datarecord['id'] => $datarecord],
@@ -452,7 +452,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
                     $edit_behavior = $rendering_options['edit_behavior'];
 
                     $output = $this->templating->render(
-                        'ODROpenRepositoryGraphBundle:RRUFF:RRUFFReferences/rruffreferences_edit_fieldarea.html.twig',
+                        '@ODROpenRepositoryGraph/RRUFF/RRUFFReferences/rruffreferences_edit_fieldarea.html.twig',
                         [
                             'datatype_array' => [$initial_datatype_id => $datatype],
                             'datarecord_array' => [$datarecord['id'] => $datarecord],
@@ -482,7 +482,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
                 }
                 else if ( $context === 'mass_edit' ) {
                     $output = $this->templating->render(
-                        'ODROpenRepositoryGraphBundle:RRUFF:RRUFFReferences/rruffreferences_massedit_fieldarea.html.twig',
+                        '@ODROpenRepositoryGraph/RRUFF/RRUFFReferences/rruffreferences_massedit_fieldarea.html.twig',
                         [
                             'datatype_array' => [$initial_datatype_id => $datatype],
                             'theme_array' => $theme_array,
@@ -544,7 +544,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
             $journal_list[$sort_value] = 1;
 
         $output = $this->templating->render(
-            'ODROpenRepositoryGraphBundle:RRUFF:RRUFFReferences/rruffreferences_search_journal_datafield.html.twig',
+            '@ODROpenRepositoryGraph/RRUFF/RRUFFReferences/rruffreferences_search_journal_datafield.html.twig',
             [
                 'datatype' => $datatype,
                 'datafield' => $datafield,
@@ -1208,7 +1208,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
             // Only want to override the File field
             return [
                 'token_list' => [],    // so ODRRenderService generates CSRF tokens
-                'template_name' => 'ODROpenRepositoryGraphBundle:RRUFF:RRUFFReferences/rruffreferences_edit_datafield.html.twig',
+                'template_name' => '@ODROpenRepositoryGraph/RRUFF/RRUFFReferences/rruffreferences_edit_datafield.html.twig',
             ];
         }
 

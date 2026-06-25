@@ -143,7 +143,7 @@ class RRUFFInstrumentUsageController extends ODRCustomController
             $return['d'] = [
                 'datatype_id' => $datatype->getId(),
                 'html' => $templating->render(
-                    'ODROpenRepositoryGraphBundle:RRUFF:RRUFFInstrumentUsage/page.html.twig',
+                    '@ODROpenRepositoryGraph/RRUFF/RRUFFInstrumentUsage/page.html.twig',
                     [
                         'url' => $url
                     ]

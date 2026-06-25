@@ -161,7 +161,7 @@ class CheminEFMPlugin implements DatatypePluginInterface
 
             // Render and return the graph html
             $output = $this->templating->render(
-                'ODROpenRepositoryGraphBundle:Chemin:CheminEFM/chemin_efm.html.twig',
+                '@ODROpenRepositoryGraph/Chemin/CheminEFM/chemin_efm.html.twig',
                 [
                     'file_data' => $file_data,
                     'chemin_efm_table' => 'chemin_efm_table_'.$datarecord_id,

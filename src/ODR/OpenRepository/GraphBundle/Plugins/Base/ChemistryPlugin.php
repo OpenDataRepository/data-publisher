@@ -139,7 +139,7 @@ class ChemistryPlugin implements DatafieldPluginInterface, TableResultsOverrideI
                 }
 
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:Base:Chemistry/chemistry_display_datafield.html.twig',
+                    '@ODROpenRepositoryGraph/Base/Chemistry/chemistry_display_datafield.html.twig',
                     [
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,
@@ -155,7 +155,7 @@ class ChemistryPlugin implements DatafieldPluginInterface, TableResultsOverrideI
                     $is_datatype_admin = $rendering_options['is_datatype_admin'];
 
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:Base:Chemistry/chemistry_edit_datafield.html.twig',
+                    '@ODROpenRepositoryGraph/Base/Chemistry/chemistry_edit_datafield.html.twig',
                     [
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,

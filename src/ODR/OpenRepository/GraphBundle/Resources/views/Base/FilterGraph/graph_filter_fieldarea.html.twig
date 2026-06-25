@@ -15,7 +15,7 @@
     {% endif %}
 
     {% if values|length > 0 or null_values|length > 0 %}
-        {% include "ODROpenRepositoryGraphBundle:Base:FilterGraph/graph_filter_datafield.html.twig" with {
+        {% include "@ODROpenRepositoryGraph/Base/FilterGraph/graph_filter_datafield.html.twig" with {
             'datafield': df,
 
             'values': values,
@@ -51,7 +51,7 @@
                 {% endfor %}
 
                 {% if has_relevant_children %}
-                    {% include "ODROpenRepositoryGraphBundle:Base:FilterGraph/graph_filter_fieldarea.html.twig" with {
+                    {% include "@ODROpenRepositoryGraph/Base/FilterGraph/graph_filter_fieldarea.html.twig" with {
                         'datatype_array': child_datatype,
                         'theme_array': child_theme,
 

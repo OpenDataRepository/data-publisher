@@ -13,7 +13,7 @@
 
 namespace ODR\AdminBundle\Command;
 
-use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
+use ODR\AdminBundle\Command\ContainerAwareCommand;
 
 // Services
 use ODR\AdminBundle\Component\Service\CloneMasterDatatypeService;

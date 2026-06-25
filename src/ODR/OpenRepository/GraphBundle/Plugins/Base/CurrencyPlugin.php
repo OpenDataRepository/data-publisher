@@ -116,7 +116,7 @@ class CurrencyPlugin implements DatafieldPluginInterface, TableResultsOverrideIn
             }
             else if ( $rendering_options['context'] === 'display' ) {
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:Base:Currency/currency_display_datafield.html.twig',
+                    '@ODROpenRepositoryGraph/Base/Currency/currency_display_datafield.html.twig',
                     [
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,

@@ -11,7 +11,7 @@
 {% endif %}
 
 {# TODO - ...is this consistent? #}
-{% include 'ODROpenRepositoryGraphBundle:Metadata:Core/core_definition.html.twig' %}
+{% include '@ODROpenRepositoryGraph/Metadata/Core/core_definition.html.twig' %}
 
 <div class="ODRDataType pure-u-1" id="DataType_{{ datatype.id }}">
 
@@ -51,7 +51,7 @@
 
         <div class="ODRFieldArea accordion-content pure-u-1" id="FieldArea_{{ datarecord.id }}">
             {# Don't execute a render plugin here, it'll cause infinite recursion #}
-            {% include 'ODROpenRepositoryGraphBundle:Metadata:Core/core_fieldarea.html.twig' with {
+            {% include '@ODROpenRepositoryGraph/Metadata/Core/core_fieldarea.html.twig' with {
                 'datatype_array': datatype_array,
                 'datarecord': datarecord,
                 'theme_array': theme_array,

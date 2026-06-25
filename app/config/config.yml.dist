@@ -18,6 +18,8 @@ framework:
     form:            true
     csrf_protection: true
     validation:      { enabled: true, enable_annotations: false }
+    # Registers the Twig asset() function; was previously implied by framework.templating (removed in SF5)
+    assets:          ~
     default_locale:  "%locale%"
     session:
         gc_probability: 0
@@ -30,6 +32,13 @@ framework:
 twig:
     debug:            "%kernel.debug%"
     strict_variables: "%kernel.debug%"
+    # SF5 changed the default template path to %kernel.project_dir%/templates; ODR's root-namespace
+    # templates (base/full/page/header/...) still live in app/Resources/views.
+    default_path:     '%kernel.project_dir%/app/Resources/views'
+    paths:
+        # SF5 removed the @Twig namespace + the app/Resources/TwigBundle/views override mechanism;
+        # expose ODR's custom error/exception templates under an explicit namespace instead.
+        '%kernel.project_dir%/app/Resources/TwigBundle/views/Exception': ODRException
     #cache: memcached
     #cache: false
     # null disables TwigBundle's deprecated exception listener (removed in 5.0); error rendering
@@ -115,11 +124,6 @@ swiftmailer:
     username:  "%mailer_user%"
     password:  "%mailer_password%"
     spool:     { type: memory }
-
-# dterranovaCrypto Configuration
-dterranova_crypto:
-    temp_folder: "%kernel.project_dir%/app/crypto_dir"
-    chunk_file_size: 2 # The size (in Mb) of chunked files, more it is big more it will consume memory 
 
 snc_redis:
     clients:

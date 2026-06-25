@@ -146,7 +146,7 @@ class CommentPlugin implements DatatypePluginInterface
                 krsort($comments);
 
             $output = $this->templating->render(
-                'ODROpenRepositoryGraphBundle:Base:Comments/comments.html.twig',
+                '@ODROpenRepositoryGraph/Base/Comments/comments.html.twig',
                 [
                     'datatype' => $datatype,
                     'datarecord_array' => $datarecords,

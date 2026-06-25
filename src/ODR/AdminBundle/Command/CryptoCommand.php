@@ -18,7 +18,7 @@ namespace ODR\AdminBundle\Command;
 // Services
 use ODR\AdminBundle\Component\Service\CryptoService;
 // Symfony
-use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
+use ODR\AdminBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 

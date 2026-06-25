@@ -161,7 +161,7 @@ class RRUFFSpecialReferencePlugin implements ThemeElementPluginInterface
             $references = [];
             foreach ($reference_datarecord_array as $dr_id => $ref_dr) {
                 $ref_text = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:RRUFF:RRUFFSpecialReference/rruff_special_reference_execute.html.twig',
+                    '@ODROpenRepositoryGraph/RRUFF/RRUFFSpecialReference/rruff_special_reference_execute.html.twig',
                     [
                         'is_datatype_admin' => $is_datatype_admin,
                         'plugin_options' => $plugin_options,
@@ -188,7 +188,7 @@ class RRUFFSpecialReferencePlugin implements ThemeElementPluginInterface
             if ( !empty($references) ) {
                 // ...then put them inside an html wrapper before returning
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:RRUFF:RRUFFSpecialReference/rruff_special_reference_themeElement.html.twig',
+                    '@ODROpenRepositoryGraph/RRUFF/RRUFFSpecialReference/rruff_special_reference_themeElement.html.twig',
                     [
                         'references' => $references,
                         'plugin_options' => $plugin_options,
@@ -214,7 +214,7 @@ class RRUFFSpecialReferencePlugin implements ThemeElementPluginInterface
     {
         // Render the placeholder html
         return $this->templating->render(
-            'ODROpenRepositoryGraphBundle:RRUFF:RRUFFSpecialReference/rruff_special_reference_placeholder.html.twig'
+            '@ODROpenRepositoryGraph/RRUFF/RRUFFSpecialReference/rruff_special_reference_placeholder.html.twig'
         );
     }
 }

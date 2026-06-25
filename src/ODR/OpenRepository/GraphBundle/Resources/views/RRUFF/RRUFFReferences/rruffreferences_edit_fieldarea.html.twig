@@ -142,7 +142,7 @@
                             } %}
                         {% elseif reference_field_list[datafield_id] is defined %}
                             {# user is allowed to edit datafield #}
-                            {% include 'ODROpenRepositoryGraphBundle:RRUFF:RRUFFReferences/rruffreferences_edit_datafield.html.twig' with {
+                            {% include '@ODROpenRepositoryGraph/RRUFF/RRUFFReferences/rruffreferences_edit_datafield.html.twig' with {
                                 'datarecord': datarecord,
                                 'datafield': datafield,
 

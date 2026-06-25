@@ -121,7 +121,7 @@ class NanograinURLPlugin implements DatafieldPluginInterface
             $output = "";
             if ( $rendering_options['context'] === 'display' || $rendering_options['context'] === 'edit' ) {
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:AHED:NanograinURL/nanograinurl_display_datafield.html.twig',
+                    '@ODROpenRepositoryGraph/AHED/NanograinURL/nanograinurl_display_datafield.html.twig',
                     [
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,

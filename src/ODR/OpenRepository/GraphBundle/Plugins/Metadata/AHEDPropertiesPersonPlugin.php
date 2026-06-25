@@ -88,7 +88,7 @@ class AHEDPropertiesPersonPlugin implements DatatypePluginInterface
             $edit_shows_all_fields = $rendering_options['edit_shows_all_fields'];
 
             $output = $this->templating->render(
-                'ODROpenRepositoryGraphBundle:Metadata:Person/person_childtype.html.twig',
+                '@ODROpenRepositoryGraph/Metadata/Person/person_childtype.html.twig',
                 [
                     'datatype_array' => [$initial_datatype_id => $datatype],
                     'datarecord_array' => $datarecords,

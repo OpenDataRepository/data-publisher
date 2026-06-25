@@ -92,7 +92,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
             // Let the APIController do the rest of the error-checking
             return $this->forward(
-                'ODRAdminBundle:API:getDatatypeExport',
+                '@ODRAdmin/API/getDatatypeExport',
                 [
                     'version' => 'v1',
                     'datatype_uuid' => $datatype->getUniqueId(),
@@ -141,7 +141,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             // TODO - apparently this demands the limit/offset parameters are defined beforehand?
             // Let the APIController do the rest of the error-checking
             return $this->forward(
-                'ODRAdminBundle:API:getDatarecordList',
+                '@ODRAdmin/API/getDatarecordList',
                 [
                     'version' => 'v1',
                     'datatype_uuid' => $datatype->getUniqueId(),
@@ -195,7 +195,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
             // Let the APIController do the rest of the error-checking
             return $this->forward(
-                'ODRAdminBundle:API:getDatarecordExport',
+                '@ODRAdmin/API/getDatarecordExport',
                 [
                     'version' => 'v1',
                     'record_uuid' => $datarecord->getUniqueId(),

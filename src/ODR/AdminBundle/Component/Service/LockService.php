@@ -16,7 +16,7 @@ namespace ODR\AdminBundle\Component\Service;
 // Redis
 use Predis;
 // Symfony
-use Symfony\Component\Lock\Factory;
+use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Lock\Store\RedisStore;
 use Symfony\Component\Lock\Store\RetryTillSaveStore;
 
@@ -24,7 +24,7 @@ class LockService
 {
 
     /**
-     * @var Factory
+     * @var LockFactory
      */
     private $lock_factory;
 
@@ -42,7 +42,7 @@ class LockService
         $redis_store = new RedisStore($redis_client);
         $blocking_redis_store = new RetryTillSaveStore($redis_store);    // 100ms retry delay, unlimited times
 
-        $this->lock_factory = new Factory($blocking_redis_store);
+        $this->lock_factory = new LockFactory($blocking_redis_store);
     }
 
 

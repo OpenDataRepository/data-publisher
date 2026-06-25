@@ -244,7 +244,7 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
                 $is_top_level = $rendering_options['is_top_level'];
 
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:Chemin:CheminReferences/cheminreferences_display.html.twig',
+                    '@ODROpenRepositoryGraph/Chemin/CheminReferences/cheminreferences_display.html.twig',
                     [
                         'datarecord' => $datarecord,
                         'mapping' => $datafield_mapping,
@@ -304,7 +304,7 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
                 $edit_behavior = $rendering_options['edit_behavior'];
 
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:Chemin:CheminReferences/cheminreferences_edit_fieldarea.html.twig',
+                    '@ODROpenRepositoryGraph/Chemin/CheminReferences/cheminreferences_edit_fieldarea.html.twig',
                     [
                         'datatype_array' => [$initial_datatype_id => $datatype],
                         'datarecord_array' => [$datarecord['id'] => $datarecord],

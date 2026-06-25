@@ -190,7 +190,7 @@ class IMAStatusNotesPlugin implements DatatypePluginInterface
             $output = '';
             if ( $rendering_options['context'] === 'display' ) {
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:RRUFF:IMAStatusNotes/ima_status_notes_display.html.twig',
+                    '@ODROpenRepositoryGraph/RRUFF/IMAStatusNotes/ima_status_notes_display.html.twig',
                     [
                         'datatype_array' => [$initial_datatype_id => $datatype],
                         'datarecord_array' => $datarecords,

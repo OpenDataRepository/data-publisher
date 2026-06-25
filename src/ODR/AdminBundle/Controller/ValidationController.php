@@ -4031,7 +4031,7 @@ class ValidationController extends ODRCustomController
 
             // ----------------------------------------
             // Get the directories from the crypto dir
-            $crypto_dir = realpath($this->getParameter('dterranova_crypto.temp_folder'));
+            $crypto_dir = realpath($this->getParameter('odr.crypto.temp_folder'));
             $encrypted_folders = ['File' => [], 'Image' => []];
 
             $contents = scandir($crypto_dir);

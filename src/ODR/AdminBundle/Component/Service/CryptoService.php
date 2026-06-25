@@ -27,7 +27,7 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Other
 use Doctrine\ORM\EntityManager;
-use dterranova\Bundle\CryptoBundle\Crypto\CryptoAdapter;
+use ODR\AdminBundle\Component\Crypto\CryptoAdapter;
 use Symfony\Bridge\Monolog\Logger;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 

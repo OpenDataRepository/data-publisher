@@ -16,7 +16,7 @@ namespace ODR\OpenRepository\GraphBundle\Command;
 // Services
 use ODR\OpenRepository\GraphBundle\Component\Service\AMCSDUpdateService;
 // Symfony
-use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
+use ODR\AdminBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 

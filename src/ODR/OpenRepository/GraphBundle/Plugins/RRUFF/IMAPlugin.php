@@ -210,7 +210,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
                 // TODO - should this also try to take over display mode of Chemistry Plugin?
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:RRUFF:IMA/ima_display_fieldarea.html.twig',
+                    '@ODROpenRepositoryGraph/RRUFF/IMA/ima_display_fieldarea.html.twig',
                     [
                         'datatype_array' => [$initial_datatype_id => $datatype],
                         'datarecord' => $datarecord,
@@ -240,7 +240,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                 $edit_behavior = $rendering_options['edit_behavior'];
 
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:RRUFF:IMA/ima_edit_fieldarea.html.twig',
+                    '@ODROpenRepositoryGraph/RRUFF/IMA/ima_edit_fieldarea.html.twig',
                     [
                         'datatype_array' => [$initial_datatype_id => $datatype],
                         'datarecord_array' => [$datarecord['id'] => $datarecord],
@@ -276,7 +276,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                 $special_tokens[$mineralid_field_id] = $token;
 
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:RRUFF:IMA/ima_fakeedit_fieldarea.html.twig',
+                    '@ODROpenRepositoryGraph/RRUFF/IMA/ima_fakeedit_fieldarea.html.twig',
                     [
                         'datatype_array' => [$initial_datatype_id => $datatype],
                         'datarecord_array' => [$datarecord['id'] => $datarecord],
@@ -1018,7 +1018,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                 //  plugin's template instead of the default
                 return [
                     'token_list' => [],    // so ODRRenderService generates CSRF tokens
-                    'template_name' => 'ODROpenRepositoryGraphBundle:RRUFF:IMA/ima_edit_datafield_reload.html.twig',
+                    'template_name' => '@ODROpenRepositoryGraph/RRUFF/IMA/ima_edit_datafield_reload.html.twig',
                     'problem_fields' => $derivation_problems,
                 ];
             }

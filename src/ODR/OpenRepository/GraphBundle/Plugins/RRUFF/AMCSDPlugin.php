@@ -270,7 +270,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 $edit_behavior = $rendering_options['edit_behavior'];
 
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_edit_fieldarea.html.twig',
+                    '@ODROpenRepositoryGraph/RRUFF/AMCSD/amcsd_edit_fieldarea.html.twig',
                     [
                         'datatype_array' => [$initial_datatype_id => $datatype],
                         'datarecord_array' => [$datarecord['id'] => $datarecord],
@@ -298,7 +298,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             }
             else if ( $rendering_options['context'] === 'fake_edit' ) {
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_fakeedit_fieldarea.html.twig',
+                    '@ODROpenRepositoryGraph/RRUFF/AMCSD/amcsd_fakeedit_fieldarea.html.twig',
                     [
                         'datatype_array' => [$initial_datatype_id => $datatype],
                         'datarecord_array' => [$datarecord['id'] => $datarecord],
@@ -343,7 +343,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     $record_display_view = $rendering_options['record_display_view'];
 
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_display_fieldarea.html.twig',
+                    '@ODROpenRepositoryGraph/RRUFF/AMCSD/amcsd_display_fieldarea.html.twig',
                     [
                         'datatype_array' => [$initial_datatype_id => $datatype],
                         'datarecord' => $datarecord,
@@ -394,7 +394,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         $can_edit_relevant_datafield = true;
 
                     $error_div = $this->templating->render(
-                        'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_error.html.twig',
+                        '@ODROpenRepositoryGraph/RRUFF/AMCSD/amcsd_error.html.twig',
                         [
                             'rpf_name' => 'AMC File',
                             'problem_fields' => self::formatProblemFields($amc_problems),
@@ -416,7 +416,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         $can_edit_relevant_datafield = true;
 
                     $error_div = $this->templating->render(
-                        'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_error.html.twig',
+                        '@ODROpenRepositoryGraph/RRUFF/AMCSD/amcsd_error.html.twig',
                         [
                             'rpf_name' => 'CIF File',
                             'problem_fields' => self::formatProblemFields($cif_problems),
@@ -438,7 +438,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         $can_edit_relevant_datafield = true;
 
                     $error_div = $this->templating->render(
-                        'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_error.html.twig',
+                        '@ODROpenRepositoryGraph/RRUFF/AMCSD/amcsd_error.html.twig',
                         [
                             'rpf_name' => 'Original CIF File',
                             'problem_fields' => self::formatProblemFields($original_cif_problems),
@@ -460,7 +460,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         $can_edit_relevant_datafield = true;
 
                     $error_div = $this->templating->render(
-                        'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_error.html.twig',
+                        '@ODROpenRepositoryGraph/RRUFF/AMCSD/amcsd_error.html.twig',
                         [
                             'rpf_name' => 'DIF File',
                             'problem_fields' => self::formatProblemFields($dif_problems),
@@ -484,7 +484,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         $can_edit_relevant_datafield = true;
 
                     $error_div = $this->templating->render(
-                        'ODROpenRepositoryGraphBundle:RRUFF:AMCSD/amcsd_error.html.twig',
+                        '@ODROpenRepositoryGraph/RRUFF/AMCSD/amcsd_error.html.twig',
                         [
                             'rpf_name' => 'Space Group',
                             'problem_fields' => self::formatProblemFields($symmetry_problems),

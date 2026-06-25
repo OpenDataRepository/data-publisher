@@ -13,7 +13,7 @@
 
 namespace ODR\AdminBundle\Command;
 
-use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
+use ODR\AdminBundle\Command\ContainerAwareCommand;
 use Doctrine\Common\Cache\ArrayCache;
 
 // Services

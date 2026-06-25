@@ -161,7 +161,7 @@ class RRUFFSamplePlugin implements DatatypePluginInterface
             if ( $rendering_options['context'] === 'fake_edit' ) {
                 // When in fake_edit mode, use the plugin's override
                 return $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:RRUFF:RRUFFSample/rruff_sample_fakeedit_fieldarea.html.twig',
+                    '@ODROpenRepositoryGraph/RRUFF/RRUFFSample/rruff_sample_fakeedit_fieldarea.html.twig',
                     [
                         'datatype_array' => [$initial_datatype_id => $datatype],
                         'datarecord_array' => [$datarecord['id'] => $datarecord],

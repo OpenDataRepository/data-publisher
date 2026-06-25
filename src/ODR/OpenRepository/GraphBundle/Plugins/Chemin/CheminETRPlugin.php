@@ -161,7 +161,7 @@ class CheminETRPlugin implements DatatypePluginInterface
 
             // Render and return the graph html
             $output = $this->templating->render(
-                'ODROpenRepositoryGraphBundle:Chemin:CheminETR/chemin_etr.html.twig',
+                '@ODROpenRepositoryGraph/Chemin/CheminETR/chemin_etr.html.twig',
                 [
                     'file_data' => $file_data,
                     'chemin_etr_table' => 'chemin_etr_table_'.$datarecord_id,

@@ -20,7 +20,7 @@ use ODR\AdminBundle\Component\Service\DatatypeCreateService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\OpenRepository\UserBundle\Entity\User;
-use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
+use ODR\AdminBundle\Command\ContainerAwareCommand;
 
 // Services
 use ODR\AdminBundle\Component\Service\CloneDatatypeService;

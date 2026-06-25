@@ -554,7 +554,7 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
     public function executeSearchPlugin($render_plugin_instance, $datatype, $datafield, $preset_value, $rendering_options)
     {
         $output = $this->templating->render(
-            'ODROpenRepositoryGraphBundle:RRUFF:ChemicalElementsSearch/chemical_elements_search_datafield.html.twig',
+            '@ODROpenRepositoryGraph/RRUFF/ChemicalElementsSearch/chemical_elements_search_datafield.html.twig',
             [
                 'datatype' => $datatype,
                 'datafield' => $datafield,

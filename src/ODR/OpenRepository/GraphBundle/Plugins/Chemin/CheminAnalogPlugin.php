@@ -163,7 +163,7 @@ class CheminAnalogPlugin implements DatatypePluginInterface
             if ( $rendering_options['context'] === 'fake_edit' ) {
                 // When in fake_edit mode, use the plugin's override
                 return $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:Chemin:CheminAnalog/cheminanalog_fakeedit_fieldarea.html.twig',
+                    '@ODROpenRepositoryGraph/Chemin/CheminAnalog/cheminanalog_fakeedit_fieldarea.html.twig',
                     [
                         'datatype_array' => [$initial_datatype_id => $datatype],
                         'datarecord_array' => [$datarecord['id'] => $datarecord],

@@ -20,7 +20,7 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 // Services
 use ODR\AdminBundle\Component\Service\CSVExportHelperService;
 // Symfony
-use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
+use ODR\AdminBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 

@@ -33,7 +33,7 @@
                 {% if datafield.dataFieldMeta.fieldType.typeName == "Markdown" %}
                     {% include '@ODRAdmin/Display/display_markdown.html.twig' with {'datafield': datafield} %}
                 {% elseif is_journal_field %}
-                    {% include 'ODROpenRepositoryGraphBundle:RRUFF:RRUFFReferences/rruffreferences_massedit_journal_datafield.html.twig' with {
+                    {% include '@ODROpenRepositoryGraph/RRUFF/RRUFFReferences/rruffreferences_massedit_journal_datafield.html.twig' with {
                         'datafield': datafield,
 
                         'is_datatype_admin': is_datatype_admin,

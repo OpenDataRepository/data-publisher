@@ -180,7 +180,7 @@ class MapPlugin implements DatatypePluginInterface
                 $record_display_view = $rendering_options['record_display_view'];
 
             $output = $this->templating->render(
-                'ODROpenRepositoryGraphBundle:Base:Map/map_wrapper.html.twig',
+                '@ODROpenRepositoryGraph/Base/Map/map_wrapper.html.twig',
                 [
                     'datatype_array' => [$datatype['id'] => $datatype],
                     'datarecord_array' => $datarecords,

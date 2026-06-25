@@ -9,7 +9,7 @@ namespace ODR\OpenRepository\GraphBundle\Twig;
  * TODO: long description.
  * 
  */
-class GraphExtension extends \Twig_Extension
+class GraphExtension extends \Twig\Extension\AbstractExtension
 {
     /**
      * TODO: short description.
@@ -20,7 +20,7 @@ class GraphExtension extends \Twig_Extension
     public function getFilters()
     {
         return [
-            new \Twig_SimpleFilter('graph', $this->graphFilter(...)),
+            new \Twig\TwigFilter('graph', $this->graphFilter(...)),
         ];
     }
 

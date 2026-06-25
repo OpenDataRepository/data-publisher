@@ -166,7 +166,7 @@ class QanalyzePlugin implements DatafieldPluginInterface
             if ( $rendering_options['context'] === 'display' ) {
                 if ($always_display_run_button || $value > 0) {
                     $output = $this->templating->render(
-                        'ODROpenRepositoryGraphBundle:Chemin:Qanalyze/qanalyze.html.twig',
+                        '@ODROpenRepositoryGraph/Chemin/Qanalyze/qanalyze.html.twig',
                         [
                             'label_field' => $label_field,
                             'xrd_field' => $xrd_field,

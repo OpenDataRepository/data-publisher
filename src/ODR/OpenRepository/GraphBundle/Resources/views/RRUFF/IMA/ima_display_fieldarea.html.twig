@@ -45,7 +45,7 @@
                         {% if datafield.dataFieldMeta.fieldType.typeName == "Markdown" %}
                             {% include '@ODRAdmin/Display/display_markdown.html.twig' with {'datafield': datafield} %}
                         {% elseif is_valence_element_field %}
-                            {% include 'ODROpenRepositoryGraphBundle:RRUFF:IMA/ima_valence_elements_display_datafield.html.twig' with {
+                            {% include '@ODROpenRepositoryGraph/RRUFF/IMA/ima_valence_elements_display_datafield.html.twig' with {
                                 'datarecord': datarecord,
                                 'datafield': datafield,
                             } %}

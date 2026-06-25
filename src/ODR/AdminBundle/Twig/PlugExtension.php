@@ -26,7 +26,7 @@ use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\SearchOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\ThemeElementPluginInterface;
 
-class PlugExtension extends \Twig_Extension
+class PlugExtension extends \Twig\Extension\AbstractExtension
 {
 
     /**

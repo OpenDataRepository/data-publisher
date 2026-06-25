@@ -124,7 +124,7 @@ class RRUFFInstrumentUsagePlugin implements DatafieldPluginInterface, TableResul
                     || ($rendering_options['context'] === 'display' && $render_in_display)
                 ) {
                     $output = $this->templating->render(
-                        'ODROpenRepositoryGraphBundle:RRUFF:RRUFFInstrumentUsage/rruffinstrumentusage_error.html.twig',
+                        '@ODROpenRepositoryGraph/RRUFF/RRUFFInstrumentUsage/rruffinstrumentusage_error.html.twig',
                         [
                             'problem_option' => $problem_option,
                             'is_datatype_admin' => $is_datatype_admin,
@@ -135,13 +135,13 @@ class RRUFFInstrumentUsagePlugin implements DatafieldPluginInterface, TableResul
                     // ...if the user didn't want the plugin to work in that context, then display
                     //  nothing instead
                     $output = $this->templating->render(
-                        'ODROpenRepositoryGraphBundle:RRUFF:RRUFFInstrumentUsage/rruffinstrumentusage_hidden_datafield.html.twig'
+                        '@ODROpenRepositoryGraph/RRUFF/RRUFFInstrumentUsage/rruffinstrumentusage_hidden_datafield.html.twig'
                     );
                 }
             }
             else if ( $rendering_options['context'] === 'display' ) {
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:RRUFF:RRUFFInstrumentUsage/rruffinstrumentusage_display_datafield.html.twig',
+                    '@ODROpenRepositoryGraph/RRUFF/RRUFFInstrumentUsage/rruffinstrumentusage_display_datafield.html.twig',
                     [
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,
@@ -155,7 +155,7 @@ class RRUFFInstrumentUsagePlugin implements DatafieldPluginInterface, TableResul
             }
             else if ( $rendering_options['context'] === 'edit' ) {
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:RRUFF:RRUFFInstrumentUsage/rruffinstrumentusage_edit_datafield.html.twig',
+                    '@ODROpenRepositoryGraph/RRUFF/RRUFFInstrumentUsage/rruffinstrumentusage_edit_datafield.html.twig',
                     [
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,
@@ -171,7 +171,7 @@ class RRUFFInstrumentUsagePlugin implements DatafieldPluginInterface, TableResul
                 // The plugin intentionally activates on more than just the display/edit contexts,
                 //  but it does so specifically to prevent the default field render from activating
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:RRUFF:RRUFFInstrumentUsage/rruffinstrumentusage_hidden_datafield.html.twig'
+                    '@ODROpenRepositoryGraph/RRUFF/RRUFFInstrumentUsage/rruffinstrumentusage_hidden_datafield.html.twig'
                 );
             }
 

@@ -136,7 +136,7 @@ class DatarecordExportService
 
         // ----------------------------------------
         // Determine which template to use for rendering
-        $template = 'ODRAdminBundle:XMLExport:datarecord_ajax.'.$format.'.twig';
+        $template = '@ODRAdmin/XMLExport/datarecord_ajax.'.$format.'.twig';
         // Render the DataRecord
         $str = $this->templating->render(
             $template,

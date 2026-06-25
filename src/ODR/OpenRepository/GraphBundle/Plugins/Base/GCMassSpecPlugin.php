@@ -469,7 +469,7 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
                     }
 
                     // Trigger puppeteer to make a graph for this file
-                    $page_data['template_name'] = 'ODROpenRepositoryGraphBundle:Base:GCMS/graph_builder.html.twig';
+                    $page_data['template_name'] = '@ODROpenRepositoryGraph/Base/GCMS/graph_builder.html.twig';
                     parent::buildGraph($page_data, $graph_filepath, $builder_filepath, $files_to_delete);
                 }
             }
@@ -480,7 +480,7 @@ class GCMassSpecPlugin extends ODRGraphPlugin implements DatatypePluginInterface
             if ( !isset($rendering_options['build_graph']) ) {
                 // ...if called via twig, then render and return the graph html
                 $output = $this->templating->render(
-                    'ODROpenRepositoryGraphBundle:Base:GCMS/graph_wrapper.html.twig', $page_data
+                    '@ODROpenRepositoryGraph/Base/GCMS/graph_wrapper.html.twig', $page_data
                 );
 
                 return $output;
