@@ -74,6 +74,7 @@ use ODR\AdminBundle\Component\Service\DatatypeCreateService;
 use ODR\AdminBundle\Component\Service\DatatypeExportService;
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityDeletionService;
+use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\ODRUploadService;
 use ODR\AdminBundle\Component\Service\ODRUserGroupMangementService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
@@ -4947,7 +4948,7 @@ class APIController extends ODRCustomController
      * @param Request $request
      * @return Response
      */
-    public function getRecordsByDatasetUUIDAction($version, $dataset_uuid, $record_uuid = null, Request $request): Response
+    public function getRecordsByDatasetUUIDAction($version, $dataset_uuid, $record_uuid = null, $limit, $offset, Request $request): Response
     {
 
         try {
@@ -5021,6 +5022,7 @@ class APIController extends ODRCustomController
                         )
                     );
                 } else {
+                    // Record UUID is always null 
                     $data_records = $em->getRepository('ODRAdminBundle:DataRecord')->findBy(
                         array(
                             'dataType' => $data_type->getId(),
@@ -5036,9 +5038,18 @@ class APIController extends ODRCustomController
                 if ($is_datatype_admin) {
                     $output_records = $data_records;
                 } else {
+                    $count = 0;
                     foreach ($data_records as $data_record) {
                         if ($pm_service->canViewDatarecord($user, $data_record)) {
-                            array_push($output_records, $data_record);
+                            // Deal with array and limit
+                            $max = $offset + $limit;
+                            if($count < $max && $count >= $offset) {
+                                array_push($output_records, $data_record);
+                            }
+                            if($count > $max) {
+                                break;
+                            }
+                            $count++;
                         }
                     }
                     if (count($output_records) < 1)
@@ -6130,6 +6141,7 @@ class APIController extends ODRCustomController
             }
             if ($datarecord == null)
                 throw new ODRNotFoundException('DataRecord');
+
             if ($datarecord->getDataType()->getId() !== $datatype->getId())
                 throw new ODRBadRequestException();
 
@@ -6406,6 +6418,265 @@ class APIController extends ODRCustomController
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
 
+    }
+
+    /**
+     * Resolves the user that an API write should act as. The request must
+     * carry a valid JWT (enforced by the ^/api firewall); if that user is a
+     * SuperAdmin and an override email is supplied, act as that user instead
+     * — same convention as createrecordAction.
+     *
+     * @param string|null $override_email
+     * @return ODRUser
+     */
+    private function resolveApiActingUser($override_email)
+    {
+        /** @var ODRUser $user */
+        $user = $this->container->get('security.token_storage')->getToken()->getUser();
+        if ($user === 'anon.' || is_null($user) || !is_object($user))
+            throw new ODRForbiddenException();
+
+        if (!empty($override_email) && $user->hasRole('ROLE_SUPER_ADMIN')) {
+            $user_manager = $this->container->get('fos_user.user_manager');
+            /** @var ODRUser $override */
+            $override = $user_manager->findUserBy(array('email' => $override_email));
+            if (is_null($override))
+                throw new ODRNotFoundException('unrecognized email: "' . $override_email . '"');
+            return $override;
+        }
+        return $user;
+    }
+
+
+    /**
+     * Adds or removes a single tag / radio-option selection on a record's
+     * field, then returns the full updated record.
+     *
+     *   PUT /api/v{X}/records/{record_uuid}/{field_uuid}/{option_uuid}/{state}
+     *   state = "selected" | "unselected"
+     *
+     * - Tag fields toggle a TagSelection; Radio fields toggle a
+     *   RadioSelection. Any other field type is a 400.
+     * - Single Radio / Single Select fields auto-deselect the currently
+     *   selected option when selecting a new one.
+     * - The drf and selection entities are created on demand.
+     * - Setting a selection to a state it's already in is a no-op success.
+     * - Only the named record is touched (no child/linked traversal).
+     *
+     * @param string  $version
+     * @param string  $record_uuid
+     * @param string  $field_uuid
+     * @param string  $option_uuid
+     * @param string  $state
+     * @param Request $request
+     * @return Response
+     */
+    public function setRecordFieldSelectionAction($version, $record_uuid, $field_uuid, $option_uuid, $state, Request $request)
+    {
+        try {
+            /** @var EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            $selected = ($state === 'selected');
+
+            $user = self::resolveApiActingUser($request->query->get('user_email'));
+
+            // ----------------------------------------
+            // Resolve record + field, scoped to the named record only.
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(array('unique_id' => $record_uuid));
+            if ($datarecord === null || $datarecord->getDeletedAt() !== null)
+                throw new ODRNotFoundException('Datarecord');
+
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(array('fieldUuid' => $field_uuid));
+            if ($datafield === null || $datafield->getDeletedAt() !== null)
+                throw new ODRNotFoundException('Datafield');
+            if ($datafield->getDataType()->getId() !== $datarecord->getDataType()->getId())
+                throw new ODRBadRequestException('Datafield does not belong to this record\'s datatype');
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            if (!$pm_service->canEditDatafield($user, $datafield, $datarecord))
+                throw new ODRForbiddenException();
+
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            $typename = $datafield->getFieldType()->getTypeName();
+
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+
+            // Ensure the drf exists.
+            $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
+
+            if ($typeclass === 'Tag') {
+                /** @var Tags $tag */
+                $tag = $em->getRepository('ODRAdminBundle:Tags')->findOneBy(
+                    array('tagUuid' => $option_uuid, 'dataField' => $datafield->getId())
+                );
+                if ($tag === null || $tag->getDeletedAt() !== null)
+                    throw new ODRNotFoundException('Tag');
+
+                $tag_selection = $ec_service->createTagSelection($user, $tag, $drf, $selected ? 1 : 0);
+                $emm_service->updateTagSelection($user, $tag_selection, array('selected' => $selected ? 1 : 0));
+            }
+            else if ($typeclass === 'Radio') {
+                /** @var RadioOptions $radio_option */
+                $radio_option = $em->getRepository('ODRAdminBundle:RadioOptions')->findOneBy(
+                    array('radioOptionUuid' => $option_uuid, 'dataField' => $datafield->getId())
+                );
+                if ($radio_option === null || $radio_option->getDeletedAt() !== null)
+                    throw new ODRNotFoundException('Radio option');
+
+                // Single-select: deselect any currently-selected option first.
+                if ($selected && ($typename === 'Single Radio' || $typename === 'Single Select')) {
+                    $existing_selections = $em->getRepository('ODRAdminBundle:RadioSelection')->findBy(
+                        array('dataRecordFields' => $drf->getId(), 'selected' => 1)
+                    );
+                    foreach ($existing_selections as $rs) {
+                        if ($rs->getRadioOption()->getId() !== $radio_option->getId())
+                            $emm_service->updateRadioSelection($user, $rs, array('selected' => 0), true);
+                    }
+                    $em->flush();
+                }
+
+                $radio_selection = $ec_service->createRadioSelection($user, $radio_option, $drf);
+                $emm_service->updateRadioSelection($user, $radio_selection, array('selected' => $selected ? 1 : 0));
+            }
+            else {
+                throw new ODRBadRequestException('Field type "' . $typeclass . '" does not support tag/radio selection');
+            }
+
+            // Selection updates don't fire PostUpdateEvent, so dispatch a
+            // DatarecordModified event ourselves to mark ancestors updated
+            // and clear cached record / json entries before re-export.
+            self::dispatchDatarecordModified($datarecord, $user);
+
+            return $this->getDatarecordExportAction($version, $record_uuid, $request, $user);
+        } catch (\Exception $e) {
+            $source = 0x517a7e01;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
+     * Sets the value of a storage (scalar) field on a record, then returns
+     * the full updated record.
+     *
+     *   POST /api/v{X}/records/{record_uuid}/{field_uuid}/value
+     *   body: { "value": "<some value>" }
+     *
+     * - Allowed for ShortVarchar/MediumVarchar/LongVarchar/LongText/
+     *   IntegerValue/DecimalValue/DatetimeValue/Boolean. Any other field
+     *   type is a 400.
+     * - The drf and storage entity are created on demand.
+     * - Only the named record is touched (no child/linked traversal).
+     *
+     * @param string  $version
+     * @param string  $record_uuid
+     * @param string  $field_uuid
+     * @param Request $request
+     * @return Response
+     */
+    public function setRecordFieldValueAction($version, $record_uuid, $field_uuid, Request $request)
+    {
+        try {
+            /** @var EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            $content = $request->getContent();
+            if (empty($content))
+                throw new ODRBadRequestException('Request body with a "value" property is required');
+            $data = json_decode($content, true);
+            if (!is_array($data) || !array_key_exists('value', $data))
+                throw new ODRBadRequestException('Request body must be JSON containing a "value" property');
+            $value = $data['value'];
+
+            $user = self::resolveApiActingUser(isset($data['user_email']) ? $data['user_email'] : $request->query->get('user_email'));
+
+            // ----------------------------------------
+            /** @var DataRecord $datarecord */
+            $datarecord = $em->getRepository('ODRAdminBundle:DataRecord')->findOneBy(array('unique_id' => $record_uuid));
+            if ($datarecord === null || $datarecord->getDeletedAt() !== null)
+                throw new ODRNotFoundException('Datarecord');
+
+            /** @var DataFields $datafield */
+            $datafield = $em->getRepository('ODRAdminBundle:DataFields')->findOneBy(array('fieldUuid' => $field_uuid));
+            if ($datafield === null || $datafield->getDeletedAt() !== null)
+                throw new ODRNotFoundException('Datafield');
+            if ($datafield->getDataType()->getId() !== $datarecord->getDataType()->getId())
+                throw new ODRBadRequestException('Datafield does not belong to this record\'s datatype');
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            if (!$pm_service->canEditDatafield($user, $datafield, $datarecord))
+                throw new ODRForbiddenException();
+
+            $typeclass = $datafield->getFieldType()->getTypeClass();
+            $allowed = array(
+                'ShortVarchar', 'MediumVarchar', 'LongVarchar', 'LongText',
+                'IntegerValue', 'DecimalValue', 'DatetimeValue', 'Boolean',
+            );
+            if (!in_array($typeclass, $allowed, true))
+                throw new ODRBadRequestException('Field type "' . $typeclass . '" does not support a "value" update');
+
+            /** @var EntityCreationService $ec_service */
+            $ec_service = $this->container->get('odr.entity_creation_service');
+            /** @var EntityMetaModifyService $emm_service */
+            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+
+            // Ensure drf + storage entity exist, then update the value.
+            $ec_service->createDatarecordField($user, $datarecord, $datafield);
+            $storage_entity = $ec_service->createStorageEntity($user, $datarecord, $datafield);
+            // updateStorageEntity fires PostUpdateEvent + handles type coercion.
+            $emm_service->updateStorageEntity($user, $storage_entity, array('value' => $value));
+
+            // Also mark ancestors updated + clear cached record/json entries.
+            self::dispatchDatarecordModified($datarecord, $user);
+
+            return $this->getDatarecordExportAction($version, $record_uuid, $request, $user);
+        } catch (\Exception $e) {
+            $source = 0x517a7e02;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
+     * Dispatches a DatarecordModifiedEvent (best-effort) so caches and
+     * ancestor "updated" timestamps stay correct after an API write, and
+     * clears the record's own cached JSON so the subsequent export is fresh.
+     *
+     * @param DataRecord $datarecord
+     * @param ODRUser    $user
+     */
+    private function dispatchDatarecordModified($datarecord, $user)
+    {
+        try {
+            $dispatcher = $this->container->get('event_dispatcher');
+            $event = new \ODR\AdminBundle\Component\Event\DatarecordModifiedEvent($datarecord, $user);
+            $dispatcher->dispatch(\ODR\AdminBundle\Component\Event\DatarecordModifiedEvent::NAME, $event);
+        } catch (\Exception $e) {
+            // event-handler failures must not break the API write
+        }
+
+        // Belt-and-suspenders: ensure this record's own cached JSON is gone
+        // (the event clears the grandparent's entry).
+        try {
+            $cache_service = $this->container->get('odr.cache_service');
+            $cache_service->delete('json_record_' . $datarecord->getUniqueId());
+        } catch (\Exception $e) {
+            // ignore
+        }
     }
 
     /**
@@ -8612,6 +8883,20 @@ class APIController extends ODRCustomController
             foreach ($by_datatype as $datatype_uuid => $files) {
                 $count = count($files);
                 $pages = max(1, (int)ceil($count / $page_size));
+
+                // The datatype's schema JSON (if the daemon has fetched it)
+                // lives at {datatype_dir}/schema.json. Advertise it as a
+                // <schema> sibling of <loc> on each entry for this datatype.
+                $schema_tag = '';
+                $schema_path = dirname($files[0]['path']) . '/schema.json';
+                if (is_file($schema_path)) {
+                    $schema_loc = htmlspecialchars(
+                        $static_render_service->getPublicSchemaUrlForDatatype($datatype_uuid),
+                        ENT_QUOTES | ENT_XML1
+                    );
+                    $schema_tag = "<schema>{$schema_loc}</schema>";
+                }
+
                 for ($p = 1; $p <= $pages; $p++) {
                     $start = ($p - 1) * $page_size;
                     $end   = min($count, $p * $page_size);
@@ -8626,7 +8911,7 @@ class APIController extends ODRCustomController
                         ENT_QUOTES | ENT_XML1
                     );
                     $lastmod = gmdate('Y-m-d\TH:i:s\Z', $max_mtime);
-                    $xml .= "    <sitemap><loc>{$loc}</loc><lastmod>{$lastmod}</lastmod></sitemap>\n";
+                    $xml .= "    <sitemap><loc>{$loc}</loc>{$schema_tag}<lastmod>{$lastmod}</lastmod></sitemap>\n";
                 }
             }
             $xml .= '</sitemapindex>' . "\n";
@@ -8676,6 +8961,11 @@ class APIController extends ODRCustomController
             $start = ($page - 1) * $page_size;
             $end   = min($count, $page * $page_size);
 
+            // Webroot directory for this datatype; used to test whether
+            // the companion .json sibling exists on disk before we
+            // advertise it in the sitemap.
+            $json_dir = dirname($files[0]['path']);
+
             $xml  = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
             $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
             for ($i = $start; $i < $end; $i++) {
@@ -8685,7 +8975,19 @@ class APIController extends ODRCustomController
                     ENT_QUOTES | ENT_XML1
                 );
                 $lastmod = gmdate('Y-m-d\TH:i:s\Z', $f['mtime']);
-                $xml .= "    <url><loc>{$loc}</loc><lastmod>{$lastmod}</lastmod></url>\n";
+                $xml .= "    <url><loc>{$loc}</loc>";
+                // Only advertise the JSON sibling if it actually exists.
+                // The daemon writes it best-effort, so we don't want a
+                // dead URL when the API fetch failed or wasn't configured.
+                $json_path = $json_dir . '/' . $f['record_uuid'] . '.json';
+                if (is_file($json_path)) {
+                    $json_loc = htmlspecialchars(
+                        $static_render_service->getPublicJsonUrlForFile($dataset_uuid, $f['record_uuid']),
+                        ENT_QUOTES | ENT_XML1
+                    );
+                    $xml .= "<json>{$json_loc}</json>";
+                }
+                $xml .= "<lastmod>{$lastmod}</lastmod></url>\n";
             }
             $xml .= '</urlset>' . "\n";
 

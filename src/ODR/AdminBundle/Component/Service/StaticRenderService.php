@@ -91,15 +91,20 @@ class StaticRenderService
     private $fetch_baseurl;
 
     /**
-     * @var string Absolute base URL used in the *sitemap* and any other
-     *             public link to the cached static file. Always derived
-     *             from site_baseurl, never from the WP host — the static
-     *             files live under the ODR web root, served directly by
-     *             Apache. Multiple WP-integrated sites can share a single
-     *             ODR backend, so all their cached pages live under the
-     *             one site_baseurl.
+     * @var string Absolute base URL of the ODR backend itself — always
+     *             derived from site_baseurl, never from the WP host.
+     *             Used for:
+     *               - sitemap <loc> entries pointing at cached files
+     *                 (served directly by Apache from the ODR web root)
+     *               - the public API (token + record JSON), which is
+     *                 mounted on Symfony at the ODR backend regardless
+     *                 of whether the dynamic display URL goes through
+     *                 WordPress.
+     *             Multiple WP-integrated sites can share a single ODR
+     *             backend, so all their cached pages and API calls
+     *             converge here.
      */
-    private $sitemap_baseurl;
+    private $odr_baseurl;
 
     /**
      * @var string Per-site sub-directory under web/uploads/static/ derived
@@ -144,7 +149,7 @@ class StaticRenderService
             ? $wordpress_site_baseurl
             : $site_baseurl;
         $this->fetch_baseurl = self::normalizeBaseurl($fetch_source);
-        $this->sitemap_baseurl = self::normalizeBaseurl($site_baseurl);
+        $this->odr_baseurl = self::normalizeBaseurl($site_baseurl);
 
         // The per-site sub-directory still derives from the *site identity*
         // (i.e. the WP host when integrated) — multiple WP-integrated sites
@@ -230,6 +235,21 @@ class StaticRenderService
         // dynamic URL if so). Same hostname as the dynamic page so the
         // browser sends the right session cookies.
         $auth_check_url = $this->fetch_baseurl . '/api/v1/auth/status';
+        // The daemon ALSO fetches a JSON representation of this record
+        // via the public API and writes it alongside the HTML. The API
+        // is hosted on the ODR backend (site_baseurl), not on the WP
+        // host — even on WP-integrated installs the API routes are
+        // mounted on Symfony directly, with no WordPress in front of
+        // them. So build these URLs off odr_baseurl, the same source
+        // that the sitemap entries use.
+        $api_token_url = $this->odr_baseurl . '/api/v5/token';
+        $api_record_url = $this->odr_baseurl . '/api/v5/search/record/' . $datarecord_uuid . '.json';
+        // The datatype's schema is the same for every record, so the
+        // daemon fetches it once per datatype (guarded by file existence)
+        // and writes it to {datatype_uuid}/schema.json. Carried on every
+        // record job so the daemon doesn't need a separate job type.
+        $api_schema_url = $this->odr_baseurl . '/api/v5/search/database/' . $datatype_uuid . '.json';
+        $schema_output_path = self::getSchemaOutputPathByUuid($datatype_uuid);
         $output_path = self::getOutputPathByUuid($datatype_uuid, $datarecord_uuid);
 
         $payload = json_encode(array(
@@ -239,6 +259,10 @@ class StaticRenderService
             'version' => $version,
             'url' => $url,
             'auth_check_url' => $auth_check_url,
+            'api_token_url' => $api_token_url,
+            'api_record_url' => $api_record_url,
+            'api_schema_url' => $api_schema_url,
+            'schema_output_path' => $schema_output_path,
             'output_path' => $output_path,
         ));
 
@@ -421,10 +445,75 @@ class StaticRenderService
      */
     public function getPublicUrlForFile($datatype_uuid, $record_uuid)
     {
-        return $this->sitemap_baseurl . '/uploads/static/'
+        return $this->odr_baseurl . '/uploads/static/'
             . $this->site_folder . '/'
             . $datatype_uuid . '/'
             . $record_uuid . '.html';
+    }
+
+    /**
+     * Companion to getPublicUrlForFile, but pointing at the .json
+     * snapshot that lives alongside the HTML file. Used by the sitemap
+     * to advertise the JSON URL inside each <url> entry.
+     */
+    public function getPublicJsonUrlForFile($datatype_uuid, $record_uuid)
+    {
+        return $this->odr_baseurl . '/uploads/static/'
+            . $this->site_folder . '/'
+            . $datatype_uuid . '/'
+            . $record_uuid . '.json';
+    }
+
+    /**
+     * Same disk-path logic as getOutputPath, but the .json sibling.
+     */
+    public function getJsonOutputPathByUuid($datatype_uuid, $record_uuid)
+    {
+        return $this->odr_web_dir . '/uploads/static/'
+            . $this->site_folder . '/'
+            . $datatype_uuid . '/'
+            . $record_uuid . '.json';
+    }
+
+    /**
+     * Disk path for a datatype's stored schema JSON. One per datatype,
+     * lives in the datatype's directory as schema.json. ("schema" can't
+     * collide with a record UUID, which is always hex.)
+     */
+    public function getSchemaOutputPathByUuid($datatype_uuid)
+    {
+        return $this->odr_web_dir . '/uploads/static/'
+            . $this->site_folder . '/'
+            . $datatype_uuid . '/schema.json';
+    }
+
+    /**
+     * Public URL of a datatype's stored schema JSON, for the sitemap
+     * index's <schema> tag. Uses odr_baseurl like the other cached-file
+     * URLs (served directly by Apache).
+     */
+    public function getPublicSchemaUrlForDatatype($datatype_uuid)
+    {
+        return $this->odr_baseurl . '/uploads/static/'
+            . $this->site_folder . '/'
+            . $datatype_uuid . '/schema.json';
+    }
+
+    /**
+     * Deletes a datatype's stored schema.json (if present) so the daemon
+     * re-fetches it on the next render. The daemon skips the schema fetch
+     * when the file already exists, so this is how you force a refresh
+     * after a schema change. Returns true if a file was removed.
+     */
+    public function purgeSchema($datatype_uuid)
+    {
+        $path = self::getSchemaOutputPathByUuid($datatype_uuid);
+        if (is_file($path) && @unlink($path)) {
+            if ($this->logger !== null)
+                $this->logger->info('StaticRenderService: purged schema '.$path);
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -467,10 +556,10 @@ class StaticRenderService
      * is `/sitemap-{uuid}.xml`; subsequent pages append `-{N}`.
      *
      * Uses fetch_baseurl (the WP host when WP-integrated) rather than
-     * sitemap_baseurl, because /sitemap-*.xml is a *dynamic* Symfony
+     * odr_baseurl, because /sitemap-*.xml is a *dynamic* Symfony
      * route — the request has to enter through WordPress to reach
      * Symfony in WP-integrated mode. Only the cached `/uploads/static/`
-     * file URLs use sitemap_baseurl; those are served by Apache
+     * file URLs use odr_baseurl; those are served by Apache
      * directly without going through Symfony at all.
      */
     public function getChildSitemapUrl($datatype_uuid, $page = 1)
