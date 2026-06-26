@@ -387,7 +387,7 @@ class ODRCustomController extends AbstractController
             }
 
             // Need to get a list of available sortfields
-            $tmp = $database_info_service->getSpecialDatafields($datatype->getId(), $user_permissions);  // filter with the user's permissions
+            $tmp = $database_info_service->getSpecialDatafields($datatype, $user_permissions);  // filter with the user's permissions
             $available_sortfields = $tmp['available_fields'];
 
 

@@ -49,7 +49,7 @@ Living state for the SF7 ⇄ `develop` synchronization (see `SYNCHRONIZATION_PLA
 | 32 | 2be0b76f | 2026-05-15 | API Fix for Deleting Records. | | Pending | | |
 | 33 | 4d58505c | 2026-05-19 | more potential problems | | Pending | | |
 | 34 | a7e2ef9d | 2026-05-20 | seem to have run into a logical contradiction caused by empty string also matching ancesto | | Pending | | |
-| 35 | 14f3976e | 2026-05-20 | fix for commit 64b18c4 breaking the ability to set name/sort fields for child datatypes | | Pending | | |
+| 35 | 14f3976e | 2026-05-20 | fix for commit 64b18c4 breaking the ability to set name/sort fields for child datatypes | bugfix | Ported | Phase C3 | DatabaseInfoService::getSpecialDatafields now takes a DataType (uses its own id, not grandparent's); private getSpecialFields->getNameSortFields; 4 callers updated (Session/ODRCustom/Displaytemplate x2) |
 | 36 | 006d0e97 | 2026-05-20 | Added a new ThemeElement property to 'show when empty' | | Pending | | |
 | 37 | 546a233a | 2026-05-21 | Implemented ability to change what the odr_search_immediate route uses | | Pending | | |
 | 38 | 06e06792 | 2026-05-21 | forgot this part in commit 546a233 | | Pending | | |

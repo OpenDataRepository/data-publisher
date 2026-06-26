@@ -4379,7 +4379,7 @@ if ($debug)
 
 
             // Locate all name/sort fields for the datatype...
-            $tmp = $database_info_service->getSpecialDatafields($datatype_id, $user_permissions);  // filter with the user's permissions
+            $tmp = $database_info_service->getSpecialDatafields($datatype, $user_permissions);  // filter with the user's permissions
 
             // ...though we only want some of them
             $available_datafields = $tmp['available_fields'];
@@ -4502,7 +4502,7 @@ if ($debug)
 
 
             // Locate all name/sort fields for the datatype...
-            $tmp = $database_info_service->getSpecialDatafields($datatype_id, $user_permissions);  // filter with the user's permissions
+            $tmp = $database_info_service->getSpecialDatafields($datatype, $user_permissions);  // filter with the user's permissions
 
             // ...though we only actually want the fields that can be used as name/sort fields
             $available_datafields = $tmp['available_fields'];
