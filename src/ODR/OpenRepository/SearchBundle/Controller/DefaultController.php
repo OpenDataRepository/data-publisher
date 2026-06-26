@@ -1069,7 +1069,20 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
                 $datarecord_id = $grandparent_datarecord_list[0];
                 // ...but also send the search_theme_id and the search key so the search sidebar
                 //  doesn't disappear on users
-                return $search_redirect_service->redirectToSingleDatarecord($datarecord_id, $search_theme_id, $search_key);
+//                return $search_redirect_service->redirectToSingleDatarecord($datarecord_id, $search_theme_id, $search_key);
+
+                // ...actually, don't want to trigger a secondary redirect.  Apparently this particular
+                //  controller action actually does what's desired here, unlike everywhere else in ODR...
+                //  (ported from develop 8fd3d7d7; forward target converted to SF7 FQCN notation)
+                return $this->forward(
+                    'ODR\AdminBundle\Controller\DisplayController::viewAction',
+                    array(
+                        'datarecord_id' => $datarecord_id,
+                        'search_theme_id' => 0,
+                        'search_key' => $search_key,
+                        'offset' => 0
+                    )
+                );
             }
 
 

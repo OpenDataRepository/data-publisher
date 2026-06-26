@@ -331,6 +331,10 @@ class GraphPlugin extends ODRGraphPlugin implements DatatypePluginInterface
                 if ( $dir === 'asc' || $dir === 'desc' )
                     $options['x_axis_dir'] = $dir;
             }
+            // Missing isset() guard (ported from develop bf9c6de4)
+            if ( !isset($options['x_axis_dir']) )
+                $options['x_axis_dir'] = 'asc';
+
             // The graph filename will have either an 'a' or a 'd' indicating the direction
             $x_axis_dir = substr((string) $options['x_axis_dir'], 0, 1);
 

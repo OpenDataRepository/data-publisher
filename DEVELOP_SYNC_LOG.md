@@ -18,7 +18,7 @@ Living state for the SF7 ⇄ `develop` synchronization (see `SYNCHRONIZATION_PLA
 | 1 | a7945ea7 | 2026-03-16 | HOM url checker. | | Pending | | |
 | 2 | 7749a427 | 2026-03-16 | ODR's 'default search key' system expanded to be more of a 'default search parameters' sys | | Pending | | |
 | 3 | c2661c5f | 2026-03-16 | Disabled the 'this layout has been synchronized...' notification | | Pending | | |
-| 4 | 8fd3d7d7 | 2026-03-17 | Search results with a single record should no longer redirect to the Display route | | Pending | | |
+| 4 | 8fd3d7d7 | 2026-03-17 | Search results with a single record should no longer redirect to the Display route | bugfix | Ported | Phase C1 | SearchBundle DefaultController: redirectToSingleDatarecord -> $this->forward(); forward target converted to SF7 FQCN |
 | 5 | 4348503b | 2026-03-17 | XYZData fields now silently switch display types to match whichever parameters they receiv | | Pending | | |
 | 6 | c58aa638 | 2026-03-17 | HOM URL resolver system for use with IMA.  Probably should move this to IMA. | | Pending | | |
 | 7 | 8f3c3af6 | 2026-03-19 | fixed commit 4348503 | | Pending | | |
@@ -34,7 +34,7 @@ Living state for the SF7 ⇄ `develop` synchronization (see `SYNCHRONIZATION_PLA
 | 17 | 12cbb3d7 | 2026-04-14 | Override getRootDir() in AppKernel to support symlinked instances | | Pending | | |
 | 18 | 55650b44 | 2026-04-15 | Adding script to link a new virtualhost from a source tree. | | Pending | | |
 | 19 | a6248ed3 | 2026-04-15 | Fix to ensure prefixed routes are used when creating linked instances. | | Pending | | |
-| 20 | f8f1e86c | 2026-04-22 | Query optimization when sorting involves radio options | | Pending | | |
+| 20 | f8f1e86c | 2026-04-22 | Query optimization when sorting involves radio options | bugfix | Ported | Phase C1 | SortService DQL: drf.dataField -> ro.dataField |
 | 21 | dcba252d | 2026-05-06 | Add "modify search" button for wordpress integrated searches. | | Pending | | |
 | 22 | 4c09003b | 2026-05-06 | Fixing single search result for modify search system. | | Pending | | |
 | 23 | cdf68594 | 2026-05-06 | Hiding search link in wordpress integrated state. | | Pending | | |
@@ -55,7 +55,7 @@ Living state for the SF7 ⇄ `develop` synchronization (see `SYNCHRONIZATION_PLA
 | 38 | 06e06792 | 2026-05-21 | forgot this part in commit 546a233 | | Pending | | |
 | 39 | c412c267 | 2026-05-26 | fix for #305 | | Pending | | |
 | 40 | 26dd4715 | 2026-05-26 | Added ability for a datatype admin to permit editing of files with specific extensions in  | | Pending | | |
-| 41 | bf9c6de4 | 2026-05-27 | Added missing isset() check for one of the apparently required graph plugin options | | Pending | | |
+| 41 | bf9c6de4 | 2026-05-27 | Added missing isset() check for one of the apparently required graph plugin options | bugfix | Ported | Phase C1 | isset($options['x_axis_dir']) guard added to GraphPlugin, FilterGraphPlugin, GCMassSpecPlugin |
 | 42 | 0d93d3de | 2026-05-27 | Added a no_header version of the table display_type in the themeDatatype entity | | Pending | | |
 | 43 | 97e45209 | 2026-05-28 | Updated setup_virtualhost script to set permissions properly. | infra | Deferred | | shell script perms; revisit in Phase E (infra) |
 | 44 | 5137749e | 2026-05-28 | the 'logical contradiction' is technically a combination of unexpected set subtraction and | | Pending | | |
