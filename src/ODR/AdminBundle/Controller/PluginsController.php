@@ -1388,7 +1388,8 @@ class PluginsController extends ODRCustomController
                 partial rpi.{id}, partial rpm.{id}, partial rpf.{id, fieldName},
                 partial df.{id}, partial dfm.{id, fieldName, is_unique, allow_multiple_uploads},
                 partial ft.{id, typeClass, typeName},
-                partial dt.{id}, partial dtm.{id, shortName}, partial gdt.{id}
+                partial dt.{id}, partial dtm.{id, shortName},
+                partial gdt.{id}, partial gdtm.{id, shortName}
 
             FROM ODR\AdminBundle\Entity\RenderPlugin rp
             JOIN rp.renderPluginInstance AS rpi
@@ -1402,13 +1403,15 @@ class PluginsController extends ODRCustomController
             JOIN df.dataType AS dt
             JOIN dt.dataTypeMeta AS dtm
             JOIN dt.grandparent AS gdt
+            JOIN gdt.dataTypeMeta AS gdtm
 
             WHERE rp.pluginClassName IN (:plugin_classnames)
             AND (rpi.dataType IS NOT NULL OR rpi.dataField IS NOT NULL)
             AND rp.deletedAt IS NULL AND rpi.deletedAt IS NULL
             AND rpm.deletedAt IS NULL AND rpf.deletedAt IS NULL
             AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL AND ft.deletedAt IS NULL
-            AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL AND gdt.deletedAt IS NULL'
+            AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
+            AND gdt.deletedAt IS NULL AND gdtm.deletedAt IS NULL'
         )->setParameters(
             [
                 'plugin_classnames' => $plugin_classnames
@@ -1480,12 +1483,15 @@ class PluginsController extends ODRCustomController
                             $df = $rpi['renderPluginMap'][0]['dataField'];
                             $dt = $df['dataType'];
                             $dt_name = $dt['dataTypeMeta'][0]['shortName'];
-                            $grandparent_dt_id = $dt['grandparent']['id'];
+                            $gdt = $dt['grandparent'];
+                            $gdt_id = $gdt['id'];
+                            $gdt_name = $gdt['dataTypeMeta'][0]['shortName'];
 
                             self::insertPluginUpdateError(
                                 $plugin_update_problems,
                                 $plugin_classname,
-                                $grandparent_dt_id,
+                                $gdt_id,
+                                $gdt_name,
                                 $dt_name,
                                 '',    // empty datafield name
                                 'Converting this '.$current_plugin_type.' plugin into a '.$new_plugin_type.' plugin would break the existing renderPluginMap entries'
@@ -1503,12 +1509,15 @@ class PluginsController extends ODRCustomController
 
                             $dt = $df['dataType'];
                             $dt_name = $dt['dataTypeMeta'][0]['shortName'];
-                            $grandparent_dt_id = $dt['grandparent']['id'];
+                            $gdt = $dt['grandparent'];
+                            $gdt_id = $gdt['id'];
+                            $gdt_name = $gdt['dataTypeMeta'][0]['shortName'];
 
                             self::insertPluginUpdateError(
                                 $plugin_update_problems,
                                 $plugin_classname,
-                                $grandparent_dt_id,
+                                $gdt_id,
+                                $gdt_name,
                                 $dt_name,
                                 $df_name,
                                 'Converting this '.$current_plugin_type.' plugin into a '.$new_plugin_type.' plugin would break the existing renderPluginMap entries'
@@ -1539,6 +1548,7 @@ class PluginsController extends ODRCustomController
                                         $plugin_update_problems,
                                         $plugin_classname,
                                         $df['grandparent_datatype_id'],
+                                        $df['grandparent_name'],
                                         $df['datatype_name'],
                                         $df['fieldName'],
                                         'The datafield is currently a "'.$df['typeClass'].'" typeclass, but the new plugin config only allows the '.implode('|', $rpf_changes['allowed_fieldtypes']).' typeclasses'
@@ -1559,6 +1569,7 @@ class PluginsController extends ODRCustomController
                                         $plugin_update_problems,
                                         $plugin_classname,
                                         $df['grandparent_datatype_id'],
+                                        $df['grandparent_name'],
                                         $df['datatype_name'],
                                         $df['fieldName'],
                                         'The new plugin config requires this datafield to be unique'
@@ -1570,6 +1581,7 @@ class PluginsController extends ODRCustomController
                                         $plugin_update_problems,
                                         $plugin_classname,
                                         $df['grandparent_datatype_id'],
+                                        $df['grandparent_name'],
                                         $df['datatype_name'],
                                         $df['fieldName'],
                                         'The new plugin config requires this datafield to not allow multiple file/image uploads'
@@ -1601,21 +1613,26 @@ class PluginsController extends ODRCustomController
      * @param string $datafield_name
      * @param string $message
      */
-    private function insertPluginUpdateError(&$plugin_update_problems, $plugin_classname, $grandparent_datatype_id, $datatype_name, $datafield_name, $message)
+    private function insertPluginUpdateError(&$plugin_update_problems, $plugin_classname, $grandparent_datatype_id, $grandparent_datatype_name, $datatype_name, $datafield_name, $message)
     {
+        // Ported from develop d3e9f97e: the problems structure now also keys on the grandparent
+        //  datatype name so the dialog can display it.
         if ( !isset($plugin_update_problems[$plugin_classname]) )
             $plugin_update_problems[$plugin_classname] = [];
 
         if ( !isset($plugin_update_problems[$plugin_classname][$grandparent_datatype_id]) )
             $plugin_update_problems[$plugin_classname][$grandparent_datatype_id] = [];
 
-        if ( !isset($plugin_update_problems[$plugin_classname][$grandparent_datatype_id][$datatype_name]) )
-            $plugin_update_problems[$plugin_classname][$grandparent_datatype_id][$datatype_name] = [];
+        if ( !isset($plugin_update_problems[$plugin_classname][$grandparent_datatype_id][$grandparent_datatype_name]) )
+            $plugin_update_problems[$plugin_classname][$grandparent_datatype_id][$grandparent_datatype_name] = [];
 
-        if ( !isset($plugin_update_problems[$plugin_classname][$grandparent_datatype_id][$datatype_name][$datafield_name]) )
-            $plugin_update_problems[$plugin_classname][$grandparent_datatype_id][$datatype_name][$datafield_name] = [];
+        if ( !isset($plugin_update_problems[$plugin_classname][$grandparent_datatype_id][$grandparent_datatype_name][$datatype_name]) )
+            $plugin_update_problems[$plugin_classname][$grandparent_datatype_id][$grandparent_datatype_name][$datatype_name] = [];
 
-        $plugin_update_problems[$plugin_classname][$grandparent_datatype_id][$datatype_name][$datafield_name][] = $message;
+        if ( !isset($plugin_update_problems[$plugin_classname][$grandparent_datatype_id][$grandparent_datatype_name][$datatype_name][$datafield_name]) )
+            $plugin_update_problems[$plugin_classname][$grandparent_datatype_id][$grandparent_datatype_name][$datatype_name][$datafield_name] = [];
+
+        $plugin_update_problems[$plugin_classname][$grandparent_datatype_id][$grandparent_datatype_name][$datatype_name][$datafield_name][] = $message;
     }
 
 
@@ -1644,9 +1661,12 @@ class PluginsController extends ODRCustomController
                     $dfm = $df['dataFieldMeta'][0];
                     $dt = $df['dataType'];
                     $dtm = $dt['dataTypeMeta'][0];
+                    $gdt = $dt['grandparent'];
+                    $gdtm = $gdt['dataTypeMeta'][0];
 
                     $mapped_datafields[$df_id] = [
-                        'grandparent_datatype_id' => $dt['grandparent']['id'],
+                        'grandparent_datatype_id' => $gdt['id'],
+                        'grandparent_name' => $gdtm['shortName'],
                         'datatype_name' => $dtm['shortName'],
 
                         'fieldName' => $dfm['fieldName'],
