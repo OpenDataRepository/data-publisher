@@ -96,7 +96,9 @@ $(function() {
     $(".MenuDesignArea").remove();
     window.scrollTo(0,0);
 
-    OpenLinkInfoDialog({{ datarecord.id }});
+    {% if has_linked_datatypes > 0 %}
+    GetLinkedDatarecords({{ datarecord.id }});  {# defined in @ODRAdmin/Default/common_js.html.twig #}
+    {% endif %}
 
     {# Layout-sync notification disabled (ported from develop c2661c5f)
 {% if notify_of_sync is defined and notify_of_sync == true %}
@@ -1773,45 +1775,6 @@ function AddChildRecord(child_datatype_id, parent_datarecord_id) {
         },
         error: function(jqXHR, textStatus, errorThrown) {
             // Don't need to do anything specific on an error
-        },
-        complete: function(jqXHR, textStatus) {
-            // Get the xdebugToken from response headers
-            var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
-
-            // If the Sfjs object exists
-            if (typeof Sfjs !== "undefined") {
-                // Grab the toolbar element
-                var currentElement = $('.sf-toolbar')[0];
-
-                // Load the data of the given xdebug token into the current toolbar wrapper
-                Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
-            }
-        }
-    });
-}
-
-/**
- * Requests information on which remote datarecords link to or are linked to by this local datarecord
- */
-function OpenLinkInfoDialog(local_datarecord_id) {
-    var url  = '{{ path('odr_record_get_linked_datarecords', {'local_datarecord_id': 0} ) }}';
-    url = url.substring(0, (url.length - 1));
-    url += local_datarecord_id;
-    // alert(url);  return;
-
-    showSearchOverlay();
-
-    $.ajax({
-        cache: false,
-        type: 'GET',
-        url: url,
-        dataType: "json",
-        success: function(data, textStatus, jqXHR) {
-            $("#ODRRecordLinkInfoWrapperDiv").html(data.d.html);
-            hideSearchOverlay();
-        },
-        error: function(jqXHR, textStatus, errorThrown) {
-            // Don't do anything on an error
         },
         complete: function(jqXHR, textStatus) {
             // Get the xdebugToken from response headers
