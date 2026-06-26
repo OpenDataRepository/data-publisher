@@ -1219,12 +1219,21 @@ class DisplayController extends ODRCustomController
             //  displayed...and also filters out all array entries that aren't relevant to files/images
             $entity_names = self::extractEntityNames($datatype_array, $datarecord_array);
 
+            // ----------------------------------------
+            // Prefer to use the Collator class for sorting, but only if it exists
+            $collator = null;
+            if ( extension_loaded('intl') ) {
+                $collator = new \Collator('root');
+                $collator->setAttribute(\Collator::NUMERIC_COLLATION, \Collator::ON);
+                $collator->setAttribute(\Collator::CASE_FIRST, \Collator::LOWER_FIRST);
+            }
+
             // Extract the filenames from the cached data arrays, organizing them by user request
             $file_array = [];
             if ( !$group_by_datafield )
-                $file_array = self::groupFilesByDatarecord($grandparent_datarecord_id, $entity_names, $datarecord_array);
+                $file_array = self::groupFilesByDatarecord($collator, $grandparent_datarecord_id, $entity_names, $datarecord_array);
             else
-                $file_array = self::groupFilesByDatafield($grandparent_datatype_id, $entity_names, $datatype_array, $datarecord_array);
+                $file_array = self::groupFilesByDatafield($collator, $grandparent_datatype_id, $entity_names, $datatype_array, $datarecord_array);
 
             // If no files/images have been uploaded to the grandparent datarecord or any of its
             //  descendants, then completely erase the array so the templating files can correctly
@@ -1332,13 +1341,14 @@ class DisplayController extends ODRCustomController
      * files to download.  This version is organized to make it easier to download all data from
      * a specific child/linked datarecord.
      *
+     * @param \Collator|null $collator
      * @param integer $current_datarecord_id
      * @param array $entity_names
      * @param array $datarecord_array
      *
      * @return array
      */
-    private function groupFilesByDatarecord($current_datarecord_id, $entity_names, $datarecord_array)
+    private function groupFilesByDatarecord($collator, $current_datarecord_id, $entity_names, $datarecord_array)
     {
         $file_array = [
             'datafields' => [],
@@ -1381,13 +1391,21 @@ class DisplayController extends ODRCustomController
                     $sorted_dr_list[$child_dr_id] = $datarecord_array[$child_dr_id]['sortField_value'];
             }
 
-            if ( !empty($sorted_dr_list) ) {
-                uasort($sorted_dr_list, fn($a, $b) => strnatcmp((string) $a, (string) $b));
+            if ( count($sorted_dr_list) > 1 ) {
+                if ( !is_null($collator) ) {
+                    // If a collator exists, then strings get to use UCA collation rules
+                    $collator->asort($sorted_dr_list);
+                }
+                else {
+                    // If it doesn't, then use a case-insensitive natural sort...
+                    $flag = SORT_NATURAL | SORT_FLAG_CASE;
+                    asort($sorted_dr_list, $flag);
+                }
             }
 
             foreach ($sorted_dr_list as $child_dr_id => $sort_value) {
                 // ...then determine if the child/linked datarecord has any files
-                $tmp = self::groupFilesByDatarecord($child_dr_id, $entity_names, $datarecord_array);
+                $tmp = self::groupFilesByDatarecord($collator, $child_dr_id, $entity_names, $datarecord_array);
 
                 // Only store the data for the child/linked datarecord if it has files, or has some
                 //  descendant that has files
@@ -1409,6 +1427,7 @@ class DisplayController extends ODRCustomController
      * files to download.  This version is organized to make it easier to download all files/images
      * that have been uploaded to a specific datafield.
      *
+     * @param \Collator|null $collator
      * @param integer $current_datatype_id
      * @param array $entity_names
      * @param array $datatype_array
@@ -1416,7 +1435,7 @@ class DisplayController extends ODRCustomController
      *
      * @return array
      */
-    private function groupFilesByDatafield($current_datatype_id, $entity_names, $datatype_array, $datarecord_array)
+    private function groupFilesByDatafield($collator, $current_datatype_id, $entity_names, $datatype_array, $datarecord_array)
     {
         $file_array = [
             'datafields' => [],
@@ -1432,8 +1451,16 @@ class DisplayController extends ODRCustomController
                 $sorted_dr_list[$dr_id] = $dr['sortField_value'];
         }
 
-        if ( !empty($sorted_dr_list) ) {
-            uasort($sorted_dr_list, fn($a, $b) => strnatcmp((string) $a, (string) $b));
+        if ( count($sorted_dr_list) > 1 ) {
+            if ( !is_null($collator) ) {
+                // If a collator exists, then strings get to use UCA collation rules
+                $collator->asort($sorted_dr_list);
+            }
+            else {
+                // If it doesn't, then use a case-insensitive natural sort...
+                $flag = SORT_NATURAL | SORT_FLAG_CASE;
+                asort($sorted_dr_list, $flag);
+            }
         }
 
 
@@ -1481,7 +1508,7 @@ class DisplayController extends ODRCustomController
                     continue;
 
                 // ...then determine if the child/linked datatype has any files
-                $tmp = self::groupFilesByDatafield($child_dt_id, $entity_names, $datatype_array, $datarecord_array);
+                $tmp = self::groupFilesByDatafield($collator, $child_dt_id, $entity_names, $datatype_array, $datarecord_array);
 
                 // Only store the data for the child/linked datarecord if it has files, or has some
                 //  descendant that has files

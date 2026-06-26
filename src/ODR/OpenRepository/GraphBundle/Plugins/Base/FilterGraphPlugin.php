@@ -474,11 +474,25 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
         for ($i = 0; $i <= $levels_count; $i++)
             $values[$i] = [];
 
+        // Prefer to use the Collator class for sorting, but only if it exists
+        $collator = null;
+        if ( extension_loaded('intl') ) {
+            // Strings get to use UCA collation rules
+            // https://www.unicode.org/Public/UCA/latest/allkeys.txt
+            $collator = new \Collator('root');
+            $collator->setAttribute(\Collator::NUMERIC_COLLATION, \Collator::ON);
+            $collator->setAttribute(\Collator::CASE_FIRST, \Collator::LOWER_FIRST);
+        }
+
         // Now that $values has been instantiated, transfer the values to sort on
         foreach ($graph_files as $dr_id => $data) {
             $tmp = $data['sortField_value'];
-            foreach ($tmp as $level => $value)
-                $values[$level][] = $value;
+            foreach ($tmp as $level => $value) {
+                if ( is_null($collator) )
+                    $values[$level][] = $value;
+                else
+                    $values[$level][] = $collator->getSortKey($value);
+            }
 
             // Need the datarecord id in the final column
             $values[$level+1][] = $dr_id;
@@ -495,10 +509,10 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
             $args[] = SORT_ASC;
 
             // ...and then ODR needs to specify which type of sort to use
-//                if ( $numeric_datafields[$display_order] )
-//                    $args[] = SORT_NUMERIC;
-//                else
-            $args[] = SORT_NATURAL | SORT_FLAG_CASE;
+            if ( is_null($collator) )
+                $args[] = SORT_NATURAL | SORT_FLAG_CASE;
+            else
+                $args[] = SORT_REGULAR;  // NOTE: the data itself is binary here
         }
 
         // The final argument needs to be the list of datarecord ids, otherwise array_multisort()

@@ -219,80 +219,96 @@ class TagHelperService
      */
     public function orderStackedTagArray(&$stacked_tag_array, $sort_by_name = false)
     {
+        // Prefer to use the Collator class for sorting, but only if it exists
+        $collator = null;
+        if ( extension_loaded('intl') ) {
+            // Strings get to use UCA collation rules
+            // https://www.unicode.org/Public/UCA/latest/allkeys.txt
+            $collator = new \Collator('root');
+            $collator->setAttribute(\Collator::NUMERIC_COLLATION, \Collator::ON);
+            $collator->setAttribute(\Collator::CASE_FIRST, \Collator::LOWER_FIRST);
+        }
+
         // Order all the child tags first
         foreach ($stacked_tag_array as $tag_id => $tag) {
             if ( isset($tag['children']) && !empty($tag['children']) )
-                $stacked_tag_array[$tag_id]['children'] = self::orderStackedTagArray_worker($tag['children'], $sort_by_name);
+                $stacked_tag_array[$tag_id]['children'] = self::orderStackedTagArray_worker($collator, $tag['children'], $sort_by_name);
         }
 
         // Now that all child tags are ordered, order the top-level tags
-        if ($sort_by_name)
-            uasort($stacked_tag_array, self::tagSort_name(...));
-        else
-            uasort($stacked_tag_array, self::tagSort_displayOrder(...));
+        if ( !is_null($collator) && $sort_by_name ) {
+            // The collator sort is trickier because of the limited functions available
+            $tag_names = array();
+            foreach ($stacked_tag_array as $tag_id => $tag)
+                $tag_names[$tag_id] = $tag['tagMeta']['tagName'];
+
+            $collator->asort($tag_names);
+
+            $tmp = array();
+            foreach ($tag_names as $tag_id => $name)
+                $tmp[$tag_id] = $stacked_tag_array[$tag_id];
+            $stacked_tag_array = $tmp;
+        }
+        else if ( $sort_by_name ) {
+            // Order by the tag's name property
+            uasort($stacked_tag_array, function($a, $b) {
+                return strnatcasecmp($a['tagMeta']['tagName'], $b['tagMeta']['tagName']);
+            });
+        }
+        else {
+            // Order by the tag's display_order property
+            uasort($stacked_tag_array, function($a, $b) {
+                return $a['tagMeta']['displayOrder'] <=> $b['tagMeta']['displayOrder'];
+            });
+        }
     }
 
 
     /**
      * Does the recursive part of sorting tags by displayOrder.
      *
+     * @param \Collator|null $collator
      * @param array $tag_array
      * @param bool $sort_by_name if true, sort by tag name...if false, sort by display order
      *
      * @return array
      */
-    private function orderStackedTagArray_worker(&$tag_array, $sort_by_name = false)
+    private function orderStackedTagArray_worker($collator, &$tag_array, $sort_by_name = false)
     {
         // Order all the children of this tag first
         foreach ($tag_array as $tag_id => $tag) {
             if ( isset($tag['children']) && !empty($tag['children']) )
-                $tag_array[$tag_id]['children'] = self::orderStackedTagArray_worker($tag['children'], $sort_by_name);
+                $tag_array[$tag_id]['children'] = self::orderStackedTagArray_worker($collator, $tag['children'], $sort_by_name);
         }
 
         // Now that all children of this "tag group" are ordered, order the "tag group" itself
-        if ($sort_by_name)
-            uasort($tag_array, self::tagSort_name(...));
-        else
-            uasort($tag_array, self::tagSort_displayOrder(...));
+        if ( !is_null($collator) && $sort_by_name ) {
+            // The collator sort is trickier because of the limited functions available
+            $tag_names = array();
+            foreach ($tag_array as $tag_id => $tag)
+                $tag_names[$tag_id] = $tag['tagMeta']['tagName'];
+
+            $collator->asort($tag_names);
+
+            $tmp = array();
+            foreach ($tag_names as $tag_id => $name)
+                $tmp[$tag_id] = $tag_array[$tag_id];
+            $tag_array = $tmp;
+        }
+        else if ( $sort_by_name ) {
+            // Order by the tag's name property
+            uasort($tag_array, function($a, $b) {
+                return strnatcasecmp($a['tagMeta']['tagName'], $b['tagMeta']['tagName']);
+            });
+        }
+        else {
+            // Order by the tag's display_order property
+            uasort($tag_array, function($a, $b) {
+                return $a['tagMeta']['displayOrder'] <=> $b['tagMeta']['displayOrder'];
+            });
+        }
 
         return $tag_array;
-    }
-
-
-    /**
-     * Custom function to sort tags by name.
-     *
-     * @param array $a
-     * @param array $b
-     *
-     * @return int
-     */
-    private function tagSort_name($a, $b)
-    {
-        return strnatcasecmp((string) $a['tagMeta']['tagName'], (string) $b['tagMeta']['tagName']);
-    }
-
-
-    /**
-     * Custom function to sort tags by displayOrder.
-     *
-     * @param array $a
-     * @param array $b
-     *
-     * @return int
-     */
-    private function tagSort_displayOrder($a, $b)
-    {
-        $a_displayOrder = intval($a['tagMeta']['displayOrder']);
-        $b_displayOrder = intval($b['tagMeta']['displayOrder']);
-
-        if ($a_displayOrder < $b_displayOrder)
-            return -1;
-        else if ($a_displayOrder > $b_displayOrder)
-            return 1;
-        else
-            // Otherwise, sort by tag_id
-            return ($a['id'] < $b['id']) ? -1 : 1;
     }
 
 
