@@ -45,6 +45,7 @@ class UpdateThemeDatatypeForm extends AbstractType
             'List' => ThemeDataType::LIST_HEADER,
             'Hide Header' => ThemeDataType::NO_HEADER,
             'Table' => ThemeDataType::DATATABLES_CONTENT,
+            'Table (no header)' => ThemeDataType::DATATABLES_NO_HEADER_CONTENT,
         ];
 
         $builder->add(

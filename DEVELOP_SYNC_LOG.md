@@ -56,7 +56,7 @@ Living state for the SF7 ⇄ `develop` synchronization (see `SYNCHRONIZATION_PLA
 | 39 | c412c267 | 2026-05-26 | fix for #305 | bugfix | Ported | Phase C2 | <a class="Cursor/Info">...</a> -> <span> for non-link labels in display_datafield/edit_ajax/edit_file_datafield/csvtable_display_datafield |
 | 40 | 26dd4715 | 2026-05-26 | Added ability for a datatype admin to permit editing of files with specific extensions in  | | Pending | | |
 | 41 | bf9c6de4 | 2026-05-27 | Added missing isset() check for one of the apparently required graph plugin options | bugfix | Ported | Phase C1 | isset($options['x_axis_dir']) guard added to GraphPlugin, FilterGraphPlugin, GCMassSpecPlugin |
-| 42 | 0d93d3de | 2026-05-27 | Added a no_header version of the table display_type in the themeDatatype entity | | Pending | | |
+| 42 | 0d93d3de | 2026-05-27 | Added a no_header version of the table display_type in the themeDatatype entity | feature | Ported | Phase D2 | ThemeDataType::DATATABLES_NO_HEADER_CONTENT=6 constant (no schema change) + form choice 'Table (no header)'; 9 templates set TABLE_NO_HEADER + treat it as a table type while suppressing the header (header conds get `or == TABLE_NO_HEADER`; content conds `!= TABLE_CONTENT` -> `not (== TABLE_CONTENT or == TABLE_NO_HEADER)`) |
 | 43 | 97e45209 | 2026-05-28 | Updated setup_virtualhost script to set permissions properly. | infra | Deferred | | shell script perms; revisit in Phase E (infra) |
 | 44 | 5137749e | 2026-05-28 | the 'logical contradiction' is technically a combination of unexpected set subtraction and | | Pending | | |
 | 45 | 105c2e44 | 2026-06-01 | ...each new instance where set subtraction does something that's correct yet unexpected ma | | Pending | | |

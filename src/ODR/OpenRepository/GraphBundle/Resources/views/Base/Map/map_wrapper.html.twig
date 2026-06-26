@@ -1,6 +1,7 @@
 {% apply spaceless %}
 
 {% set TABLE_CONTENT = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DATATABLES_CONTENT') %}
+{% set TABLE_NO_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DATATABLES_NO_HEADER_CONTENT') %}
 
 {% set datatype = datatype_array[target_datatype_id] %}
 
@@ -22,7 +23,7 @@
             'multiple_allowed': multiple_allowed,
         } %}
 
-        {% if display_type != TABLE_CONTENT %}
+        {% if not (display_type == TABLE_CONTENT or display_type == TABLE_NO_HEADER) %}
             {% for dr_id, datarecord in datarecord_array %}
 
                 {% include '@ODRAdmin/Display/accordion_header.html.twig' with {

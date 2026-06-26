@@ -15,6 +15,7 @@
 {% set LIST_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::LIST_HEADER') %}
 {% set NO_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::NO_HEADER') %}
 {% set TABLE_CONTENT = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DATATABLES_CONTENT') %}
+{% set TABLE_NO_HEADER = constant('ODR\\AdminBundle\\Entity\\ThemeDataType::DATATABLES_NO_HEADER_CONTENT') %}
 
 {% set can_edit_parent_record = false %}
 {% if datatype_permissions[ parent_datarecord.dataType.id ] is defined
@@ -67,7 +68,7 @@
 
     {# Default::fieldarea_header.html.twig will have created the add buttons when there are no records of this datatype #}
     {# As such, only need to create the add buttons here when there's at least one record and the datatype is allowed to have more than one record #}
-    {% if (display_type == ACCORDION_HEADER or display_type == NO_HEADER) and is_first_record and multiple_allowed == 1 %}
+    {% if (display_type == ACCORDION_HEADER or display_type == NO_HEADER or display_type == TABLE_NO_HEADER) and is_first_record and multiple_allowed == 1 %}
     {# Don't need to check context here...when called by FakeEdit, this should never get executed #}
     <span class="DataRecordTools">
         <i class="fa fa-info-circle Info ODRAncestorBlurb"
