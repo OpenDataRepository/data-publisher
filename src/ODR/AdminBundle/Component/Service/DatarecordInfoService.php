@@ -955,6 +955,7 @@ class DatarecordInfoService
             }
 
             // Also should store whether sorts should use SORT_NATURAL or SORT_NUMERIC
+            // At the moment, this mainly helps the various graph plugins
             if ( $sort_fields_are_numeric && count($sort_fields) < 2 ) {
                 // If the sort fields are numeric, and there's not more than one sort field, then
                 //  always use numeric
@@ -1144,6 +1145,30 @@ class DatarecordInfoService
      */
     public function stackDatarecordArray($datarecord_array, $initial_datarecord_id)
     {
+        // Prefer to use the Collator class for sorting, but only if it exists
+        $collator = null;
+        if ( extension_loaded('intl') ) {
+            // Strings get to use UCA collation rules
+            // https://www.unicode.org/Public/UCA/latest/allkeys.txt
+            $collator = new \Collator('root');
+            $collator->setAttribute(\Collator::NUMERIC_COLLATION, \Collator::ON);
+            $collator->setAttribute(\Collator::CASE_FIRST, \Collator::LOWER_FIRST);
+        }
+
+        return self::stackDatarecordArray_worker($collator, $datarecord_array, $initial_datarecord_id);
+    }
+
+
+    /**
+     * Does the actual work of {@link self::stackDatarecordArray()}
+     *
+     * @param \Collator $collator
+     * @param array $datarecord_array
+     * @param integer $initial_datarecord_id
+     * @return array
+     */
+    private function stackDatarecordArray_worker($collator, $datarecord_array, $initial_datarecord_id)
+    {
         $current_datarecord = array();
         if ( isset($datarecord_array[$initial_datarecord_id]) ) {
             $current_datarecord = $datarecord_array[$initial_datarecord_id];
@@ -1153,19 +1178,38 @@ class DatarecordInfoService
                 foreach ($current_datarecord['children'] as $dt_id => $dr_list) {
 
                     // ...stack each child individually
-                    $tmp = array();
+                    $child_records = array();
                     foreach ($dr_list as $num => $dr_id) {
                         if ( isset($datarecord_array[$dr_id]) )
-                            $tmp[$dr_id] = self::stackDatarecordArray($datarecord_array, $dr_id);
+                            $child_records[$dr_id] = self::stackDatarecordArray_worker($collator, $datarecord_array, $dr_id);
                     }
 
-                    // ...sort array of child datarecords by their respective sortvalue
-                    uasort($tmp, function ($a, $b) {
-                        return strnatcmp($a['sortField_value'], $b['sortField_value']);
-                    });
+                    if ( count($child_records) > 1 ) {
+                        // ...sort arrays of child datarecords by their respective sortvalue
+                        if ( !is_null($collator) ) {
+                            // Need to extract the sortfield values from the child records...
+                            $tmp = array();
+                            foreach ($child_records as $cdr_id => $cdr)
+                                $tmp[$cdr_id] = $cdr['sortField_value'];
+                            // ...so the collator can sort them...
+                            $collator->asort($tmp);
 
-                    // ...store child datarecords under their parent
-                    $current_datarecord['children'][$dt_id] = $tmp;
+                            // The array of child records then needs to be rebuilt from the sorted
+                            //  order
+                            $tmp_2 = array();
+                            foreach ($tmp as $cdr_id => $val)
+                                $tmp_2[$cdr_id] = $child_records[$cdr_id];
+                            $child_records = $tmp_2;
+                        }
+                        else {
+                            uasort($child_records, function ($a, $b) {
+                                return strnatcmp($a['sortField_value'], $b['sortField_value']);
+                            });
+                        }
+                    }
+
+                    // ...and store child datarecords under their parent
+                    $current_datarecord['children'][$dt_id] = $child_records;
                 }
             }
         }

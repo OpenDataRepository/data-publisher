@@ -1293,10 +1293,10 @@
     /**
      * Requests information on which remote datarecords link to or are linked to by this local datarecord
      */
-    function GetLinkedDatarecords(local_datarecord_id) {
-        var url  = '{{ path('odr_record_get_linked_datarecords', {'local_datarecord_id': 0} ) }}';
-        url = url.substring(0, (url.length - 1));
-        url += local_datarecord_id;
+    function GetLinkedDatarecords(local_datarecord_id, context) {
+        var url  = '{{ path('odr_record_get_linked_datarecords', {'local_datarecord_id': 0, 'context': ''} ) }}';
+        url = url.substring(0, (url.length - 2));
+        url += local_datarecord_id + '/' + context;
         // alert(url);  return;
 
         // showSearchOverlay();

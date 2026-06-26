@@ -17,6 +17,7 @@ function delay(time) {
 }
 
 async function app() {
+    console.log('SEED ELASTIC - START (' + Date.now() + ')');
     browser = await puppeteer.launch({headless:'new'});
     client.watch(tube).onSuccess(function(data) {
         function resJob() {

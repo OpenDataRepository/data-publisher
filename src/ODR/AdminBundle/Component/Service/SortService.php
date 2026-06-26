@@ -347,6 +347,14 @@ class SortService
                 throw new ODRBadRequestException('SortService::multisortDatarecordList() keys in $sort_datafields does not match keys of $numeric_datafields', $exception_code);
         }
 
+        // ----------------------------------------
+        // Prefer to use the Collator class for sorting, but only if it exists
+        $collator = null;
+        if ( extension_loaded('intl') ) {
+            $collator = new \Collator('root');
+            $collator->setAttribute(\Collator::NUMERIC_COLLATION, \Collator::ON);
+            $collator->setAttribute(\Collator::CASE_FIRST, \Collator::LOWER_FIRST);
+        }
 
         // ----------------------------------------
         // This service also creates orderings of datarecords by individual datafields, which is the
@@ -360,7 +368,7 @@ class SortService
                 $datarecord_lists[$display_order] = self::sortDatarecordsByLinkedDatafield($datatype_id, $sort_df_id);
         }
 
-        // Going to attempt to use array_multisort() to do the ordering.  The previously loaded lists
+        // Going to use array_multisort() to do the actual sorting.  The previously loaded lists
         //  can already be treated as individual columns for array_multisort(), but they can't be
         //  used directly because the first row in the first list likely belongs to a different
         //  datarecord as the first row from the second list...
@@ -374,7 +382,10 @@ class SortService
             // ...loop through all the datarecord lists...
             foreach ($datarecord_lists as $display_order => $data) {
                 // ...and end up storing the data for each datarecord at the same index
-                $columns[$display_order][] = $data[$dr_id];
+                if ( is_null($collator) )
+                    $columns[$display_order][] = $data[$dr_id];
+                else
+                    $columns[$display_order][] = $collator->getSortKey( $data[$dr_id] );
 
                 if ( $display_order == 0 )
                     $combined_sortvalues[$dr_id] = $data[$dr_id];
@@ -400,7 +411,9 @@ class SortService
                 $args[] = SORT_DESC;
 
             // ...and then ODR needs to specify which type of sort to use
-            if ( $numeric_datafields[$display_order] )
+            if ( !is_null($collator) )
+                $args[] = SORT_REGULAR;  // NOTE: the data itself is binary here
+            else if ( $numeric_datafields[$display_order] )
                 $args[] = SORT_NUMERIC;
             else
                 $args[] = SORT_NATURAL | SORT_FLAG_CASE;
@@ -553,12 +566,12 @@ class SortService
 
             // ----------------------------------------
             // Need a list of all datarecords for this datatype
-            $dr_list = $this->search_service->getCachedSearchDatarecordList($datatype->getId());
+            $dr_list = $this->search_service->getCachedDatarecordList($datatype->getId());
 
             // Due to design decisions, ODR isn't guaranteed to have datarecordfield and/or storage
             //  entity entries for every datafield.  If either of those entries is missing, the
             //  upcoming query WILL NOT have an entry for that datarecord in its result set
-            foreach ($dr_list as $dr_id => $parents)
+            foreach ($dr_list as $dr_id => $parent_dr_id)
                 $datarecord_list[$dr_id] = '';
 
 
@@ -680,16 +693,40 @@ class SortService
                 }
             }
 
-            // Case-insensitive natural sort works in most cases...
-            $flag = SORT_NATURAL | SORT_FLAG_CASE;
-            if ($datafield->getForceNumericSort() || $typeclass == 'IntegerValue' || $typeclass == 'DecimalValue')
-                $flag = SORT_NUMERIC;   // ...but not for these two typeclasses
+            // Prefer to use the Collator class for sorting, but only if it exists
+            if ( extension_loaded('intl') ) {
+                // Still use asort() for numerical values...
+                if ($datafield->getForceNumericSort() || $typeclass == 'IntegerValue' || $typeclass == 'DecimalValue') {
+                    $flag = SORT_NUMERIC;
 
-            if ($sort_dir === 'asc')
-                asort($datarecord_list, $flag);
-            else
-                arsort($datarecord_list, $flag);
+                    if ($sort_dir === 'asc')
+                        asort($datarecord_list, $flag);
+                    else
+                        arsort($datarecord_list, $flag);
+                }
+                else {
+                    // ...but strings get to use UCA collation rules
+                    // https://www.unicode.org/Public/UCA/latest/allkeys.txt
+                    $collator = new \Collator('root');
+                    $collator->setAttribute(\Collator::NUMERIC_COLLATION, \Collator::ON);
+                    $collator->setAttribute(\Collator::CASE_FIRST, \Collator::LOWER_FIRST);
+                    $collator->asort($datarecord_list);
 
+                    if ($sort_dir === 'desc')
+                        $datarecord_list = array_reverse($datarecord_list, true);
+                }
+            }
+            else {
+                // If it doesn't, then use a case-insensitive natural sort...
+                $flag = SORT_NATURAL | SORT_FLAG_CASE;
+                if ($datafield->getForceNumericSort() || $typeclass == 'IntegerValue' || $typeclass == 'DecimalValue')
+                    $flag = SORT_NUMERIC;   // ...but not for these two typeclasses
+
+                if ($sort_dir === 'asc')
+                    asort($datarecord_list, $flag);
+                else
+                    arsort($datarecord_list, $flag);
+            }
 
             // Store the result back in the cache
             $sorted_datarecord_list[$sort_dir] = $datarecord_list;
@@ -908,16 +945,40 @@ class SortService
                 }
             }
 
-            // Case-insensitive natural sort works in most cases...
-            $flag = SORT_NATURAL | SORT_FLAG_CASE;
-            if ($template_datafield->getForceNumericSort() || $typeclass == 'IntegerValue' || $typeclass == 'DecimalValue')
-                $flag = SORT_NUMERIC;   // ...but not for these two typeclasses
+            // Prefer to use the Collator class for sorting, but only if it exists
+            if ( extension_loaded('intl') ) {
+                // Still use asort() for numerical values...
+                if ($template_datafield->getForceNumericSort() || $typeclass == 'IntegerValue' || $typeclass == 'DecimalValue') {
+                    $flag = SORT_NUMERIC;
 
-            if ($sort_dir === 'asc')
-                asort($datarecord_list, $flag);
-            else
-                arsort($datarecord_list, $flag);
+                    if ($sort_dir === 'asc')
+                        asort($datarecord_list, $flag);
+                    else
+                        arsort($datarecord_list, $flag);
+                }
+                else {
+                    // ...but strings get to use UCA collation rules
+                    // https://www.unicode.org/Public/UCA/latest/allkeys.txt
+                    $collator = new \Collator('root');
+                    $collator->setAttribute(\Collator::NUMERIC_COLLATION, \Collator::ON);
+                    $collator->setAttribute(\Collator::CASE_FIRST, \Collator::LOWER_FIRST);
+                    $collator->asort($datarecord_list);
 
+                    if ($sort_dir === 'desc')
+                        $datarecord_list = array_reverse($datarecord_list, true);
+                }
+            }
+            else {
+                // If it doesn't, then use a case-insensitive natural sort...
+                $flag = SORT_NATURAL | SORT_FLAG_CASE;
+                if ($template_datafield->getForceNumericSort() || $typeclass == 'IntegerValue' || $typeclass == 'DecimalValue')
+                    $flag = SORT_NUMERIC;   // ...but not for these two typeclasses
+
+                if ($sort_dir === 'asc')
+                    asort($datarecord_list, $flag);
+                else
+                    arsort($datarecord_list, $flag);
+            }
 
             // Store the result back in the cache
             $sorted_datarecord_list[$sort_dir] = $datarecord_list;
@@ -1034,10 +1095,10 @@ class SortService
             $sorted_linked_dr_list = self::sortDatarecordsByDatafield($linked_datafield->getId(), $sort_dir);
 
             // Need a list of all datarecords for the datatype to be ordered
-            $dr_list = $this->search_service->getCachedSearchDatarecordList($local_datatype->getId());
+            $dr_list = $this->search_service->getCachedDatarecordList($local_datatype->getId());
 
             // Need to get a list of datarecords of the linked datatype
-            $linked_dr_parents = $this->search_service->getCachedSearchDatarecordList($linked_datatype->getId(), true);
+            $linked_dr_parents = $this->search_service->getCachedDatarecordList($linked_datatype->getId(), false, true);
 
 
             // $dr_list is currently  <dr_id> => <dr_id>  for compliance elsewhere...
@@ -1057,17 +1118,40 @@ class SortService
                 }
             }
 
+            // Prefer to use the Collator class for sorting, but only if it exists
+            if ( extension_loaded('intl') ) {
+                // Still use asort() for numerical values...
+                if ($linked_datafield->getForceNumericSort() || $typeclass == 'IntegerValue' || $typeclass == 'DecimalValue') {
+                    $flag = SORT_NUMERIC;
 
-            // ----------------------------------------
-            // Case-insensitive natural sort works in most cases...
-            $flag = SORT_NATURAL | SORT_FLAG_CASE;
-            if ($linked_datafield->getForceNumericSort() || $typeclass == 'IntegerValue' || $typeclass == 'DecimalValue')
-                $flag = SORT_NUMERIC;   // ...but not for these two typeclasses
+                    if ($sort_dir === 'asc')
+                        asort($dr_list, $flag);
+                    else
+                        arsort($dr_list, $flag);
+                }
+                else {
+                    // ...but strings get to use UCA collation rules
+                    // https://www.unicode.org/Public/UCA/latest/allkeys.txt
+                    $collator = new \Collator('root');
+                    $collator->setAttribute(\Collator::NUMERIC_COLLATION, \Collator::ON);
+                    $collator->setAttribute(\Collator::CASE_FIRST, \Collator::LOWER_FIRST);
+                    $collator->asort($dr_list);
 
-            if ($sort_dir === 'asc')
-                asort($dr_list, $flag);
-            else
-                arsort($dr_list, $flag);
+                    if ($sort_dir === 'desc')
+                        $dr_list = array_reverse($dr_list, true);
+                }
+            }
+            else {
+                // If it doesn't, then use a case-insensitive natural sort...
+                $flag = SORT_NATURAL | SORT_FLAG_CASE;
+                if ($linked_datafield->getForceNumericSort() || $typeclass == 'IntegerValue' || $typeclass == 'DecimalValue')
+                    $flag = SORT_NUMERIC;   // ...but not for these two typeclasses
+
+                if ($sort_dir === 'asc')
+                    asort($dr_list, $flag);
+                else
+                    arsort($dr_list, $flag);
+            }
 
             // Done sorting $dr_list
             $datarecord_list = $dr_list;
@@ -1100,7 +1184,7 @@ class SortService
     public function sortRadioOptionsByName($user, $datafield)
     {
         // Don't do anything if this datafield isn't sorting its radio options by name
-        if (!$datafield->getRadioOptionNameSort())
+        if ( !$datafield->getRadioOptionNameSort() )
             return false;
 
         // Need to potentially look up radio options if their displayOrder gets changed
@@ -1117,29 +1201,41 @@ class SortService
         )->setParameters( array('datafield_id' => $datafield->getId()) );
         $results = $query->getArrayResult();
 
-        $radio_options = array();
+        $option_names = array();
+        $option_order = array();
         foreach ($results as $result) {
             $ro_id = $result['ro_id'];
             $ro_name = $result['optionName'];
             $display_order = $result['displayOrder'];
 
-            $radio_options[$ro_id] = array('name' => $ro_name, 'order' => $display_order);
+            $option_names[$ro_id] = $ro_name;
+            $option_order[$ro_id] = $display_order;
         }
 
 
         // ----------------------------------------
-        // Sort the radio options by name
-        uasort($radio_options, function($a, $b) {    // need to preserve array keys, since they're entity ids
-            return strnatcasecmp($a['name'], $b['name']);
-        });
+        // Prefer to use the Collator class for sorting, but only if it exists
+        if ( extension_loaded('intl') ) {
+            // Strings get to use UCA collation rules
+            // https://www.unicode.org/Public/UCA/latest/allkeys.txt
+            $collator = new \Collator('root');
+            $collator->setAttribute(\Collator::NUMERIC_COLLATION, \Collator::ON);
+            $collator->setAttribute(\Collator::CASE_FIRST, \Collator::LOWER_FIRST);
+            $collator->asort($option_names);
+        }
+        else {
+            // If it doesn't, then use a case-insensitive natural sort...
+            $flag = SORT_NATURAL | SORT_FLAG_CASE;
+            asort($option_names, $flag);
+        }
 
         // Save any changes in the sort order
         $index = 0;
         $changes_made = false;
-        foreach ($radio_options as $option_id => $option_data) {
-            $display_order = $option_data['order'];
+        foreach ($option_names as $option_id => $option_name) {
+            $previous_display_order = $option_order[$option_id];
 
-            if ( $display_order !== $index ) {
+            if ( $previous_display_order !== $index ) {
                 // ...if a radio option is not in the correct order, then hydrate it...
                 /** @var RadioOptions $ro */
                 $ro = $repo_radio_options->find($option_id);
@@ -1194,7 +1290,8 @@ class SortService
         )->setParameters( array('datafield_id' => $datafield->getId()) );
         $results = $query->getArrayResult();
 
-        $tag_groups = array();
+        $tag_names = array();
+        $tag_order = array();
         foreach ($results as $result) {
             $tag_id = $result['tag_id'];
             $tag_name = $result['tagName'];
@@ -1205,30 +1302,48 @@ class SortService
                 $parent_tag_id = 0;
 
             // Each of the tags needs to be "grouped" by its parent
-            if ( !isset($tag_groups[$parent_tag_id]) )
-                $tag_groups[$parent_tag_id] = array();
-            $tag_groups[$parent_tag_id][$tag_id] = array('name' => $tag_name, 'order' => $display_order);
+            if ( !isset($tag_names[$parent_tag_id]) ) {
+                $tag_names[$parent_tag_id] = array();
+                $tag_order[$parent_tag_id] = array();
+            }
+
+            $tag_names[$parent_tag_id][$tag_id] = $tag_name;
+            $tag_order[$parent_tag_id][$tag_id] = $display_order;
         }
 
 
         // ----------------------------------------
+        // Prefer to use the Collator class for sorting, but only if it exists
+        $collator = null;
+        if ( extension_loaded('intl') ) {
+            // Strings get to use UCA collation rules
+            // https://www.unicode.org/Public/UCA/latest/allkeys.txt
+            $collator = new \Collator('root');
+            $collator->setAttribute(\Collator::NUMERIC_COLLATION, \Collator::ON);
+            $collator->setAttribute(\Collator::CASE_FIRST, \Collator::LOWER_FIRST);
+        }
+
         // Each "group" of tags can then be sorted individually
-        foreach ($tag_groups as $parent_tag_id => $tag_group) {
+        $flag = SORT_NATURAL | SORT_FLAG_CASE;
+        foreach ($tag_names as $parent_tag_id => $tag_group) {
             $tmp = $tag_group;
-            uasort($tmp, function($a, $b) {    // need to preserve array keys, since they're tag ids
-                return strnatcasecmp($a['name'], $b['name']);
-            });
-            $tag_groups[$parent_tag_id] = $tmp;
+
+            if ( !is_null($collator) )
+                $collator->asort($tmp);
+            else
+                asort($tmp, $flag);
+
+            $tag_names[$parent_tag_id] = $tmp;
         }
 
         // Now that each "group" of tags is sorted...
         $changes_made = false;
-        foreach ($tag_groups as $parent_tag_id => $tag_group) {
+        foreach ($tag_names as $parent_tag_id => $tag_group) {
             $index = 0;
             foreach ($tag_group as $tag_id => $tag_data) {
-                $display_order = $tag_data['order'];
+                $previous_display_order = $tag_order[$parent_tag_id][$tag_id];
 
-                if ( $display_order !== $index ) {
+                if ( $previous_display_order !== $index ) {
                     // ...if a tag is not in the correct order, then hydrate it...
                     /** @var Tags $tag */
                     $tag = $repo_tags->find($tag_id);
@@ -1314,7 +1429,7 @@ class SortService
             $parent_datarecord_id = $datarecord->getParent()->getId();
 
             // SearchService is the faster way to get the parents of the child records
-            $search_dr_list = $this->search_service->getCachedSearchDatarecordList($datafield->getDataType()->getId());
+            $search_dr_list = $this->search_service->getCachedDatarecordList($datafield->getDataType()->getId());
             foreach ($search_dr_list as $child_dr_id => $parent_dr_id) {
                 // The "sibling" records are all records with the same parent
                 if ( $parent_dr_id === $parent_datarecord_id )

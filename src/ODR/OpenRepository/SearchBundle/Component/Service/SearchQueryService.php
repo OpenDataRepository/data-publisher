@@ -27,6 +27,26 @@ class SearchQueryService
 {
 
     /**
+     * This service has been granted the ability to modify what it receives from SearchQueryService,
+     * but this is only required in specific situations...neither of which this query satisfies.
+     */
+    const NO_MODIFICATION = 0;
+
+    /**
+     * In most situations where the incoming query can match the empty string, there are two different
+     * methods of dealing with it...one method is to negate the given query so that whatever matches
+     * can be subtracted from the set of all records at a later point in time..
+     */
+    const NEGATED_QUERY = 1;
+
+    /**
+     * ...the other method for dealing with empty string queries is to require record transforms
+     * to also splice in target records that aren't related to source records.
+     */
+    const NEED_UNRELATED_RECORDS = 2;
+
+
+    /**
      * @var EntityManager
      */
     private $em;
@@ -973,11 +993,99 @@ class SearchQueryService
      * The array has the following structure:
      * <pre>
      * array(
-     *     'guard' => <true when the query can match the empty string, false otherwise>,
-     *      'all_records' => array(
-     *          <matching dr_id> => 1
+     *     'modify' => <one of the SearchQueryService modify flags>,
+     *     'records' => array(
+     *         'public' => array(
+     *             <matching_dr_id> => 1,
+     *         ),
+     *         'non-public' => array(
+     *             <matching_dr_id> => 1,
+     *         )
      *      ),
      *     'public_only' => array(
+     *         <matching dr_id> => 1
+     *     ),
+     * )
+     * </pre>
+     * {@see SearchQueryService::NO_MODIFICATION},{@see SearchQueryService::NEGATED_QUERY},{@see SearchQueryService::NEED_UNRELATED_RECORDS}
+     *
+     * @param int $datatype_id
+     * @param int $datafield_id
+     * @param string $typeclass
+     * @param string $search_value
+     * @param bool $use_set_logic
+     *
+     * @return array
+     */
+    public function searchFileOrImageDatafield($datatype_id, $datafield_id, $typeclass, $search_value, $use_set_logic = false)
+    {
+        // ----------------------------------------
+        // Convert the given value into an array of parameters
+        $search_params = self::parseField($search_value, $typeclass);
+        $search_params['params']['datafield_id'] = $datafield_id;
+
+        // Determine whether this query needs to be modified due to (partially) matching the empty
+        //  string...
+        $modification = self::doesQueryNeedModified($search_params, $use_set_logic);
+
+        // Define the base query for searching by filenames...
+        $query =
+           'SELECT dr.id AS dr_id, e_m.public_date
+            FROM odr_data_record AS dr
+            JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+            JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
+            JOIN '.$this->typeclass_map[$typeclass].'_meta AS e_m ON e_m.'.strtolower($typeclass).'_id = e.id
+            WHERE e.data_field_id = :datafield_id AND ';
+        if ( $modification === SearchQueryService::NEGATED_QUERY )
+            $query .= 'NOT ';
+        $query .=
+            '('.$search_params['str'].')
+            AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
+            AND e.deletedAt IS NULL AND e_m.deletedAt IS NULL';
+
+        // Also define the query used when searching for something without uploaded files/images...
+        $null_query =
+           'SELECT dr.id AS dr_id, "" AS public_date
+            FROM odr_data_record AS dr
+            LEFT JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id AND ((drf.data_field_id = '.$datafield_id.' AND drf.deletedAt IS NULL) OR drf.id IS NULL)
+            LEFT JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
+            WHERE dr.data_type_id = :datatype_id AND e.id IS NULL AND dr.deletedAt IS NULL';
+
+        if ( $modification === SearchQueryService::NEED_UNRELATED_RECORDS ) {
+            $search_params['params']['datatype_id'] = $datatype_id;
+            $query .= "\nUNION\n".$null_query;
+        }
+
+
+        // ----------------------------------------
+        // Execute the query...
+        $conn = $this->em->getConnection();
+        $results = $conn->fetchAll($query, $search_params['params']);
+
+        // ...and convert the results into two arrays of datarecord ids
+        $all_datarecords = array();
+        foreach ($results as $result) {
+            if ( $result['public_date'] === '2200-01-01 00:00:00' )  // already a string due to using native sql
+                $all_datarecords['non_public'][ $result['dr_id'] ] = 1;
+            else
+                $all_datarecords['public'][ $result['dr_id'] ] = 1;
+        }
+
+        return array(
+            'records' => $all_datarecords,
+            'modify' => $modification,
+        );
+    }
+
+
+    /**
+     * Searches a file/image datafield for a filename and/or whether it has files or not, returning
+     * an array of datarecord ids that match the criteria.
+     *
+     * The array has the following structure:
+     * <pre>
+     * array(
+     *     'records' => array(
      *         <matching dr_id> => 1
      *     ),
      * )
@@ -986,143 +1094,117 @@ class SearchQueryService
      * @param int $datatype_id
      * @param int $datafield_id
      * @param string $typeclass
-     * @param string $search_type
      * @param string $search_value
      *
      * @return array
      */
-    public function searchFileOrImageDatafield($datatype_id, $datafield_id, $typeclass, $search_type, $search_value)
+    public function searchFileOrImageDatafield_publicstatus($datatype_id, $datafield_id, $typeclass, $search_value)
+    {
+        // Setup params for either type of public search...
+        $search_params = array(
+            'str' => 'e.data_field_id = :datafield_id AND ',
+            'params' => array(
+                'datafield_id' => $datafield_id,
+                'public_date' => '2200-01-01 00:00:00'
+            )
+        );
+        if ( $search_value === 1 ) {
+            // search for public files/images
+            $search_params['str'] .= 'e_m.public_date != :public_date';
+        }
+        else {
+            // search for non-public files/images
+            $search_params['str'] .= 'e_m.public_date = :public_date';
+        }
+
+        $public_status_query =
+           'SELECT dr.id AS dr_id
+            FROM odr_data_record AS dr
+            JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+            JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
+            JOIN '.$this->typeclass_map[$typeclass].'_meta AS e_m ON e_m.'.strtolower($typeclass).'_id = e.id
+            WHERE '.$search_params['str'].'
+            AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
+            AND e.deletedAt IS NULL AND e_m.deletedAt IS NULL';
+
+        // Don't need a null query...in order for a file to match a search on quality or public
+        //  status, it has to exist in the first place
+        $conn = $this->em->getConnection();
+        $results = $conn->fetchAll($public_status_query, $search_params['params']);
+
+
+        // ----------------------------------------
+        // Convert the results into an array
+        $all_datarecords = array();
+        foreach ($results as $result)
+            $all_datarecords[ $result['dr_id'] ] = 1;
+
+        return array(
+            'records' => $all_datarecords,
+        );
+    }
+
+
+    /**
+     * Searches a file/image datafield for a filename and/or whether it has files or not, returning
+     * an array of datarecord ids that match the criteria.
+     *
+     * The array has the following structure:
+     * <pre>
+     * array(
+     *     'records' => array(
+     *         <matching dr_id> => 1
+     *     ),
+     * )
+     * </pre>
+     *
+     * @param int $datatype_id
+     * @param int $datafield_id
+     * @param string $typeclass
+     * @param string $search_value
+     *
+     * @return array
+     */
+    public function searchFileOrImageDatafield_quality($datatype_id, $datafield_id, $typeclass, $search_value)
     {
         // Unfortunately, SearchService::searchFileOrImageDatafield() needs to know whether the
         //  search involved the empty string or not
         $involves_empty_string = false;
 
         // ----------------------------------------
-        // Figure out which type of query to use
+        // Don't need to modify the stuff for quality
+        $search_params = array(
+            'str' => 'e.data_field_id = :datafield_id AND e_m.quality = :quality',
+            'params' => array(
+                'datafield_id' => $datafield_id,
+                'quality' => $search_value
+            )
+        );
+
+        $quality_query =
+           'SELECT dr.id AS dr_id, e_m.public_date
+            FROM odr_data_record AS dr
+            JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+            JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
+            JOIN '.$this->typeclass_map[$typeclass].'_meta AS e_m ON e_m.'.strtolower($typeclass).'_id = e.id
+            WHERE '.$search_params['str'].'
+            AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
+            AND e.deletedAt IS NULL AND e_m.deletedAt IS NULL';
+
+        // Don't need a null query...in order for a file to match a search on quality or public
+        //  status, it has to exist in the first place
         $conn = $this->em->getConnection();
-        $results = array();
-
-        if ( $search_type === 'filename' ) {
-            $search_params = self::parseField($search_value, $typeclass);
-            $search_params['params']['datafield_id'] = $datafield_id;
-
-            // Define the base query for searching by filenames...
-            $query =
-               'SELECT dr.id AS dr_id, e_m.public_date
-                FROM odr_data_record AS dr
-                JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
-                JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
-                JOIN '.$this->typeclass_map[$typeclass].'_meta AS e_m ON e_m.'.strtolower($typeclass).'_id = e.id
-                WHERE e.data_field_id = :datafield_id AND ('.$search_params['str'].')
-                AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
-                AND e.deletedAt IS NULL AND e_m.deletedAt IS NULL';
-
-            // Also define the query used when searching for something without uploaded files/images...
-            $null_query =
-               'SELECT dr.id AS dr_id, "" AS public_date
-                FROM odr_data_record AS dr
-                LEFT JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id AND ((drf.data_field_id = '.$datafield_id.' AND drf.deletedAt IS NULL) OR drf.id IS NULL)
-                LEFT JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
-                WHERE dr.data_type_id = :datatype_id AND e.id IS NULL AND dr.deletedAt IS NULL';
-
-            // Determine whether this query's search parameters contain an empty string...if so, may
-            //  have to to run an additional query because of how ODR is designed...
-            if ( self::isNullDrfPossible($search_params['str'], $search_params['params']) ) {
-                // ...but only when the query actually has a logical chance of returning results...
-                if ( self::canQueryReturnResults($search_params['str'], $search_params['params']) ) {
-                    $search_params['params']['datatype_id'] = $datatype_id;
-                    $query .= "\nUNION\n".$null_query;
-
-                    // Need to let SearchService::searchFileOrImageDatafield() know they might have
-                    //  to trigger the 'public_only' protections, since the query involves the empty
-                    //  string
-                    $involves_empty_string = true;
-                }
-            }
-
-            $results = $conn->fetchAll($query, $search_params['params']);
-        }
-        else if ( $search_type === 'public_status' ) {
-            // Setup params for either type of public search...
-            $search_params = array(
-                'str' => 'e.data_field_id = :datafield_id AND ',
-                'params' => array(
-                    'datafield_id' => $datafield_id,
-                    'public_date' => '2200-01-01 00:00:00'
-                )
-            );
-            if ( $search_value === 1 ) {
-                // search for public files/images
-                $search_params['str'] .= 'e_m.public_date != :public_date';
-            }
-            else {
-                // search for non-public files/images
-                $search_params['str'] .= 'e_m.public_date = :public_date';
-            }
-
-            $public_status_query =
-               'SELECT dr.id AS dr_id
-                FROM odr_data_record AS dr
-                JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
-                JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
-                JOIN '.$this->typeclass_map[$typeclass].'_meta AS e_m ON e_m.'.strtolower($typeclass).'_id = e.id
-                WHERE '.$search_params['str'].'
-                AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
-                AND e.deletedAt IS NULL AND e_m.deletedAt IS NULL';
-
-            // Don't need a null query...in order for a file to match a search on quality or public
-            //  status, it has to exist in the first place
-
-            $results = $conn->fetchAll($public_status_query, $search_params['params']);
-        }
-        else if ( $search_type === 'quality' ) {
-            // Don't need to modify the stuff for quality
-            $search_params = array(
-                'str' => 'e.data_field_id = :datafield_id AND e_m.quality = :quality',
-                'params' => array(
-                    'datafield_id' => $datafield_id,
-                    'quality' => $search_value
-                )
-            );
-
-            $quality_query =
-               'SELECT dr.id AS dr_id, e_m.public_date
-                FROM odr_data_record AS dr
-                JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
-                JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
-                JOIN '.$this->typeclass_map[$typeclass].'_meta AS e_m ON e_m.'.strtolower($typeclass).'_id = e.id
-                WHERE '.$search_params['str'].'
-                AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
-                AND e.deletedAt IS NULL AND e_m.deletedAt IS NULL';
-
-            // Don't need a null query...in order for a file to match a search on quality or public
-            //  status, it has to exist in the first place
-
-            $results = $conn->fetchAll($quality_query, $search_params['params']);
-        }
+        $results = $conn->fetchAll($quality_query, $search_params['params']);
 
 
         // ----------------------------------------
         // Convert the results into two arrays of datarecord ids
-        $public_datarecords = array();
         $all_datarecords = array();
-        if ( $search_type !== 'public_status' ) {
-            foreach ($results as $result) {
-                $all_datarecords[ $result['dr_id'] ] = 1;
-                if ( $result['public_date'] !== '2200-01-01 00:00:00' )
-                    $public_datarecords[ $result['dr_id'] ] = 1;
-            }
-        }
-        else {
-            // Makes no sense to store 'public_only' records when searching on public status
-            foreach ($results as $result)
-                $all_datarecords[ $result['dr_id'] ] = 1;
-        }
+        foreach ($results as $result)
+            $all_datarecords[ $result['dr_id'] ] = 1;
 
         return array(
-            'all_records' => $all_datarecords,
-            'public_only' => $public_datarecords,
-            'guard' => $involves_empty_string,
+            'records' => $all_datarecords,
         );
     }
 
@@ -1751,29 +1833,36 @@ class SearchQueryService
      * The array has the following structure:
      * <pre>
      * array(
-     *     'guard' => <true when the query can match the empty string, false otherwise>,
      *     'records' => array(
      *         <matching dr_id> => 1
      *     ),
+     *     'modify' => <flag>
      * )
      * </pre>
+     *
+     * The flag for the 'modify' key is one of {@link SearchQueryService::NO_MODIFICATION},
+     * {@link SearchQueryService::NEGATED_QUERY}, or {@link SearchQueryService::NEED_UNRELATED_RECORDS}
      *
      * @param int $datatype_id
      * @param int $datafield_id
      * @param string $typeclass
      * @param string $value
+     * @param bool $use_set_logic
      * @param bool $doublequotes_force_exact_match {@link SearchQueryService::parseField()}
      * @param bool $search_converted If true, then run the search against 'converted_value' instead of 'value'
      *
      * @return array
      */
-    public function searchTextOrNumberDatafield($datatype_id, $datafield_id, $typeclass, $value, $doublequotes_force_exact_match = false, $search_converted = false)
+    public function searchTextOrNumberDatafield($datatype_id, $datafield_id, $typeclass, $value, $use_set_logic = false, $doublequotes_force_exact_match = false, $search_converted = false)
     {
         // ----------------------------------------
         // Convert the given value into an array of parameters
         $search_params = self::parseField($value, $typeclass, $doublequotes_force_exact_match, $search_converted);
         $search_params['params']['datafield_id'] = $datafield_id;
 
+        // Determine whether this query needs to be modified due to (partially) matching the empty
+        //  string...
+        $modification = self::doesQueryNeedModified($search_params, $use_set_logic, $search_converted);
 
         // ----------------------------------------
         // Define the base query for searching
@@ -1782,7 +1871,11 @@ class SearchQueryService
             FROM odr_data_record AS dr
             JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
             JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
-            WHERE e.data_field_id = :datafield_id AND ('.$search_params['str'].')
+            WHERE e.data_field_id = :datafield_id AND ';
+        if ( $use_set_logic && $modification === SearchQueryService::NEGATED_QUERY )
+            $query .= 'NOT ';
+        $query .=
+           '('.$search_params['str'].')
             AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL';
 
         // Also define the query used when one of the search parameters is the empty string
@@ -1796,25 +1889,12 @@ class SearchQueryService
         //  but that shouldn't happen...if it does, most likely it's either a botched fieldtype
         //  migration, or a change to the contents of a storage entity didn't complete properly
 
-
-        // ----------------------------------------
-        // Determine whether this query's search parameters contain an empty string...if so, may
-        //  have to to run an additional query because of how ODR is designed...
-        $involves_empty_string = false;
-        if ( self::isNullDrfPossible($search_params['str'], $search_params['params'], $search_converted) ) {
-            // ...but only when the query actually has a logical chance of returning results...
-            if ( self::canQueryReturnResults($search_params['str'], $search_params['params']) ) {
+//        if ( $use_set_logic ) {
+            if ( $modification === SearchQueryService::NEED_UNRELATED_RECORDS ) {
                 $search_params['params']['datatype_id'] = $datatype_id;
                 $query .= "\nUNION\n".$null_query;
-
-                // Need to inform callers that this query can matches the empty string
-                // This is important because if this search is on a descendant datatype, then the
-                //  ancestor datatype needs to take records without descendants and merge_by_OR with
-                //  the descendant datatype's records that match the query
-                $involves_empty_string = true;
             }
-        }
-
+//        }
 
         // ----------------------------------------
         // ODR used to try to typehint the parameters to try to get inequalities to work better,
@@ -1831,7 +1911,7 @@ class SearchQueryService
 
         return array(
             'records' => $datarecords,
-            'guard' => $involves_empty_string,
+            'modify' => $modification,
         );
     }
 
@@ -2002,6 +2082,62 @@ class SearchQueryService
 
 
     /**
+     * After converting the search system to do set subtraction, the null query checks for this
+     * service needed to be reworked...
+     *
+     * @param array $search_params
+     * @param bool $use_set_logic
+     * @param bool $search_converted
+     * @return int
+     */
+    private function doesQueryNeedModified($search_params, $use_set_logic = false, $search_converted = false)
+    {
+        // If the query could theoretically match the empty string...
+        if ( self::isNullDrfPossible($search_params['str'], $search_params['params'], $search_converted) ) {
+            //  ...then it needs to be checked for whether it could actually return any results...
+            if ( self::canQueryReturnResults($search_params['str'], $search_params['params']) ) {
+                // ...because if it can, then the query needs to be modified.
+
+                if ( !$use_set_logic ) {
+                    // If not using set logic, then this flag should always activate at this point
+                    return SearchQueryService::NEED_UNRELATED_RECORDS;
+                }
+                else {
+                    // The method of modification depends on whether there's a term involving the empty
+                    //  string and a non-empty string simultaneously...
+                    $has_empty_string = false;
+                    $has_not_empty_string = false;
+                    foreach ($search_params['params'] as $key => $value) {
+                        if ( $key === 'datafield_id' )
+                            continue;
+
+                        if ( $value === "" )
+                            $has_empty_string = true;
+                        else
+                            $has_not_empty_string = true;
+                    }
+
+
+                    if ( $has_empty_string && $has_not_empty_string ) {  // NOTE: this effectively triggers set subtraction
+//                    if ( $has_empty_string ) {  // NOTE: this causes most empty string + "multiple path" interactions to fail horribly
+                            // ...in this specific situation, the query should not be negated...doing so will
+                            //  cause the results to be un-mergeable
+                            return SearchQueryService::NEED_UNRELATED_RECORDS;
+                    }
+
+                    // If the query didn't match the previous specific situation, then it can be negated
+                    //  without causing the merger any issues
+                    return SearchQueryService::NEGATED_QUERY;
+                }
+            }
+        }
+
+        // If this point is reached, then the query should not be modified
+        return SearchQueryService::NO_MODIFICATION;
+    }
+
+
+    /**
      * Determines whether the provided string of MYSQL conditions potentially matches the empty
      * string...this is needed because ODR considers nonexistent datarecordfield or storage entities
      * to be the same as the empty string, while the two are quite different to the underlying
@@ -2103,9 +2239,8 @@ class SearchQueryService
 
     /**
      * Determines whether the provided string of MYSQL conditions has a chance of returning search
-     * results or not.  If it has no chance of returning results, then the union query that locates
-     * null drf entries shouldn't be run...it would return datarecords that only match part of the
-     * query, instead of all.
+     * results or not.  If it has no chance of returning results, then the query negation should not
+     * happen TODO
      *
      * @param string $str
      * @param array $params
@@ -2744,59 +2879,116 @@ class SearchQueryService
 
 
     /**
-     * Runs a query to return an array where the keys are datarecords ids belonging to the given
-     * datatype, and the values are the ids of their parent.
+     * Runs a query to return an array of the following form:
+     * <pre>
+     * array(
+     *     <child_dr_id> => <parent_dr_id>,
+     *     ...
+     * )
+     * </pre>
      *
-     * @param int $datatype_id
+     * @param int $datatype_id The id of the child datatype
      *
      * @return array
      */
     public function getParentDatarecords($datatype_id)
     {
-        // Define the base query
-        $query = $this->em->createQuery(
-           'SELECT dr.id AS id, parent.id AS parent_id
-            FROM ODRAdminBundle:DataRecord AS dr
-            JOIN ODRAdminBundle:DataRecord AS parent WITH dr.parent = parent
-            JOIN ODRAdminBundle:DataRecord AS grandparent WITH dr.grandparent = grandparent
-            WHERE dr.dataType = :datatype_id
-            AND dr.deletedAt IS NULL
-            AND parent.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
-        )->setParameters( array('datatype_id' => $datatype_id) );
-        $results = $query->getArrayResult();
+        $query =
+           'SELECT dr.id AS dr_id, parent.id AS parent_id
+            FROM odr_data_record AS dr
+            JOIN odr_data_record AS parent ON dr.parent_id = parent.id
+            JOIN odr_data_record AS grandparent ON dr.grandparent_id = grandparent.id
+            WHERE dr.data_type_id = '.$datatype_id.'
+            AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL AND grandparent.deletedAt IS NULL';
+        $conn = $this->em->getConnection();
+//        $results = $conn->fetchAll($query);    // can debug with this, but might run into memory issues
+        $results = $conn->executeQuery($query);
 
         // Child datarecords can only have a single parent datarecord
         $datarecords = array();
         foreach ($results as $result)
-            $datarecords[ $result['id'] ] = $result['parent_id'];
+            $datarecords[ $result['dr_id'] ] = intval($result['parent_id']);
 
         return $datarecords;
     }
 
 
     /**
-     * Runs a query to return an array where the keys are datarecords ids belonging to the given
-     * datatype, and the values are the ids of the datarecords that link to them.
+     * Runs a query to return an array of the following form:
+     * <pre>
+     * array(
+     *     <parent_dr_id> => array(
+     *         <child_dr_id>,
+     *         ...
+     *     ),
+     *     ...
+     * )
+     * </pre>
+     * The array of child datarecord ids can be empty.
      *
-     * @param int $datatype_id
+     * @param int $datatype_id The id of the parent datatype
+     *
+     * @return array
+     */
+    public function getChildDatarecords($datatype_id)
+    {
+        $query =
+           'SELECT dr.id AS child_dr_id, parent.id AS parent_dr_id
+            FROM odr_data_record AS parent
+            JOIN odr_data_record AS grandparent ON parent.grandparent_id = grandparent.id
+            LEFT JOIN odr_data_record AS dr ON dr.parent_id = parent.id
+            WHERE parent.data_type_id = '.$datatype_id.'
+            AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL AND grandparent.deletedAt IS NULL';
+        $conn = $this->em->getConnection();
+//        $results = $conn->fetchAll($query);    // can debug with this, but might run into memory issues
+        $results = $conn->executeQuery($query);
+
+        // Parent datarecords could have multiple children, but may also not have any
+        $datarecords = array();
+        foreach ($results as $result) {
+            $child_dr_id = $result['child_dr_id'];
+            $parent_dr_id = $result['parent_dr_id'];
+
+            if ( !isset($datarecords[$parent_dr_id]) )
+                $datarecords[$parent_dr_id] = array();
+            // Want to capture parents without child records, so can't put this check in the query
+            if ($child_dr_id !== $parent_dr_id)
+                $datarecords[$parent_dr_id][$child_dr_id] = '';
+        }
+
+        return $datarecords;
+    }
+
+
+    /**
+     * Runs a query to return an array of the following form:
+     * <pre>
+     * array(
+     *     <descendant_dr_id> => array(
+     *         <ancestor_dr_id>,
+     *         ...
+     *     ),
+     *     ...
+     * )
+     * </pre>
+     * The array of ancestor datarecord ids can be empty.
+     *
+     * @param int $datatype_id The id of the descendant datatype
      *
      * @return array
      */
     public function getLinkedParentDatarecords($datatype_id)
     {
-        // This function is only called when trying to build a list of all related datarecords from
-        //  the point of view of the ancestor, therefore this intentionally does not return
-        //  descendant datarecords that aren't linked to from some ancestor datarecord...
-        $query = $this->em->createQuery(
-           'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
-            FROM ODRAdminBundle:DataRecord AS ancestor
-            JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
-            JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
-            WHERE descendant.dataType = :datatype_id
-            AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL
-            AND ldt.deletedAt IS NULL'
-        )->setParameters( array('datatype_id' => $datatype_id) );
-        $results = $query->getArrayResult();
+        $query =
+           'SELECT descendant.id AS descendant_id, ancestor.id AS ancestor_id
+            FROM odr_data_record AS descendant
+            LEFT JOIN odr_linked_data_tree AS ldt ON (ldt.descendant_id = descendant.id AND ldt.deletedAt IS NULL)
+            LEFT JOIN odr_data_record AS ancestor ON (ldt.ancestor_id = ancestor.id AND ancestor.deletedAt IS NULL)
+            WHERE descendant.data_type_id = '.$datatype_id.'
+            AND descendant.deletedAt IS NULL';
+        $conn = $this->em->getConnection();
+//        $results = $conn->fetchAll($query);    // can debug with this, but might run into memory issues
+        $results = $conn->executeQuery($query);
 
         // Linked datarecords can have multiple ancestor datarecords
         $datarecords = array();
@@ -2806,8 +2998,9 @@ class SearchQueryService
 
             if ( !isset($datarecords[$descendant_id]) )
                 $datarecords[$descendant_id] = array();
-
-            $datarecords[$descendant_id][$ancestor_id] = '';
+            // Want to capture descendants without ancestors, but don't want to store null keys
+            if ( !is_null($ancestor_id) )
+                $datarecords[$descendant_id][$ancestor_id] = '';
         }
 
         return $datarecords;
@@ -2815,28 +3008,34 @@ class SearchQueryService
 
 
     /**
-     * Runs a query to return an array where the keys are datarecords ids belonging to the given
-     * datatype, and the values are the ids of the datarecords that it links to.
+     * Runs a query to return an array of the following form:
+     * <pre>
+     * array(
+     *     <ancestor_dr_id> => array(
+     *         <descendant_dr_id>,
+     *         ...
+     *     ),
+     *     ...
+     * )
+     * </pre>
+     * The array of descendant datarecord ids can be empty.
      *
-     * @param int $datatype_id
+     * @param int $datatype_id The id of the ancestor datatype
      *
      * @return array
      */
     public function getLinkedChildDatarecords($datatype_id)
     {
-        // This function is only called when trying to build a list of all related datarecords from
-        //  the point of view of the ancestor, therefore this intentionally does not return
-        //  descendant datarecords that aren't linked to from some ancestor datarecord...
-        $query = $this->em->createQuery(
+        $query =
            'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
-            FROM ODRAdminBundle:DataRecord AS ancestor
-            JOIN ODRAdminBundle:LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
-            JOIN ODRAdminBundle:DataRecord AS descendant WITH ldt.descendant = descendant
-            WHERE ancestor.dataType = :datatype_id
-            AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL
-            AND ldt.deletedAt IS NULL'
-        )->setParameters( array('datatype_id' => $datatype_id) );
-        $results = $query->getArrayResult();
+            FROM odr_data_record AS ancestor
+            LEFT JOIN odr_linked_data_tree AS ldt ON (ldt.ancestor_id = ancestor.id AND ldt.deletedAt IS NULL)
+            LEFT JOIN odr_data_record AS descendant ON (ldt.descendant_id = descendant.id AND descendant.deletedAt IS NULL)
+            WHERE ancestor.data_type_id = '.$datatype_id.'
+            AND ancestor.deletedAt IS NULL';
+        $conn = $this->em->getConnection();
+//        $results = $conn->fetchAll($query);    // can debug with this, but might run into memory issues
+        $results = $conn->executeQuery($query);
 
         // Linked datarecords can have multiple ancestor datarecords
         $datarecords = array();
@@ -2846,8 +3045,9 @@ class SearchQueryService
 
             if ( !isset($datarecords[$ancestor_id]) )
                 $datarecords[$ancestor_id] = array();
-
-            $datarecords[$ancestor_id][$descendant_id] = '';
+            // Want to capture ancestors without descendants, but don't want to store null keys
+            if ( !is_null($descendant_id) )
+                $datarecords[$ancestor_id][$descendant_id] = '';
         }
 
         return $datarecords;

@@ -3,10 +3,6 @@
 umask(0000);
 use Symfony\Component\HttpFoundation\Request;
 
-// If you don't want to setup permissions the proper way, just uncomment the following PHP line
-// read http://symfony.com/doc/current/book/installation.html#configuration-and-setup for more information
-//umask(0000);
-
 // This check prevents access to debug front controllers that are deployed by accident to production servers.
 // Feel free to remove this, extend it, or make something more sophisticated.
 if (
@@ -16,6 +12,9 @@ if (
     !in_array(@$_SERVER['REMOTE_ADDR'], array(
         '127.0.0.1',
         '216.220.243.154',
+        '12.74.53.89',
+        '172.16.243.1',
+        '68.107.247.210',
         '::1',
 
         '144.217.146.145',
@@ -34,9 +33,11 @@ if (
 /**
  * @var Composer\Autoload\ClassLoader
  */
-$loader = require __DIR__.'/../app/autoload.php';
-$loader = require_once __DIR__.'/../app/bootstrap.php.cache';
-require_once __DIR__.'/../app/AppKernel.php';
+$symlink_basepath = dirname($_SERVER['SCRIPT_FILENAME']);
+$odr_instance_root = preg_replace('/\/web/', '', $symlink_basepath);
+
+$loader = require $odr_instance_root . '/app/autoload.php';
+require_once $odr_instance_root . '/app/bootstrap.php.cache';
 
 $kernel = new AppKernel('dev', true);
 $kernel->loadClassCache();

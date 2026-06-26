@@ -34,22 +34,316 @@ const bs = require('nodestalker');
 const BEANSTALKD_HOST = '127.0.0.1:11300';
 const tube = 'odr_static_render';
 
+// Lightweight .env loader. Tries dotenv first (if installed), falls back
+// to a tiny built-in parser so the daemon works either way. The .env
+// lives in the same directory as this file (background_services/.env)
+// and is gitignored. Only used to provide ODR_API_USERNAME +
+// ODR_API_PASSWORD for the public-API JSON fetch — if those are absent
+// the daemon still renders HTML normally and just skips the JSON sibling.
+(function loadDotEnv() {
+    try {
+        require('dotenv').config({ path: path.join(__dirname, '.env') });
+        return;
+    } catch (e) { /* dotenv not installed — use the fallback below */ }
+    try {
+        const txt = fs.readFileSync(path.join(__dirname, '.env'), 'utf8');
+        txt.split(/\r?\n/).forEach(function (line) {
+            const m = line.match(/^\s*([A-Z_][A-Z_0-9]*)\s*=\s*(.*?)\s*$/);
+            if (!m) return;
+            if (process.env[m[1]]) return;   // don't clobber an existing env var
+            let v = m[2];
+            if ((v.startsWith('"') && v.endsWith('"')) ||
+                (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
+            process.env[m[1]] = v;
+        });
+    } catch (e) { /* no .env present — that's fine */ }
+})();
+
+const API_USERNAME = process.env.ODR_API_USERNAME || '';
+const API_PASSWORD = process.env.ODR_API_PASSWORD || '';
+
+// The Node `fetch` calls (token + record JSON) validate TLS certs by
+// default and, unlike Puppeteer, have no built-in bypass. On dev boxes
+// with a self-signed / invalid cert the fetch throws a generic
+// "fetch failed" (TypeError) with the real reason buried in e.cause.
+// Reuse the same dev toggle the Puppeteer launch uses so one flag
+// covers both. NEVER set this in production.
+if (process.env.STATIC_RENDER_IGNORE_HTTPS_ERRORS === '1') {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+    console.log('STATIC_RENDER_IGNORE_HTTPS_ERRORS=1 — Node fetch will skip TLS cert validation.');
+    // Belt-and-suspenders: some undici versions don't honor the env var
+    // for the global fetch dispatcher, so also install a permissive
+    // dispatcher when undici is reachable.
+    try {
+        const undici = require('undici');
+        undici.setGlobalDispatcher(new undici.Agent({ connect: { rejectUnauthorized: false } }));
+    } catch (e) { /* undici not directly requireable on this Node — env var covers it */ }
+}
+
 // Redis keys must match StaticRenderService::VERSION_KEY_PREFIX in PHP.
 const VERSION_KEY_PREFIX = 'static_render:version:';
 
 const RENDER_READY_TIMEOUT_MS = 60000;
-const NETWORK_IDLE_TIME_MS = 800;
-// Network-idle is a soft safety net for lazy image loads; on WP-integrated
-// pages there's almost always *something* polling (heartbeats, analytics,
-// chat widgets) so reaching true idle (0 in-flight requests) is unrealistic.
-// We give it a short window to catch quick stragglers, then proceed with
-// whatever's already on the page. The render-ready signal (set at the end
-// of initPage()) is the authoritative "page is done" indicator.
-const NETWORK_IDLE_TIMEOUT_MS = 5000;
+// Fixed grace period after render-ready, before capturing HTML.
+// We don't use Puppeteer's waitForNetworkIdle here: data:/blob: URIs
+// don't reliably fire requestfinished, so the network-idle counter
+// gets stuck on phantom in-flight resources forever even though the
+// page is genuinely done. The render-ready signal (set at the end of
+// initPage() in display_ajax.html.twig) is authoritative — this short
+// pause just covers any straggling lazy image decode.
+const POST_READY_GRACE_MS = parseInt(process.env.STATIC_RENDER_POST_READY_MS || '500', 10);
 const NAVIGATION_TIMEOUT_MS = 30000;
 
 let browser;
 const redis = new Redis(); // localhost:6379, default db
+
+// Cached JWT for the public API. Keyed by the token URL because in a
+// shared-backend / multi-site setup the same daemon could be talking to
+// more than one ODR install. We re-fetch on 401 (token expired) or when
+// the cache is empty.
+const tokenCache = new Map();   // tokenUrl -> { token, fetchedAt }
+
+// Datatype schemas already handled this run (keyed by schema_output_path),
+// so we don't re-stat / re-fetch the same schema for every record of a
+// datatype. The on-disk check still runs once per datatype here.
+const schemaHandled = new Set();
+
+/**
+ * Fetch a JWT for the public API using the ODR_API_USERNAME /
+ * ODR_API_PASSWORD credentials. Returns null if creds are missing or
+ * the token endpoint refuses us; callers should treat null as "skip
+ * the JSON fetch and move on".
+ */
+async function fetchApiToken(tokenUrl) {
+    if (!API_USERNAME || !API_PASSWORD) {
+        console.warn(`  [json] cannot fetch token: ODR_API_USERNAME / ODR_API_PASSWORD missing`);
+        return null;
+    }
+
+    console.log(`  [json] requesting token from ${tokenUrl} as "${API_USERNAME}"`);
+    try {
+        // Manually follow up to 3 same-host redirects, preserving POST and
+        // body. Node's built-in fetch downgrades POST → GET on 301/302
+        // per spec, so if the server uses 301 (canonical host, trailing
+        // slash, `/odr/` prefix injection, HTTPS upgrade, etc.) we'd hit
+        // the endpoint as GET and get "Method Not Allowed". This loop
+        // keeps the method.
+        const body = JSON.stringify({ username: API_USERNAME, password: API_PASSWORD });
+        const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+        let currentUrl = tokenUrl;
+        let resp = null;
+        for (let hops = 0; hops <= 3; hops++) {
+            resp = await fetch(currentUrl, {
+                method: 'POST',
+                redirect: 'manual',
+                headers: headers,
+                body: body,
+            });
+            if (resp.status >= 300 && resp.status < 400 && resp.headers.get('location')) {
+                const loc = resp.headers.get('location');
+                const next = new URL(loc, currentUrl).toString();
+                console.warn(`  [json] token URL ${currentUrl} returned HTTP ${resp.status} → ${next}`);
+                currentUrl = next;
+                continue;
+            }
+            break;
+        }
+        if (!resp.ok) {
+            console.warn(`  [json] token fetch failed: HTTP ${resp.status} at ${currentUrl}`);
+            return null;
+        }
+        const data = await resp.json();
+        const token = data && (data.token || data.access_token);
+        if (!token) {
+            console.warn(`  [json] token endpoint returned no token field (keys: ${Object.keys(data || {}).join(',')})`);
+            return null;
+        }
+        // Cache against the ORIGINAL request URL so callers stay
+        // consistent, but also surface the resolved final URL for the
+        // operator to fix in PHP if a redirect was needed.
+        tokenCache.set(tokenUrl, { token: token, fetchedAt: Date.now(), resolvedUrl: currentUrl });
+        if (currentUrl !== tokenUrl)
+            console.warn(`  [json] tip: update StaticRenderService::enqueueByIds to use ${currentUrl} directly and avoid the redirect`);
+        console.log(`  [json] obtained token (${token.length} chars), cached for reuse`);
+        // Full token printed for debugging. Remove or gate behind a debug
+        // flag before production — a JWT in the logs is a credential.
+        console.log(`  [json] token: ${token}`);
+        return token;
+    } catch (e) {
+        // "fetch failed" is undici's generic wrapper — the real reason
+        // (cert error, ECONNREFUSED, DNS, etc.) lives in e.cause.
+        const cause = e && e.cause ? (e.cause.code || e.cause.message || e.cause) : '';
+        console.warn(`  [json] token fetch errored:`, (e && e.message ? e.message : e), cause ? `(cause: ${cause})` : '');
+        return null;
+    }
+}
+
+async function getApiToken(tokenUrl, { forceRefresh = false } = {}) {
+    if (!forceRefresh) {
+        const cached = tokenCache.get(tokenUrl);
+        if (cached) {
+            console.log(`  [json] using cached token for ${tokenUrl}`);
+            return cached.token;
+        }
+    }
+    return await fetchApiToken(tokenUrl);
+}
+
+/**
+ * Pulls the public-API JSON representation of one record and writes
+ * it next to the rendered HTML as <output_path>.json. Non-fatal on
+ * failure — the HTML render is the primary deliverable; the JSON is a
+ * companion that the sitemap advertises when present.
+ *
+ * Optional global toggle: STATIC_RENDER_SKIP_JSON=1 disables the
+ * fetch entirely (useful on dev boxes that don't have API creds).
+ */
+async function fetchAndWriteJsonRecord(jobData) {
+    if (process.env.STATIC_RENDER_SKIP_JSON === '1') {
+        console.log(`  [json] skipped (STATIC_RENDER_SKIP_JSON=1)`);
+        return;
+    }
+
+    const { api_token_url, api_record_url, output_path, datarecord_uuid } = jobData;
+    if (!api_token_url || !api_record_url) {
+        console.warn(`  [json] skipped: job payload missing api_token_url / api_record_url ` +
+            `(re-enqueue is needed — this job was queued before the JSON change shipped)`);
+        return;
+    }
+    if (!API_USERNAME || !API_PASSWORD) {
+        console.warn(`  [json] skipped: ODR_API_USERNAME / ODR_API_PASSWORD not set ` +
+            `(check background_services/.env and restart the daemon to pick up changes)`);
+        return;
+    }
+
+    console.log(`  [json] starting fetch for record ${datarecord_uuid || '<unknown>'}`);
+    console.log(`  [json] record URL: ${api_record_url}`);
+
+    let token = await getApiToken(api_token_url);
+    if (!token) {
+        console.warn(`  [json] no token available — skipping record fetch`);
+        return;
+    }
+
+    async function attempt() {
+        return await fetch(api_record_url, {
+            headers: {
+                'Accept': 'application/json',
+                'Authorization': 'Bearer ' + token,
+            },
+        });
+    }
+
+    let resp;
+    try {
+        resp = await attempt();
+        if (resp.status === 401) {
+            // Token expired — re-fetch once and retry.
+            console.log(`  [json] got 401; refreshing token and retrying`);
+            token = await getApiToken(api_token_url, { forceRefresh: true });
+            if (!token) {
+                console.warn(`  [json] could not refresh token after 401 — skipping`);
+                return;
+            }
+            resp = await attempt();
+        }
+    } catch (e) {
+        console.warn(`  [json] record fetch errored:`, e && e.message ? e.message : e);
+        return;
+    }
+
+    if (!resp.ok) {
+        console.warn(`  [json] record fetch failed: HTTP ${resp.status} ${resp.statusText} for ${api_record_url}`);
+        return;
+    }
+
+    const json_path = output_path.replace(/\.html$/, '.json');
+    try {
+        const body = await resp.text();   // already JSON; keep server's formatting
+        fs.writeFileSync(json_path, body, 'utf8');
+        console.log(`  [json] wrote ${body.length} bytes to ${json_path}`);
+    } catch (e) {
+        console.warn(`  [json] write errored at ${json_path}:`, e && e.message ? e.message : e);
+    }
+}
+
+/**
+ * Fetches the datatype's schema JSON via the public API and writes it
+ * to schema_output_path ({datatype_uuid}/schema.json). The schema is
+ * identical for every record of a datatype, so this only does real
+ * work once per datatype per run: it short-circuits if we've already
+ * handled this schema path this run, or if the file already exists on
+ * disk from a previous run. Best-effort; failures just log.
+ */
+async function fetchAndWriteSchema(jobData) {
+    if (process.env.STATIC_RENDER_SKIP_JSON === '1') return;
+
+    const { api_token_url, api_schema_url, schema_output_path, datatype_uuid } = jobData;
+    if (!api_token_url || !api_schema_url || !schema_output_path) return;   // old job payload
+    if (!API_USERNAME || !API_PASSWORD) return;
+
+    // Once per datatype per run.
+    if (schemaHandled.has(schema_output_path)) return;
+    schemaHandled.add(schema_output_path);
+
+    // Already on disk from a prior run? Leave it; schemas change rarely
+    // and re-fetching every run would be wasteful. (Delete the file to
+    // force a refresh.)
+    if (fs.existsSync(schema_output_path)) {
+        console.log(`  [schema] already present for datatype ${datatype_uuid}, skipping`);
+        return;
+    }
+
+    console.log(`  [schema] fetching schema for datatype ${datatype_uuid}`);
+    console.log(`  [schema] schema URL: ${api_schema_url}`);
+
+    let token = await getApiToken(api_token_url);
+    if (!token) {
+        console.warn(`  [schema] no token available — skipping schema fetch`);
+        return;
+    }
+
+    async function attempt() {
+        return await fetch(api_schema_url, {
+            headers: {
+                'Accept': 'application/json',
+                'Authorization': 'Bearer ' + token,
+            },
+        });
+    }
+
+    let resp;
+    try {
+        resp = await attempt();
+        if (resp.status === 401) {
+            console.log(`  [schema] got 401; refreshing token and retrying`);
+            token = await getApiToken(api_token_url, { forceRefresh: true });
+            if (!token) {
+                console.warn(`  [schema] could not refresh token after 401 — skipping`);
+                return;
+            }
+            resp = await attempt();
+        }
+    } catch (e) {
+        const cause = e && e.cause ? (e.cause.code || e.cause.message || e.cause) : '';
+        console.warn(`  [schema] fetch errored:`, (e && e.message ? e.message : e), cause ? `(cause: ${cause})` : '');
+        return;
+    }
+
+    if (!resp.ok) {
+        console.warn(`  [schema] fetch failed: HTTP ${resp.status} ${resp.statusText} for ${api_schema_url}`);
+        return;
+    }
+
+    try {
+        ensureDir(schema_output_path);
+        const body = await resp.text();
+        fs.writeFileSync(schema_output_path, body, 'utf8');
+        console.log(`  [schema] wrote ${body.length} bytes to ${schema_output_path}`);
+    } catch (e) {
+        console.warn(`  [schema] write errored at ${schema_output_path}:`, e && e.message ? e.message : e);
+    }
+}
 
 function ensureDir(filePath) {
     const dir = path.dirname(filePath);
@@ -129,6 +423,46 @@ async function processJob(jobData) {
     });
     await page.setViewport({ width: 1400, height: 4800 });
 
+    // Optional request-lifecycle tracking for ad-hoc diagnosis. Enabled
+    // by STATIC_RENDER_DEBUG_NET=1 only — by default we don't bother
+    // attaching the listeners, because the cost is low but it keeps
+    // production logs tidy. The dumper is called automatically by the
+    // grace-period stage when this flag is on so you get a per-render
+    // network breakdown.
+    let dumpNetworkDiagnostics = function () { /* no-op when disabled */ };
+    if (process.env.STATIC_RENDER_DEBUG_NET === '1') {
+        const inFlight = new Map();      // request -> { url, startedAt, type }
+        const requestCounts = new Map(); // url -> number of times started
+        page.on('request', req => {
+            const u = req.url();
+            inFlight.set(req, { url: u, startedAt: Date.now(), type: req.resourceType() });
+            requestCounts.set(u, (requestCounts.get(u) || 0) + 1);
+        });
+        const settle = req => inFlight.delete(req);
+        page.on('requestfinished', settle);
+        page.on('requestfailed', settle);
+
+        dumpNetworkDiagnostics = function () {
+            const now = Date.now();
+            const pending = Array.from(inFlight.values());
+            console.log(`  [debug-net] still-pending requests: ${pending.length}`);
+            pending.slice(0, 20).forEach(r => {
+                const age = ((now - r.startedAt) / 1000).toFixed(1);
+                console.log(`    pending  ${r.type.padEnd(10)} ${age}s  ${r.url}`);
+            });
+            if (pending.length > 20) console.log(`    ...and ${pending.length - 20} more`);
+
+            const repeats = [...requestCounts.entries()]
+                .filter(([, n]) => n >= 2)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 15);
+            if (repeats.length) {
+                console.log(`  [debug-net] repeated requests during render (2+ hits):`);
+                repeats.forEach(([u, n]) => console.log(`    ${String(n).padStart(4)}x  ${u}`));
+            }
+        };
+    }
+
     // Tracks which step we're currently on so a Puppeteer "Timeout
     // exceeded while waiting for event" error can be re-thrown with
     // context about WHICH timeout fired. Otherwise the bare error message
@@ -158,15 +492,15 @@ async function processJob(jobData) {
         // intentionally swallow the timeout: WP pages often have a
         // permanent heartbeat / analytics call that never goes idle, and
         // the render-ready signal already told us the page is done.
-        stage = 'waitForNetworkIdle';
-        try {
-            await page.waitForNetworkIdle({
-                idleTime: NETWORK_IDLE_TIME_MS,
-                timeout: NETWORK_IDLE_TIMEOUT_MS,
-            });
-        } catch (e) {
-            console.log(`  [stage] network-idle didn't settle within ${NETWORK_IDLE_TIMEOUT_MS}ms, proceeding anyway`);
-        }
+        // Render-ready already fired — give the page a brief window for
+        // any tail-end lazy image decode, then capture. We deliberately
+        // do NOT use waitForNetworkIdle: data: and blob: URLs don't
+        // reliably emit requestfinished, so its in-flight counter sticks
+        // at 1-2 forever even though the page is actually done.
+        stage = 'postReadyGrace';
+        if (POST_READY_GRACE_MS > 0)
+            await new Promise(r => setTimeout(r, POST_READY_GRACE_MS));
+        dumpNetworkDiagnostics();   // no-op unless STATIC_RENDER_DEBUG_NET=1
 
         // Inject a small redirect script into <head> *before* capturing
         // HTML. The script runs only when the cached file is served (it
@@ -209,6 +543,18 @@ async function processJob(jobData) {
         // freshest job always wins.
 
         console.log(`Wrote ${html.length} bytes to ${output_path}`);
+
+        // Companion JSON snapshot. Best-effort: a failure here just logs
+        // a warning and the job is still considered a success.
+        stage = 'fetch_json';
+        await fetchAndWriteJsonRecord(data);
+
+        // Datatype schema snapshot — only does real work once per
+        // datatype per run (and skips if already on disk). Independent
+        // of the record JSON above so a record-fetch failure doesn't
+        // block the schema.
+        stage = 'fetch_schema';
+        await fetchAndWriteSchema(data);
     } catch (e) {
         // Annotate the error with which stage it failed in, plus a snapshot
         // of what the page actually contains so the operator can tell
