@@ -115,10 +115,12 @@
             openChooseViewRemodal({{ datatype.id }}, 'display', '{{ search_key }}');
         });
 
+        {# Download-all disabled for now (ported from develop a0ffd923)
         $("#ODRDownloadAllFilesIcon").unbind('click').click(function() {
-            {# defined in @ODRAdmin/Default/mass_download_dialog.html.twig #}
+            defined in @ODRAdmin/Default/mass_download_dialog.html.twig
             openMassDownloadDialog("{{ search_key }}");
         });
+        #}
 
 {% if can_change_public_status %}
         $("#ODRPublicRecord").unbind('click').click(function() {

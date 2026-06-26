@@ -1192,7 +1192,18 @@ class DisplayController extends ODRCustomController
             ) {
                 throw new ODRForbiddenException();
             }
+
+            // Need a user id for the temp directory to work...
+            $user_id = null;
+            if ($user == null || $user === 'anon.')
+                $user_id = 0;
+            else
+                $user_id = $user->getId();
             // ----------------------------------------
+
+            // Anonymous users may not create/download zip archives (ported from develop a0ffd923)
+            if ( $user_id === 0 )
+                throw new ODRForbiddenException();
 
 
             // ----------------------------------------
@@ -1562,6 +1573,10 @@ class DisplayController extends ODRCustomController
                 $user_id = $user->getId();
             // ----------------------------------------
 
+            // Anonymous users may not create/download zip archives (ported from develop a0ffd923)
+            if ( $user_id === 0 )
+                throw new ODRForbiddenException();
+
 
             // ----------------------------------------
             // Easier/faster to just load the entire datarecord/datatype arrays...
@@ -1722,6 +1737,9 @@ class DisplayController extends ODRCustomController
         $return['d'] = '';
 
         try {
+            // Disabled: unauthenticated search-results file archiving (ported from develop a0ffd923)
+            throw new ODRNotImplementedException();
+
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->container->get('doctrine')->getManager();
@@ -2265,6 +2283,10 @@ class DisplayController extends ODRCustomController
                 $user_id = $user->getId();
             // ----------------------------------------
 
+            // Anonymous users may not create/download zip archives (ported from develop a0ffd923)
+            if ( $user_id === 0 )
+                throw new ODRForbiddenException();
+
 
             // Symfony firewall requires $archive_filename to match "0|[0-9a-zA-Z\-\_]{12}.zip"
             if ($archive_filename == '0')
@@ -2469,6 +2491,10 @@ class DisplayController extends ODRCustomController
             else
                 $user_id = $user->getId();
             // ----------------------------------------
+
+            // Anonymous users may not create/download zip archives (ported from develop a0ffd923)
+            if ( $user_id === 0 )
+                throw new ODRForbiddenException();
 
 
             // ----------------------------------------

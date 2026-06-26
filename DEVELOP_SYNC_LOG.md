@@ -57,7 +57,7 @@ Living state for the SF7 ⇄ `develop` synchronization (see `SYNCHRONIZATION_PLA
 | 40 | 26dd4715 | 2026-05-26 | Added ability for a datatype admin to permit editing of files with specific extensions in  | | Pending | | |
 | 41 | bf9c6de4 | 2026-05-27 | Added missing isset() check for one of the apparently required graph plugin options | | Pending | | |
 | 42 | 0d93d3de | 2026-05-27 | Added a no_header version of the table display_type in the themeDatatype entity | | Pending | | |
-| 43 | 97e45209 | 2026-05-28 | Updated setup_virtualhost script to set permissions properly. | | Pending | | |
+| 43 | 97e45209 | 2026-05-28 | Updated setup_virtualhost script to set permissions properly. | infra | Deferred | | shell script perms; revisit in Phase E (infra) |
 | 44 | 5137749e | 2026-05-28 | the 'logical contradiction' is technically a combination of unexpected set subtraction and | | Pending | | |
 | 45 | 105c2e44 | 2026-06-01 | ...each new instance where set subtraction does something that's correct yet unexpected ma | | Pending | | |
 | 46 | 9da3f32c | 2026-06-01 | fix for #315 | | Pending | | |
@@ -66,7 +66,7 @@ Living state for the SF7 ⇄ `develop` synchronization (see `SYNCHRONIZATION_PLA
 | 49 | d557dc48 | 2026-06-02 | cleaned up previous commits somewhat... | | Pending | | |
 | 50 | d81bdecc | 2026-06-08 | re-enabled the non-set merging, because set merging breaks MassEdit/CSVExport... | | Pending | | |
 | 51 | 7c161e97 | 2026-06-09 | Fix to detection of sidebar and wordpress integration status for "modify search" display. | | Pending | | |
-| 52 | a0ffd923 | 2026-06-09 | Apparently need to completely restrict unathenticated users from zip archive creation/down | | Pending | | |
+| 52 | a0ffd923 | 2026-06-09 | Apparently need to completely restrict unathenticated users from zip archive creation/down | security | Ported | Phase B | `$user_id===0` guard in 4 DisplayController + 1 ReportsController zip methods; disabled `listsearchresultfiles` + 2 routes; hid download-all UI in 4 templates |
 | 53 | bdeaba90 | 2026-06-10 | Some cleanup, forgot about shennanigans in CSVExportHelperService... | | Pending | | |
 | 54 | 8021e7f5 | 2026-06-11 | Added monospace class to implementation of issue #311 | | Pending | | |
 | 55 | 8fe9ba6d | 2026-06-11 | got CSVExport working again, did (semi)final cleanup | | Pending | | |
@@ -74,7 +74,7 @@ Living state for the SF7 ⇄ `develop` synchronization (see `SYNCHRONIZATION_PLA
 | 57 | 12d96962 | 2026-06-12 | The SearchLink page should not be directly accessible from a record's Display page | | Pending | | |
 | 58 | 3f498fdd | 2026-06-12 | Forgot to change an array key in the ChemicalElementsSearch plugin as part of search syste | | Pending | | |
 | 59 | a094325b | 2026-06-12 | Fixed the select/deselect buttons on the SearchLink page not displaying when coming from t | | Pending | | |
-| 60 | 866664e1 | 2026-06-18 | Fixes to routing and wordpress integration API security. | | Pending | | |
+| 60 | 866664e1 | 2026-06-18 | Fixes to routing and wordpress integration API security. | security | Deferred | | **FLAGGED.** `.dist`-only (deploy-template config, not live); entangled with removed FOS/HWI route+firewall blocks (deleted in upgrade Phase 4) and a wordpress-prefix (/odr, /odr_rruff, /odr_data) token-routing scheme that differs from the branch's authenticator-system security. Needs careful manual reconciliation + per-mode JWT testing; do not port mechanically |
 | 61 | 8f6fb8c2 | 2026-06-19 | Fixes on beta - moving to develop for more work. | | Pending | | |
 | 62 | 655abe7f | 2026-06-19 | ODR uses a collation sort in most places | | Pending | | |
 | 63 | f418ad30 | 2026-06-22 | Deleted unused/out-of-date code from SearchAPIServiceNoConflict | | Pending | | |

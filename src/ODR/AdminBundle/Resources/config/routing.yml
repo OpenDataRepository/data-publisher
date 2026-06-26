@@ -1181,16 +1181,17 @@ odr_start_zip_archive_download:
     requirements:
         grandparent_datarecord_id: \d+
 
-odr_get_search_results_file_list:
-    path:  /view/search_file_list/{search_key}
-    defaults: { _controller: ODR\AdminBundle\Controller\DisplayController::listsearchresultfilesAction }
-    requirements:
-        search_key: '[a-zA-Z0-9\-\_]*'
-
-odr_start_search_results_archive_download:
-    path:  /view/search_archive_build
-    defaults: { _controller: ODR\AdminBundle\Controller\DisplayController::startsearchresultfilesdownloadAction }
-    methods: [ POST ]
+# Disabled: unauthenticated search-results file archiving (ported from develop a0ffd923)
+#odr_get_search_results_file_list:
+#    path:  /view/search_file_list/{search_key}
+#    defaults: { _controller: ODR\AdminBundle\Controller\DisplayController::listsearchresultfilesAction }
+#    requirements:
+#        search_key: '[a-zA-Z0-9\-\_]*'
+#
+#odr_start_search_results_archive_download:
+#    path:  /view/search_archive_build
+#    defaults: { _controller: ODR\AdminBundle\Controller\DisplayController::startsearchresultfilesdownloadAction }
+#    methods: [ POST ]
 
 odr_download_zip_archive:
     path:  /view/zip_archive_download/{archive_filename}

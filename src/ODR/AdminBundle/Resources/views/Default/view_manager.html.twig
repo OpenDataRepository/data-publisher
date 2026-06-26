@@ -181,10 +181,12 @@
 {% endif %}
 
 {% if display_download_files %}
+        {# Download-all disabled for now (ported from develop a0ffd923)
         $("#ODRMassFileDownload").unbind('click').click(function() {
-            {# defined in @ODRAdmin/Default/mass_download_dialog.html.twig #}
+            defined in @ODRAdmin/Default/mass_download_dialog.html.twig
             openMassDownloadDialog("{{ search_key }}");
         });
+        #}
 {% endif %}
 
 {#
