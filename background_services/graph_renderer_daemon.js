@@ -4,14 +4,76 @@
 
 const puppeteer = require('puppeteer');
 const fs = require('fs');
+const path = require('path');
+const { execSync } = require('child_process');
 
 const bs = require('nodestalker');
 const client = bs.Client('127.0.0.1:11300');
 const tube = 'create_graph_preview';
 let browser;
 
+/**
+ * Find a Chromium/Chrome binary to drive Puppeteer.
+ *
+ * On ARM64 Linux, Puppeteer's bundled download is an x86_64 binary that
+ * won't run, and the system Chromium is snap-confined — which refuses to
+ * launch outside its own cgroup ("is not a snap cgroup for tag
+ * snap.chromium.chromium"). So we prefer a Playwright-installed Chromium
+ * (real ARM64 builds), then a project-local Puppeteer download, then
+ * non-snap system installs, and only fall back to snap as a last resort.
+ * Honors PUPPETEER_EXECUTABLE_PATH as an override.
+ *
+ * Mirrors findChromiumExecutable() in static_render_daemon.js.
+ */
+function findChromiumExecutable() {
+    if (process.env.PUPPETEER_EXECUTABLE_PATH)
+        return process.env.PUPPETEER_EXECUTABLE_PATH;
+
+    const home = process.env.HOME || '';
+    const globPatterns = [
+        path.join(home, '.cache/ms-playwright/chromium-*/chrome-linux/chrome'),
+        path.join(__dirname, 'chromium/linux*/chrome-linux/chrome'),
+    ];
+    for (const pattern of globPatterns) {
+        try {
+            const expanded = execSync(`ls ${pattern} 2>/dev/null | head -1`, { encoding: 'utf8' }).trim();
+            if (expanded) return expanded;
+        } catch (e) { /* none found, try next */ }
+    }
+
+    const candidates = [
+        '/usr/bin/google-chrome-stable',
+        '/usr/bin/google-chrome',
+        '/usr/bin/chromium',
+        '/usr/bin/chromium-browser',
+        '/snap/bin/chromium',     // snap — only useful inside systemd-run --scope
+    ];
+    for (const p of candidates) {
+        try {
+            fs.accessSync(p, fs.constants.X_OK);
+            return p;
+        } catch (e) { /* not present, try next */ }
+    }
+
+    return null;   // caller will let Puppeteer try its bundled binary
+}
+
 async function app() {
-    browser = await puppeteer.launch({headless:'new'});
+    const launchOpts = {
+        headless: 'new',
+        // Required for snap-installed chromium and for running as root;
+        // harmless on a non-sandboxed binary.
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    };
+    const executablePath = findChromiumExecutable();
+    if (executablePath) {
+        console.log('Using Chromium executable: ' + executablePath);
+        launchOpts.executablePath = executablePath;
+    } else {
+        console.log('Using puppeteer-bundled Chrome.');
+    }
+
+    browser = await puppeteer.launch(launchOpts);
     client.watch(tube).onSuccess(function(data) {
         function resJob() {
             client.reserve().onSuccess(async function(job) {

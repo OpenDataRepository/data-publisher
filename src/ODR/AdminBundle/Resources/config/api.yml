@@ -165,6 +165,31 @@ odr_api_get_datarecord_single:
     record_uuid: '^[a-z0-9]+$'
     format: '|xml|json'
 
+# Toggle a tag / radio-option selection on a record's field.
+# state = selected | unselected. Returns the full updated record.
+# Optional ?user_email= SuperAdmin override.
+odr_api_set_record_selection:
+  path: /api/{version}/record/{record_uuid}/{field_uuid}/{option_uuid}/{state}
+  defaults: { _controller: ODRAdminBundle:API:setRecordFieldSelection, _format: json }
+  methods: [ PUT ]
+  requirements:
+    version: 'v\d+'
+    record_uuid: '^[a-z0-9]+$'
+    field_uuid: '^[a-z0-9]+$'
+    option_uuid: '^[a-z0-9]+$'
+    state: 'selected|unselected'
+
+# Set a scalar (value) field on a record. Body: { "value": "..." }.
+# Returns the full updated record. Optional user_email override (body or query).
+odr_api_set_record_value:
+  path: /api/{version}/record/{record_uuid}/{field_uuid}/value
+  defaults: { _controller: ODRAdminBundle:API:setRecordFieldValue, _format: json }
+  methods: [ POST ]
+  requirements:
+    version: 'v\d+'
+    record_uuid: '^[a-z0-9]+$'
+    field_uuid: '^[a-z0-9]+$'
+
 odr_api_get_field_stats:
   path:  /api/{version}/search/field/stats/{template_uuid}/{template_field_uuid}.{_format}
   defaults: { _controller: ODRAdminBundle:API:getfieldstats, _format: json }
@@ -349,13 +374,15 @@ odr_api_dataset_public:
     _format: '|json|xml'
 
 odr_api_get_dataset_single_no_format:
-  path:  /api/{version}/dataset/{dataset_uuid}
-  defaults: { _controller: ODRAdminBundle:API:getRecordsByDatasetUUID, _format: json, version: 'v3' }
+  path:  /api/{version}/dataset/{dataset_uuid}/{limit}/{offset}
+  defaults: { _controller: ODRAdminBundle:API:getRecordsByDatasetUUID, limit: 100, offset: 0, _format: json, version: 'v3' }
   methods: [ GET ]
   requirements:
     version: 'v\d+'
     dataset_uuid: '^[a-z0-9]+$'
     record_uuid: null,
+    limit: \d+
+    offset: \d+
     format: 'json'
 
 odr_api_get_dataset_single:

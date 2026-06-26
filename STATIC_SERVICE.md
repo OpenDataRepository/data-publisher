@@ -51,9 +51,14 @@ finishes the synchronous render. Two things happen at the end of
 1. `window.__odrRenderReady = true`
 2. `document.dispatchEvent(new CustomEvent('odr:render-complete'))`
 
-The Node daemon polls for `window.__odrRenderReady === true` and then waits
-for network-idle (catches lazy image loads / late plugin AJAX) before
-grabbing the HTML.
+The Node daemon polls for `window.__odrRenderReady === true`, then pauses
+briefly (default 500 ms, override with `STATIC_RENDER_POST_READY_MS`) to
+catch any tail-end lazy image decode, then captures the HTML. We
+deliberately do **not** use Puppeteer's `waitForNetworkIdle`: `data:`
+and `blob:` URIs don't reliably emit `requestfinished`, so the
+in-flight counter sticks at 1–2 forever even though the page is
+genuinely done — which is what we kept hitting in practice (data-URI
+images and a blob: script that never "settle").
 
 ### De-duplication
 
@@ -109,6 +114,11 @@ ever lands on disk.
 - Background services Node deps installed: `(cd background_services && npm install)`.
 - A target site reachable at `site_baseurl` (from `app/config/parameters.yml`).
   The daemon hits `<site_baseurl>/view/record/{uuid}` over HTTPS.
+- **`background_services/.env`** with API credentials, if you want a
+  `.json` snapshot of each record (see "JSON record snapshot" below).
+  Copy `.env.example` to `.env` and fill in `ODR_API_USERNAME` /
+  `ODR_API_PASSWORD`. Omit them to skip JSON entirely — HTML still
+  renders.
 
 ### Start the daemon
 
@@ -148,6 +158,30 @@ The command prints how many records were queued. Records are filtered to:
 - Top-level (grandparent === self)
 - Not soft-deleted
 - Public (`publicDate != '2200-01-01 00:00:00'`)
+
+#### `--limit=N` — cap how many records get enqueued
+
+The console command accepts an optional **`--limit=N`** flag to stop
+after `N` records. Use it on dev to keep the queue manageable while
+testing, or for smoke-testing a render change against a handful of
+records before committing to the full datatype.
+
+```bash
+# Smoke test: just the first 5 records of this datatype
+php app/console odr_static_render:enqueue --datatype_id=738 --limit=5
+
+# Dev-box cap: 300 records is usually enough to validate the pipeline
+php app/console odr_static_render:enqueue --datatype_id=738 --limit=300
+```
+
+- Default is `0`, which means **no cap** (enqueues every matching record).
+- `--limit` is applied as a SQL `LIMIT` on the id+uuid pull, so it
+  doesn't waste time fetching the full list.
+- Records are ordered by `dr.id ASC`, so the same N records are picked
+  consistently across runs.
+- The flag is the **only** record-count cap in the system. There is no
+  hidden dev-mode setting, no env var, no parameter — production should
+  run the bare command (no `--limit`) to render everything.
 
 ### Verify output
 
@@ -210,12 +244,40 @@ The display page never reached the end of `initPage()`. Possible causes:
   `display_ajax.html.twig` change is in place and Symfony's prod cache has
   been cleared.
 
-### `waitForNetworkIdle` timeout
-A page on the site is making continuous AJAX requests (some "live"
-plugins). Look at `app/logs/static_render_daemon.log` for the page-console
-output — that usually points at the offending plugin. Phase 2 may add a
-plugin-level "register pending work" hook to address this; for now the job
-fails and is deleted.
+### Late-rendering / lazy content cut off
+
+The daemon captures HTML after a fixed `STATIC_RENDER_POST_READY_MS`
+grace period (default 500 ms) following the render-ready signal. If
+some plugin defers content beyond that window (animated chart that
+needs 800 ms to draw, etc.) bump it up:
+
+```bash
+STATIC_RENDER_POST_READY_MS=1500 node static_render_daemon.js
+```
+
+### Investigating what the page is doing at capture time
+
+Set `STATIC_RENDER_DEBUG_NET=1` to log a per-render network breakdown
+during the grace period:
+
+```
+[debug-net] still-pending requests: 2
+   pending  image      0.5s  data:image/webp;base64,...
+   pending  script     0.5s  blob:https://dev.rruff.net/...
+[debug-net] repeated requests during render (2+ hits):
+    12x  https://dev.rruff.net/wp-admin/admin-ajax.php
+```
+
+- **`still-pending`** entries are requests Puppeteer thinks are open
+  at capture time. `data:` and `blob:` URIs commonly appear here as
+  phantoms — they don't actually go through the network stack but
+  Puppeteer never fires their `requestfinished` event. Genuinely
+  pending HTTP requests of types `xhr` / `fetch` / `script` are the
+  ones worth investigating.
+- **Repeated requests** are URLs that fired ≥2 times during the
+  render. Heartbeats (`admin-ajax.php?action=heartbeat`) and
+  analytics polling show up here. If a URL is hammered, that's a
+  candidate for `page.setRequestInterception()` blocking.
 
 ### `Page returned HTTP 4xx/5xx`
 The daemon is hitting a URL that doesn't redirect to a renderable page.
@@ -423,6 +485,98 @@ No auth. Reads beanstalkd `stats-tube` directly via the pheanstalk
 service. `workers` is the count of clients currently watching the tube
 (daemon worker slots).
 
+### JSON record snapshot
+
+Alongside each `<record_uuid>.html`, the daemon also writes a
+`<record_uuid>.json` file containing the same record's public API
+representation. Both files live in the same directory:
+
+```
+web/uploads/static/{site_folder}/{datatype_uuid}/
+    abc...html
+    abc...json
+    def...html
+    def...json
+```
+
+How it works:
+
+1. On startup the daemon reads `ODR_API_USERNAME` / `ODR_API_PASSWORD`
+   from `background_services/.env` (loaded via `dotenv` if installed,
+   or a tiny built-in parser otherwise).
+2. The first job that needs a token does `POST <odr_baseurl>/api/v5/token`
+   with `{username, password}` and caches the returned JWT in memory.
+   (All API calls use `odr_baseurl` = `site_baseurl` — the API is
+   served by Symfony on the ODR backend directly, never through the
+   WordPress host, even on WP-integrated installs.)
+3. For each job, after the HTML is written, the daemon does
+   `GET <odr_baseurl>/api/v5/search/record/<uuid>.json` with
+   `Authorization: Bearer <jwt>` and writes the body to disk verbatim.
+4. On `401` the daemon re-fetches the token once and retries.
+
+Failures here are **non-fatal**: a missing or unreachable API just
+logs `[json] ...` warnings and the job still completes — the HTML
+render is the authoritative output, JSON is a companion.
+
+Security: the daemon doesn't enforce anything on the resulting `.json`
+file — the API account itself is expected to only have access to
+public records, so whatever it returns is fair game for the public
+cache. If the account has broader permissions, the cached JSON could
+leak more than you want.
+
+Toggles (all optional):
+
+- `STATIC_RENDER_SKIP_JSON=1` — skip JSON (and schema) fetching entirely
+  without removing credentials.
+
+### Datatype schema snapshot
+
+Each datatype also gets a single `schema.json` written into its
+directory, fetched from
+`GET <odr_baseurl>/api/v5/search/database/<datatype_uuid>.json`:
+
+```
+web/uploads/static/{site_folder}/{datatype_uuid}/
+    schema.json          ← one per datatype
+    abc...html
+    abc...json
+    ...
+```
+
+The schema is identical for every record of a datatype, so the daemon
+only does the fetch **once per datatype per run** (`[schema] ...` log
+lines), and skips entirely if the file already exists on disk from a
+prior run. To force a refresh after a schema change, delete the
+`schema.json` and re-run. Same credentials, token, and 401-retry path
+as the record JSON; same `STATIC_RENDER_SKIP_JSON=1` opt-out.
+
+The sitemap **index** (`/sitemap.xml`) advertises the schema as a
+`<schema>` sibling of `<loc>` in each datatype's `<sitemap>` entry,
+emitted only when the `schema.json` actually exists:
+
+```xml
+<sitemap>
+    <loc>https://dev.rruff.net/sitemap-<dt_uuid>.xml</loc>
+    <schema>https://dev.odr.io/uploads/static/<site_folder>/<dt_uuid>/schema.json</schema>
+    <lastmod>2026-06-10T12:34:56Z</lastmod>
+</sitemap>
+```
+
+(Like `<json>`, `<schema>` is a non-standard extension search engines
+ignore; ODR tooling can use it to discover the schema URL.)
+
+Because the daemon only writes `schema.json` when it's absent, a schema
+change won't propagate on a normal re-render. Force a refresh with the
+`--purge-schemas` flag on the enqueue command — it deletes the
+datatype's cached `schema.json` first, so the daemon re-fetches it:
+
+```bash
+php app/console odr_static_render:enqueue --datatype_id=738 --purge-schemas
+```
+
+(Equivalent to deleting `web/uploads/static/<site_folder>/<dt_uuid>/schema.json`
+by hand before re-running.)
+
 ### Sitemap (index + per-datatype children)
 
 ```http
@@ -440,10 +594,27 @@ Each `<sitemap>` entry in the index has its own `<lastmod>` set to the
 maximum file mtime within that page, so crawlers can skip unchanged
 sections without fetching them.
 
-Each child `<urlset>` has one `<url>` per rendered file. `<loc>` is
-the direct webroot URL of the static file (so a search engine
-fetching it gets the full content with no JS); `<lastmod>` is the
-file's mtime in UTC ISO8601.
+Each child `<urlset>` has one `<url>` per rendered file:
+
+```xml
+<url>
+    <loc>https://dev.odr.io/uploads/static/dev.rruff.net/<dt>/<r>.html</loc>
+    <json>https://dev.odr.io/uploads/static/dev.rruff.net/<dt>/<r>.json</json>
+    <lastmod>2026-05-23T12:34:56Z</lastmod>
+</url>
+```
+
+- `<loc>` — direct webroot URL of the rendered HTML.
+- `<json>` — companion API JSON snapshot. Emitted **only** if the
+  `.json` sibling actually exists on disk (the daemon writes them
+  best-effort; if API creds are missing or the fetch failed, the
+  tag is silently omitted so there's no dead URL).
+- `<lastmod>` — HTML file's mtime in UTC ISO8601.
+
+Note that `<json>` is a non-standard extension to the sitemaps.org
+schema. Search engines that don't recognize it will silently ignore
+the element; downstream ODR tooling (and any consumer that knows to
+look for it) will see the URL and can fetch the snapshot directly.
 
 The sitemap intentionally does **not** point at the dynamic
 `/view/record/{uuid}` URL — that route requires JS to run before it

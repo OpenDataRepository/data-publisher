@@ -69,4 +69,5 @@ web/chemin-map-demo
 /background_services/hom_results
 /background_services/node_modules/
 /background_services/statistics_config.js
+/background_services/.env
 /puppeteer_graphs/node_modules/
