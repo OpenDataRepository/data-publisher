@@ -399,7 +399,7 @@ class ODRRenderService
 
             'search_key' => '',
             'search_theme_id' => 0,    // TODO - refactor to get rid of this?
-            'notify_of_sync' => false,    // No need to check this parameter
+//            'notify_of_sync' => false,    // No need to check this parameter (disabled, develop c2661c5f)
 
             'token_list' => [],
 

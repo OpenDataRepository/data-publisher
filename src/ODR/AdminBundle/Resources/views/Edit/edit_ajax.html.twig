@@ -98,7 +98,8 @@ $(function() {
 
     OpenLinkInfoDialog({{ datarecord.id }});
 
-    {% if notify_of_sync is defined and notify_of_sync == true %}
+    {# Layout-sync notification disabled (ported from develop c2661c5f)
+{% if notify_of_sync is defined and notify_of_sync == true %}
     {% include '@ODRAdmin/Theme/theme_sync_warning.js.twig' with {
         'datatype_id': datatype.id,
         'theme_id': theme.id,
@@ -106,6 +107,7 @@ $(function() {
         'search_key': search_key,
     }%}
     {% endif %}
+#}
 });
 
 
@@ -1561,7 +1563,7 @@ function DeleteFile(file_id, callback, only_use_callback) {
                         var html =
                             '<div class="ODRFileDatafield_empty pure-u-1">\n' +
                             '    <span class="ODRFileSpacer_empty">&nbsp;</span>\n' +
-                            '    <a class="Cursor">No Files Uploaded</a>\n' +
+                            '    <span class="Cursor">No Files Uploaded</span>\n' +
                             '</div>';
                         $(anchor).append(html);
                     }

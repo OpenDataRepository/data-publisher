@@ -17,14 +17,14 @@ Living state for the SF7 ⇄ `develop` synchronization (see `SYNCHRONIZATION_PLA
 |---|---------|------|---------|-------|----------|---------------|-------|
 | 1 | a7945ea7 | 2026-03-16 | HOM url checker. | | Pending | | |
 | 2 | 7749a427 | 2026-03-16 | ODR's 'default search key' system expanded to be more of a 'default search parameters' sys | | Pending | | |
-| 3 | c2661c5f | 2026-03-16 | Disabled the 'this layout has been synchronized...' notification | | Pending | | |
+| 3 | c2661c5f | 2026-03-16 | Disabled the 'this layout has been synchronized...' notification | bugfix | Ported | Phase C2 | commented notify_of_sync in ODRRenderService + wrapped the notify_of_sync block in {# #} in 6 templates (display/edit/fakeedit/shortresults/textresults x2) |
 | 4 | 8fd3d7d7 | 2026-03-17 | Search results with a single record should no longer redirect to the Display route | bugfix | Ported | Phase C1 | SearchBundle DefaultController: redirectToSingleDatarecord -> $this->forward(); forward target converted to SF7 FQCN |
 | 5 | 4348503b | 2026-03-17 | XYZData fields now silently switch display types to match whichever parameters they receiv | | Pending | | |
 | 6 | c58aa638 | 2026-03-17 | HOM URL resolver system for use with IMA.  Probably should move this to IMA. | | Pending | | |
 | 7 | 8f3c3af6 | 2026-03-19 | fixed commit 4348503 | | Pending | | |
 | 8 | 9109c628 | 2026-03-19 | Apparently forgot to test commit 7749a42 by massediting a datatype without a default searc | | Pending | | |
 | 9 | 60e75506 | 2026-03-23 | Modified ODREventSubscriber to use a redis cache entry to determine which plugin functions | | Pending | | |
-| 10 | 20308a05 | 2026-03-23 | Fixes for issue #271 | | Pending | | |
+| 10 | 20308a05 | 2026-03-23 | Fixes for issue #271 | bugfix | Ported | Phase C2 | csvtable "ordering": false->true; added CSVTable thead th text-wrap:nowrap to odr.css + odr_wordpress.css |
 | 11 | 37e1d79f | 2026-04-09 | The 'current linked records' div on the Edit pages is now also on the View pages, satisfie | | Pending | | |
 | 12 | 01b1279c | 2026-04-09 | SearchSidebars for datatypes with a default search key involving the 'inverse' parameter s | | Pending | | |
 | 13 | d3e9f97e | 2026-04-09 | The problems dialog in the Plugin List page now displays grandparent datatype | | Pending | | |
@@ -53,7 +53,7 @@ Living state for the SF7 ⇄ `develop` synchronization (see `SYNCHRONIZATION_PLA
 | 36 | 006d0e97 | 2026-05-20 | Added a new ThemeElement property to 'show when empty' | | Pending | | |
 | 37 | 546a233a | 2026-05-21 | Implemented ability to change what the odr_search_immediate route uses | | Pending | | |
 | 38 | 06e06792 | 2026-05-21 | forgot this part in commit 546a233 | | Pending | | |
-| 39 | c412c267 | 2026-05-26 | fix for #305 | | Pending | | |
+| 39 | c412c267 | 2026-05-26 | fix for #305 | bugfix | Ported | Phase C2 | <a class="Cursor/Info">...</a> -> <span> for non-link labels in display_datafield/edit_ajax/edit_file_datafield/csvtable_display_datafield |
 | 40 | 26dd4715 | 2026-05-26 | Added ability for a datatype admin to permit editing of files with specific extensions in  | | Pending | | |
 | 41 | bf9c6de4 | 2026-05-27 | Added missing isset() check for one of the apparently required graph plugin options | bugfix | Ported | Phase C1 | isset($options['x_axis_dir']) guard added to GraphPlugin, FilterGraphPlugin, GCMassSpecPlugin |
 | 42 | 0d93d3de | 2026-05-27 | Added a no_header version of the table display_type in the themeDatatype entity | | Pending | | |

@@ -5390,6 +5390,11 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
     color: white;
 }
 
+/* CSVTable header should not wrap (ported from develop 20308a05, #271) */
+table.ODRRenderPlugin_CSVTable thead th {
+    text-wrap: nowrap;
+}
+
 .ODRRenderPlugin_FileRenamer_warn {
     color: red;
 }

@@ -47,7 +47,8 @@ $(function() {
     $(".MenuDesignArea").remove();
     window.scrollTo(0,0);
 
-    {% if notify_of_sync is defined and notify_of_sync == true %}
+    {# Layout-sync notification disabled (ported from develop c2661c5f)
+{% if notify_of_sync is defined and notify_of_sync == true %}
     {% include '@ODRAdmin/Theme/theme_sync_warning.js.twig' with {
         'datatype_id': datatype.id,
         'theme_id': theme.id,
@@ -55,6 +56,7 @@ $(function() {
         'search_key': search_key,
     }%}
     {% endif %}
+#}
 });
 
 var SaveTimeout = 1000;
