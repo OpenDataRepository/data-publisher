@@ -3,7 +3,7 @@ odr_plugins.chemin.chemin_references:
     category: Chemin
     plugin_type: datatype
     render: odr_plugins.chemin.chemin_references
-    version: 1.4.0
+    version: 1.5.0
     override_fields: true
     override_field_reload: false
     override_child: false
@@ -20,19 +20,19 @@ odr_plugins.chemin.chemin_references:
         authors:
             name: Authors
             description: The authors of this article.
-            type: LongText
+            type: LongVarchar|LongText
         title:
             name: Article Title
             description: The title of this article.
-            type: LongText
+            type: LongVarchar|LongText
         journal:
             name: Journal
             description: The name of the journal in which this article was published.
-            type: LongText
+            type: ShortVarchar|MediumVarchar|LongVarchar|LongText
         year:
             name: Year
             description: What year the article was published.
-            type: ShortVarchar|MediumVarchar|LongVarchar|LongText
+            type: ShortVarchar
         month:
             name: Month
             description: What month the article was published.
@@ -40,7 +40,7 @@ odr_plugins.chemin.chemin_references:
         volume:
             name: Volume
             description: The volume number of the journal the article was published in.
-            type: ShortVarchar|MediumVarchar|LongVarchar|LongText
+            type: ShortVarchar
         issue:
             name: Issue
             description: The issue number of the journal the article was published in.
@@ -48,15 +48,15 @@ odr_plugins.chemin.chemin_references:
         booktitle:
             name: Book Title
             description: The title of this book.
-            type: ShortVarchar|MediumVarchar|LongVarchar|LongText
+            type: LongVarchar|LongText
         publisher:
             name: Publisher
             description: The publisher of this book.
-            type: LongVarchar
+            type: ShortVarchar|MediumVarchar|LongVarchar|LongText
         publisher_location:
             name: Publisher Location
             description: Where the publisher of this book is located.
-            type: LongVarchar
+            type: ShortVarchar|MediumVarchar|LongVarchar|LongText
 #        keywords:
 #            name: Keywords
 #            description: Keywords related to the reference, for searching purposes.
@@ -72,7 +72,7 @@ odr_plugins.chemin.chemin_references:
         url:
             name: URL
             description: A URL that points to an online copy of the reference.
-            type: LongVarchar
+            type: LongVarchar|LongText
         supporting_files:
             name: Supporting Files
             description: A set of files containing supporting data for this reference.
