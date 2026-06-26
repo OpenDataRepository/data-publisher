@@ -4554,4 +4554,116 @@ class ValidationController extends ODRCustomController
         $response->headers->set('Content-Type', 'text/html');
         return $response;
     }
+
+
+    /**
+     * Finds and returns undeleted entries from odr_linked_data_tree that reference a
+     * deleted odr_data_tree entry.
+     *
+     * Ported from develop 053a9773 (SF7: container doctrine + null-safe token + DBAL3
+     *  fetchAllAssociative instead of an iterated executeQuery() Result).
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function findorphanedlinkeddescendantsAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = "";
+        $return['d'] = "";
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->container->get('doctrine')->getManager();
+            $conn = $em->getConnection();
+
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
+            if (!$user->hasRole('ROLE_SUPER_ADMIN'))
+                throw new ODRForbiddenException();
+
+            // Count how many records are linked in total, organized by ancestor -> descendant
+            $query =
+               'SELECT adr.data_type_id AS adt_id, ldt.id AS ldt_id, ddr.data_type_id AS ddt_id
+                FROM odr_data_record adr
+                JOIN odr_linked_data_tree ldt ON ldt.ancestor_id = adr.id
+                JOIN odr_data_record ddr ON ldt.descendant_id = ddr.id
+                WHERE adr.deletedAt IS NULL AND ldt.deletedAt IS NULL AND ddr.deletedAt IS NULL';
+            $results = $conn->fetchAllAssociative($query);
+
+            $records_with_links = array();
+            foreach ($results as $result) {
+                $adt_id = $result['adt_id'];
+                $ldt_id = $result['ldt_id'];
+                $ddt_id = $result['ddt_id'];
+
+                if ( !isset($records_with_links[$adt_id]) )
+                    $records_with_links[$adt_id] = array();
+                if ( !isset($records_with_links[$adt_id][$ddt_id]) )
+                    $records_with_links[$adt_id][$ddt_id] = $ldt_id;
+                else
+                    $records_with_links[$adt_id][$ddt_id] .= ','.$ldt_id;
+            }
+
+            // Determine which links should be active
+            $query =
+               'SELECT adt.id AS adt_id, ddt.id AS ddt_id
+                FROM odr_data_type adt
+                JOIN odr_data_tree dt ON dt.ancestor_id = adt.id
+                JOIN odr_data_tree_meta dtm ON dtm.data_tree_id = dt.id
+                JOIN odr_data_type ddt ON dt.descendant_id = ddt.id
+                WHERE dtm.is_link = 1 AND dtm.deletedAt IS NULL
+                AND adt.deletedAt IS NULL AND dt.deletedAt IS NULL AND ddt.deletedAt IS NULL';
+            $results = $conn->fetchAllAssociative($query);
+
+            $active_links = array();
+            foreach ($results as $result) {
+                $adt_id = $result['adt_id'];
+                $ddt_id = $result['ddt_id'];
+
+                if ( !isset($active_links[$adt_id]) )
+                    $active_links[$adt_id] = array();
+                $active_links[$adt_id][$ddt_id] = 0;
+            }
+
+            // Ignore all ancestor/descendant links that are supposed to exist
+            foreach ($active_links as $adt_id => $ddt_ids) {
+                foreach ($ddt_ids as $ddt_id => $ldt_ids) {
+                    if ( isset($records_with_links[$adt_id][$ddt_id]) )
+                        unset( $records_with_links[$adt_id][$ddt_id] );
+                }
+            }
+
+            // Clean up any remnants, and print the records that remain linked despite the link being
+            //  deleted
+            foreach ($records_with_links as $adt_id => $ddt_ids) {
+                if ( empty($ddt_ids) )
+                    unset( $records_with_links[$adt_id] );
+            }
+            print '<pre>'.print_r($records_with_links, true).'</pre>';
+
+            // Print out the queries to delete the links between these records
+            print '<pre>';
+            foreach ($records_with_links as $adt_id => $ddt_ids) {
+                foreach ($ddt_ids as $ddt_id => $ldt_ids) {
+                    print 'UPDATE odr_linked_data_tree ldt SET deletedAt = NOW(), deletedBy = '.$user->getId().' WHERE ldt.id IN ('.$ldt_ids.') AND ldt.deletedAt IS NULL;'."\n";
+                }
+            }
+            print '</pre>';
+        }
+        catch (\Exception $e) {
+            print '</pre>';
+            $source = 0xf8b97fdf;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
+        return $response;
+    }
 }

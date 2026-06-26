@@ -1678,6 +1678,10 @@ odr_find_orphaned_entities:
 odr_find_undeleted_meta_entries:
     path: /admin/find_undeleted_meta_entries
     defaults: { _controller: ODR\AdminBundle\Controller\ValidationController::findundeletedmetaentriesAction }
+# Locates linked_data_tree entries that survive despite their datatype link being deleted (develop 053a9773)
+odr_find_orphaned_linked_descendants:
+    path: /admin/find_orphaned_linked_descendants
+    defaults: { _controller: ODR\AdminBundle\Controller\ValidationController::findorphanedlinkeddescendantsAction }
 # Datatypes aren't allowed to claim exterinal_id/name/background_image fields from other datatypes
 odr_find_datatype_meta_errors:
     path: /admin/find_datatype_meta_errors

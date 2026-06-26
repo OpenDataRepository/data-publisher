@@ -28,7 +28,7 @@ Living state for the SF7 ⇄ `develop` synchronization (see `SYNCHRONIZATION_PLA
 | 11 | 37e1d79f | 2026-04-09 | The 'current linked records' div on the Edit pages is now also on the View pages, satisfie | | Pending | | |
 | 12 | 01b1279c | 2026-04-09 | SearchSidebars for datatypes with a default search key involving the 'inverse' parameter s | | Pending | | |
 | 13 | d3e9f97e | 2026-04-09 | The problems dialog in the Plugin List page now displays grandparent datatype | bugfix | Ported | Phase C4 | PluginsController: query joins gdtm; threaded grandparent name through insertPluginUpdateError (new param + nesting level) and getMappedDatafields; plugin_problems.html.twig gains a "Child Database" column + extra loop level |
-| 14 | 053a9773 | 2026-04-09 | Create a new validation action to delete links between datarecords when there is no link b | | Pending | | |
+| 14 | 053a9773 | 2026-04-09 | Create a new validation action to delete links between datarecords when there is no link b | feature | Ported | Phase C5 | new findorphanedlinkeddescendantsAction in ValidationController + odr_find_orphaned_linked_descendants route; SF7-converted (container doctrine, null-safe token, DBAL3 fetchAllAssociative) |
 | 15 | c1db5f69 | 2026-04-10 | Performed #281, and fixed an issue where the various reference plugins would crash if the  | | Pending | | |
 | 16 | 5ea9915f | 2026-04-13 | Forgot that #278 should only happen when the user is logged in... | | Pending | | |
 | 17 | 12cbb3d7 | 2026-04-14 | Override getRootDir() in AppKernel to support symlinked instances | | Pending | | |
