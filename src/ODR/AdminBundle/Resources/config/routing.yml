@@ -586,6 +586,12 @@ odr_design_get_special_datafield_properties:
     requirements:
         datatype_id:  \d+
         type: '|name|sort'
+# Immediate-search field selection dialog (develop 546a233a)
+odr_design_get_immediate_search_datafield_properties:
+    path:  /design/displaytemplate/immediate_search_datafields/get/{datatype_id}
+    defaults: { _controller: ODR\AdminBundle\Controller\DisplaytemplateController::getimmediatesearchdatafieldsAction }
+    requirements:
+        datatype_id:  \d+
 
 odr_design_save_special_datafield_properties:
     path:  /design/displaytemplate/special_datafields/save/{datatype_id}

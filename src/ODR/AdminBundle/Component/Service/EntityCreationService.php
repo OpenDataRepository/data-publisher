@@ -706,7 +706,10 @@ class EntityCreationService
     {
         // ----------------------------------------
         // Have some verification to do first...
-        if ( $field_purpose !== DataTypeSpecialFields::NAME_FIELD && $field_purpose !== DataTypeSpecialFields::SORT_FIELD )
+        if ( $field_purpose !== DataTypeSpecialFields::NAME_FIELD
+            && $field_purpose !== DataTypeSpecialFields::SORT_FIELD
+            && $field_purpose !== DataTypeSpecialFields::IMMEDIATE_SEARCH_FIELD
+        )
             throw new ODRBadRequestException('Invalid field_purpose for special Datatype field');
 
         if ( is_null($created) )
