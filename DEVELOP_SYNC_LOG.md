@@ -43,10 +43,10 @@ Living state for the SF7 ⇄ `develop` synchronization (see `SYNCHRONIZATION_PLA
 | 26 | 49b048e4 | 2026-05-08 | Adding login detection and redirecting logged in users to live page. | | Pending | | |
 | 27 | f8cfbf18 | 2026-05-08 | Fixes to display. | | Pending | | |
 | 28 | 3b90d0b5 | 2026-05-11 | seemingly mostly working, but creating a restore point prior to potentially screwing up ad | | Pending | | |
-| 29 | 878400fd | 2026-05-12 | Adding delete record system to API. | | Pending | | |
-| 30 | 3bd0d52a | 2026-05-14 | Fix to API path. | | Pending | | |
-| 31 | 5b64008c | 2026-05-14 | Fixes due to accidental commit.  No security issues. | | Pending | | |
-| 32 | 2be0b76f | 2026-05-15 | API Fix for Deleting Records. | | Pending | | |
+| 29 | 878400fd | 2026-05-12 | Adding delete record system to API. | feature | Ported | Phase D3 | base deleteDatarecordByUUIDAction; ported as part of the cluster's final state (see 2be0b76f) |
+| 30 | 3bd0d52a | 2026-05-14 | Fix to API path. | feature | Ported | Phase D3 | api.yml path = /api/{version}/record[/{datarecord_uuid}]; the accidentally-committed dev docs/screenshot were NOT ported (noise, reverted by 5b64008c) |
+| 31 | 5b64008c | 2026-05-14 | Fixes due to accidental commit.  No security issues. | infra | Skipped-obsolete | Phase D3 | only reverted 3bd0d52a's accidental files (.agent/workflows, test_screenshot.png) which were never ported; nothing to apply |
+| 32 | 2be0b76f | 2026-05-15 | API Fix for Deleting Records. | feature | Ported | Phase D3 | final delete action (optional body, default-to-auth-user, super-admin act-as, record_uuids[], fail-closed perms); SF7-adapted (container doctrine, injected pm/ed services, FQCN repo, null-safe token, fixed develop's getStatusCode()-on-generic-Exception bug). JSON-exception refactor: getStatusCode() on ODRJsonException, new SF7 JsonExceptionSubscriber (ExceptionEvent/getThrowable/LoggerInterface, fixed Synfony typo), registered in services.yml, removed dead JsonExceptionListener |
 | 33 | 4d58505c | 2026-05-19 | more potential problems | | Pending | | |
 | 34 | a7e2ef9d | 2026-05-20 | seem to have run into a logical contradiction caused by empty string also matching ancesto | | Pending | | |
 | 35 | 14f3976e | 2026-05-20 | fix for commit 64b18c4 breaking the ability to set name/sort fields for child datatypes | bugfix | Ported | Phase C3 | DatabaseInfoService::getSpecialDatafields now takes a DataType (uses its own id, not grandparent's); private getSpecialFields->getNameSortFields; 4 callers updated (Session/ODRCustom/Displaytemplate x2) |

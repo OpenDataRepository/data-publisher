@@ -640,6 +640,17 @@ services:
         tags:
             - { name: "kernel.event_subscriber" }
 
+    # Returns clean JSON error responses for ODRJsonException (ported from develop 2be0b76f,
+    #  replaces the old JsonExceptionListener)
+    odr.json_exception_subscriber:
+        public: true
+        class: ODR\AdminBundle\Component\Event\JsonExceptionSubscriber
+        arguments:
+            $environment: "%kernel.environment%"
+            $logger: "@logger"
+        tags:
+            - { name: "kernel.event_subscriber" }
+
     # Services for improved data retrieval model
     odr.cache_service:
         public: true

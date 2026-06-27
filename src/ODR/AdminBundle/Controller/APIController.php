@@ -5193,6 +5193,124 @@ class APIController extends ODRCustomController
 
 
     /**
+     * Deletes one or more datarecords via the API. Two call shapes:
+     *
+     *   DELETE /api/{version}/datarecord/{datarecord_uuid}
+     *     body: { "user_email": "..." }   (user_email optional; defaults to the authenticated user)
+     *   DELETE /api/{version}/datarecord
+     *     body: { "user_email": "...", "record_uuids": ["uuid1", "uuid2", ...] }
+     *
+     * Both forms reject more than 100 records per request. Permission is checked per-record via
+     * PermissionsManagementService::canDeleteDatarecord; if the caller lacks permission on *any*
+     * record in the batch, the whole request is rejected before any deletion happens (fail-closed).
+     * Acting as another user (via user_email) requires ROLE_SUPER_ADMIN. Patterned after
+     * deleteDatasetByUUIDAction. Ported from develop 878400fd + 2be0b76f.
+     *
+     * @param string      $version
+     * @param string|null $datarecord_uuid  Single-record form; null for batch.
+     * @param Request     $request
+     * @return Response
+     */
+    public function deleteDatarecordByUUIDAction($version, $datarecord_uuid, Request $request)
+    {
+        try {
+            /** @var EntityManager $em */
+            $em = $this->container->get('doctrine')->getManager();
+
+            // Content is optional when a datarecord_uuid is supplied in the URL
+            $content = $request->getContent();
+            $data = json_decode($content, true);
+            if ( !is_array($data) && $datarecord_uuid === null )
+                throw new ODRJsonException('A record uuid or JSON body with a record_uuids[] array is required.', 400);
+
+            $user_email = '';
+            if ( is_array($data) && isset($data['user_email']) )
+                $user_email = $data['user_email'];
+
+            /** @var ODRUser $logged_in_user */
+            $logged_in_user = $this->container->get('security.token_storage')->getToken()?->getUser();
+
+            if ( $user_email === '' ) {
+                // Default to the authenticated user
+                $user_email = $logged_in_user->getEmail();
+            }
+            else if ( !$logged_in_user->hasRole('ROLE_SUPER_ADMIN') ) {
+                // Acting as another user requires super-admin permissions
+                throw new ODRForbiddenException();
+            }
+
+            /** @var UserManager $user_manager */
+            $user_manager = $this->container->get('fos_user.user_manager');
+            /** @var ODRUser $user */
+            $user = $user_manager->findUserBy(array('email' => $user_email));
+
+            if ( is_null($user) || $user === 'anon.' )
+                throw new ODRNotFoundException('unrecognized email: "' . $user_email . '"');
+
+            // Build the working list of UUIDs from URL path + body, merged + deduped
+            $uuids = array();
+            if ( $datarecord_uuid !== null && $datarecord_uuid !== '' )
+                $uuids[] = $datarecord_uuid;
+
+            if ( is_array($data) && isset($data['record_uuids']) && is_array($data['record_uuids']) ) {
+                foreach ($data['record_uuids'] as $u) {
+                    if ( is_string($u) && $u !== '' )
+                        $uuids[] = $u;
+                }
+            }
+            $uuids = array_values(array_unique($uuids));
+
+            if ( empty($uuids) )
+                throw new ODRBadRequestException('No record UUIDs provided');
+            if ( count($uuids) > 100 )
+                throw new ODRBadRequestException('A maximum of 100 records may be deleted per request');
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->permissions_management_service;
+
+            // Resolve every record + check every permission BEFORE deleting anything. If any check
+            //  fails, the whole batch is rejected -- a partial delete on a forbidden record would be
+            //  hard to undo (fail-closed).
+            $repo = $em->getRepository('ODR\AdminBundle\Entity\DataRecord');
+            $records = array();
+            foreach ($uuids as $uuid) {
+                /** @var DataRecord $dr */
+                $dr = $repo->findOneBy(array('unique_id' => $uuid));
+
+                if ( $dr === null || $dr->getDeletedAt() !== null )
+                    throw new ODRNotFoundException('Datarecord: ' . $uuid);
+
+                if ( !$pm_service->canDeleteDatarecord($user, $dr->getDataType()) )
+                    throw new ODRForbiddenException();
+
+                $records[] = $dr;
+            }
+
+            // All checks passed -- proceed with deletion
+            /** @var EntityDeletionService $ed_service */
+            $ed_service = $this->entity_deletion_service;
+            $deleted = array();
+            foreach ($records as $dr) {
+                $ed_service->deleteDatarecord($dr, $user);
+                $deleted[] = $dr->getUniqueId();
+            }
+
+            return new JsonResponse(array(
+                'deleted' => $deleted,
+                'count' => count($deleted),
+            ));
+        }
+        catch (\Exception $e) {
+            // Re-thrown as ODRJsonException so JsonExceptionSubscriber returns a clean JSON error
+            if ( $e instanceof ODRException )
+                throw new ODRJsonException($e->getMessage(), $e->getStatusCode(), $e);
+            else
+                throw new ODRJsonException($e->getMessage(), 500, $e);
+        }
+    }
+
+
+    /**
      * This works with the "data" dataset by default and automatically deletes the related
      * metadata.
      *
