@@ -394,6 +394,16 @@ class ThemeElement
     }
 
     /**
+     * Get showWhenEmpty
+     *
+     * @return boolean
+     */
+    public function getShowWhenEmpty()
+    {
+        return $this->getThemeElementMeta()->getShowWhenEmpty();
+    }
+
+    /**
      * Get cssWidthXL
      *
      * @return string

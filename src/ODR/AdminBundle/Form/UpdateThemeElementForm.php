@@ -42,6 +42,11 @@ class UpdateThemeElementForm extends AbstractType
         );
 
         $builder->add(
+            'showWhenEmpty',
+            HiddenType::class
+        );
+
+        $builder->add(
             'cssWidthMed',
             HiddenType::class
         );

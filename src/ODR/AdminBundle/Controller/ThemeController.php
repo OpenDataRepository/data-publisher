@@ -1688,6 +1688,91 @@ class ThemeController extends ODRCustomController
 
 
     /**
+     * Toggles whether a ThemeElement is rendered when it has no visible contents.  This is its own
+     * action because it's toggled with a UI element, instead of using Symfony's form system.
+     *
+     * Ported from develop 006d0e97 (modeled on themeelementbordervisibilityAction).
+     *
+     * @param integer $theme_element_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function themeelementshowwhenemptyAction($theme_element_id, Request $request)
+    {
+        $return = [];
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = [];
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->container->get('doctrine')->getManager();
+
+            /** @var EntityMetaModifyService $entity_modify_service */
+            $entity_modify_service = $this->entity_meta_modify_service;
+            /** @var ThemeInfoService $theme_info_service */
+            $theme_info_service = $this->theme_info_service;
+
+
+            /** @var ThemeElement $theme_element */
+            $theme_element = $em->getRepository('ODR\AdminBundle\Entity\ThemeElement')->find($theme_element_id);
+            if ( is_null($theme_element) )
+                throw new ODRNotFoundException('ThemeElement');
+
+            $theme = $theme_element->getTheme();
+            if ( !is_null($theme->getDeletedAt()) )
+                throw new ODRNotFoundException('Theme');
+
+            $datatype = $theme->getDataType();
+            if ( !is_null($datatype->getDeletedAt()) )
+                throw new ODRNotFoundException('Datatype');
+
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
+
+            // Throw an exception if the user isn't allowed to do this
+            self::canModifyTheme($user, $theme);
+            // --------------------
+
+
+            // Toggle the showWhenEmpty status of the specified theme_element
+            if ( $theme_element->getShowWhenEmpty() ) {
+                $properties = [
+                    'showWhenEmpty' => false,
+                ];
+                $entity_modify_service->updateThemeElementMeta($user, $theme_element, $properties);
+                $return['d']['show_when_empty'] = false;
+            }
+            else {
+                $properties = [
+                    'showWhenEmpty' => true,
+                ];
+                $entity_modify_service->updateThemeElementMeta($user, $theme_element, $properties);
+                $return['d']['show_when_empty'] = true;
+            }
+
+            // Update cached version of theme
+            $theme_info_service->updateThemeCacheEntry($theme, $user);
+        }
+        catch (\Exception $e) {
+            $source = 0x3f9b2c1e;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
      * Triggers a re-render and reload of a ThemeElement in the Derivative theme designer
      *
      * @param integer $theme_element_id The database id of the ThemeElement that needs to be re-rendered

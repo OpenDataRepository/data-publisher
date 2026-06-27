@@ -4,6 +4,7 @@
 {% set has_childtype = false %}
 {% set child_is_link = false %}
 {% set has_render_plugin_instance = false %}
+{% set show_when_empty = theme_element.themeElementMeta.showWhenEmpty %}
 
 {% if theme_element.themeDataFields is defined %}
     {% set has_datafields = true %}
@@ -32,6 +33,7 @@
     te_props.set('has_datafields', {% if has_datafields %}true{% else %}false{% endif %});
     te_props.set('child_is_link', {% if child_is_link %}true{% else %}false{% endif %});
     te_props.set('has_render_plugin_instance', {% if has_render_plugin_instance %}true{% else %}false{% endif %});
+    te_props.set('show_when_empty', {% if show_when_empty %}true{% else %}false{% endif %});
 
     {#console.log('theme_element {{ theme_element_id }}', $("#ThemeElement_{{ theme_element_id }}"), theme_element_properties.get({{ theme_element_id }}));#}
 </script>

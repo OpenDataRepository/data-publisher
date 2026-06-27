@@ -28,4 +28,14 @@ _(none applied yet — no env-affecting feature ported under this policy so far)
 
 ## Database (DDL)
 
-_(none yet)_
+### Phase D5 — ThemeElement "show when empty" (develop 006d0e97)
+```sql
+ALTER TABLE odr_theme_element_meta
+    ADD show_when_empty TINYINT(1) NOT NULL DEFAULT '0';
+```
+⚠️ Wide blast radius — `ThemeElementMeta.orm.yml` now maps `showWhenEmpty` → `show_when_empty`, so
+Doctrine selects this column on **every** hydration of a ThemeElementMeta. Until the column exists,
+theme rendering / the theme designer will error. Apply this before testing, then rebuild cached
+theme entries (`odr:cache:flush` or equivalent). After it's applied, the new "Always Render Group
+Box" toggle in the theme designer controls it; PlugExtension's `isEmptyFilter` honors it (a
+show-when-empty group box is never treated as empty).

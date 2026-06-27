@@ -851,6 +851,11 @@ class PlugExtension extends \Twig\Extension\AbstractExtension
             if ( $theme_element['themeElementMeta']['hidden'] == 1 && !$edit_shows_all_fields )
                 return true;
 
+            // If the theme element is set to "show when empty", then it's never considered empty
+            //  (ported from develop 006d0e97)
+            if ( $theme_element['themeElementMeta']['showWhenEmpty'] === true )
+                return false;
+
             // If the theme element has themeDatafield entries...
             if ( !empty($theme_element['themeDataFields']) ) {
 

@@ -369,6 +369,12 @@ odr_design_theme_element_border_visibility:
     requirements:
         theme_element_id:  \d+
 
+odr_design_theme_element_show_when_empty:
+    path:  /design/themeelementshowwhenempty/{theme_element_id}
+    defaults: { _controller: ODR\AdminBundle\Controller\ThemeController::themeelementshowwhenemptyAction }
+    requirements:
+        theme_element_id:  \d+
+
 odr_design_theme_datafield_visibility:
     path:  /design/themedatafieldvisibility/{theme_element_id}/{datafield_id}
     defaults: { _controller: ODR\AdminBundle\Controller\ThemeController::themedatafieldvisibilityAction }
