@@ -1374,6 +1374,20 @@ class ReportsController extends ODRCustomController
                 }
             }
 
+            // Due to this not being a property of the fieldtype table (unlike name/sort fields),
+            //  it's easier for php to determine this property
+            $can_be_immediate_search_field = false;
+            switch ( $new_fieldtype->getTypeName() ) {
+                case 'Integer':
+                case 'Paragraph Text':
+                case 'Long Text':
+                case 'Medium Text':
+                case 'Short Text':
+                case 'Decimal':
+                    $can_be_immediate_search_field = true;
+                    break;
+            }
+
             if ( $html !== '' ) {
                 // In most cases, there will be a single string...wrap it inside a div here
                 $html = $templating->render(
@@ -1382,6 +1396,7 @@ class ReportsController extends ODRCustomController
                         'df' => $datafield,
                         'html' => $html,
                         'new_fieldtype' => $new_fieldtype,
+                        'can_be_immediate_search_field' => $can_be_immediate_search_field,
                         'render_plugin_restrictions' => $render_plugin_restrictions,
 
                         // NOTE: these conversions don't lose data, so they won't create duplicates in unique fields
@@ -1397,6 +1412,7 @@ class ReportsController extends ODRCustomController
                     [
                         'strings' => $strings,
                         'new_fieldtype' => $new_fieldtype,
+                        'can_be_immediate_search_field' => $can_be_immediate_search_field,
                         'render_plugin_restrictions' => $render_plugin_restrictions,
 
                         // NOTE: these conversions are always to fields that can't be unique
@@ -1408,21 +1424,21 @@ class ReportsController extends ODRCustomController
                 if ( $old_is_text && $new_is_text ) {
                     // Text -> Text works most of the time, but can end up truncating values...or
                     //  removing uniqueness if converting to Paragraph text
-                    $html = self::DatafieldMigrations_ConvertToText($templating, $df_mapping, $new_fieldtype, $render_plugin_restrictions);
+                    $html = self::DatafieldMigrations_ConvertToText($templating, $df_mapping, $new_fieldtype, $can_be_immediate_search_field, $render_plugin_restrictions);
                 }
                 if ( $new_is_text && ($current_typename === 'Integer' || $current_typename === 'Decimal' || $current_typename === 'Datetime') ) {
                     // Number/Date -> Text always works, but it's more useful to display the same
                     //  set of lines as the other conversions
-                    $html = self::DatafieldMigrations_ConvertOtherToText($templating, $df_mapping, $new_fieldtype, $render_plugin_restrictions);
+                    $html = self::DatafieldMigrations_ConvertOtherToText($templating, $df_mapping, $new_fieldtype, $can_be_immediate_search_field, $render_plugin_restrictions);
                 }
                 else if ( ($old_is_text && $new_typename === 'Integer') || ($current_typename === 'Decimal' && $new_typename === 'Integer') ) {
                     // Text to Integer runs into casting issues, while Decimal to Integer has
                     //  precision issues
-                    $html = self::DatafieldMigrations_ConvertToInteger($templating, $df_mapping, $new_fieldtype, $render_plugin_restrictions);
+                    $html = self::DatafieldMigrations_ConvertToInteger($templating, $df_mapping, $new_fieldtype, $can_be_immediate_search_field, $render_plugin_restrictions);
                 }
                 else if ( $old_is_text && $new_typename === 'Decimal' ) {
                     // Text to Decimal runs into casting issues
-                    $html = self::DatafieldMigrations_ConvertToDecimal($templating, $df_mapping, $new_fieldtype, $render_plugin_restrictions);
+                    $html = self::DatafieldMigrations_ConvertToDecimal($templating, $df_mapping, $new_fieldtype, $can_be_immediate_search_field, $render_plugin_restrictions);
                 }
                 else if ( ($current_typename === 'Multiple Select' || $current_typename === 'Multiple Radio')
                     && ($new_typename === 'Single Select' || $new_typename === 'Single Radio')
@@ -1638,7 +1654,7 @@ class ReportsController extends ODRCustomController
      * @param array $render_plugin_restrictions
      * @return string
      */
-    private function DatafieldMigrations_ConvertToText($templating, $df_mapping, $new_fieldtype, $render_plugin_restrictions)
+    private function DatafieldMigrations_ConvertToText($templating, $df_mapping, $new_fieldtype, $can_be_immediate_search_field, $render_plugin_restrictions)
     {
         /** @var FieldtypeMigrationService $fieldtype_migration_service */
         $fieldtype_migration_service = $this->fieldtype_migration_service;
@@ -1684,6 +1700,7 @@ class ReportsController extends ODRCustomController
             [
                 'baseurl' => $baseurl,
                 'new_fieldtype' => $new_fieldtype,
+                'can_be_immediate_search_field' => $can_be_immediate_search_field,
                 'render_plugin_restrictions' => $render_plugin_restrictions,
                 'new_values_prevent_unique' => $new_values_prevent_unique,
 
@@ -1707,7 +1724,7 @@ class ReportsController extends ODRCustomController
      * @param array $render_plugin_restrictions
      * @return string
      */
-    private function DatafieldMigrations_ConvertOtherToText($templating, $df_mapping, $new_fieldtype, $render_plugin_restrictions)
+    private function DatafieldMigrations_ConvertOtherToText($templating, $df_mapping, $new_fieldtype, $can_be_immediate_search_field, $render_plugin_restrictions)
     {
         /** @var FieldtypeMigrationService $fieldtype_migration_service */
         $fieldtype_migration_service = $this->fieldtype_migration_service;
@@ -1756,6 +1773,7 @@ class ReportsController extends ODRCustomController
             [
                 'baseurl' => $baseurl,
                 'new_fieldtype' => $new_fieldtype,
+                'can_be_immediate_search_field' => $can_be_immediate_search_field,
                 'render_plugin_restrictions' => $render_plugin_restrictions,
                 'new_values_prevent_unique' => $new_values_prevent_unique,
 
@@ -1779,7 +1797,7 @@ class ReportsController extends ODRCustomController
      * @param array $render_plugin_restrictions
      * @return string
      */
-    private function DatafieldMigrations_ConvertToInteger($templating, $df_mapping, $new_fieldtype, $render_plugin_restrictions)
+    private function DatafieldMigrations_ConvertToInteger($templating, $df_mapping, $new_fieldtype, $can_be_immediate_search_field, $render_plugin_restrictions)
     {
         /** @var FieldtypeMigrationService $fieldtype_migration_service */
         $fieldtype_migration_service = $this->fieldtype_migration_service;
@@ -1824,6 +1842,7 @@ class ReportsController extends ODRCustomController
             [
                 'baseurl' => $baseurl,
                 'new_fieldtype' => $new_fieldtype,
+                'can_be_immediate_search_field' => $can_be_immediate_search_field,
                 'render_plugin_restrictions' => $render_plugin_restrictions,
                 'new_values_prevent_unique' => $new_values_prevent_unique,
 
@@ -1847,7 +1866,7 @@ class ReportsController extends ODRCustomController
      * @param array $render_plugin_restrictions
      * @return string
      */
-    private function DatafieldMigrations_ConvertToDecimal($templating, $df_mapping, $new_fieldtype, $render_plugin_restrictions)
+    private function DatafieldMigrations_ConvertToDecimal($templating, $df_mapping, $new_fieldtype, $can_be_immediate_search_field, $render_plugin_restrictions)
     {
         /** @var FieldtypeMigrationService $fieldtype_migration_service */
         $fieldtype_migration_service = $this->fieldtype_migration_service;
@@ -1892,6 +1911,7 @@ class ReportsController extends ODRCustomController
             [
                 'baseurl' => $baseurl,
                 'new_fieldtype' => $new_fieldtype,
+                'can_be_immediate_search_field' => $can_be_immediate_search_field,
                 'render_plugin_restrictions' => $render_plugin_restrictions,
                 'new_values_prevent_unique' => $new_values_prevent_unique,
 

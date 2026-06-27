@@ -46,6 +46,15 @@
         {% endfor %}
     {% endif %}
 
+    {% if df.getImmediateSearchDatatypes|length > 0 %}
+        {% for dt in df.getImmediateSearchDatatypes %}
+        <div class="bold{% if not can_be_immediate_search_field %} ODRInputError{% endif %}">
+            This datafield is currently used as an "immediate search" field for the "{{ dt.getshortname }}" datatype{% if not new_fieldtype_can_be_sort_field %}, but won't be after migrating to this fieldtype{% endif %}.
+            {% if not can_be_immediate_search_field %}&nbsp;<label class="ODRMigration_acknowledge"><input type="checkbox" />&nbsp;Acknowledged?</label>{% endif %}
+        </div>
+        {% endfor %}
+    {% endif %}
+
     {% if render_plugin_restrictions[df_id] is defined and render_plugin_restrictions[df_id]['affected_by_render_plugin'] == true %}
         <div class="bold{% if new_fieldtype.id not in render_plugin_restrictions[df_id]['allowed_fieldtypes'] %} ODRInputError{% endif %}">
             This datafield is currently used by a render plugin{% if new_fieldtype.id not in render_plugin_restrictions[df_id]['allowed_fieldtypes'] %}, and can't be migrated to this fieldtype because the render plugin would stop working{% endif %}.

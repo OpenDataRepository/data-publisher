@@ -1105,4 +1105,21 @@ class DataFields
         }
         return $sort_datatypes;
     }
+
+    /**
+     * Get all datatypes that use this field as an 'immediate search' field.
+     * @return DataType[]
+     */
+    public function getImmediateSearchDatatypes()
+    {
+        $search_datatypes = [];
+        if ( !is_null($this->dataTypeSpecialFields) ) {
+            foreach ($this->dataTypeSpecialFields as $dtsf) {
+                /** @var DataTypeSpecialFields $dtsf */
+                if ( $dtsf->getFieldPurpose() === DataTypeSpecialFields::IMMEDIATE_SEARCH_FIELD )
+                    $search_datatypes[] = $dtsf->getDataType();
+            }
+        }
+        return $search_datatypes;
+    }
 }
