@@ -22,7 +22,19 @@ introduced them.
 
 ## Config / parameters (active `app/config/config.yml` + `parameters.yml`)
 
-_(none applied yet — no env-affecting feature ported under this policy so far)_
+### Phase D6 — modify-search (develop dcba252d)
+Active `app/config/parameters.yml` — add under `parameters:`:
+```yaml
+    odr_wordpress_search_redirects: '/odr/rruff_sample:/rruff||/odr/rruff_reference:/references||/odr/amcsd:/amcsd'
+```
+Active `app/config/config.yml` — add under `twig: globals:` (next to `config_odr_wordpress_integrated`):
+```yaml
+        config_odr_wordpress_search_redirects: '%odr_wordpress_search_redirects%'
+```
+A `||`-separated list of `wordpress_path:odr_path` pairs for the "Modify Search" button on
+WordPress-integrated searches. The templates guard the global with `is defined and is not empty`, so
+the branch runs fine without it (the button just won't appear). Adjust the value to your instance's
+actual WordPress→ODR path mapping.
 
 ---
 

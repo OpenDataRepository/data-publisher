@@ -8,6 +8,62 @@
     var odr_wordpress_integrated = false;
     var wordpress_site_baseurl = '{{ site_baseurl }}';
     {% endif %}
+
+    {#
+        ODR_MODIFY_SEARCH_MAP — lookup of search-results URL stub to the
+        WordPress search-form URL stub. Built from the Symfony parameter
+        `odr_wordpress_search_redirects` (Twig global
+        `config_odr_wordpress_search_redirects`) which has the format
+        "key1:value1||key2:value2||...". Used by modifySearch() below to
+        send the user back to the right WordPress page from a search
+        results / display / edit page in WordPress-integrated mode.
+    #}
+    {% set odr_modify_search_map = {} %}
+    {% if config_odr_wordpress_search_redirects is defined and config_odr_wordpress_search_redirects is not empty %}
+        {% for entry in config_odr_wordpress_search_redirects|split('||') %}
+            {% set parts = entry|split(':', 2) %}
+            {% if parts|length == 2 %}
+                {% set odr_modify_search_map = odr_modify_search_map|merge({(parts[0]): parts[1]}) %}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+    var ODR_MODIFY_SEARCH_MAP = {{ odr_modify_search_map|json_encode|raw }};
+
+    /**
+     * Sends the user back to the WordPress search page that produced this
+     * search. Takes the URL stub between the host and the '#', looks it up
+     * in ODR_MODIFY_SEARCH_MAP and redirects to the mapped path. The
+     * mapping lets us point each search-results / record-display page at
+     * exactly the right WordPress search form, which a generic "/odr"
+     * string substitution couldn't do reliably because of naming overlaps
+     * between datatype slugs and WordPress page slugs.
+     */
+    function modifySearch() {
+        var rawUrl = window.location.href.split('#')[0];
+        var anchor = document.createElement('a');
+        anchor.href = rawUrl;
+        var path = anchor.pathname;
+        var stripped = path.replace(/\/$/, '');
+
+        var match = null;
+        if (ODR_MODIFY_SEARCH_MAP.hasOwnProperty(stripped)) {
+            match = stripped;
+        } else if (ODR_MODIFY_SEARCH_MAP.hasOwnProperty(path)) {
+            match = path;
+        }
+
+        if (match !== null) {
+            window.location.href = anchor.protocol + '//' + anchor.host + ODR_MODIFY_SEARCH_MAP[match];
+            return;
+        }
+
+        // No mapping configured for this stub — log and stay on the page so
+        // the user can see something went wrong (avoids a confusing redirect
+        // loop or a 404 on a silent fallback).
+        console.warn('Modify Search: no redirect configured for path', path);
+        alert('No "Modify Search" mapping is configured for this page (' + path + ').');
+    }
+
     {# This is intentionally placed outside the $(function() {...} block #}
     {# jquery3 modified how the 'load' event was handled, and firefox wouldn't trigger this reliably #}
     $(window).on('load', function() {

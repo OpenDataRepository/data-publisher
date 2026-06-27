@@ -35,9 +35,9 @@ Living state for the SF7 ⇄ `develop` synchronization (see `SYNCHRONIZATION_PLA
 | 18 | 55650b44 | 2026-04-15 | Adding script to link a new virtualhost from a source tree. | | Pending | | |
 | 19 | a6248ed3 | 2026-04-15 | Fix to ensure prefixed routes are used when creating linked instances. | | Pending | | |
 | 20 | f8f1e86c | 2026-04-22 | Query optimization when sorting involves radio options | bugfix | Ported | Phase C1 | SortService DQL: drf.dataField -> ro.dataField |
-| 21 | dcba252d | 2026-05-06 | Add "modify search" button for wordpress integrated searches. | | Pending | | |
-| 22 | 4c09003b | 2026-05-06 | Fixing single search result for modify search system. | | Pending | | |
-| 23 | cdf68594 | 2026-05-06 | Hiding search link in wordpress integrated state. | | Pending | | |
+| 21 | dcba252d | 2026-05-06 | Add "modify search" button for wordpress integrated searches. | feature | Ported | Phase D6 | ported as cluster final state (see 7c161e97). config param odr_wordpress_search_redirects -> .dist + CHANGELIST; "Modify Search" button in pagination_header (SearchResults) |
+| 22 | 4c09003b | 2026-05-06 | Fixing single search result for modify search system. | feature | Ported | Phase D6 | ODR_MODIFY_SEARCH_MAP + modifySearch() JS moved to common_js (guarded by config_odr_wordpress_search_redirects is defined); search_header button; odr_wordpress.css ODRModifySearch rule |
+| 23 | cdf68594 | 2026-05-06 | Hiding search link in wordpress integrated state. | feature | Ported | Phase D6 | body.html.twig: hide header_middle link when odr_wordpress_integrated (adapted to branch's plain var, not develop's config_) |
 | 24 | 0f9954eb | 2026-05-07 | Start of sitemap/SEO system. | | Pending | | |
 | 25 | 57ad6a20 | 2026-05-08 | Sitemap caching system for ODR. | | Pending | | |
 | 26 | 49b048e4 | 2026-05-08 | Adding login detection and redirecting logged in users to live page. | | Pending | | |
@@ -65,7 +65,7 @@ Living state for the SF7 ⇄ `develop` synchronization (see `SYNCHRONIZATION_PLA
 | 48 | 7cce2cb4 | 2026-06-02 | finally to the point where nothing appears broken...but still feel like a fair bit is miss | | Pending | | |
 | 49 | d557dc48 | 2026-06-02 | cleaned up previous commits somewhat... | | Pending | | |
 | 50 | d81bdecc | 2026-06-08 | re-enabled the non-set merging, because set merging breaks MassEdit/CSVExport... | | Pending | | |
-| 51 | 7c161e97 | 2026-06-09 | Fix to detection of sidebar and wordpress integration status for "modify search" display. | | Pending | | |
+| 51 | 7c161e97 | 2026-06-09 | Fix to detection of sidebar and wordpress integration status for "modify search" display. | feature | Ported | Phase D6 | the Display/Edit "Modify Search" button (search_header) gated on `config_odr_wordpress_integrated and theme is defined and theme.themeMeta.disableSearchSidebar`; DisplayController/EditController resolve $theme BEFORE the header render + pass it; display_header/edit_header forward theme to search_header. Cluster final state |
 | 52 | a0ffd923 | 2026-06-09 | Apparently need to completely restrict unathenticated users from zip archive creation/down | security | Ported | Phase B | `$user_id===0` guard in 4 DisplayController + 1 ReportsController zip methods; disabled `listsearchresultfiles` + 2 routes; hid download-all UI in 4 templates |
 | 53 | bdeaba90 | 2026-06-10 | Some cleanup, forgot about shennanigans in CSVExportHelperService... | | Pending | | |
 | 54 | 8021e7f5 | 2026-06-11 | Added monospace class to implementation of issue #311 | | Pending | | |

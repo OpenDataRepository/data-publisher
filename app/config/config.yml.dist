@@ -51,6 +51,7 @@ twig:
     globals:
         config_kernel_environment: '%kernel.environment%'
         config_odr_wordpress_integrated: '%odr_wordpress_integrated%'
+        config_odr_wordpress_search_redirects: '%odr_wordpress_search_redirects%'
         config_site_baseurl: '%site_baseurl%'
         config_wordpress_site_baseurl: '%odr_wordpress_integrated%'
         config_files_directory: '%odr_files_directory%'

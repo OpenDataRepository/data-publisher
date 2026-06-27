@@ -3388,11 +3388,20 @@ class EditController extends ODRCustomController
                 ];
             }
 
+            // ----------------------------------------
+            // Determine the user's preferred theme. Resolved here (before the header render) so it
+            //  can be passed into edit_header -> search_header to gate the "Modify Search" button the
+            //  same way pagination_header.html.twig does (ported from develop 7c161e97).
+            $theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'display');
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($theme_id);
+
             $redirect_path = $router->generate('odr_record_edit', ['datarecord_id' => 0]);
             $record_header_html = $templating->render(
                 '@ODRAdmin/Edit/edit_header.html.twig',
                 [
                     'datatype_permissions' => $datatype_permissions,
+                    'theme' => $theme,
                     'edit_shows_all_fields' => $edit_shows_all_fields,
 
                     'datarecord' => $datarecord,
@@ -3415,13 +3424,6 @@ class EditController extends ODRCustomController
                 ]
             );
 
-
-            // ----------------------------------------
-            // Determine the user's preferred theme
-//            $theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'edit');    // NOTE: apparently differentiating between 'display' and 'edit' is...'confusing'
-            $theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'display');
-            /** @var Theme $theme */
-            $theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($theme_id);
 
             // Render the edit page for this datarecord
             $page_html = $odr_render_service->getEditHTML($user, $datarecord, $search_key, $search_theme_id, $theme, $edit_shows_all_fields);

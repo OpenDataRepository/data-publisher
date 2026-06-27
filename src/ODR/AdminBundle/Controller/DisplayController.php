@@ -314,11 +314,20 @@ class DisplayController extends ODRCustomController
                 ];
             }
 
+            // ----------------------------------------
+            // Determine the user's preferred theme. Resolved here (before the header render) so it
+            //  can be passed into display_header -> search_header to gate the "Modify Search" button
+            //  the same way pagination_header.html.twig does (ported from develop 7c161e97).
+            $theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'display');
+            /** @var Theme $theme */
+            $theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($theme_id);
+
             $redirect_path = $router->generate('odr_display_view', ['datarecord_id' => 0]);    // blank path
             $header_html = $templating->render(
                 '@ODRAdmin/Display/display_header.html.twig',
                 [
                     'page_type' => 'display',
+                    'theme' => $theme,
 
                     'can_edit_datarecord' => $can_edit_datarecord,
                     'can_add_datarecord' => $can_add_datarecord,
@@ -344,12 +353,6 @@ class DisplayController extends ODRCustomController
             $now = microtime(true);
             // print "NOW: " . $now . "<br />";
             // print "Elapsed: " . ($now - $time) . "<br />";
-
-            // ----------------------------------------
-            // Determine the user's preferred theme
-            $theme_id = $theme_info_service->getPreferredThemeId($user, $datatype->getId(), 'display');
-            /** @var Theme $theme */
-            $theme = $em->getRepository('ODR\AdminBundle\Entity\Theme')->find($theme_id);
 
             // Render the display page for this datarecord
             /** @var ODRRenderService $odr_render_service */

@@ -4033,6 +4033,9 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
     position: relative;
     top: -10px;
 }
+#ODRSearchResultsButtons > #ODRModifySearch {
+    vertical-align: top;
+}
 #ODRReturnToSearchResults {
     padding-top: 4px;
     padding-bottom: 4px;

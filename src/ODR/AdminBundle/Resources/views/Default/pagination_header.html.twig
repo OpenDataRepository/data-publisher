@@ -71,6 +71,10 @@
     </div>
 
     <div class="pure-u-lg-9-24 pure-u-md-23-24 pure-u-sm-23-24">
+        {% if config_odr_wordpress_integrated and theme.themeMeta.disableSearchSidebar == true %}
+            {# Modify Search Button -- sends the user back to the WordPress search page (develop dcba252d) #}
+            <button type="button" id="ODRModifySearch" class="pure-button pure-button-primary" onclick="modifySearch();">Modify Search</button>&nbsp;
+        {% endif %}
         {% if num_datarecords > 1 %}
         <span id="ODRPaginationSpan">
             <span class="ODRPaginationLabel Cursor">Show:&nbsp;</span>
