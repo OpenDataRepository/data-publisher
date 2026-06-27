@@ -2717,8 +2717,12 @@ class ValidationController extends ODRCustomController
                 $descendant_id = $result['descendant_id'];
 
                 $dtsf_id = $result['dtsf_id'];
-                $field_purpose = 'name';
-                if ( $result['field_purpose'] === DataTypeSpecialFields::SORT_FIELD )
+                $field_purpose = null;
+                if ( $result['field_purpose'] === DataTypeSpecialFields::IMMEDIATE_SEARCH_FIELD )
+                    $field_purpose = 'search';
+                else if ( $result['field_purpose'] === DataTypeSpecialFields::NAME_FIELD )
+                    $field_purpose = 'name';
+                else if ( $result['field_purpose'] === DataTypeSpecialFields::SORT_FIELD )
                     $field_purpose = 'sort';
 
                 $df_id = $result['df_id'];
@@ -2750,12 +2754,16 @@ class ValidationController extends ODRCustomController
                     $is_link = $sub_results[0]['is_link'];
                     $multiple_allowed = $sub_results[0]['multiple_allowed'];
 
-                    if ($is_link == 0) {
-                        // Datatype B is a child of Datatype A
+                    if ( $is_link == 0 && $field_purpose !== 'search' ) {
+                        // Datatype B is a child of Datatype A...an ancestor can't use fields from
+                        //  its child as name/sort fields. This restriction is ignored if the field
+                        //  is used for searching...there's no reason for it
                         $dtsf_entries_to_delete[] = $dtsf_id;
                     }
-                    else if ($multiple_allowed == 1) {
-                        // Datatype A can link to multiple datarecords of Datatype B
+                    else if ( $multiple_allowed == 1 && $field_purpose !== 'search' ) {
+                        // Datatype A can link to multiple datarecords of Datatype B...there's no way
+                        //  for the ancestor to determine which of the multiple possible values it
+                        //  could use from the descendant (not a problem for searching)
                         $dtsf_entries_to_delete[] = $dtsf_id;
                     }
                     else {

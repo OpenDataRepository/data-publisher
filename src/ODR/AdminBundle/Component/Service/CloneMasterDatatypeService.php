@@ -394,6 +394,8 @@ class CloneMasterDatatypeService
                     $field_purpose = 'name_field';
                 else if ( $dtsf->getFieldPurpose() === DataTypeSpecialFields::SORT_FIELD )
                     $field_purpose = 'sort_field';
+                else if ( $dtsf->getFieldPurpose() === DataTypeSpecialFields::IMMEDIATE_SEARCH_FIELD )
+                    $field_purpose = 'immediate_search_field';
                 $this->logger->info('CloneMasterDatatypeService: -- copy of dtsf entry '.$original_dtsf_id.' for derived datatype "'.$derived_dt->getShortName().'" set to use derived df "'.$derived_df->getFieldName().'" (from source datatype '.$derived_df->getDataType()->getId().' "'.$derived_df->getDataType()->getShortName().'") as '.$field_purpose.' '.$dtsf->getDisplayOrder());
 
                 // Don't need to flush right this minute, technically
@@ -695,6 +697,8 @@ class CloneMasterDatatypeService
                 $this->logger->debug('CloneMasterDatatypeService: cloned datatypeSpecialField entry '.$dtsf->getId().' for name_field '.$new_dtsf->getDisplayOrder().'...');
             else if ( $new_dtsf->getFieldPurpose() === DataTypeSpecialFields::SORT_FIELD )
                 $this->logger->debug('CloneMasterDatatypeService: cloned datatypeSpecialField entry '.$dtsf->getId().' for sort_field '.$new_dtsf->getDisplayOrder().'...');
+            else if ( $new_dtsf->getFieldPurpose() === DataTypeSpecialFields::IMMEDIATE_SEARCH_FIELD )
+                $this->logger->debug('CloneMasterDatatypeService: cloned datatypeSpecialField entry '.$dtsf->getId().' for immediate_search_field '.$new_dtsf->getDisplayOrder().'...');
             else
                 $this->logger->debug('CloneMasterDatatypeService: cloned datatypeSpecialField entry '.$dtsf->getId().' for UNKNOWN_FIELD_PURPOSE '.$new_dtsf->getDisplayOrder().'...');
         }

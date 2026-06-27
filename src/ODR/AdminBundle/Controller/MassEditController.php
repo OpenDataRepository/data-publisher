@@ -1855,11 +1855,17 @@ class MassEditController extends ODRCustomController
                 LEFT JOIN ODR\AdminBundle\Entity\DataFields AS df WITH df.dataType = dt
                 LEFT JOIN ODR\AdminBundle\Entity\DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
                 LEFT JOIN ODR\AdminBundle\Entity\DataType AS l_dt WITH dtsf.dataType = l_dt
-                WHERE dr.id IN (:datarecords_to_delete)
+                WHERE dr.id IN (:datarecords_to_delete) AND dtsf.field_purpose IN (:field_purposes)
                 AND dr.deletedAt IS NULL AND dt.deletedAt IS NULL AND df.deletedAt IS NULL
                 AND dtsf.deletedAt IS NULL AND l_dt.deletedAt IS NULL'
             )->setParameters(
-                [ 'datarecords_to_delete' => $datarecords_to_delete ]
+                [
+                    'datarecords_to_delete' => $datarecords_to_delete,
+                    'field_purposes' => [
+                        DataTypeSpecialFields::NAME_FIELD,
+                        DataTypeSpecialFields::SORT_FIELD,
+                    ]
+                ]
             );
             $results = $query->getArrayResult();
 

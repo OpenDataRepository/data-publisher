@@ -622,10 +622,16 @@ class ODREventSubscriber implements EventSubscriberInterface
                 FROM ODR\AdminBundle\Entity\DataFields AS df
                 LEFT JOIN ODR\AdminBundle\Entity\DataTypeSpecialFields AS dtsf WITH dtsf.dataField = df
                 LEFT JOIN ODR\AdminBundle\Entity\DataType AS l_dt WITH dtsf.dataType = l_dt
-                WHERE df.dataType IN (:datatype_id)
+                WHERE df.dataType IN (:datatype_id) AND dtsf.field_purpose IN (:field_purposes)
                 AND df.deletedAt IS NULL AND dtsf.deletedAt IS NULL AND l_dt.deletedAt IS NULL'
             )->setParameters(
-                [ 'datatype_id' => [ $datatype->getId() ] ]
+                [
+                    'datatype_id' => [ $datatype->getId() ],
+                    'field_purposes' => [
+                        DataTypeSpecialFields::NAME_FIELD,
+                        DataTypeSpecialFields::SORT_FIELD,
+                    ]
+                ]
             );
             $results = $query->getArrayResult();
 

@@ -1562,6 +1562,10 @@ pre .support.value  {
     .ODRTristateCheckbox:hover, .ODRTristateCheckbox:active, .ODRTristateCheckbox:focus {
         background: #9cd4d4;
     }
+    .ODRTristateCheckbox_disabled:hover, .ODRTristateCheckbox_disabled:active, .ODRTristateCheckbox_disabled:focus {
+        background: revert !important;
+        cursor: not-allowed !important;
+    }
 
     .ODRSelectAll,.ODRDeselectAll,.ODRClearAll {
         cursor: pointer;
