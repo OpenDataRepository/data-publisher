@@ -41,7 +41,7 @@ Living state for the SF7 ⇄ `develop` synchronization (see `SYNCHRONIZATION_PLA
 | 24 | 0f9954eb | 2026-05-07 | Start of sitemap/SEO system. | | Pending | | |
 | 25 | 57ad6a20 | 2026-05-08 | Sitemap caching system for ODR. | | Pending | | |
 | 26 | 49b048e4 | 2026-05-08 | Adding login detection and redirecting logged in users to live page. | | Pending | | |
-| 27 | f8cfbf18 | 2026-05-08 | Fixes to display. | | Pending | | |
+| 27 | f8cfbf18 | 2026-05-08 | Fixes to display. | bugfix | Ported | Phase D8 | search-result button columns made half-width: ODRSearchResultsButtons (search_header) + ODRPublicExportButtons (display_header/edit_header) pure-u-xl/xxl/xxxl/x4k grid classes -> 1-2 |
 | 28 | 3b90d0b5 | 2026-05-11 | seemingly mostly working, but creating a restore point prior to potentially screwing up ad | | Pending | | |
 | 29 | 878400fd | 2026-05-12 | Adding delete record system to API. | feature | Ported | Phase D3 | base deleteDatarecordByUUIDAction; ported as part of the cluster's final state (see 2be0b76f) |
 | 30 | 3bd0d52a | 2026-05-14 | Fix to API path. | feature | Ported | Phase D3 | api.yml path = /api/{version}/record[/{datarecord_uuid}]; the accidentally-committed dev docs/screenshot were NOT ported (noise, reverted by 5b64008c) |
