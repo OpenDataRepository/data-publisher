@@ -2397,6 +2397,7 @@ class DisplaytemplateController extends ODRCustomController
                     $submitted_data->setDescription( stripslashes($submitted_data->getDescription()) );
                     $submitted_data->setMarkdownText( stripslashes($submitted_data->getMarkdownText()) );
                     $submitted_data->setQualityStr( stripslashes($submitted_data->getQualityStr()) );
+                    $submitted_data->setEditableFileExtensions( stripslashes($submitted_data->getEditableFileExtensions()) );
                     $submitted_data->setInternalReferenceName( stripslashes($submitted_data->getInternalReferenceName()) );
                 }
 
@@ -2539,6 +2540,24 @@ class DisplaytemplateController extends ODRCustomController
                     $datafield_form->addError( new FormError("'Quality Type' is not allowed to exceed 255 characters") );
                 }
 
+                // Normalize the editable_file_extensions value (ported from develop 26dd4715)
+                if ( is_null($submitted_data->getEditableFileExtensions()) ) {
+                    // Going to ensure this value is non-null
+                    $submitted_data->setEditableFileExtensions('');
+                }
+                else if ( strlen($submitted_data->getEditableFileExtensions()) > 0 ) {
+                    // ...also going to perform some rudimentary modification to get rid of blank
+                    //  extensions
+                    $extensions = explode(',', $submitted_data->getEditableFileExtensions());
+                    $trimmed_extensions = array();
+                    foreach ($extensions as $ext) {
+                        $tmp = trim($ext);
+                        if ( strlen($tmp) > 0 )
+                            $trimmed_extensions[] = $tmp;
+                    }
+                    $submitted_data->setEditableFileExtensions(implode(',', $trimmed_extensions));
+                }
+
 //                $datafield_form->addError( new FormError("Do not continue") );
 
                 if ($datafield_form->isValid()) {
@@ -2607,6 +2626,7 @@ class DisplaytemplateController extends ODRCustomController
                         'shorten_filename' => $submitted_data->getShortenFilename(),
                         'newFilesArePublic' => $submitted_data->getNewFilesArePublic(),
                         'quality_str' => $submitted_data->getQualityStr(),
+                        'editable_file_extensions' => $submitted_data->getEditableFileExtensions(),
                         'children_per_row' => $submitted_data->getChildrenPerRow(),
                         'radio_option_name_sort' => $submitted_data->getRadioOptionNameSort(),
                         'radio_option_display_unselected' => $submitted_data->getRadioOptionDisplayUnselected(),

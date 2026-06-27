@@ -375,6 +375,16 @@ class UpdateDataFieldsForm extends AbstractType
             );
         }
 
+        if ( $current_typeclass === 'File' ) {
+            $builder->add(
+                'editable_file_extensions',
+                TextType::class,
+                array(
+                    'label'  => 'Editable File Extensions',
+                )
+            );
+        }
+
         $builder->add(
             'internal_reference_name',
             TextType::class,

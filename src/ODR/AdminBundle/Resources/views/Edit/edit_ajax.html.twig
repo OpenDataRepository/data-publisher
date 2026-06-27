@@ -54,6 +54,10 @@
         'display': 'edit'
     } %}
 </div>
+
+<div id="file_direct_edit_dialog_wrapper">
+    {% include '@ODRAdmin/Edit/file_direct_edit_dialog.html.twig' %}
+</div>
 {% endapply %}
 
 <script>
@@ -142,6 +146,20 @@ function initPage() {
         var file_id = $(this).attr('rel');
 
         handleFileDownload(event, file_id);    {# defined in Default::file_handling.html.twig #}
+    });
+    $(".ODRFileEditTrigger").unbind('click').click(function() {
+        var file_div_id_pieces = $(this).parent().parent().attr('id').split(/_/);
+        var file_id = file_div_id_pieces[1];
+
+        // Open the dialog, with instructions to only reload the datafield if a change is saved
+        openFileDirectEditDialog(file_id, false);
+    });
+    $(".ODRFileEditTrigger_reloadpage").unbind('click').click(function() {
+        var file_div_id_pieces = $(this).parent().parent().attr('id').split(/_/);
+        var file_id = file_div_id_pieces[1];
+
+        // Open the dialog, with instructions to reload the entire page if a change is saved
+        openFileDirectEditDialog(file_id, true);
     });
     $(".ODRDownloadAllFiles").unbind('click').click(function() {
         if ( $(this).hasClass('fa-muted') )

@@ -943,6 +943,16 @@ class DataFields
     }
 
     /**
+     * Get editableFileExtensions.
+     *
+     * @return string
+     */
+    public function getEditableFileExtensions()
+    {
+        return $this->getDataFieldMeta()->getEditableFileExtensions();
+    }
+
+    /**
      * Get children_per_row
      *
      * @return integer

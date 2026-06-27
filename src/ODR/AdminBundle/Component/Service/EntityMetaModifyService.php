@@ -282,6 +282,7 @@ class EntityMetaModifyService
             'shorten_filename' => $old_meta_entry->getShortenFilename(),
             'newFilesArePublic' => $old_meta_entry->getNewFilesArePublic(),
             'quality_str' => $old_meta_entry->getQualityStr(),
+            'editable_file_extensions' => $old_meta_entry->getEditableFileExtensions(),
             'children_per_row' => $old_meta_entry->getChildrenPerRow(),
             'radio_option_name_sort' => $old_meta_entry->getRadioOptionNameSort(),
             'radio_option_display_unselected' => $old_meta_entry->getRadioOptionDisplayUnselected(),
@@ -383,6 +384,10 @@ class EntityMetaModifyService
             $properties['newFilesArePublic'] = false;
             $properties['quality_str'] = '';
         }
+        // editable_file_extensions only applies to File fields (not Image)
+        if ($relevant_typeclass !== 'File') {
+            $properties['editable_file_extensions'] = '';
+        }
 
         // Clear properties related to radio options and tags if it's not one of those fieldtypes
         if ($relevant_typeclass !== 'Radio' && $relevant_typeclass !== 'Tag') {
@@ -478,6 +483,8 @@ class EntityMetaModifyService
             $new_datafield_meta->setShortenFilename( $properties['shorten_filename'] );
         if ( isset($properties['quality_str']) )
             $new_datafield_meta->setQualityStr( mb_scrub($properties['quality_str']) );
+        if ( isset($properties['editable_file_extensions']) )
+            $new_datafield_meta->setEditableFileExtensions( mb_scrub($properties['editable_file_extensions']) );
         if ( isset($properties['children_per_row']) )
             $new_datafield_meta->setChildrenPerRow( $properties['children_per_row'] );
         if ( isset($properties['radio_option_name_sort']) )

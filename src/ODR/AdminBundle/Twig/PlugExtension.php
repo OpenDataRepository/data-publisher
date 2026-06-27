@@ -86,6 +86,7 @@ class PlugExtension extends \Twig\Extension\AbstractExtension
             new \Twig\TwigFilter('is_empty', $this->isEmptyFilter(...)),
             new \Twig\TwigFilter('is_filtered', $this->isFilteredDivFilter(...)),
             new \Twig\TwigFilter('quality_json_decode', $this->qualityJsonFilter(...)),
+            new \Twig\TwigFilter('matches_file_extensions', $this->matchesFileExtensionsFilter(...)),
 
             new \Twig\TwigFilter('escape_namefield', $this->nameFieldValueFilter(...)),
         ];
@@ -977,6 +978,29 @@ class PlugExtension extends \Twig\Extension\AbstractExtension
             return $ret;
         else
             return '';
+    }
+
+    /**
+     * Returns whether the given filename matches any of the given file extensions
+     * (ported from develop 26dd4715).
+     *
+     * @param string $filename
+     * @param string $valid_extensions A comma-separated list
+     * @return bool
+     */
+    public function matchesFileExtensionsFilter($filename, $valid_extensions)
+    {
+        if ( $filename === '' )
+            return false;
+        $filename_length = strlen($filename);
+
+        $valid_extensions = explode(',', $valid_extensions);
+        foreach ($valid_extensions as $ext) {
+            if ( strripos($filename, '.'.$ext) === $filename_length-strlen($ext)-1 )
+                return true;
+        }
+
+        return false;
     }
 
 

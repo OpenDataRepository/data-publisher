@@ -733,9 +733,22 @@ odr_record_save:
 odr_record_save_xyzdata:
     path:  /edit/save_xyzdata/{datarecord_id}/{datafield_id}
     defaults: { _controller: ODR\AdminBundle\Controller\EditController::updatexyzdataAction }
+    methods: [ POST ]
     requirements:
         datarecord_id:  \d+
         datafield_id_id:  \d+
+
+# Direct in-browser editing of text-ish files (develop 26dd4715)
+odr_direct_edit_file_start:
+    path: /edit/edit_file/start/{file_id}/{reload_entire_page}
+    defaults: { _controller: ODR\AdminBundle\Controller\EditController::directeditfilestartAction }
+    requirements:
+        file_id: \d+
+        reload_entire_page: 0|1
+odr_direct_edit_file_save:
+    path: /edit/edit_file/save
+    defaults: { _controller: ODR\AdminBundle\Controller\EditController::directeditfilesaveAction }
+    methods: [ POST ]
 
 odr_record_public:
     path:  /edit/publicdatarecord/{datarecord_id}

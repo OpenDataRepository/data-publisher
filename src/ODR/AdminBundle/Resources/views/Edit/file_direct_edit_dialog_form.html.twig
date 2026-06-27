@@ -1,0 +1,39 @@
+{% apply spaceless %}
+
+<div id="ODRFileDirectEditDialogWrapper">
+    <!-- File Direct Edit Dialog Form -->
+    <form
+        class="pure-u-1"
+        id="ODRFileDirectEdit_form"
+        method="POST"
+    >
+        <input type="hidden" id="FileDataForm_dr_id" value="{{ file.datarecord.id }}" />
+        <input type="hidden" id="FileDataForm_df_id" value="{{ file.datafield.id }}" />
+
+        <input type="hidden" name="FileDataForm[file_id]" value="{{ file.id }}" />
+        <input type="hidden" name="FileDataForm[_token]" value="{{ csrf_token }}" />
+
+        <div class="pure-u-1">
+            <label for="ODRFileDirectEdit_linux" class="pure-u-1-4">
+                <input type="checkbox" id="ODRFileDirectEdit_linux" name="FileDataForm[linux_newlines]" value="1" />
+                &nbsp;Force linux newline sequence
+            </label>
+
+            {% if not reload_entire_page %}
+            {# NOTE: datatypes that want to reload the entire page on a change here typically also require the file to be deleted/re-uploaded instead of simply replaced #}
+            <label for="ODRFileDirectEdit_replace" class="pure-u-1-4">
+                <input type="checkbox" id="ODRFileDirectEdit_replace" name="FileDataForm[replace]" value="1" />
+                &nbsp;Replace file instead of re-uploading
+            </label>
+            {% endif %}
+        </div>
+
+        <div class="pure-u-1">
+            <textarea id="FileDirectEditForm_textarea" name="FileDataForm[value]">{{ file_contents }}</textarea>
+        </div>
+    </form>
+</div>
+
+<script>
+</script>
+{% endapply %}

@@ -51,3 +51,14 @@ theme rendering / the theme designer will error. Apply this before testing, then
 theme entries (`odr:cache:flush` or equivalent). After it's applied, the new "Always Render Group
 Box" toggle in the theme designer controls it; PlugExtension's `isEmptyFilter` honors it (a
 show-when-empty group box is never treated as empty).
+
+### Phase D7 — file-extension editing (develop 26dd4715)
+```sql
+ALTER TABLE odr_data_fields_meta
+    ADD editable_file_extensions VARCHAR(32) DEFAULT '' NOT NULL;
+```
+⚠️ Same wide blast radius — `DataFieldsMeta.orm.yml` maps `editable_file_extensions`, so Doctrine
+selects it on **every** DataFieldsMeta hydration (i.e. almost every page). Apply before testing, then
+flush caches. After it's applied: a File datafield's properties gains an "Editable File Extensions"
+field (comma-separated, no dots); files whose name matches get an "Edit File Contents" pencil in the
+Edit view that opens an in-browser editor (routes odr_direct_edit_file_start / _save).
