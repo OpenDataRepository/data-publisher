@@ -1968,7 +1968,8 @@ class PluginsController extends ODRCustomController
             // Flush now that all entities are created
             $em->flush();
 
-            // Don't need to update any cache entries
+            // Now that the database has been modified, delete this cache entry as well (develop 60e75506)
+            $this->cache_service->delete('event_relevance_list');
         }
         catch (\Exception $e) {
             $source = 0x6f1b3a98;
@@ -3813,6 +3814,8 @@ class PluginsController extends ODRCustomController
 
             // Both the "global" and the "theme-specific" option maps are intentionally ignored
 
+            // Now that the database has been modified, delete this cache entry as well (develop 60e75506)
+            $this->cache_service->delete('event_relevance_list');
 
             // ----------------------------------------
             // Now that all the database changes have been made, wipe the relevant cache entries
@@ -4332,6 +4335,9 @@ class PluginsController extends ODRCustomController
             // ----------------------------------------
             // Should be able to flush here
             $em->flush();
+
+            // Now that the database has been modified, delete this cache entry as well (develop 60e75506)
+            $this->cache_service->delete('event_relevance_list');
 
             if ( $plugin_attached ) {
                 // Some render plugins need to do stuff when they get added to a datafield/datatype
