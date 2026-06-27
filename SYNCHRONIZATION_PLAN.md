@@ -25,6 +25,23 @@ the SF7 conversions below. Git is used only as a **read** tool (`git show`, `git
   `dev SHA | date | PR/issue | subject | decision | branch commit(s) | notes`,
   `decision` ∈ {Ported, Skipped-obsolete, Skipped-already-handled, Deferred}.
 
+## Environment changes: "code only + change list" (maintainer decision, 2026-06-27)
+
+Some develop commits require changes to the live dev environment, not just code — new DB columns
+(via a `*Meta.orm.yml` mapping) or new config parameters (referenced from `config.yml`). The branch
+is **actively being tested**, so the sync must not silently mutate that environment. Policy:
+
+- Port the **code** normally (entities, `*.orm.yml`, committed `*.dist` config templates, forms,
+  controllers, templates).
+- Do **NOT** touch the live database or the active (gitignored) `app/config/config.yml` /
+  `parameters.yml`.
+- Record every required env change in **`DEVELOP_SYNC_CHANGELIST.md`** (DDL + active-config entries),
+  tagged by Phase, for the maintainer to apply via their own migration/deploy process.
+
+A feature won't fully run until its changelist entries are applied; schema mappings have a wide blast
+radius (Doctrine selects the new column on every hydration of that entity), so apply DDL before
+testing schema-affecting features.
+
 ## Per-run procedure (idempotent — works for any delta size)
 
 1. `git fetch origin`.
