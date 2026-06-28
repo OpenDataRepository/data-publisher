@@ -15,6 +15,8 @@ namespace ODR\OpenRepository\SearchBundle\Component\Service;
 
 // Entities
 use ODR\AdminBundle\Entity\DataFields;
+use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\StoredSearchKey;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -2450,6 +2452,261 @@ class SearchKeyService
             }
         }
 
+        return $tmp;
+    }
+
+    /**
+     * Locates the given datatype's preferred default search key for the given context.
+     *
+     * @param DataType $target_datatype
+     * @param int $context  {@see StoredSearchKey::ANY_CONTEXT},
+     *                      {@see StoredSearchKey::SEARCH_CONTEXT},
+     *                      {@see StoredSearchKey::LINK_CONTEXT}
+     * @return string
+     */
+    public function getDefaultSearchKeyForContext($target_datatype, $context)
+    {
+        $fallback_search_key = '';
+        foreach ($target_datatype->getStoredSearchKeys() as $ssk) {
+            /** @var StoredSearchKey $ssk */
+            if ( $ssk->getDefaultFor() === $context ) {
+                // If this key matches the context, then return it
+                return $ssk->getSearchKey();
+            }
+
+            if ( $ssk->getDefaultFor() === StoredSearchKey::ANY_CONTEXT ) {
+                // This key could get used for the context, but continue looking for one that
+                //  actually matches
+                $fallback_search_key = $ssk->getSearchKey();
+            }
+        }
+
+        // If this point is reached, then use the fallback
+        return $fallback_search_key;
+    }
+
+
+    /**
+     * Inserts values from $default_search_key into $given_search_key, unless the latter already
+     * has a value set for that criteria.
+     *
+     * Assumes that $given_search_key is already validated.
+     *
+     * @param string $given_search_key
+     * @param string $default_search_key
+     * @return string
+     */
+    public function mergeSearchKeys($given_search_key, $default_search_key)
+    {
+        // Otherwise, need the array format of both search keys
+        $given_search_params = self::decodeSearchKey($given_search_key);
+        $default_search_params = self::decodeSearchKey($default_search_key);
+
+        // Also need the typeclass information for this datatype...permissions don't matter here,
+        //  they'll get silently applied after the merge
+        $searchable_datafields = $this->search_service->getSearchableDatafields($given_search_params['dt_id']);
+
+
+        // ----------------------------------------
+        // The "default search params" can only add to the given search key...
+        $merged_search_params = $given_search_params;
+
+        foreach ($default_search_params as $key => $value) {
+            // ...but this can get complicated in several cases
+            if ($key === 'dt_id' || $key === 'merge' || $key === 'sort_by' || $key === 'ignore') {
+                // The defaults for these keys should never be used
+            }
+            else if ($key === 'gen' || $key === 'gen_lim') {
+                // The defaults for these keys should only be used when neither of them already exist
+                if ( !isset($given_search_params['gen']) && !isset($given_search_params['gen_lim']) )
+                    $merged_search_params[$key] = $value;
+            }
+            else if ($key === 'inverse') {
+                // The default for this should only be used when it doesn't already exist
+                if ( !isset($given_search_params['inverse']) )
+                    $merged_search_params[$key] = $value;
+            }
+            else if ( is_numeric($key) ) {
+                // This key is for a datafield...generally whatever is in the given search key
+                //  overrides the default, but that's tricky when it comes to several of the possible
+                //  typeclasses...
+                $typeclass = '';
+                foreach ($searchable_datafields as $dt_id => $data) {
+                    if ( isset($data['datafields'][$key]) )
+                        $typeclass = $data['datafields'][$key]['typeclass'];
+                    else if ( isset($data['datafields']['non_public'][$key]) )
+                        $typeclass = $data['datafields']['non_public'][$key]['typeclass'];
+                }
+
+                if ( $typeclass === 'Radio' || $typeclass === 'Tag' ) {
+                    // Want to splice in any radio/tag selections from the default search key which
+                    //  are not mentioned in the given search key
+                    $default_selections = self::explodeRadioTagSelectionString($default_search_params[$key]);
+                    // ...the given search key may not mention any criteria for this field, though
+                    $new_str = '';
+                    $given_selections = array();
+                    if ( isset($given_search_params[$key]) ) {
+                        $given_selections = self::explodeRadioTagSelectionString($given_search_params[$key]);
+                        $new_str = $given_search_params[$key];
+                    }
+
+                    // Going to append any missing selections to the end of the existing key...
+                    foreach ($default_selections as $id => $modifier) {
+                        if ( !isset($given_selections[$id]) )
+                            $new_str .= ','.$modifier.$id;
+                    }
+                    // Ensure there's no leading comma if the given search key didn't have any
+                    //  criteria
+                    if ( $new_str[0] === ',' )
+                        $new_str = substr($new_str, 1);
+                    // ...and then overwrite whatever value the given search key has
+                    $merged_search_params[$key] = $new_str;
+                }
+                else if ( $typeclass === 'File' || $typeclass === 'Image' ) {
+                    // In this case, the default is going to be a filename search
+                    // It shouldn't override a given filename, but should still activate when the
+                    //  given search is on quality or public status
+                    $quality = $key.'_qual';
+                    $public_status = $key.'_pub';
+
+                    if ( !isset($given_search_params[$key])
+//                        && !isset($given_search_params[$quality])
+//                        && !isset($given_search_params[$public_status])
+                    ) {
+                        $merged_search_params[$key] = $value;
+                    }
+                }
+                else if ($typeclass === 'DatetimeValue') {
+                    // In this case, the default is going to mean either "exists" or "does not exist"
+                    // It needs to defer to any possible given value for the field
+                    $starts = $key.'_s';
+                    $ends = $key.'_e';
+
+                    if ( !isset($given_search_params[$key])
+                        && !isset($given_search_params[$starts])
+                        && !isset($given_search_params[$ends])
+                    ) {
+                        $merged_search_params[$key] = $value;
+                    }
+                }
+                else if ($typeclass === 'XYZData') {
+                    // In this case, the default is going to be some multirange search
+                    // It needs to defer to any possible given value for the field
+                    $x = $key.'_x';
+                    $y = $key.'_y';
+                    $z = $key.'_z';
+
+                    if ( !isset($given_search_params[$key])
+                        && !isset($given_search_params[$x])
+                        && !isset($given_search_params[$y])
+                        && !isset($given_search_params[$z])
+                    ) {
+                        $merged_search_params[$key] = $value;
+                    }
+                }
+                else {
+                    // ...the rest of the typeclasses should only use the defaults when a value isn't
+                    //  already provided
+                    if ( !isset($given_search_params[$key]) )
+                        $merged_search_params[$key] = $value;
+                }
+            }
+            else {
+                $pieces = explode('_', $key);
+                if ( is_numeric($pieces[0]) && count($pieces) === 2 ) {
+                    // $key is for a DatetimeValue, a File/Image's public status/quality, or a
+                    //  simple XYZData search
+
+                    if ( $pieces[1] === 's' || $pieces[1] === 'e' ) {
+                        // This is for a DatetimeValue...
+                        // In this case, the default is going to be "after" and/or "before"
+                        // It needs to defer to any possible given value for the field
+                        $starts = $pieces[0].'_s';
+                        $ends = $pieces[0].'_e';
+
+                        if ( !isset($given_search_params[$pieces[0]])
+                            && !isset($given_search_params[$starts])
+                            && !isset($given_search_params[$ends])
+                        ) {
+                            $merged_search_params[$key] = $value;
+                        }
+                    }
+                    else if ( $pieces[1] === 'pub') {
+                        // This is for a File/Image...in this case, the default is for public status
+                        // It shouldn't override a search on public status, but should still activate
+                        //  otherwise
+                        $public_status = $pieces[0].'_pub';
+                        $quality = $pieces[0].'_qual';
+
+                        if ( !isset($given_search_params[$public_status])
+//                            && !isset($given_search_params[$quality])
+//                            && !isset($given_search_params[$pieces[0]])
+                        ) {
+                            $merged_search_params[$key] = $value;
+                        }
+                    }
+                    else if ($pieces[1] === 'qual' ) {
+                        // This is for a File/Image...in this case, the default is for quality
+                        // It shouldn't override a search on quality, but should still activate
+                        //  otherwise
+                        $public_status = $pieces[0].'_pub';
+                        $quality = $pieces[0].'_qual';
+
+                        if ( !isset($given_search_params[$quality])
+//                            && !isset($given_search_params[$public_status])
+//                            && !isset($given_search_params[$pieces[0]])
+                        ) {
+                            $merged_search_params[$key] = $value;
+                        }
+                    }
+                    else if ( $pieces[1] === 'x' || $pieces[1] === 'y' || $pieces[1] === 'z' ) {
+                        // This is for an XYZData field...
+                        // In this case, the default is going to be some single range
+                        // It needs to defer to any possible given value for the field
+                        $x = $pieces[0].'_x';
+                        $y = $pieces[0].'_y';
+                        $z = $pieces[0].'_z';
+
+                        if ( !isset($given_search_params[$pieces[0]])
+                            && !isset($given_search_params[$x])
+                            && !isset($given_search_params[$y])
+                            && !isset($given_search_params[$z])
+                        ) {
+                            $merged_search_params[$key] = $value;
+                        }
+                    }
+                }
+                else {
+                    // $key should be one of the modified/created/modifiedBy/createdBy/publicStatus entries
+                    throw new ODRNotImplementedException('aaaaa');
+                }
+            }
+        }
+
+        // Convert the parameters back into a new search key and return
+        $merged_search_key = self::encodeSearchKey($merged_search_params);
+        return $merged_search_key;
+    }
+
+
+    /**
+     * Splicing default radio/tag selections into an existing set of selections requires some string
+     * manipulation to properly pull off.  Effectively, want to turn the string into a new array where
+     * the radio/tag id is the key and the modifier...'-', '~', or '*'...is the value.
+     *
+     * @param string $str
+     * @return array
+     */
+    private function explodeRadioTagSelectionString($str)
+    {
+        $tmp = array();
+        $selections = explode(',', $str);
+        foreach ($selections as $num => $item) {
+            if ( $item[0] === '-' || $item[0] === '~' || $item[0] === '*' )
+                $tmp[ substr($item, 1) ] = $item[0];
+            else
+                $tmp[$item] = '';
+        }
         return $tmp;
     }
 }
