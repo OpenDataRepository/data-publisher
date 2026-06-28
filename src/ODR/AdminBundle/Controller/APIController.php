@@ -8440,4 +8440,281 @@ class APIController extends ODRCustomController
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
+
+    /**
+     * Reports whether the current request comes from a logged-in user.
+     * Used by cached static pages to decide whether to redirect the
+     * visitor to the dynamic version (which can show non-public data).
+     *
+     *   GET /api/v1/auth/status
+     *   200: { "logged_in": true|false }
+     *
+     * CORS: the cached static files are typically served from a
+     * different host than the dynamic backend (site_baseurl vs
+     * wordpress_site_baseurl in WP-integrated mode). We allow a
+     * credentialed cross-origin request from site_baseurl so the
+     * cached page can call back to check session state.
+     *
+     * @param string  $version
+     * @param Request $request
+     * @return Response
+     */
+    public function authStatusAction($version, Request $request)
+    {
+        $logged_in = false;
+        try {
+            $token = $this->container->get('security.token_storage')->getToken();
+            if ($token !== null) {
+                $user = $token->getUser();
+                $logged_in = is_object($user) && $user !== 'anon.';
+            }
+        } catch (\Exception $e) {
+            // Any failure → treat as anonymous; never error here, we want
+            // the cached page's redirect script to keep working silently.
+        }
+
+        $response = new JsonResponse(array('logged_in' => $logged_in));
+
+        // CORS: allow the cached-file origin (site_baseurl) to call us
+        // with credentials. We only allow that one origin, never `*`,
+        // because credentialed requests + wildcard origin is forbidden
+        // by the spec anyway.
+        $req_origin = $request->headers->get('Origin');
+        if ($req_origin) {
+            $allowed = self::normalizeOrigin($this->getParameter('site_baseurl'));
+            if ($allowed !== '' && self::normalizeOrigin($req_origin) === $allowed) {
+                $response->headers->set('Access-Control-Allow-Origin', $req_origin);
+                $response->headers->set('Access-Control-Allow-Credentials', 'true');
+                $response->headers->set('Vary', 'Origin');
+            }
+        }
+        return $response;
+    }
+
+    /**
+     * Strip protocol-relative `//` and trailing slashes; force https.
+     * Used to compare an incoming Origin header against a configured
+     * baseurl.
+     */
+    private static function normalizeOrigin($origin)
+    {
+        $origin = trim((string)$origin);
+        $origin = preg_replace('#^https?:#', '', $origin);
+        $origin = ltrim($origin, '/');
+        $origin = rtrim($origin, '/');
+        return $origin === '' ? '' : 'https://' . $origin;
+    }
+
+
+    /**
+     * Enqueues every public, top-level record of the given dataset for
+     * static-render. Returns the count of records queued.
+     *
+     * Auth: same convention as datasetQuotaByUUIDAction — POST body must
+     * contain `user_email` and that user must be a datatype admin.
+     *
+     *   POST /api/{version}/dataset/{dataset_uuid}/static_render
+     *   body: { "user_email": "..." }
+     *   200:  { "datatype_uuid": "...", "queued": <int> }
+     *
+     * @param string  $version
+     * @param string  $dataset_uuid
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function staticRenderEnqueueAction($version, $dataset_uuid, Request $request)
+    {
+        try {
+            /** @var EntityManager $em */
+            $em = $this->container->get('doctrine')->getManager();
+
+            $content = $request->getContent();
+            if (empty($content))
+                throw new ODRBadRequestException('User must be identified for permissions check.');
+
+            $data = json_decode($content, true);
+            if (!isset($data['user_email']))
+                throw new ODRBadRequestException('user_email is required');
+
+            /** @var \FOS\UserBundle\Doctrine\UserManager $user_manager */
+            $user_manager = $this->container->get('fos_user.user_manager');
+            $user = $user_manager->findUserBy(array('email' => $data['user_email']));
+            if (is_null($user))
+                throw new ODRNotFoundException('unrecognized email: "' . $data['user_email'] . '"');
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
+                array('unique_id' => $dataset_uuid)
+            );
+            if ($datatype === null || $datatype->getDeletedAt() !== null)
+                throw new ODRNotFoundException('Datatype');
+
+            /** @var \ODR\AdminBundle\Component\Service\PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            if (!$pm_service->isDatatypeAdmin($user, $datatype))
+                throw new ODRForbiddenException();
+
+            /** @var \ODR\AdminBundle\Component\Service\StaticRenderService $static_render_service */
+            $static_render_service = $this->container->get('odr.static_render_service');
+            $count = $static_render_service->enqueueDatatype($datatype);
+
+            return new JsonResponse(array(
+                'datatype_uuid' => $datatype->getUniqueId(),
+                'queued' => $count,
+            ));
+        } catch (\Exception $e) {
+            $source = 0x517a7c01;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
+     * Returns a snapshot of the static-render beanstalkd tube. Public
+     * (no auth) since the data is just queue depth — useful for UI
+     * progress indicators and external monitoring.
+     *
+     *   GET /api/{version}/static_render/status
+     *   200: { ready, reserved, delayed, buried, total_jobs, workers, name }
+     *
+     * @param string $version
+     * @return JsonResponse
+     */
+    public function staticRenderStatusAction($version)
+    {
+        try {
+            /** @var \ODR\AdminBundle\Component\Service\StaticRenderService $static_render_service */
+            $static_render_service = $this->container->get('odr.static_render_service');
+            $status = $static_render_service->getQueueStatus();
+            if ($status === null)
+                $status = array(
+                    'name' => \ODR\AdminBundle\Component\Service\StaticRenderService::TUBE_NAME,
+                    'available' => false,
+                );
+            return new JsonResponse($status);
+        } catch (\Exception $e) {
+            $source = 0x517a7c02;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
+     * Emits the top-level XML *sitemap index*. Lists one or more child
+     * sitemaps per datatype — datatypes with more than 50,000 records
+     * are paginated so each child stays under the sitemaps.org / Google
+     * limit. Each entry also reports the most-recent mtime within that
+     * page so crawlers can skip unchanged sections.
+     *
+     *   GET /sitemap.xml
+     *
+     * @return Response
+     */
+    public function sitemapAction()
+    {
+        try {
+            /** @var \ODR\AdminBundle\Component\Service\StaticRenderService $static_render_service */
+            $static_render_service = $this->container->get('odr.static_render_service');
+            $by_datatype = $static_render_service->listRenderedFilesByDatatype();
+            $page_size = \ODR\AdminBundle\Component\Service\StaticRenderService::SITEMAP_MAX_URLS;
+
+            $xml  = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+            $xml .= '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
+            foreach ($by_datatype as $datatype_uuid => $files) {
+                $count = count($files);
+                $pages = max(1, (int)ceil($count / $page_size));
+                for ($p = 1; $p <= $pages; $p++) {
+                    $start = ($p - 1) * $page_size;
+                    $end   = min($count, $p * $page_size);
+                    // Most-recent mtime within this page determines lastmod.
+                    $max_mtime = 0;
+                    for ($i = $start; $i < $end; $i++) {
+                        if ($files[$i]['mtime'] > $max_mtime)
+                            $max_mtime = $files[$i]['mtime'];
+                    }
+                    $loc = htmlspecialchars(
+                        $static_render_service->getChildSitemapUrl($datatype_uuid, $p),
+                        ENT_QUOTES | ENT_XML1
+                    );
+                    $lastmod = gmdate('Y-m-d\TH:i:s\Z', $max_mtime);
+                    $xml .= "    <sitemap><loc>{$loc}</loc><lastmod>{$lastmod}</lastmod></sitemap>\n";
+                }
+            }
+            $xml .= '</sitemapindex>' . "\n";
+
+            $response = new Response($xml);
+            $response->headers->set('Content-Type', 'application/xml; charset=UTF-8');
+            return $response;
+        } catch (\Exception $e) {
+            $source = 0x517a7c03;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
+     * Emits a child sitemap (a `<urlset>`) for one datatype, optionally
+     * paginated for datatypes with more than 50,000 records.
+     *
+     *   GET /sitemap-{dataset_uuid}.xml         (page 1)
+     *   GET /sitemap-{dataset_uuid}-{page}.xml  (page 2, 3, ...)
+     *
+     * @param string $dataset_uuid
+     * @param int    $page  1-based page number
+     * @return Response
+     */
+    public function sitemapDatatypeAction($dataset_uuid, $page = 1)
+    {
+        try {
+            /** @var \ODR\AdminBundle\Component\Service\StaticRenderService $static_render_service */
+            $static_render_service = $this->container->get('odr.static_render_service');
+            $by_datatype = $static_render_service->listRenderedFilesByDatatype();
+            if (!isset($by_datatype[$dataset_uuid]))
+                throw new ODRNotFoundException('Sitemap');
+
+            $files = $by_datatype[$dataset_uuid];
+            $page_size = \ODR\AdminBundle\Component\Service\StaticRenderService::SITEMAP_MAX_URLS;
+            $count = count($files);
+            $pages = max(1, (int)ceil($count / $page_size));
+
+            $page = (int)$page;
+            if ($page < 1 || $page > $pages)
+                throw new ODRNotFoundException('Sitemap page');
+
+            $start = ($page - 1) * $page_size;
+            $end   = min($count, $page * $page_size);
+
+            $xml  = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+            $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
+            for ($i = $start; $i < $end; $i++) {
+                $f = $files[$i];
+                $loc = htmlspecialchars(
+                    $static_render_service->getPublicUrlForFile($dataset_uuid, $f['record_uuid']),
+                    ENT_QUOTES | ENT_XML1
+                );
+                $lastmod = gmdate('Y-m-d\TH:i:s\Z', $f['mtime']);
+                $xml .= "    <url><loc>{$loc}</loc><lastmod>{$lastmod}</lastmod></url>\n";
+            }
+            $xml .= '</urlset>' . "\n";
+
+            $response = new Response($xml);
+            $response->headers->set('Content-Type', 'application/xml; charset=UTF-8');
+            return $response;
+        } catch (\Exception $e) {
+            $source = 0x517a7c04;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
 }

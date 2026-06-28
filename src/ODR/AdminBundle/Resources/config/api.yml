@@ -694,3 +694,46 @@ odr_api_statistics_update_bots:
   requirements:
     version: 'v\d+'
 
+
+# Static-rendering / sitemap subsystem (develop 0f9954eb/57ad6a20/49b048e4)
+odr_api_static_render_enqueue:
+  path: /api/{version}/dataset/{dataset_uuid}/static_render
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::staticRenderEnqueueAction, _format: json }
+  methods: [ POST ]
+  requirements:
+    version: 'v\d+'
+    dataset_uuid: '^[a-z0-9]+$'
+
+odr_api_static_render_status:
+  path: /api/{version}/static_render/status
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::staticRenderStatusAction, _format: json }
+  methods: [ GET ]
+  requirements:
+    version: 'v\d+'
+
+odr_sitemap:
+  path: /sitemap.xml
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::sitemapAction }
+  methods: [ GET ]
+
+odr_sitemap_datatype:
+  path: /sitemap-{dataset_uuid}.xml
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::sitemapDatatypeAction, page: 1 }
+  methods: [ GET ]
+  requirements:
+    dataset_uuid: '^[a-z0-9]+$'
+
+odr_sitemap_datatype_page:
+  path: /sitemap-{dataset_uuid}-{page}.xml
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::sitemapDatatypeAction }
+  methods: [ GET ]
+  requirements:
+    dataset_uuid: '^[a-z0-9]+$'
+    page: '\d+'
+
+odr_api_auth_status:
+  path: /api/{version}/auth/status
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::authStatusAction, _format: json }
+  methods: [ GET ]
+  requirements:
+    version: 'v\d+'

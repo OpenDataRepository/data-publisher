@@ -83,6 +83,15 @@
 {% endif %}
 
         hideSearchOverlay();    {# defined in Default::common_js.html.twig #}
+
+        // Signal that the display page has finished its synchronous render.
+        // Consumed by the static-render background service (puppeteer worker)
+        // to know when it's safe to grab the page HTML. Render plugins that
+        // perform their own asynchronous work can reset this flag at start
+        // and re-set it when their work completes; the worker also waits on
+        // network-idle so plain image loads don't need to flip the flag.
+        window.__odrRenderReady = true;
+        document.dispatchEvent(new CustomEvent('odr:render-complete'));
     }
 
     function setupFileDownloader() {
