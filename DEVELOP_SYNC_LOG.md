@@ -15,12 +15,12 @@ Living state for the SF7 ⇄ `develop` synchronization (see `SYNCHRONIZATION_PLA
 
 | # | dev SHA | date | subject | group | decision | branch commit | notes |
 |---|---------|------|---------|-------|----------|---------------|-------|
-| 1 | a7945ea7 | 2026-03-16 | HOM url checker. | | Pending | | |
+| 1 | a7945ea7 | 2026-03-16 | HOM url checker. | feature | Ported | Phase D11 | Standalone Node daemon background_services/hom_url_checker.js (Handbook-of-Mineralogy PDF URL resolver; https/fs/path only, zero ODR coupling) + .gitignore /background_services/hom_results. Final state checked out from c58aa638. node --check OK |
 | 2 | 7749a427 | 2026-03-16 | ODR's 'default search key' system expanded to be more of a 'default search parameters' sys | | Pending | | |
 | 3 | c2661c5f | 2026-03-16 | Disabled the 'this layout has been synchronized...' notification | bugfix | Ported | Phase C2 | commented notify_of_sync in ODRRenderService + wrapped the notify_of_sync block in {# #} in 6 templates (display/edit/fakeedit/shortresults/textresults x2) |
 | 4 | 8fd3d7d7 | 2026-03-17 | Search results with a single record should no longer redirect to the Display route | bugfix | Ported | Phase C1 | SearchBundle DefaultController: redirectToSingleDatarecord -> $this->forward(); forward target converted to SF7 FQCN |
 | 5 | 4348503b | 2026-03-17 | XYZData fields now silently switch display types to match whichever parameters they receiv | | Pending | | |
-| 6 | c58aa638 | 2026-03-17 | HOM URL resolver system for use with IMA.  Probably should move this to IMA. | | Pending | | |
+| 6 | c58aa638 | 2026-03-17 | HOM URL resolver system for use with IMA.  Probably should move this to IMA. | feature | Ported | Phase D11 | Final hom_url_checker.js (this commit's version, +286/-138 over a7945ea7) is what was checked out; .gitignore hom_results. Standalone -- no PHP/render-plugin coupling in either HOM commit |
 | 7 | 8f3c3af6 | 2026-03-19 | fixed commit 4348503 | | Pending | | |
 | 8 | 9109c628 | 2026-03-19 | Apparently forgot to test commit 7749a42 by massediting a datatype without a default searc | | Pending | | |
 | 9 | 60e75506 | 2026-03-23 | Modified ODREventSubscriber to use a redis cache entry to determine which plugin functions | feature | Ported | Phase D4 | ODREventSubscriber::isEventRelevant rewritten to build+cache an 'event_relevance_list' map (event->plugin->dt/df->callable) instead of 2 per-call DQL queries; SF7/DBAL3 (raw SQL via $conn->fetchAllAssociative, +ODRBadRequestException import). PluginsController invalidates the cache (3x `$this->cache_service->delete('event_relevance_list')`, using the injected service) after plugin-config flushes. clean method-replacement (branch isEventRelevant == develop parent modulo SF7) |

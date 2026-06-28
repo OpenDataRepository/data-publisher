@@ -81,3 +81,6 @@ tests/screenshots/.auth/
 
 # Rector tool binary (config rector.php is tracked)
 rector.phar
+
+# HOM URL resolver output (background_services/hom_url_checker.js)
+/background_services/hom_results
