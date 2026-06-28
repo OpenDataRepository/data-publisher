@@ -1045,6 +1045,20 @@ services:
         arguments:
             $logger: "@logger"
 
+    # Static-rendering / sitemap subsystem (develop 0f9954eb/57ad6a20/49b048e4)
+    odr.static_render_service:
+        public: true
+        class: ODR\AdminBundle\Component\Service\StaticRenderService
+        arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $pheanstalk: "@pheanstalk"
+            $redis: "@snc_redis.default"
+            $odr_web_directory: "%odr_web_directory%"
+            $site_baseurl: "%site_baseurl%"
+            $wordpress_site_baseurl: "%wordpress_site_baseurl%"
+            $odr_wordpress_integrated: "%odr_wordpress_integrated%"
+            $logger: "@logger"
+
     odr.xyzdata_helper_service:
         public: true
         class: ODR\AdminBundle\Component\Service\XYZDataHelperService
