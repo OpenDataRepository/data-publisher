@@ -20,6 +20,7 @@ use ODR\AdminBundle\Controller\ODRCustomController;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\SidebarLayout;
+use ODR\AdminBundle\Entity\StoredSearchKey;
 use ODR\AdminBundle\Entity\SidebarLayoutMap;
 use ODR\AdminBundle\Entity\SidebarLayoutMeta;
 use ODR\AdminBundle\Entity\SidebarLayoutPreferences;
@@ -224,6 +225,18 @@ class SearchSidebarController extends ODRCustomController
                 unset( $search_params['inverse'] );
             }
 
+            // If this datatype has a default search key for the current context, decode it so the
+            //  sidebar starts out with the relevant fields filled in
+            $default_search_key = '';
+            if ($intent === 'searching')
+                $default_search_key = $search_key_service->getDefaultSearchKeyForContext($target_datatype, StoredSearchKey::SEARCH_CONTEXT);
+            else if ($intent === 'linking')
+                $default_search_key = $search_key_service->getDefaultSearchKeyForContext($target_datatype, StoredSearchKey::LINK_CONTEXT);
+
+            $default_search_params = [];
+            if ($default_search_key !== '')
+                $default_search_params = $search_key_service->decodeSearchKey($default_search_key);
+
             // Load the preferred sidebar layout unless dealing with StoredSearchKeys
             $sidebar_layout_id = null;
             if ( $intent !== 'stored_search_keys' ) {
@@ -238,7 +251,7 @@ class SearchSidebarController extends ODRCustomController
                 }
             }
 
-            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $target_datatype->getId(), $search_params, $intent, $sidebar_layout_id);
+            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $target_datatype->getId(), $search_params, $default_search_params, $intent, $sidebar_layout_id);
             $user_list = $search_sidebar_service->getSidebarUserList($user, $sidebar_array);
 
             // Should also get the names for the inverse search datatypes
