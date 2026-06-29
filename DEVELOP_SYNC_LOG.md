@@ -78,3 +78,20 @@ Living state for the SF7 ⇄ `develop` synchronization (see `SYNCHRONIZATION_PLA
 | 61 | 8f6fb8c2 | 2026-06-19 | Fixes on beta - moving to develop for more work. | | Pending | | |
 | 62 | 655abe7f | 2026-06-19 | ODR uses a collation sort in most places | bugfix | Ported (partial) | Phase C7 | \Collator (ext-intl UCA) sort threaded through SortService (multisort getSortKey + 3 natural-sort blocks + radio & tag methods, dropped tagSort_name/displayOrder), TagHelperService, DatarecordInfoService (stackDatarecordArray->_worker), CSVExportHelperService, DisplayController (groupFilesBy* x2), GraphPlugin/FilterGraphPlugin/GCMassSpecPlugin. All null-guarded w/ strnatcmp fallback. asdf route/action already in target state on branch; CSVImport cosmetic comment skipped. **DEFERRED to Phase D:** SearchAPIService intval guards (target transformRecordsFrom* fns don't exist until the advanced-search rework). NOTE: ext-intl NOT loaded in dev, so only the fallback path was exercised here; the Collator path runs in prod |
 | 63 | f418ad30 | 2026-06-22 | Deleted unused/out-of-date code from SearchAPIServiceNoConflict | | Pending | | |
+
+## Core search rework — per-file final-state progress (net-diff to f418ad30)
+
+The ~17-commit search rework is ported by reconstructing each file to its **f418ad30 final state**
+(branch SF7 header + f418ad30 body + mechanical SF7 conversions), since the commits evolved with
+reversals. Transitional until all are done; validated by SearchAPIServiceTest vs odr_theta_2 at the end.
+
+| File | Status | Phase | Conversions applied |
+|------|--------|-------|---------------------|
+| SearchKeyService | FINAL | D12b | FieldType alias->FQCN; mergeSearchKeys final; convertPOST optional arg |
+| SearchAPIService | FINAL | D12c | 33 aliases->FQCN; 4 fetchAll->fetchAllAssociative |
+| SearchService | FINAL | D12d | 17 aliases->FQCN |
+| SearchSidebarService | FINAL | D12d | 10 aliases->FQCN; $this->session-> -> $this->request_stack->getSession()->; findUsers via ODRUserManager shim |
+| SearchQueryService | pending | D12e | 31 DBAL2 calls -> DBAL3 (map per branch) |
+| SearchAPIServiceNoConflict | pending | D12f | DI changed + shrinks 2242->681 (f418ad30 deleted dead code); needs special handling |
+| PaginationHelperService (Admin) | pending | D12g | +34 (new pagination helper bits) |
+| Consumers (DefaultController/Facade/SearchSidebar ctrls, Admin ctrls, templates, render plugins, CSVExport) | pending | D12h+ | per-file; reconcile D9a immediate-search consumer in SearchBundle DefaultController |
