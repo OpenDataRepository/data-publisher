@@ -195,7 +195,7 @@ class CSVImportHelperService
         //  record based on the id of a child record
         $parent_lookup = [];
         if ( $data['import_into_child_datatype'] )
-            $parent_lookup = $this->search_service->getCachedSearchDatarecordList($data['import_datatype_id']);
+            $parent_lookup = $this->search_service->getCachedDatarecordList($data['import_datatype_id']);
 
         // Load the existing values for all existing datafields that are being imported into
         foreach ($data['unique_mapping'] as $column_num => $df_id) {
@@ -556,7 +556,7 @@ class CSVImportHelperService
         $existing_records = [];
         if ( $data['import_into_child_datatype'] ) {
             $rel_type_adj = 'child';
-            $tmp = $this->search_service->getCachedSearchDatarecordList($descendant_datatype_id);
+            $tmp = $this->search_service->getCachedDatarecordList($descendant_datatype_id);
 
             // Need to flip the array so it's in (parent_id => child_id) format...since only a single
             //  descendant is allowed, no data will be lost by doing this
@@ -564,7 +564,7 @@ class CSVImportHelperService
         }
         else {
             $rel_type_adj = 'linked';
-            $tmp = $this->search_service->getCachedSearchDatarecordList($descendant_datatype_id, true);
+            $tmp = $this->search_service->getCachedDatarecordList($descendant_datatype_id, false, true);
 
             // The array needs to be flipped, but it's not trivial because multiple ancestors can
             //  link to the descendant record

@@ -509,7 +509,7 @@ class WorkerController extends ODRCustomController
                 /** @var SearchService $search_service */
                 $search_service = $this->search_service;
 
-                $dr_list = $search_service->getCachedSearchDatarecordList($datatype->getGrandparent()->getId());
+                $dr_list = $search_service->getCachedDatarecordList($datatype->getGrandparent()->getId());
                 foreach ($dr_list as $dr_id => $parent_dr_id) {
                     $cache_service->delete('cached_datarecord_'.$dr_id);
                     $cache_service->delete('cached_table_data_'.$dr_id);

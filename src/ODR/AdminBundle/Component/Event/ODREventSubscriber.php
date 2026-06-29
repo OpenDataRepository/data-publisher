@@ -344,7 +344,7 @@ class ODREventSubscriber implements EventSubscriberInterface
             if ($clear_datarecord_caches) {
                 // ...also need to delete the datarecord entries here...usually due to modifying
                 //  external id/name/sort fields, or changing radio/tag names, but there are others
-                $dr_list = $this->search_service->getCachedSearchDatarecordList($datatype->getGrandparent()->getId());
+                $dr_list = $this->search_service->getCachedDatarecordList($datatype->getGrandparent()->getId());
                 foreach ($dr_list as $dr_id => $parent_dr_id) {
                     $this->cache_service->delete('cached_datarecord_'.$dr_id);
                     $this->cache_service->delete('cached_table_data_'.$dr_id);
@@ -651,7 +651,7 @@ class ODREventSubscriber implements EventSubscriberInterface
             if ($clear_datarecord_caches) {
                 // ...also need to delete the datarecord entries here...usually due to modifying
                 //  external id/name/sort fields, or changing radio/tag names, but there are others
-                $dr_list = $this->search_service->getCachedSearchDatarecordList($datatype->getGrandparent()->getId());
+                $dr_list = $this->search_service->getCachedDatarecordList($datatype->getGrandparent()->getId());
                 foreach ($dr_list as $dr_id => $parent_dr_id) {
                     $this->cache_service->delete('associated_datarecords_for_'.$dr_id);
                     $this->cache_service->delete('cached_datarecord_'.$dr_id);

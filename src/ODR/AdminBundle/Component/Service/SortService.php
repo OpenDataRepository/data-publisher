@@ -524,7 +524,7 @@ class SortService
 
             // ----------------------------------------
             // Need a list of all datarecords for this datatype
-            $dr_list = $this->search_service->getCachedSearchDatarecordList($datatype->getId());
+            $dr_list = $this->search_service->getCachedDatarecordList($datatype->getId());
 
             // Due to design decisions, ODR isn't guaranteed to have datarecordfield and/or storage
             //  entity entries for every datafield.  If either of those entries is missing, the
@@ -1055,10 +1055,10 @@ class SortService
             $sorted_linked_dr_list = self::sortDatarecordsByDatafield($linked_datafield->getId(), $sort_dir);
 
             // Need a list of all datarecords for the datatype to be ordered
-            $dr_list = $this->search_service->getCachedSearchDatarecordList($local_datatype->getId());
+            $dr_list = $this->search_service->getCachedDatarecordList($local_datatype->getId());
 
             // Need to get a list of datarecords of the linked datatype
-            $linked_dr_parents = $this->search_service->getCachedSearchDatarecordList($linked_datatype->getId(), true);
+            $linked_dr_parents = $this->search_service->getCachedDatarecordList($linked_datatype->getId(), false, true);
 
 
             // $dr_list is currently  <dr_id> => <dr_id>  for compliance elsewhere...
@@ -1390,7 +1390,7 @@ class SortService
             $parent_datarecord_id = $datarecord->getParent()->getId();
 
             // SearchService is the faster way to get the parents of the child records
-            $search_dr_list = $this->search_service->getCachedSearchDatarecordList($datafield->getDataType()->getId());
+            $search_dr_list = $this->search_service->getCachedDatarecordList($datafield->getDataType()->getId());
             foreach ($search_dr_list as $child_dr_id => $parent_dr_id) {
                 // The "sibling" records are all records with the same parent
                 if ( $parent_dr_id === $parent_datarecord_id )

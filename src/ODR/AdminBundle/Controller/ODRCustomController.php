@@ -344,7 +344,7 @@ class ODRCustomController extends AbstractController
             //  as a result of using this specific theme
             $acceptable_dr_ids = [];
             foreach ($rendered_dt_ids as $dt_id => $empty_str) {
-                $dr_ids = $search_service->getCachedSearchDatarecordList($dt_id);
+                $dr_ids = $search_service->getCachedDatarecordList($dt_id);
                 foreach ($dr_ids as $dr_id => $num)
                     $acceptable_dr_ids[$dr_id] = '';
             }

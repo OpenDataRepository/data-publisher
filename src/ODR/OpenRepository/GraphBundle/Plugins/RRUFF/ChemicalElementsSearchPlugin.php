@@ -135,7 +135,7 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
             throw new ODRBadRequestException('ChemicalElementsSearchPlugin::searchPluginField() called with '.$typeclass.' datafield', 0xc508f89f);
 
         // This should already be cached from earlier in the search routine
-        $datarecord_list = $this->search_service->getCachedSearchDatarecordList($datafield->getDataType()->getId());
+        $datarecord_list = $this->search_service->getCachedDatarecordList($datafield->getDataType()->getId());
 
         // ----------------------------------------
         // Searching on chemical elements is vaugely similar to searching a radio/tag field...
