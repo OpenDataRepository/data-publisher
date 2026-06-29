@@ -21,6 +21,7 @@ use ODR\AdminBundle\Entity\Theme;
 // Services
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
+use ODR\AdminBundle\Entity\StoredSearchKey;
 // Other
 use Psr\Log\LoggerInterface;
 
@@ -41,9 +42,42 @@ class PaginationHelperService
 
 
     /**
+     * Merges the given search key with whatever the given datatype's default search key is, returning
+     * a new search key that needs to be passed to the search sidebar so it remains up to date.
+     *
+     * This typically should be called before {@link self::updateTabSearchCriteria()}, because the
+     * merge might add criteria that affects the search result...which naturally affects the pagination.
+     *
+     * @param string $given_search_key
+     * @param DataType $target_datatype
+     * @param int $context {@see StoredSearchKey::ANY_CONTEXT}
+     *                     {@see StoredSearchKey::SEARCH_CONTEXT}
+     *                     {@see StoredSearchKey::LINK_CONTEXT}
+     * @return string
+     */
+    public function mergeWithDefaultSearchKey($given_search_key, $target_datatype, $context)
+    {
+        // ----------------------------------------
+        // Attempt to locate the given datatype's default search key...
+        $default_search_key = $this->search_key_service->getDefaultSearchKeyForContext($target_datatype, $context);
+        // ...if it doesn't have one, then there's nothing to merge with
+        if ($default_search_key === '')
+            return $given_search_key;
+
+        // Otherwise, perform the merge
+        $merged_search_key = $this->search_key_service->mergeSearchKeys($given_search_key, $default_search_key);
+        return $merged_search_key;
+    }
+
+
+    /**
      * Search Results, View, and Edit pages all have pagination that depends on a combination of the
      * given search key and stuff that can be set in the user's session...to reduce duplication of
      * code, that logic is contained here.
+     *
+     * This typically should be called after {@link self::mergeWithDefaultSearchKey()}, because the
+     * merge might add criteria that affects the search result...which naturally affects the pagination.
+     * This also means that whatever context is involved will propogate into this function.
      *
      * @param string $odr_tab_id
      * @param DataType $datatype
@@ -57,7 +91,7 @@ class PaginationHelperService
     {
         // If no search key provided, then nothing to do here
         if ( $search_key === '' )
-            return [];
+            return array();
 
         // Ensure the search key is valid
         $search_params = $this->search_key_service->validateSearchKey($search_key);
@@ -75,8 +109,8 @@ class PaginationHelperService
 
         // Need to ensure a sort criteria is set for this tab, otherwise the table plugin
         //  will display stuff in a different order
-        $sort_datafields = [];
-        $sort_directions = [];
+        $sort_datafields = array();
+        $sort_directions = array();
 
         $sort_criteria = $this->odr_tab_service->getSortCriteria($odr_tab_id);
         if ( !is_null($sort_criteria) ) {
