@@ -234,36 +234,17 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
 
             // ----------------------------------------
             // If this datatype has a default search key...
-            $default_search_key = '';
+            $default_search_key = $search_key_service->getDefaultSearchKeyForContext($target_datatype, StoredSearchKey::SEARCH_CONTEXT);
             $default_search_params = [];
 
-            // If the datatype has any stored search keys...
-            foreach ($target_datatype->getStoredSearchKeys() as $ssk) {
-                /** @var StoredSearchKey $ssk */
-
-                // ...prefer the ones meant for searching context
-                if ( $ssk->getDefaultFor() === StoredSearchKey::SEARCH_CONTEXT ) {
-                    $default_search_key = $ssk->getSearchKey();
-                    break;
-                }
-                // ...and fall back to ones meant for any context
-                if ( $ssk->getDefaultFor() === StoredSearchKey::ANY_CONTEXT ) {
-                    $default_search_key = $ssk->getSearchKey();
-                    break;
-                }
-
-                // TODO - when datatypes can have more than one stored search, this will get messed up
-            }
-
             if ( $default_search_key !== '' ) {
-                // Convert the search key into a parameter list so that the sidebar can start out
-                //  with the right stuff
+                // ...then convert it into a parameter list so that the sidebar can start out with
+                //  the relevant fields already filled in
                 $default_search_params = $search_key_service->decodeSearchKey($default_search_key);
 
-                // Don't need to worry if the search key refers to an invalid/deleted datafield
-                //  ...the user will end up being redirected to the "empty" search key for the datatype
-
-                // The same thing will happen when it refers to a datafield the user can't view
+                // Don't need to worry if the search key refers to an invalid/deleted datafield...
+                // ODR will simply ignore anything that doesn't belong to the datatype, or that
+                //  the user isn't supposed to see
             }
 
             if ( $search_string !== '' ) {
@@ -283,7 +264,8 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
 
             // Need to build everything used by the sidebar...
             $sidebar_layout_id = $search_sidebar_service->getPreferredSidebarLayoutId($admin_user, $target_datatype->getId(), 'searching');
-            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId(), $default_search_params, 'searching', $sidebar_layout_id);
+            $tmp = [];
+            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId(), $default_search_params, $tmp, 'searching', $sidebar_layout_id);
             $user_list = $search_sidebar_service->getSidebarUserList($admin_user, $sidebar_array);
             $inverse_dt_names = $search_sidebar_service->getSidebarInverseDatatypeNames($admin_user, $target_datatype->getId());
 
@@ -529,36 +511,17 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
 
             // ----------------------------------------
             // If this datatype has a default search key...
-            $default_search_key = '';
+            $default_search_key = $search_key_service->getDefaultSearchKeyForContext($target_datatype, StoredSearchKey::SEARCH_CONTEXT);
             $default_search_params = [];
 
-            // If the datatype has any stored search keys...
-            foreach ($target_datatype->getStoredSearchKeys() as $ssk) {
-                /** @var StoredSearchKey $ssk */
-
-                // ...prefer the ones meant for searching context
-                if ( $ssk->getDefaultFor() === StoredSearchKey::SEARCH_CONTEXT ) {
-                    $default_search_key = $ssk->getSearchKey();
-                    break;
-                }
-                // ...and fall back to ones meant for any context
-                if ( $ssk->getDefaultFor() === StoredSearchKey::ANY_CONTEXT ) {
-                    $default_search_key = $ssk->getSearchKey();
-                    break;
-                }
-
-                // TODO - when datatypes can have more than one stored search, this will get messed up
-            }
-
             if ( $default_search_key !== '' ) {
-                // Convert the search key into a parameter list so that the sidebar can start out
-                //  with the right stuff
+                // ...then convert it into a parameter list so that the sidebar can start out with
+                //  the relevant fields already filled in
                 $default_search_params = $search_key_service->decodeSearchKey($default_search_key);
 
-                // Don't need to worry if the search key refers to an invalid/deleted datafield
-                //  ...the user will end up being redirected to the "empty" search key for the datatype
-
-                // The same thing will happen when it refers to a datafield the user can't view
+                // Don't need to worry if the search key refers to an invalid/deleted datafield...
+                // ODR will simply ignore anything that doesn't belong to the datatype, or that
+                //  the user isn't supposed to see
             }
 
             if ( $search_string !== '' ) {
@@ -579,7 +542,8 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
 
             // Need to build everything used by the sidebar...
             $sidebar_layout_id = $search_sidebar_service->getPreferredSidebarLayoutId($admin_user, $target_datatype->getId(), 'searching');
-            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId(), $default_search_params, 'searching', $sidebar_layout_id);
+            $tmp = [];
+            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId(), $default_search_params, $tmp, 'searching', $sidebar_layout_id);
             $user_list = $search_sidebar_service->getSidebarUserList($admin_user, $sidebar_array);
             $inverse_dt_names = $search_sidebar_service->getSidebarInverseDatatypeNames($admin_user, $target_datatype->getId());
 
