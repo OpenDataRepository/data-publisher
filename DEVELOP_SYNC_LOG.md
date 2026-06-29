@@ -91,7 +91,7 @@ reversals. Transitional until all are done; validated by SearchAPIServiceTest vs
 | SearchAPIService | FINAL | D12c | 33 aliases->FQCN; 4 fetchAll->fetchAllAssociative |
 | SearchService | FINAL | D12d | 17 aliases->FQCN |
 | SearchSidebarService | FINAL | D12d | 10 aliases->FQCN; $this->session-> -> $this->request_stack->getSession()->; findUsers via ODRUserManager shim |
-| SearchQueryService | pending | D12e | 31 DBAL2 calls -> DBAL3 (map per branch) |
+| SearchQueryService | FINAL | D12e | 31 $conn->fetchAll(...) -> fetchAllAssociative(...) (the only DBAL mapping needed; 4 executeQuery already DBAL3-valid); 0 aliases |
 | SearchAPIServiceNoConflict | pending | D12f | DI changed + shrinks 2242->681 (f418ad30 deleted dead code); needs special handling |
 | PaginationHelperService (Admin) | pending | D12g | +34 (new pagination helper bits) |
 | Consumers (DefaultController/Facade/SearchSidebar ctrls, Admin ctrls, templates, render plugins, CSVExport) | pending | D12h+ | per-file; reconcile D9a immediate-search consumer in SearchBundle DefaultController |

@@ -76,10 +76,10 @@ class SearchQueryService
     {
         // ----------------------------------------
         // Convert the given params into SQL query fragments
-        $search_params = [
+        $search_params = array(
             'str' => '',
-            'params' => []
-        ];
+            'params' => array()
+        );
 
         if ($type === 'modified')
             $type = 'updated';
@@ -88,19 +88,19 @@ class SearchQueryService
 
         if ( $type === 'updated' || $type === 'created' ) {
             $search_params['str'] = 'dr.'.$type.' BETWEEN :after AND :before';
-            $search_params['params'] = [
+            $search_params['params'] = array(
                 'datatype_id' => $datatype_id,
                 'after' => $params['after']->format('Y-m-d'),
                 'before' => $params['before']->format('Y-m-d'),
-            ];
+            );
         }
         else {
             // $type == 'updatedBy' || $type == 'createdBy'
             $search_params['str'] = 'dr.'.$type.' = :target_user';
-            $search_params['params'] = [
+            $search_params['params'] = array(
                 'datatype_id' => $datatype_id,
                 'target_user' => $params['user']
-            ];
+            );
         }
 
 
@@ -118,7 +118,7 @@ class SearchQueryService
         $conn = $this->em->getConnection();
         $results = $conn->fetchAllAssociative($query, $search_params['params']);
 
-        $datarecords = [];
+        $datarecords = array();
         foreach ($results as $result)
             $datarecords[ $result['dr_id'] ] = 1;
 
@@ -138,22 +138,22 @@ class SearchQueryService
     {
         // ----------------------------------------
         // Assume by default that caller wants all public datarecords
-        $search_params = [
+        $search_params = array(
             'str' => 'drm.public_date != :public_date',
-            'params' => [
+            'params' => array(
                 'datatype_id' => $datatype_id,
                 'public_date' => '2200-01-01 00:00:00'
-            ]
-        ];
+            )
+        );
 
         if ( !$is_public ) {
-            $search_params = [
+            $search_params = array(
                 'str' => 'drm.public_date = :public_date',
-                'params' => [
+                'params' => array(
                     'datatype_id' => $datatype_id,
                     'public_date' => '2200-01-01 00:00:00'
-                ]
-            ];
+                )
+            );
         }
 
         // Define the base query for searching
@@ -170,7 +170,7 @@ class SearchQueryService
         $conn = $this->em->getConnection();
         $results = $conn->fetchAllAssociative($query, $search_params['params']);
 
-        $datarecords = [];
+        $datarecords = array();
         foreach ($results as $result)
             $datarecords[ $result['dr_id'] ] = 1;
 
@@ -201,10 +201,10 @@ class SearchQueryService
 
         // Execute the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAllAssociative($query, ['datafield_id' => $datafield_id]);
+        $results = $conn->fetchAllAssociative($query, array('datafield_id' => $datafield_id));
 
         // The results are the datarecords which are selected...
-        $selected_datarecords = [];
+        $selected_datarecords = array();
         foreach ($results as $result)
             $selected_datarecords[ $result['dr_id'] ] = 1;
 
@@ -212,10 +212,10 @@ class SearchQueryService
         //  datarecords
         $unselected_datarecords = array_diff_key($all_datarecord_ids, $selected_datarecords);
 
-        return [
+        return array(
             '0' => $unselected_datarecords,
             '1' => $selected_datarecords
-        ];
+        );
     }
 
 
@@ -249,13 +249,13 @@ class SearchQueryService
 
         // Execute the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAllAssociative($query, ['template_df_id' => $datafield_uuid]);
+        $results = $conn->fetchAllAssociative($query, array('template_df_id' => $datafield_uuid));
 
 
         // Need to use the search result and $all_datarecord_ids to build two arrays...one of
         //  datarecords that are selected, and another of all datarecords that aren't
-        $unselected_datarecords = [];
-        $selected_datarecords = [];
+        $unselected_datarecords = array();
+        $selected_datarecords = array();
         foreach ($results as $result) {
             $dt_id = $result['dt_id'];
             $df_id = $result['df_id'];
@@ -264,12 +264,12 @@ class SearchQueryService
 
             // Datatype/datafield ids should always exist in the array...
             if ( !isset($unselected_datarecords[$dt_id]) ) {
-                $unselected_datarecords[$dt_id] = [];
-                $selected_datarecords[$dt_id] = [];
+                $unselected_datarecords[$dt_id] = array();
+                $selected_datarecords[$dt_id] = array();
             }
             if ( !isset($unselected_datarecords[$dt_id][$df_id]) ) {
                 $unselected_datarecords[$dt_id][$df_id] = $all_datarecord_ids[$dt_id];
-                $selected_datarecords[$dt_id][$df_id] = [];
+                $selected_datarecords[$dt_id][$df_id] = array();
             }
 
             // The results set contains at least one entry for each datatype/datafield pair...
@@ -298,10 +298,10 @@ class SearchQueryService
                 unset( $selected_datarecords[$dt_id] );
         }
 
-        return [
+        return array(
             '0' => $unselected_datarecords,
             '1' => $selected_datarecords
-        ];
+        );
     }
 
 
@@ -330,10 +330,10 @@ class SearchQueryService
 
         // Execute the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAllAssociative($query, ['radio_option_id' => $radio_option_id]);
+        $results = $conn->fetchAllAssociative($query, array('radio_option_id' => $radio_option_id));
 
         // The results are the datarecords which are selected...
-        $selected_datarecords = [];
+        $selected_datarecords = array();
         foreach ($results as $result)
             $selected_datarecords[ $result['dr_id'] ] = 1;
 
@@ -341,10 +341,10 @@ class SearchQueryService
         //  datarecords
         $unselected_datarecords = array_diff_key($all_datarecord_ids, $selected_datarecords);
 
-        return [
+        return array(
             '0' => $unselected_datarecords,
             '1' => $selected_datarecords
-        ];
+        );
     }
 
 
@@ -378,12 +378,12 @@ class SearchQueryService
 
         // Execute the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAllAssociative($query, ['radio_option_uuid' => $radio_option_uuid]);
+        $results = $conn->fetchAllAssociative($query, array('radio_option_uuid' => $radio_option_uuid));
 
         // Need to use the search result and $all_datarecord_ids to build two arrays...one of
         //  datarecords that are selected, and another of all datarecords that aren't
-        $unselected_datarecords = [];
-        $selected_datarecords = [];
+        $unselected_datarecords = array();
+        $selected_datarecords = array();
         foreach ($results as $result) {
             $dt_id = $result['dt_id'];
             $df_id = $result['df_id'];
@@ -392,12 +392,12 @@ class SearchQueryService
 
             // Datatype/datafield ids should always exist in the array...
             if ( !isset($unselected_datarecords[$dt_id]) ) {
-                $unselected_datarecords[$dt_id] = [];
-                $selected_datarecords[$dt_id] = [];
+                $unselected_datarecords[$dt_id] = array();
+                $selected_datarecords[$dt_id] = array();
             }
             if ( !isset($unselected_datarecords[$dt_id][$df_id]) ) {
                 $unselected_datarecords[$dt_id][$df_id] = $all_datarecord_ids[$dt_id];
-                $selected_datarecords[$dt_id][$df_id] = [];
+                $selected_datarecords[$dt_id][$df_id] = array();
             }
 
             // The results set contains at least one entry for each datatype/datafield pair...
@@ -426,10 +426,10 @@ class SearchQueryService
                 unset( $selected_datarecords[$dt_id] );
         }
 
-        return [
+        return array(
             '0' => $unselected_datarecords,
             '1' => $selected_datarecords
-        ];
+        );
     }
 
 
@@ -462,10 +462,10 @@ class SearchQueryService
 
         // Execute the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAllAssociative($query, ['tag_id' => $tag_id]);
+        $results = $conn->fetchAllAssociative($query, array('tag_id' => $tag_id));
 
         // The results are the datarecords which are selected...
-        $selected_datarecords = [];
+        $selected_datarecords = array();
         foreach ($results as $result)
             $selected_datarecords[ $result['dr_id'] ] = 1;
 
@@ -473,10 +473,10 @@ class SearchQueryService
         //  datarecords
         $unselected_datarecords = array_diff_key($all_datarecord_ids, $selected_datarecords);
 
-        return [
+        return array(
             '0' => $unselected_datarecords,
             '1' => $selected_datarecords
-        ];
+        );
     }
 
 
@@ -510,12 +510,12 @@ class SearchQueryService
 
         // Execute the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAllAssociative($query, ['tag_uuid' => $tag_uuid]);
+        $results = $conn->fetchAllAssociative($query, array('tag_uuid' => $tag_uuid));
 
         // Need to use the search result and $all_datarecord_ids to build two arrays...one of
         //  datarecords that are selected, and another of all datarecords that aren't
-        $unselected_datarecords = [];
-        $selected_datarecords = [];
+        $unselected_datarecords = array();
+        $selected_datarecords = array();
         foreach ($results as $result) {
             $dt_id = $result['dt_id'];
             $df_id = $result['df_id'];
@@ -524,14 +524,14 @@ class SearchQueryService
 
             // Datatype/datafield ids should always exist in the array...
             if ( !isset($unselected_datarecords[$dt_id]) ) {
-                $unselected_datarecords[$dt_id] = [];
-                $selected_datarecords[$dt_id] = [];
+                $unselected_datarecords[$dt_id] = array();
+                $selected_datarecords[$dt_id] = array();
             }
             if ( !isset($unselected_datarecords[$dt_id][$df_id]) ) {
                 // ----------------------------------------
                 // version as of commit 11ef75e (2020-01-15)
                 $unselected_datarecords[$dt_id][$df_id] = $all_datarecord_ids[$dt_id];
-                $selected_datarecords[$dt_id][$df_id] = [];
+                $selected_datarecords[$dt_id][$df_id] = array();
                 // ----------------------------------------
 
                 // ----------------------------------------
@@ -576,10 +576,10 @@ class SearchQueryService
                 unset( $selected_datarecords[$dt_id] );
         }
 
-        return [
+        return array(
             '0' => $unselected_datarecords,
             '1' => $selected_datarecords
-        ];
+        );
     }
 
 
@@ -620,7 +620,7 @@ class SearchQueryService
         $results = $conn->fetchAllAssociative($query, $search_params['params']);
 
         // The results are the datarecords which are selected...
-        $datarecords = [];
+        $datarecords = array();
         foreach ($results as $result)
             $datarecords[ $result['dr_id'] ] = 1;
 
@@ -679,7 +679,7 @@ class SearchQueryService
         $results = $conn->fetchAllAssociative($query, $search_params['params']);
 
         // Convert the results into an array of datarecord ids
-        $datarecords = [];
+        $datarecords = array();
         foreach ($results as $result) {
             $dt_id = $result['dt_id'];
             $df_id = $result['df_id'];
@@ -688,11 +688,11 @@ class SearchQueryService
             // Create an array structure so the matching datarecords can be filtered based on user
             //  datatype/datafield permissions later
             if ( !isset($datarecords[$dt_id]) )
-                $datarecords[$dt_id] = [];
+                $datarecords[$dt_id] = array();
             if ( !isset($datarecords[$dt_id][$df_id]) )
-                $datarecords[$dt_id][$df_id] = [];
+                $datarecords[$dt_id][$df_id] = array();
             if ( !isset($datarecords[$dt_id][$df_id][$dr_id]) )
-                $datarecords[$dt_id][$df_id][$dr_id] = [];
+                $datarecords[$dt_id][$df_id][$dr_id] = array();
 
             $datarecords[$dt_id][$df_id][$dr_id] = 1;
         }
@@ -737,16 +737,16 @@ class SearchQueryService
         $results = $conn->fetchAllAssociative($query, $search_params['params']);
 
         // The results are the datarecords which are selected...
-        $tags = [];
+        $tags = array();
         foreach ($results as $result) {
             $tag_id = $result['t_id'];
             $tag_uuid = $result['tag_uuid'];
             $tag_name = $result['tag_name'];
 
-            $tags[$tag_id] = [
+            $tags[$tag_id] = array(
                 'tag_uuid' => $tag_uuid,
                 'tag_name' => $tag_name,
-            ];
+            );
         }
 
         return $tags;
@@ -778,16 +778,16 @@ class SearchQueryService
 
         // Execute the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAllAssociative($query, ['mdf_id' => $template_field_id]);
+        $results = $conn->fetchAllAssociative($query, array('mdf_id' => $template_field_id));
 
-        $unselected_datarecords = [];
+        $unselected_datarecords = array();
         foreach ($results as $result) {
             $dt_id = $result['dt_id'];
             $df_id = $result['df_id'];
 
             // Datatype/datafield ids should always exist in the array...
             if ( !isset($unselected_datarecords[$dt_id]) )
-                $unselected_datarecords[$dt_id] = [];
+                $unselected_datarecords[$dt_id] = array();
             if ( !isset($unselected_datarecords[$dt_id][$df_id]) )
                 $unselected_datarecords[$dt_id][$df_id] = $all_datarecord_ids[$dt_id];
         }
@@ -802,10 +802,10 @@ class SearchQueryService
                 unset( $unselected_datarecords[$dt_id] );
         }
 
-        return [
+        return array(
             '0' => $unselected_datarecords,
-            '1' => []
-        ];
+            '1' => array()
+        );
     }
 
 
@@ -839,18 +839,18 @@ class SearchQueryService
             AND ro.deletedAt IS NULL AND rs.deletedAt IS NULL AND drf.deletedAt IS NULL
             AND dr.deletedAt IS NULL';
 
-        $params = [
+        $params = array(
             'template_dt_id' => $master_template_uuid,
             'template_df_id' => $master_datafield_uuid
-        ];
+        );
 
         // Execute the native SQL query
         $conn = $this->em->getConnection();
         $results = $conn->fetchAllAssociative($query, $params);
 
         // Turn the result into useful arrays...
-        $labels = [];
-        $datarecords = [];
+        $labels = array();
+        $datarecords = array();
         foreach ($results as $result) {
             $dt_id = $result['dt_id'];
             $df_id = $result['df_id'];
@@ -865,19 +865,19 @@ class SearchQueryService
             // Create an array structure so the matching datarecords can be filtered based on user
             //  datatype/datafield permissions later
             if ( !isset($datarecords[$dt_id]) )
-                $datarecords[$dt_id] = [];
+                $datarecords[$dt_id] = array();
             if ( !isset($datarecords[$dt_id][$df_id]) )
-                $datarecords[$dt_id][$df_id] = [];
+                $datarecords[$dt_id][$df_id] = array();
             if ( !isset($datarecords[$dt_id][$df_id][$dr_id]) )
-                $datarecords[$dt_id][$df_id][$dr_id] = [];
+                $datarecords[$dt_id][$df_id][$dr_id] = array();
 
             $datarecords[$dt_id][$df_id][$dr_id][] = $ro_uuid;
         }
 
-        return [
+        return array(
             'labels' => $labels,
             'records' => $datarecords,
-        ];
+        );
     }
 
 
@@ -911,18 +911,18 @@ class SearchQueryService
             AND t.deletedAt IS NULL AND ts.deletedAt IS NULL AND drf.deletedAt IS NULL
             AND dr.deletedAt IS NULL';
 
-        $params = [
+        $params = array(
             'template_dt_id' => $master_template_uuid,
             'template_df_id' => $master_datafield_uuid
-        ];
+        );
 
         // Execute the native SQL query
         $conn = $this->em->getConnection();
         $results = $conn->fetchAllAssociative($query, $params);
 
         // Turn the result into useful arrays...
-        $labels = [];
-        $datarecords = [];
+        $labels = array();
+        $datarecords = array();
         foreach ($results as $result) {
             $dt_id = $result['dt_id'];
             $df_id = $result['df_id'];
@@ -937,19 +937,19 @@ class SearchQueryService
             // Create an array structure so the matching datarecords can be filtered based on user
             //  datatype/datafield permissions later
             if ( !isset($datarecords[$dt_id]) )
-                $datarecords[$dt_id] = [];
+                $datarecords[$dt_id] = array();
             if ( !isset($datarecords[$dt_id][$df_id]) )
-                $datarecords[$dt_id][$df_id] = [];
+                $datarecords[$dt_id][$df_id] = array();
             if ( !isset($datarecords[$dt_id][$df_id][$dr_id]) )
-                $datarecords[$dt_id][$df_id][$dr_id] = [];
+                $datarecords[$dt_id][$df_id][$dr_id] = array();
 
             $datarecords[$dt_id][$df_id][$dr_id][] = $tag_uuid;
         }
 
-        return [
+        return array(
             'labels' => $labels,
             'records' => $datarecords,
-        ];
+        );
     }
 
 
@@ -960,11 +960,99 @@ class SearchQueryService
      * The array has the following structure:
      * <pre>
      * array(
-     *     'guard' => <true when the query can match the empty string, false otherwise>,
-     *      'all_records' => array(
-     *          <matching dr_id> => 1
+     *     'modify' => <one of the SearchQueryService modify flags>,
+     *     'records' => array(
+     *         'public' => array(
+     *             <matching_dr_id> => 1,
+     *         ),
+     *         'non-public' => array(
+     *             <matching_dr_id> => 1,
+     *         )
      *      ),
      *     'public_only' => array(
+     *         <matching dr_id> => 1
+     *     ),
+     * )
+     * </pre>
+     * {@see SearchQueryService::NO_MODIFICATION},{@see SearchQueryService::NEGATED_QUERY},{@see SearchQueryService::NEED_UNRELATED_RECORDS}
+     *
+     * @param int $datatype_id
+     * @param int $datafield_id
+     * @param string $typeclass
+     * @param string $search_value
+     * @param bool $use_set_logic
+     *
+     * @return array
+     */
+    public function searchFileOrImageDatafield($datatype_id, $datafield_id, $typeclass, $search_value, $use_set_logic = false)
+    {
+        // ----------------------------------------
+        // Convert the given value into an array of parameters
+        $search_params = self::parseField($search_value, $typeclass);
+        $search_params['params']['datafield_id'] = $datafield_id;
+
+        // Determine whether this query needs to be modified due to (partially) matching the empty
+        //  string...
+        $modification = self::doesQueryNeedModified($search_params, $use_set_logic);
+
+        // Define the base query for searching by filenames...
+        $query =
+           'SELECT dr.id AS dr_id, e_m.public_date
+            FROM odr_data_record AS dr
+            JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+            JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
+            JOIN '.$this->typeclass_map[$typeclass].'_meta AS e_m ON e_m.'.strtolower($typeclass).'_id = e.id
+            WHERE e.data_field_id = :datafield_id AND ';
+        if ( $modification === SearchQueryService::NEGATED_QUERY )
+            $query .= 'NOT ';
+        $query .=
+            '('.$search_params['str'].')
+            AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
+            AND e.deletedAt IS NULL AND e_m.deletedAt IS NULL';
+
+        // Also define the query used when searching for something without uploaded files/images...
+        $null_query =
+           'SELECT dr.id AS dr_id, "" AS public_date
+            FROM odr_data_record AS dr
+            LEFT JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id AND ((drf.data_field_id = '.$datafield_id.' AND drf.deletedAt IS NULL) OR drf.id IS NULL)
+            LEFT JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
+            WHERE dr.data_type_id = :datatype_id AND e.id IS NULL AND dr.deletedAt IS NULL';
+
+        if ( $modification === SearchQueryService::NEED_UNRELATED_RECORDS ) {
+            $search_params['params']['datatype_id'] = $datatype_id;
+            $query .= "\nUNION\n".$null_query;
+        }
+
+
+        // ----------------------------------------
+        // Execute the query...
+        $conn = $this->em->getConnection();
+        $results = $conn->fetchAllAssociative($query, $search_params['params']);
+
+        // ...and convert the results into two arrays of datarecord ids
+        $all_datarecords = array();
+        foreach ($results as $result) {
+            if ( $result['public_date'] === '2200-01-01 00:00:00' )  // already a string due to using native sql
+                $all_datarecords['non_public'][ $result['dr_id'] ] = 1;
+            else
+                $all_datarecords['public'][ $result['dr_id'] ] = 1;
+        }
+
+        return array(
+            'records' => $all_datarecords,
+            'modify' => $modification,
+        );
+    }
+
+
+    /**
+     * Searches a file/image datafield for a filename and/or whether it has files or not, returning
+     * an array of datarecord ids that match the criteria.
+     *
+     * The array has the following structure:
+     * <pre>
+     * array(
+     *     'records' => array(
      *         <matching dr_id> => 1
      *     ),
      * )
@@ -973,144 +1061,118 @@ class SearchQueryService
      * @param int $datatype_id
      * @param int $datafield_id
      * @param string $typeclass
-     * @param string $search_type
      * @param string $search_value
      *
      * @return array
      */
-    public function searchFileOrImageDatafield($datatype_id, $datafield_id, $typeclass, $search_type, $search_value)
+    public function searchFileOrImageDatafield_publicstatus($datatype_id, $datafield_id, $typeclass, $search_value)
+    {
+        // Setup params for either type of public search...
+        $search_params = array(
+            'str' => 'e.data_field_id = :datafield_id AND ',
+            'params' => array(
+                'datafield_id' => $datafield_id,
+                'public_date' => '2200-01-01 00:00:00'
+            )
+        );
+        if ( $search_value === 1 ) {
+            // search for public files/images
+            $search_params['str'] .= 'e_m.public_date != :public_date';
+        }
+        else {
+            // search for non-public files/images
+            $search_params['str'] .= 'e_m.public_date = :public_date';
+        }
+
+        $public_status_query =
+           'SELECT dr.id AS dr_id
+            FROM odr_data_record AS dr
+            JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+            JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
+            JOIN '.$this->typeclass_map[$typeclass].'_meta AS e_m ON e_m.'.strtolower($typeclass).'_id = e.id
+            WHERE '.$search_params['str'].'
+            AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
+            AND e.deletedAt IS NULL AND e_m.deletedAt IS NULL';
+
+        // Don't need a null query...in order for a file to match a search on quality or public
+        //  status, it has to exist in the first place
+        $conn = $this->em->getConnection();
+        $results = $conn->fetchAllAssociative($public_status_query, $search_params['params']);
+
+
+        // ----------------------------------------
+        // Convert the results into an array
+        $all_datarecords = array();
+        foreach ($results as $result)
+            $all_datarecords[ $result['dr_id'] ] = 1;
+
+        return array(
+            'records' => $all_datarecords,
+        );
+    }
+
+
+    /**
+     * Searches a file/image datafield for a filename and/or whether it has files or not, returning
+     * an array of datarecord ids that match the criteria.
+     *
+     * The array has the following structure:
+     * <pre>
+     * array(
+     *     'records' => array(
+     *         <matching dr_id> => 1
+     *     ),
+     * )
+     * </pre>
+     *
+     * @param int $datatype_id
+     * @param int $datafield_id
+     * @param string $typeclass
+     * @param string $search_value
+     *
+     * @return array
+     */
+    public function searchFileOrImageDatafield_quality($datatype_id, $datafield_id, $typeclass, $search_value)
     {
         // Unfortunately, SearchService::searchFileOrImageDatafield() needs to know whether the
         //  search involved the empty string or not
         $involves_empty_string = false;
 
         // ----------------------------------------
-        // Figure out which type of query to use
+        // Don't need to modify the stuff for quality
+        $search_params = array(
+            'str' => 'e.data_field_id = :datafield_id AND e_m.quality = :quality',
+            'params' => array(
+                'datafield_id' => $datafield_id,
+                'quality' => $search_value
+            )
+        );
+
+        $quality_query =
+           'SELECT dr.id AS dr_id, e_m.public_date
+            FROM odr_data_record AS dr
+            JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
+            JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
+            JOIN '.$this->typeclass_map[$typeclass].'_meta AS e_m ON e_m.'.strtolower($typeclass).'_id = e.id
+            WHERE '.$search_params['str'].'
+            AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
+            AND e.deletedAt IS NULL AND e_m.deletedAt IS NULL';
+
+        // Don't need a null query...in order for a file to match a search on quality or public
+        //  status, it has to exist in the first place
         $conn = $this->em->getConnection();
-        $results = [];
-
-        if ( $search_type === 'filename' ) {
-            $search_params = self::parseField($search_value, $typeclass);
-            $search_params['params']['datafield_id'] = $datafield_id;
-
-            // Define the base query for searching by filenames...
-            $query =
-               'SELECT dr.id AS dr_id, e_m.public_date
-                FROM odr_data_record AS dr
-                JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
-                JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
-                JOIN '.$this->typeclass_map[$typeclass].'_meta AS e_m ON e_m.'.strtolower($typeclass).'_id = e.id
-                WHERE e.data_field_id = :datafield_id AND ('.$search_params['str'].')
-                AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
-                AND e.deletedAt IS NULL AND e_m.deletedAt IS NULL';
-
-            // Also define the query used when searching for something without uploaded files/images...
-            $null_query =
-               'SELECT dr.id AS dr_id, "" AS public_date
-                FROM odr_data_record AS dr
-                LEFT JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id AND ((drf.data_field_id = '.$datafield_id.' AND drf.deletedAt IS NULL) OR drf.id IS NULL)
-                LEFT JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
-                WHERE dr.data_type_id = :datatype_id AND e.id IS NULL AND dr.deletedAt IS NULL';
-
-            // Determine whether this query's search parameters contain an empty string...if so, may
-            //  have to to run an additional query because of how ODR is designed...
-            if ( self::isNullDrfPossible($search_params['str'], $search_params['params']) ) {
-                // ...but only when the query actually has a logical chance of returning results...
-                if ( self::canQueryReturnResults($search_params['str'], $search_params['params']) ) {
-                    $search_params['params']['datatype_id'] = $datatype_id;
-                    $query .= "\nUNION\n".$null_query;
-
-                    // Need to let SearchService::searchFileOrImageDatafield() know they might have
-                    //  to trigger the 'public_only' protections, since the query involves the empty
-                    //  string
-                    $involves_empty_string = true;
-                }
-            }
-
-            $results = $conn->fetchAllAssociative($query, $search_params['params']);
-        }
-        else if ( $search_type === 'public_status' ) {
-            // Setup params for either type of public search...
-            $search_params = [
-                'str' => 'e.data_field_id = :datafield_id AND ',
-                'params' => [
-                    'datafield_id' => $datafield_id,
-                    'public_date' => '2200-01-01 00:00:00'
-                ]
-            ];
-            if ( $search_value === 1 ) {
-                // search for public files/images
-                $search_params['str'] .= 'e_m.public_date != :public_date';
-            }
-            else {
-                // search for non-public files/images
-                $search_params['str'] .= 'e_m.public_date = :public_date';
-            }
-
-            $public_status_query =
-               'SELECT dr.id AS dr_id
-                FROM odr_data_record AS dr
-                JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
-                JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
-                JOIN '.$this->typeclass_map[$typeclass].'_meta AS e_m ON e_m.'.strtolower($typeclass).'_id = e.id
-                WHERE '.$search_params['str'].'
-                AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
-                AND e.deletedAt IS NULL AND e_m.deletedAt IS NULL';
-
-            // Don't need a null query...in order for a file to match a search on quality or public
-            //  status, it has to exist in the first place
-
-            $results = $conn->fetchAllAssociative($public_status_query, $search_params['params']);
-        }
-        else if ( $search_type === 'quality' ) {
-            // Don't need to modify the stuff for quality
-            $search_params = [
-                'str' => 'e.data_field_id = :datafield_id AND e_m.quality = :quality',
-                'params' => [
-                    'datafield_id' => $datafield_id,
-                    'quality' => $search_value
-                ]
-            ];
-
-            $quality_query =
-               'SELECT dr.id AS dr_id, e_m.public_date
-                FROM odr_data_record AS dr
-                JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
-                JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
-                JOIN '.$this->typeclass_map[$typeclass].'_meta AS e_m ON e_m.'.strtolower($typeclass).'_id = e.id
-                WHERE '.$search_params['str'].'
-                AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL
-                AND e.deletedAt IS NULL AND e_m.deletedAt IS NULL';
-
-            // Don't need a null query...in order for a file to match a search on quality or public
-            //  status, it has to exist in the first place
-
-            $results = $conn->fetchAllAssociative($quality_query, $search_params['params']);
-        }
+        $results = $conn->fetchAllAssociative($quality_query, $search_params['params']);
 
 
         // ----------------------------------------
         // Convert the results into two arrays of datarecord ids
-        $public_datarecords = [];
-        $all_datarecords = [];
-        if ( $search_type !== 'public_status' ) {
-            foreach ($results as $result) {
-                $all_datarecords[ $result['dr_id'] ] = 1;
-                if ( $result['public_date'] !== '2200-01-01 00:00:00' )
-                    $public_datarecords[ $result['dr_id'] ] = 1;
-            }
-        }
-        else {
-            // Makes no sense to store 'public_only' records when searching on public status
-            foreach ($results as $result)
-                $all_datarecords[ $result['dr_id'] ] = 1;
-        }
+        $all_datarecords = array();
+        foreach ($results as $result)
+            $all_datarecords[ $result['dr_id'] ] = 1;
 
-        return [
-            'all_records' => $all_datarecords,
-            'public_only' => $public_datarecords,
-            'guard' => $involves_empty_string,
-        ];
+        return array(
+            'records' => $all_datarecords,
+        );
     }
 
 
@@ -1137,7 +1199,7 @@ class SearchQueryService
         // ----------------------------------------
         // Figure out which type of query this is
         $conn = $this->em->getConnection();
-        $results = [];
+        $results = array();
 
         if ( $search_type === 'filename' ) {
             $search_params = self::parseField($search_value, $typeclass);
@@ -1190,13 +1252,13 @@ class SearchQueryService
         }
         else if ( $search_type === 'public_status' ) {
             // Setup params for either type of public search...
-            $search_params = [
+            $search_params = array(
                 'str' => 'e.template_field_uuid = :template_df_id AND ',
-                'params' => [
+                'params' => array(
                     'template_df_id' => $master_datafield_uuid,
                     'public_date' => '2200-01-01 00:00:00'
-                ]
-            ];
+                )
+            );
             if ( $search_value === 1 ) {
                 // search for public files/images
                 $search_params['str'] .= 'e_m.public_date != :public_date';
@@ -1224,13 +1286,13 @@ class SearchQueryService
         }
         else if ( $search_type === 'quality' ) {
             // Don't need to modify the stuff for quality
-            $search_params = [
+            $search_params = array(
                 'str' => 'e.template_field_uuid = :template_df_id AND e_m.quality = :quality',
-                'params' => [
+                'params' => array(
                     'template_df_id' => $master_datafield_uuid,
                     'quality' => $search_value
-                ]
-            ];
+                )
+            );
 
             $quality_query =
                'SELECT dt.id AS dt_id, df.id AS df_id, dr.id AS dr_id, e_m.public_date
@@ -1250,7 +1312,7 @@ class SearchQueryService
         }
 
         // Convert the results into an array of datarecord ids
-        $datarecords = [];
+        $datarecords = array();
         foreach ($results as $result) {
             $dt_id = $result['dt_id'];
             $df_id = $result['df_id'];
@@ -1259,19 +1321,19 @@ class SearchQueryService
             // Create an array structure so the matching datarecords can be filtered based on user
             //  datatype/datafield permissions later
             if ( !isset($datarecords[$dt_id]) )
-                $datarecords[$dt_id] = [];
+                $datarecords[$dt_id] = array();
             if ( !isset($datarecords[$dt_id][$df_id]) )
-                $datarecords[$dt_id][$df_id] = [];
+                $datarecords[$dt_id][$df_id] = array();
             if ( !isset($datarecords[$dt_id][$df_id][$dr_id]) )
-                $datarecords[$dt_id][$df_id][$dr_id] = [];
+                $datarecords[$dt_id][$df_id][$dr_id] = array();
 
             $datarecords[$dt_id][$df_id][$dr_id] = 1;
         }
 
-        return [
+        return array(
             'records' => $datarecords,
             'guard' => $involves_empty_string,
-        ];
+        );
     }
 
 
@@ -1289,14 +1351,14 @@ class SearchQueryService
     {
         // ----------------------------------------
         // Convert the given params into SQL query fragments
-        $search_params = [
+        $search_params = array(
             'str' => 'e.value BETWEEN :after AND :before',
-            'params' => [
+            'params' => array(
                 'datafield_id' => $datafield_id,
                 'after' => $after->format('Y-m-d'),
                 'before' => $before->format('Y-m-d')
-            ]
-        ];
+            )
+        );
 
 
         // ----------------------------------------
@@ -1316,7 +1378,7 @@ class SearchQueryService
         $conn = $this->em->getConnection();
         $results = $conn->fetchAllAssociative($query, $search_params['params']);
 
-        $datarecords = [];
+        $datarecords = array();
         foreach ($results as $result)
             $datarecords[ $result['dr_id'] ] = 1;
 
@@ -1350,10 +1412,10 @@ class SearchQueryService
 
         // Execute the native SQL query
         $conn = $this->em->getConnection();
-        $results = $conn->fetchAllAssociative($query, ['datafield_id' => $datafield_id]);
+        $results = $conn->fetchAllAssociative($query, array('datafield_id' => $datafield_id));
 
         // The results are the datarecords which have a datetime value...
-        $datarecords_with_dates = [];
+        $datarecords_with_dates = array();
         foreach ($results as $result)
             $datarecords_with_dates[ $result['dr_id'] ] = 1;
 
@@ -1361,10 +1423,10 @@ class SearchQueryService
         //  without datetime values
         $datarecords_without_dates = array_diff_key($all_datarecord_ids, $datarecords_with_dates);
 
-        return [
+        return array(
             '0' => $datarecords_without_dates,
             '1' => $datarecords_with_dates
-        ];
+        );
     }
 
 
@@ -1381,14 +1443,14 @@ class SearchQueryService
     {
         // ----------------------------------------
         // Convert the given params into SQL query fragments
-        $search_params = [
+        $search_params = array(
             'str' => 'e.value BETWEEN :after AND :before',
-            'params' => [
+            'params' => array(
                 'template_df_id' => $master_datafield_uuid,
                 'after' => $params['after']->format('Y-m-d'),
                 'before' => $params['before']->format('Y-m-d')
-            ]
-        ];
+            )
+        );
 
 
         // ----------------------------------------
@@ -1413,7 +1475,7 @@ class SearchQueryService
         $conn = $this->em->getConnection();
         $results = $conn->fetchAllAssociative($query, $search_params['params']);
 
-        $datarecords = [];
+        $datarecords = array();
         foreach ($results as $result) {
             $dt_id = $result['dt_id'];
             $df_id = $result['df_id'];
@@ -1422,11 +1484,11 @@ class SearchQueryService
             // Create an array structure so the matching datarecords can be filtered based on user
             //  datatype/datafield permissions later
             if ( !isset($datarecords[$dt_id]) )
-                $datarecords[$dt_id] = [];
+                $datarecords[$dt_id] = array();
             if ( !isset($datarecords[$dt_id][$df_id]) )
-                $datarecords[$dt_id][$df_id] = [];
+                $datarecords[$dt_id][$df_id] = array();
             if ( !isset($datarecords[$dt_id][$df_id][$dr_id]) )
-                $datarecords[$dt_id][$df_id][$dr_id] = [];
+                $datarecords[$dt_id][$df_id][$dr_id] = array();
 
             $datarecords[$dt_id][$df_id][$dr_id] = 1;
         }
@@ -1461,28 +1523,28 @@ class SearchQueryService
     {
         // ----------------------------------------
         // $value is allowed to be surrounded by parenthesis
-        $value = str_replace(['(', ')'], '', $value);
+        $value = str_replace(array('(', ')'), '', $value);
 
         // $value could contain up to three different search terms, and they all need to be inserted
         //  into the same mysql query
-        $x_params = $y_params = $z_params = [];
-        $search_params = ['str' => '', 'params' => ['datafield_id' => $datafield_id/*, 'datatype_id' => $datatype_id*/]];
+        $x_params = $y_params = $z_params = array();
+        $search_params = array('str' => '', 'params' => array('datafield_id' => $datafield_id/*, 'datatype_id' => $datatype_id*/));
 
         $pieces = explode(',', $value);
         if ( isset($pieces[0]) && trim($pieces[0]) !== '' ) {
             $x_params = self::parseField($pieces[0], 'XYZData');
-            $x_params['str'] = '('.str_replace(['e.value', ':term_'], ['e.x_value', ':xterm_'], $x_params['str']).')';
+            $x_params['str'] = '('.str_replace(array('e.value', ':term_'), array('e.x_value', ':xterm_'), $x_params['str']).')';
         }
         if ( isset($pieces[1]) && trim($pieces[1]) !== '' ) {
             $y_params = self::parseField($pieces[1], 'XYZData');
-            $y_params['str'] = '('.str_replace(['e.value', ':term_'], ['e.y_value', ':yterm_'], $y_params['str']).')';
+            $y_params['str'] = '('.str_replace(array('e.value', ':term_'), array('e.y_value', ':yterm_'), $y_params['str']).')';
         }
         if ( isset($pieces[2]) && trim($pieces[2]) !== '' ) {
             $z_params = self::parseField($pieces[2], 'XYZData');
-            $z_params['str'] = '('.str_replace(['e.value', ':term_'], ['e.z_value', ':zterm_'], $z_params['str']).')';
+            $z_params['str'] = '('.str_replace(array('e.value', ':term_'), array('e.z_value', ':zterm_'), $z_params['str']).')';
         }
 
-        $search_strs = [];
+        $search_strs = array();
         if ( !empty($x_params) ) {
             foreach ($x_params['params'] as $key => $value)
                 $search_params['params']['x'.$key] = $value;
@@ -1559,14 +1621,14 @@ class SearchQueryService
         $conn = $this->em->getConnection();
         $results = $conn->fetchAllAssociative($query, $search_params['params']);
 
-        $datarecords = [];
+        $datarecords = array();
         foreach ($results as $result)
             $datarecords[ $result['dr_id'] ] = 1;
 
-        return [
+        return array(
             'records' => $datarecords,
 //            'guard' => $involves_empty_string,    // NOTE: not needed until negation is implemented
-        ];
+        );
     }
 
 
@@ -1579,7 +1641,7 @@ class SearchQueryService
      *
      * @return array
      */
-    public function searchXYZTemplateDatafield($datatype_id, $datafield_id, $value): never
+    public function searchXYZTemplateDatafield($datatype_id, $datafield_id, $value)
     {
         throw new ODRNotImplementedException("need an example to work from", 0xbc71d1e3);
     }
@@ -1612,23 +1674,23 @@ class SearchQueryService
         // ----------------------------------------
         // There could be up to three different search terms, and they all need to be inserted into
         //  the same mysql query
-        $x_params = $y_params = $z_params = [];
-        $search_params = ['str' => '', 'params' => ['datafield_id' => $datafield_id/*, 'datatype_id' => $datatype_id*/]];
+        $x_params = $y_params = $z_params = array();
+        $search_params = array('str' => '', 'params' => array('datafield_id' => $datafield_id/*, 'datatype_id' => $datatype_id*/));
 
-        if ( trim((string) $x_value) !== '' ) {
+        if ( trim($x_value) !== '' ) {
             $x_params = self::parseField($x_value, 'DecimalValue');    // NOTE: using "XYZData" triggers the multi-range splitting
-            $x_params['str'] = '('.str_replace(['e.value', ':term_'], ['e.x_value', ':xterm_'], $x_params['str']).')';
+            $x_params['str'] = '('.str_replace(array('e.value', ':term_'), array('e.x_value', ':xterm_'), $x_params['str']).')';
         }
-        if ( trim((string) $y_value) !== '' ) {
+        if ( trim($y_value) !== '' ) {
             $y_params = self::parseField($y_value, 'DecimalValue');
-            $y_params['str'] = '('.str_replace(['e.value', ':term_'], ['e.y_value', ':yterm_'], $y_params['str']).')';
+            $y_params['str'] = '('.str_replace(array('e.value', ':term_'), array('e.y_value', ':yterm_'), $y_params['str']).')';
         }
-        if ( trim((string) $z_value) !== '' ) {
+        if ( trim($z_value) !== '' ) {
             $z_params = self::parseField($z_value, 'DecimalValue');
-            $z_params['str'] = '('.str_replace(['e.value', ':term_'], ['e.z_value', ':zterm_'], $z_params['str']).')';
+            $z_params['str'] = '('.str_replace(array('e.value', ':term_'), array('e.z_value', ':zterm_'), $z_params['str']).')';
         }
 
-        $search_strs = [];
+        $search_strs = array();
         if ( !empty($x_params) ) {
             foreach ($x_params['params'] as $key => $value)
                 $search_params['params']['x'.$key] = $value;
@@ -1705,14 +1767,14 @@ class SearchQueryService
         $conn = $this->em->getConnection();
         $results = $conn->fetchAllAssociative($query, $search_params['params']);
 
-        $datarecords = [];
+        $datarecords = array();
         foreach ($results as $result)
             $datarecords[ $result['dr_id'] ] = 1;
 
-        return [
+        return array(
             'records' => $datarecords,
 //            'guard' => $involves_empty_string,    // NOTE: not needed until negation is implemented
-        ];
+        );
     }
 
 
@@ -1725,7 +1787,7 @@ class SearchQueryService
      *
      * @return array
      */
-    public function searchXYZTemplateDatafield_simple($datatype_id, $datafield_id, $value): never
+    public function searchXYZTemplateDatafield_simple($datatype_id, $datafield_id, $value)
     {
         throw new ODRNotImplementedException("need an example to work from", 0xbc71d1e4);
     }
@@ -1738,29 +1800,36 @@ class SearchQueryService
      * The array has the following structure:
      * <pre>
      * array(
-     *     'guard' => <true when the query can match the empty string, false otherwise>,
      *     'records' => array(
      *         <matching dr_id> => 1
      *     ),
+     *     'modify' => <flag>
      * )
      * </pre>
+     *
+     * The flag for the 'modify' key is one of {@link SearchQueryService::NO_MODIFICATION},
+     * {@link SearchQueryService::NEGATED_QUERY}, or {@link SearchQueryService::NEED_UNRELATED_RECORDS}
      *
      * @param int $datatype_id
      * @param int $datafield_id
      * @param string $typeclass
      * @param string $value
+     * @param bool $use_set_logic
      * @param bool $doublequotes_force_exact_match {@link SearchQueryService::parseField()}
      * @param bool $search_converted If true, then run the search against 'converted_value' instead of 'value'
      *
      * @return array
      */
-    public function searchTextOrNumberDatafield($datatype_id, $datafield_id, $typeclass, $value, $doublequotes_force_exact_match = false, $search_converted = false)
+    public function searchTextOrNumberDatafield($datatype_id, $datafield_id, $typeclass, $value, $use_set_logic = false, $doublequotes_force_exact_match = false, $search_converted = false)
     {
         // ----------------------------------------
         // Convert the given value into an array of parameters
         $search_params = self::parseField($value, $typeclass, $doublequotes_force_exact_match, $search_converted);
         $search_params['params']['datafield_id'] = $datafield_id;
 
+        // Determine whether this query needs to be modified due to (partially) matching the empty
+        //  string...
+        $modification = self::doesQueryNeedModified($search_params, $use_set_logic, $search_converted);
 
         // ----------------------------------------
         // Define the base query for searching
@@ -1769,7 +1838,11 @@ class SearchQueryService
             FROM odr_data_record AS dr
             JOIN odr_data_record_fields AS drf ON drf.data_record_id = dr.id
             JOIN '.$this->typeclass_map[$typeclass].' AS e ON e.data_record_fields_id = drf.id
-            WHERE e.data_field_id = :datafield_id AND ('.$search_params['str'].')
+            WHERE e.data_field_id = :datafield_id AND ';
+        if ( $use_set_logic && $modification === SearchQueryService::NEGATED_QUERY )
+            $query .= 'NOT ';
+        $query .=
+           '('.$search_params['str'].')
             AND dr.deletedAt IS NULL AND drf.deletedAt IS NULL AND e.deletedAt IS NULL';
 
         // Also define the query used when one of the search parameters is the empty string
@@ -1783,25 +1856,12 @@ class SearchQueryService
         //  but that shouldn't happen...if it does, most likely it's either a botched fieldtype
         //  migration, or a change to the contents of a storage entity didn't complete properly
 
-
-        // ----------------------------------------
-        // Determine whether this query's search parameters contain an empty string...if so, may
-        //  have to to run an additional query because of how ODR is designed...
-        $involves_empty_string = false;
-        if ( self::isNullDrfPossible($search_params['str'], $search_params['params'], $search_converted) ) {
-            // ...but only when the query actually has a logical chance of returning results...
-            if ( self::canQueryReturnResults($search_params['str'], $search_params['params']) ) {
+//        if ( $use_set_logic ) {
+            if ( $modification === SearchQueryService::NEED_UNRELATED_RECORDS ) {
                 $search_params['params']['datatype_id'] = $datatype_id;
                 $query .= "\nUNION\n".$null_query;
-
-                // Need to inform callers that this query can matches the empty string
-                // This is important because if this search is on a descendant datatype, then the
-                //  ancestor datatype needs to take records without descendants and merge_by_OR with
-                //  the descendant datatype's records that match the query
-                $involves_empty_string = true;
             }
-        }
-
+//        }
 
         // ----------------------------------------
         // ODR used to try to typehint the parameters to try to get inequalities to work better,
@@ -1812,14 +1872,14 @@ class SearchQueryService
         $conn = $this->em->getConnection();
         $results = $conn->fetchAllAssociative($query, $search_params['params']);
 
-        $datarecords = [];
+        $datarecords = array();
         foreach ($results as $result)
             $datarecords[ $result['dr_id'] ] = 1;
 
-        return [
+        return array(
             'records' => $datarecords,
-            'guard' => $involves_empty_string,
-        ];
+            'modify' => $modification,
+        );
     }
 
 
@@ -1835,32 +1895,32 @@ class SearchQueryService
      */
     public function searchTextOrNumberTemplateDatafield($master_datafield_uuid, $typeclass, $value)
     {
-        $typeclasses = [
+        $typeclasses = array(
             0 => 'odr_short_varchar',
             1 => 'odr_medium_varchar',
             2 => 'odr_long_varchar',
             3 => 'odr_long_text',
             4 => 'odr_integer_value',
             5 => 'odr_decimal_value',
-        ];
-        $fieldtypes = [
+        );
+        $fieldtypes = array(
             0 => 'ShortVarchar',
             1 => 'MediumVarchar',
             2 => 'LongVarchar',
             3 => 'LongText',
             4 => 'IntegerValue',
             5 => 'DecimalValue',
-        ];
-        $params = [];
-        $queries = [];
-        $null_queries = [
+        );
+        $params = array();
+        $queries = array();
+        $null_queries = array(
             0 => false,
             1 => false,
             2 => false,
             3 => false,
             4 => false,
             5 => false,
-        ];
+        );
 
 
         // ----------------------------------------
@@ -1954,7 +2014,7 @@ class SearchQueryService
         // Execute each of the native SQL queries
         $conn = $this->em->getConnection();
 
-        $results = [];
+        $results = array();
         foreach ($typeclasses as $id => $typeclass) {
             // ODR used to try to typehint the parameters to try to get inequalities to work better,
             //  but that doesn't actually work...the only typehint available converts the value to
@@ -1964,7 +2024,7 @@ class SearchQueryService
 
         // Create an array structure so the matching datarecords can be filtered based on user
         //  datatype/datafield permissions later
-        $datarecords = [];
+        $datarecords = array();
         foreach ($results as $id => $result_set) {
             foreach ($result_set as $result) {
                 $dt_id = $result['dt_id'];
@@ -1972,19 +2032,75 @@ class SearchQueryService
                 $dr_id = $result['dr_id'];
 
                 if ( !isset($datarecords[$dt_id]) )
-                    $datarecords[$dt_id] = [];
+                    $datarecords[$dt_id] = array();
                 if ( !isset($datarecords[$dt_id][$df_id]) )
-                    $datarecords[$dt_id][$df_id] = [];
+                    $datarecords[$dt_id][$df_id] = array();
                 if ( !isset($datarecords[$dt_id][$df_id][$dr_id]) )
-                    $datarecords[$dt_id][$df_id][$dr_id] = [];
+                    $datarecords[$dt_id][$df_id][$dr_id] = array();
                 $datarecords[$dt_id][$df_id][$dr_id] = 1;
             }
         }
 
-        return [
+        return array(
             'guard' => $involves_empty_string,
             'records' => $datarecords,
-        ];
+        );
+    }
+
+
+    /**
+     * After converting the search system to do set subtraction, the null query checks for this
+     * service needed to be reworked...
+     *
+     * @param array $search_params
+     * @param bool $use_set_logic
+     * @param bool $search_converted
+     * @return int
+     */
+    private function doesQueryNeedModified($search_params, $use_set_logic = false, $search_converted = false)
+    {
+        // If the query could theoretically match the empty string...
+        if ( self::isNullDrfPossible($search_params['str'], $search_params['params'], $search_converted) ) {
+            //  ...then it needs to be checked for whether it could actually return any results...
+            if ( self::canQueryReturnResults($search_params['str'], $search_params['params']) ) {
+                // ...because if it can, then the query needs to be modified.
+
+                if ( !$use_set_logic ) {
+                    // If not using set logic, then this flag should always activate at this point
+                    return SearchQueryService::NEED_UNRELATED_RECORDS;
+                }
+                else {
+                    // The method of modification depends on whether there's a term involving the empty
+                    //  string and a non-empty string simultaneously...
+                    $has_empty_string = false;
+                    $has_not_empty_string = false;
+                    foreach ($search_params['params'] as $key => $value) {
+                        if ( $key === 'datafield_id' )
+                            continue;
+
+                        if ( $value === "" )
+                            $has_empty_string = true;
+                        else
+                            $has_not_empty_string = true;
+                    }
+
+
+                    if ( $has_empty_string && $has_not_empty_string ) {  // NOTE: this effectively triggers set subtraction
+//                    if ( $has_empty_string ) {  // NOTE: this causes most empty string + "multiple path" interactions to fail horribly
+                            // ...in this specific situation, the query should not be negated...doing so will
+                            //  cause the results to be un-mergeable
+                            return SearchQueryService::NEED_UNRELATED_RECORDS;
+                    }
+
+                    // If the query didn't match the previous specific situation, then it can be negated
+                    //  without causing the merger any issues
+                    return SearchQueryService::NEGATED_QUERY;
+                }
+            }
+        }
+
+        // If this point is reached, then the query should not be modified
+        return SearchQueryService::NO_MODIFICATION;
     }
 
 
@@ -2026,7 +2142,7 @@ class SearchQueryService
         //  block of ANDs will then be ORed together
         $blocks = explode(' OR ', $str);
 
-        $results = [];
+        $results = array();
         foreach ($blocks as $block) {
             $possible = true;
 
@@ -2038,7 +2154,7 @@ class SearchQueryService
                     // ...but when searching on a "converted" value, the query uses "e.converted_value"
                     $char = $piece[18];
                 }
-                else if ( str_contains($piece, 'orig') ) {
+                else if ( strpos($piece, 'orig') !== false ) {
                     // ...and file/image filenames queries use "e_m.original_file_name"
                     $char = $piece[23];
                 }
@@ -2056,7 +2172,7 @@ class SearchQueryService
                 }
                 else if ($char === 'I') {
                     // Searching based on a null value...
-                    if ( str_contains($piece, 'NOT') ) {
+                    if ( strpos($piece, 'NOT') !== false ) {
                         // searching for   `IS NOT NULL`  ...can't be null
                         $possible = false;
                     }
@@ -2090,9 +2206,8 @@ class SearchQueryService
 
     /**
      * Determines whether the provided string of MYSQL conditions has a chance of returning search
-     * results or not.  If it has no chance of returning results, then the union query that locates
-     * null drf entries shouldn't be run...it would return datarecords that only match part of the
-     * query, instead of all.
+     * results or not.  If it has no chance of returning results, then the query negation should not
+     * happen TODO
      *
      * @param string $str
      * @param array $params
@@ -2115,9 +2230,9 @@ class SearchQueryService
         //  of ANDs will then be ORed together
         $pieces = explode(' OR ', $str);
 
-        $results = [];
+        $results = array();
         foreach ($pieces as $piece) {
-            if ( !str_contains($piece, 'AND') ) {
+            if ( strpos($piece, 'AND') === false ) {
                 // A single entry at this point of the array always has the chance to evaluate to true
                 $results[] = true;
             }
@@ -2130,12 +2245,12 @@ class SearchQueryService
                     //  equal to 'b' at the same time, for instance
 
                     // Determine which of these search terms must be exact
-                    $matches = [];
+                    $matches = array();
                     $pattern = '/ = :(term_\d+)/';
                     preg_match_all($pattern, $piece, $matches);
 
                     // Get the unique list of all of the search terms
-                    $terms = [];
+                    $terms = array();
                     foreach ($matches[1] as $match)
                         $terms[] = $params[$match];
                     $terms = array_unique($terms);
@@ -2196,9 +2311,9 @@ class SearchQueryService
 
         // ----------------------------------------
         // Break the provided string into tokens
-        $str = str_replace(["\n", "\r"], '', $str);
+        $str = str_replace(array("\n", "\r"), '', $str);
 
-        $pieces = [];
+        $pieces = array();
         $in_quotes = false;
         $tmp = '';
 
@@ -2232,7 +2347,7 @@ class SearchQueryService
             else {
                 if ($in_quotes) {
                     if ( $char === ' '                    // if this character is a space...
-                        && str_ends_with($tmp, "\"")      // ...that was preceeded by a doublequote...
+                        && substr($tmp, -1) === "\""      // ...that was preceeded by a doublequote...
                         && ($i-1) === strrpos($str, "\"") // ...and that was the final doublequote in the string...
                     ) {
                         // ...then assume that the user wants to search for a single doublequote,
@@ -2474,7 +2589,7 @@ class SearchQueryService
         // If no pieces remain, then the given string could never match anything in the field
         // Return impossible search params so the search functions can't return any results
         if ( empty($pieces) )
-            return ['str' => "1=0", 'params' => []];
+            return array('str' => "1=0", 'params' => array());
 
 
         // ----------------------------------------
@@ -2482,7 +2597,7 @@ class SearchQueryService
         $negate = false;
         $inequality = false;
         $searching_on_null = false;
-        $parameters = [];
+        $parameters = array();
 
         $sql_target_column = 'e.value';
         if ( $typeclass === 'File' || $typeclass === 'Image' )
@@ -2549,7 +2664,7 @@ class SearchQueryService
                     // Don't need fancier logic here, because the search term has already been
                     //  split into individual pieces by this point
                     $piece_is_quoted = false;
-                    if ( strlen($piece) > 2 && str_starts_with($piece, "\"") && str_ends_with($piece, "\"") )
+                    if ( strlen($piece) > 2 && substr($piece, 0, 1) === "\"" && substr($piece, -1) === "\"" )
                         $piece_is_quoted = true;
 
                     if ( $piece === "\"\"" ) {
@@ -2596,7 +2711,7 @@ class SearchQueryService
                         $piece = '%!%';
                     }
                     else if ( ($piece_is_quoted && $doublequotes_force_exact_match)
-                        || ($piece_is_quoted && !str_contains($piece, " "))    // does have a quote, but doesn't have a space
+                        || ($piece_is_quoted && strpos($piece, " ") === false)    // does have a quote, but doesn't have a space
                     ) {
                         // This block is for triggering exact matches on an entire field's contents
 
@@ -2622,7 +2737,7 @@ class SearchQueryService
                         $piece = substr($piece, 1, -1);
 
                         if ( is_numeric($piece) )
-                            if ( !str_contains($piece, '.') )
+                            if ( strpos($piece, '.') === false )
                                 $piece = intval($piece);
                             else
                                 $piece = floatval($piece);
@@ -2643,7 +2758,7 @@ class SearchQueryService
                     else {
                         // MYSQL escape characters due to use of LIKE
                         $piece = str_replace("\\", '\\\\', $piece);     // replace backspace character with double backspace
-                        $piece = str_replace( ['%', '_'], ['\%', '\_'], $piece);   // escape existing percent and understore characters
+                        $piece = str_replace( array('%', '_'), array('\%', '\_'), $piece);   // escape existing percent and understore characters
 
                         // If the first/last characters are doublequotes, replace them with nothing
                         if ($piece_is_quoted)
@@ -2657,7 +2772,7 @@ class SearchQueryService
                     }
                 }
                 else if ( is_numeric($piece) ) {
-                    if ( str_contains($piece, '.') || $typeclass === 'XYZData' )
+                    if ( strpos($piece, '.') !== false || $typeclass === 'XYZData' )
                         $piece = floatval($piece);
                     else
                         $piece = intval($piece);
@@ -2681,7 +2796,7 @@ class SearchQueryService
         }
 
         $str = trim($str);
-        return ['str' => $str, 'params' => $parameters];
+        return array('str' => $str, 'params' => $parameters);
     }
 
 
@@ -2731,70 +2846,81 @@ class SearchQueryService
 
 
     /**
-     * Runs a query to return an array where the keys are datarecords ids belonging to the given
-     * datatype, and the values are the ids of their parent.
+     * Runs a query to return an array of the following form:
+     * <pre>
+     * array(
+     *     <child_dr_id> => <parent_dr_id>,
+     *     ...
+     * )
+     * </pre>
      *
-     * @param int $datatype_id
+     * @param int $datatype_id The id of the child datatype
      *
      * @return array
      */
     public function getParentDatarecords($datatype_id)
     {
-        // Define the base query
-        $query = $this->em->createQuery(
-           'SELECT dr.id AS id, parent.id AS parent_id
-            FROM ODR\AdminBundle\Entity\DataRecord AS dr
-            JOIN ODR\AdminBundle\Entity\DataRecord AS parent WITH dr.parent = parent
-            JOIN ODR\AdminBundle\Entity\DataRecord AS grandparent WITH dr.grandparent = grandparent
-            WHERE dr.dataType = :datatype_id
-            AND dr.deletedAt IS NULL
-            AND parent.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
-        )->setParameters( ['datatype_id' => $datatype_id] );
-        $results = $query->getArrayResult();
+        $query =
+           'SELECT dr.id AS dr_id, parent.id AS parent_id
+            FROM odr_data_record AS dr
+            JOIN odr_data_record AS parent ON dr.parent_id = parent.id
+            JOIN odr_data_record AS grandparent ON dr.grandparent_id = grandparent.id
+            WHERE dr.data_type_id = '.$datatype_id.'
+            AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL AND grandparent.deletedAt IS NULL';
+        $conn = $this->em->getConnection();
+//        $results = $conn->fetchAllAssociative($query);    // can debug with this, but might run into memory issues
+        $results = $conn->executeQuery($query);
 
         // Child datarecords can only have a single parent datarecord
-        $datarecords = [];
+        $datarecords = array();
         foreach ($results as $result)
-            $datarecords[ $result['id'] ] = $result['parent_id'];
+            $datarecords[ $result['dr_id'] ] = intval($result['parent_id']);
 
         return $datarecords;
     }
 
 
     /**
-     * Runs a query to return an array where the keys are datarecords ids belonging to the given
-     * datatype, and the values are the ids of the datarecords that link to them.
+     * Runs a query to return an array of the following form:
+     * <pre>
+     * array(
+     *     <parent_dr_id> => array(
+     *         <child_dr_id>,
+     *         ...
+     *     ),
+     *     ...
+     * )
+     * </pre>
+     * The array of child datarecord ids can be empty.
      *
-     * @param int $datatype_id
+     * @param int $datatype_id The id of the parent datatype
      *
      * @return array
      */
-    public function getLinkedParentDatarecords($datatype_id)
+    public function getChildDatarecords($datatype_id)
     {
-        // This function is only called when trying to build a list of all related datarecords from
-        //  the point of view of the ancestor, therefore this intentionally does not return
-        //  descendant datarecords that aren't linked to from some ancestor datarecord...
-        $query = $this->em->createQuery(
-           'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
-            FROM ODR\AdminBundle\Entity\DataRecord AS ancestor
-            JOIN ODR\AdminBundle\Entity\LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
-            JOIN ODR\AdminBundle\Entity\DataRecord AS descendant WITH ldt.descendant = descendant
-            WHERE descendant.dataType = :datatype_id
-            AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL
-            AND ldt.deletedAt IS NULL'
-        )->setParameters( ['datatype_id' => $datatype_id] );
-        $results = $query->getArrayResult();
+        $query =
+           'SELECT dr.id AS child_dr_id, parent.id AS parent_dr_id
+            FROM odr_data_record AS parent
+            JOIN odr_data_record AS grandparent ON parent.grandparent_id = grandparent.id
+            LEFT JOIN odr_data_record AS dr ON dr.parent_id = parent.id
+            WHERE parent.data_type_id = '.$datatype_id.'
+            AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL AND grandparent.deletedAt IS NULL';
+        $conn = $this->em->getConnection();
+//        $results = $conn->fetchAllAssociative($query);    // can debug with this, but might run into memory issues
+        $results = $conn->executeQuery($query);
 
-        // Linked datarecords can have multiple ancestor datarecords
-        $datarecords = [];
+        // Parent datarecords could have multiple children, but may also not have any
+        $datarecords = array();
         foreach ($results as $result) {
-            $ancestor_id = $result['ancestor_id'];
-            $descendant_id = $result['descendant_id'];
+            $child_dr_id = $result['child_dr_id'];
+            $parent_dr_id = $result['parent_dr_id'];
 
-            if ( !isset($datarecords[$descendant_id]) )
-                $datarecords[$descendant_id] = [];
-
-            $datarecords[$descendant_id][$ancestor_id] = '';
+            if ( !isset($datarecords[$parent_dr_id]) )
+                $datarecords[$parent_dr_id] = array();
+            // Want to capture parents without child records, so can't put this check in the query
+            if ($child_dr_id !== $parent_dr_id)
+                $datarecords[$parent_dr_id][$child_dr_id] = '';
         }
 
         return $datarecords;
@@ -2802,39 +2928,93 @@ class SearchQueryService
 
 
     /**
-     * Runs a query to return an array where the keys are datarecords ids belonging to the given
-     * datatype, and the values are the ids of the datarecords that it links to.
+     * Runs a query to return an array of the following form:
+     * <pre>
+     * array(
+     *     <descendant_dr_id> => array(
+     *         <ancestor_dr_id>,
+     *         ...
+     *     ),
+     *     ...
+     * )
+     * </pre>
+     * The array of ancestor datarecord ids can be empty.
      *
-     * @param int $datatype_id
+     * @param int $datatype_id The id of the descendant datatype
+     *
+     * @return array
+     */
+    public function getLinkedParentDatarecords($datatype_id)
+    {
+        $query =
+           'SELECT descendant.id AS descendant_id, ancestor.id AS ancestor_id
+            FROM odr_data_record AS descendant
+            LEFT JOIN odr_linked_data_tree AS ldt ON (ldt.descendant_id = descendant.id AND ldt.deletedAt IS NULL)
+            LEFT JOIN odr_data_record AS ancestor ON (ldt.ancestor_id = ancestor.id AND ancestor.deletedAt IS NULL)
+            WHERE descendant.data_type_id = '.$datatype_id.'
+            AND descendant.deletedAt IS NULL';
+        $conn = $this->em->getConnection();
+//        $results = $conn->fetchAllAssociative($query);    // can debug with this, but might run into memory issues
+        $results = $conn->executeQuery($query);
+
+        // Linked datarecords can have multiple ancestor datarecords
+        $datarecords = array();
+        foreach ($results as $result) {
+            $ancestor_id = $result['ancestor_id'];
+            $descendant_id = $result['descendant_id'];
+
+            if ( !isset($datarecords[$descendant_id]) )
+                $datarecords[$descendant_id] = array();
+            // Want to capture descendants without ancestors, but don't want to store null keys
+            if ( !is_null($ancestor_id) )
+                $datarecords[$descendant_id][$ancestor_id] = '';
+        }
+
+        return $datarecords;
+    }
+
+
+    /**
+     * Runs a query to return an array of the following form:
+     * <pre>
+     * array(
+     *     <ancestor_dr_id> => array(
+     *         <descendant_dr_id>,
+     *         ...
+     *     ),
+     *     ...
+     * )
+     * </pre>
+     * The array of descendant datarecord ids can be empty.
+     *
+     * @param int $datatype_id The id of the ancestor datatype
      *
      * @return array
      */
     public function getLinkedChildDatarecords($datatype_id)
     {
-        // This function is only called when trying to build a list of all related datarecords from
-        //  the point of view of the ancestor, therefore this intentionally does not return
-        //  descendant datarecords that aren't linked to from some ancestor datarecord...
-        $query = $this->em->createQuery(
+        $query =
            'SELECT ancestor.id AS ancestor_id, descendant.id AS descendant_id
-            FROM ODR\AdminBundle\Entity\DataRecord AS ancestor
-            JOIN ODR\AdminBundle\Entity\LinkedDataTree AS ldt WITH ldt.ancestor = ancestor
-            JOIN ODR\AdminBundle\Entity\DataRecord AS descendant WITH ldt.descendant = descendant
-            WHERE ancestor.dataType = :datatype_id
-            AND ancestor.deletedAt IS NULL AND descendant.deletedAt IS NULL
-            AND ldt.deletedAt IS NULL'
-        )->setParameters( ['datatype_id' => $datatype_id] );
-        $results = $query->getArrayResult();
+            FROM odr_data_record AS ancestor
+            LEFT JOIN odr_linked_data_tree AS ldt ON (ldt.ancestor_id = ancestor.id AND ldt.deletedAt IS NULL)
+            LEFT JOIN odr_data_record AS descendant ON (ldt.descendant_id = descendant.id AND descendant.deletedAt IS NULL)
+            WHERE ancestor.data_type_id = '.$datatype_id.'
+            AND ancestor.deletedAt IS NULL';
+        $conn = $this->em->getConnection();
+//        $results = $conn->fetchAllAssociative($query);    // can debug with this, but might run into memory issues
+        $results = $conn->executeQuery($query);
 
         // Linked datarecords can have multiple ancestor datarecords
-        $datarecords = [];
+        $datarecords = array();
         foreach ($results as $result) {
             $ancestor_id = $result['ancestor_id'];
             $descendant_id = $result['descendant_id'];
 
             if ( !isset($datarecords[$ancestor_id]) )
-                $datarecords[$ancestor_id] = [];
-
-            $datarecords[$ancestor_id][$descendant_id] = '';
+                $datarecords[$ancestor_id] = array();
+            // Want to capture ancestors without descendants, but don't want to store null keys
+            if ( !is_null($descendant_id) )
+                $datarecords[$ancestor_id][$descendant_id] = '';
         }
 
         return $datarecords;
