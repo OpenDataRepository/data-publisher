@@ -25,6 +25,8 @@ use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 use ODR\AdminBundle\Entity\DatetimeValue;
 use ODR\AdminBundle\Entity\DecimalValue;
+use ODR\AdminBundle\Entity\ExternalApp;
+use ODR\AdminBundle\Entity\ExternalAppMeta;
 use ODR\AdminBundle\Entity\FieldType;
 use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\FileMeta;
@@ -1199,6 +1201,92 @@ class EntityMetaModifyService
 
         // Return the new entry
         return $new_dtsf;
+    }
+
+
+    /**
+     * Copies the contents of the given ExternalAppMeta entity into a new entity if something
+     * was changed.
+     *
+     * @param ODRUser $user
+     * @param ExternalApp $external_app
+     * @param array $properties
+     * @param bool $delay_flush If true, then don't flush prior to returning
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
+     *
+     * @return ExternalAppMeta
+     */
+    public function updateExternalAppMeta($user, $external_app, $properties, $delay_flush = false, $created = null)
+    {
+        // ----------------------------------------
+        // Load the old meta entry
+        /** @var ExternalAppMeta $old_meta_entry */
+        $old_meta_entry = $this->em->getRepository('ODRAdminBundle:ExternalAppMeta')->findOneBy(
+            array(
+                'externalApp' => $external_app->getId()
+            )
+        );
+
+        // No point making a new entry if nothing is getting changed
+        $changes_made = false;
+        $existing_values = array(
+            'appName' => $old_meta_entry->getAppName(),
+            'appDescription' => $old_meta_entry->getAppDescription(),
+            'appUrl' => $old_meta_entry->getAppUrl(),
+        );
+        foreach ($existing_values as $key => $value) {
+            if ( isset($properties[$key]) && $properties[$key] != $value )
+                $changes_made = true;
+        }
+
+        if (!$changes_made)
+            return $old_meta_entry;
+
+
+        // Determine whether to create a new entry or modify the previous one
+        if ( is_null($created) )
+            $created = new \DateTime();
+
+        $remove_old_entry = false;
+        $new_external_app_meta = null;
+        if ( self::createNewMetaEntry($user, $old_meta_entry, $created) ) {
+            // Clone the old ThemeDatafield entry
+            $remove_old_entry = true;
+
+            $new_external_app_meta = clone $old_meta_entry;
+
+            // These properties need to be specified in order to be saved properly...
+            $new_external_app_meta->setCreated($created);
+            $new_external_app_meta->setCreatedBy($user);
+        }
+        else {
+            // Update the existing entry
+            $new_external_app_meta = $old_meta_entry;
+        }
+
+
+        // Set any new properties
+        if ( isset($properties['appName']) )
+            $new_external_app_meta->setAppName( $properties['appName'] );
+        if ( isset($properties['appDescription']) )
+            $new_external_app_meta->setAppDescription( $properties['appDescription'] );
+        if ( isset($properties['appUrl']) )
+            $new_external_app_meta->setAppUrl( $properties['appUrl'] );
+
+        $new_external_app_meta->setUpdated($created);
+        $new_external_app_meta->setUpdatedBy($user);
+
+        // Delete the old meta entry if needed
+        if ($remove_old_entry)
+            $this->em->remove($old_meta_entry);
+
+        // Save the new meta entry
+        $this->em->persist($new_external_app_meta);
+        if ( !$delay_flush )
+            $this->em->flush();
+
+        // Return the new entry
+        return $new_external_app_meta;
     }
 
 

@@ -1,0 +1,78 @@
+ODR\AdminBundle\Entity\ExternalAppMeta:
+    type: entity
+    table: odr_external_app_meta
+    gedmo:
+        soft_deleteable:
+            field_name: deletedAt
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+
+        appName:
+            type: string
+            length: 64
+            fixed: false
+            nullable: false
+            column: app_name
+        appDescription:
+            type: text
+            nullable: true
+            column: app_description
+
+        appUrl:
+            type: string
+            length: 128
+            fixed: false
+            nullable: false
+            column: app_url
+
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        updated:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: update
+        deletedAt:
+            type: datetime
+            nullable: true
+
+    manyToOne:
+        externalApp:
+            targetEntity: ExternalApp
+            cascade: {  }
+            mappedBy: null
+            inversedBy: externalAppMeta
+            joinColumns:
+                external_app_id:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+        updatedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                updatedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+    lifecycleCallbacks: {  }

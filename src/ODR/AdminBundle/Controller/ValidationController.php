@@ -22,6 +22,8 @@ use ODR\AdminBundle\Entity\DataTreeMeta;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\DataTypeSpecialFields;
+use ODR\AdminBundle\Entity\ExternalApp;
+use ODR\AdminBundle\Entity\ExternalAppMeta;
 use ODR\AdminBundle\Entity\FieldType;
 use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\FileMeta;
@@ -399,6 +401,7 @@ class ValidationController extends ODRCustomController
             $repo_sidebar_layout = $em->getRepository('ODRAdminBundle:SidebarLayout');
             $repo_theme = $em->getRepository('ODRAdminBundle:Theme');
             $repo_theme_element = $em->getRepository('ODRAdminBundle:ThemeElement');
+            $repo_external_app = $em->getRepository('ODRAdminBundle:ExternalApp');
 
             /** @var FieldType $default_fieldtype */
             $default_fieldtype = $repo_fieldtype->find(9);    // shortvarchar
@@ -893,6 +896,48 @@ class ValidationController extends ODRCustomController
             }
 
             // ----------------------------------------
+            // ExternalApps
+            $query =
+               'SELECT ea.id AS ea_id
+                FROM odr_external_app AS ea
+                WHERE ea.id NOT IN (
+                    SELECT DISTINCT(eam.external_app_id)
+                    FROM odr_external_app_meta AS eam
+                )';
+            $results = $conn->fetchAll($query);
+
+            $missing_external_apps = array();
+            foreach ($results as $result)
+                $missing_external_apps[] = $result['ea_id'];
+
+            print 'missing external app meta entries: '."\n";
+            print_r($missing_external_apps);
+
+            if (self::SAVE) {
+                foreach ($missing_external_apps as $num => $ea_id) {
+                    /** @var ExternalApp $ea */
+                    $ea = $repo_external_app->find($ea_id);
+
+                    $eam = new ExternalAppMeta();
+                    $eam->setExternalApp($ea);
+                    $eam->setAppName('');
+                    $eam->setAppDescription('');
+                    $eam->setAppUrl('');
+
+                    $eam->setCreatedBy($user);
+                    $eam->setUpdatedBy($user);
+
+                    $em->persist($eam);
+
+                    $count++;
+                    if ($count == $batch_size) {
+                        $em->flush();
+                        $count = 0;
+                    }
+                }
+            }
+
+            // ----------------------------------------
             if (self::SAVE)
                 $em->flush();
 
@@ -969,6 +1014,7 @@ class ValidationController extends ODRCustomController
                 'SidebarLayout' => 'sidebarLayout',
                 'Theme' => 'theme',
                 'ThemeElement' => 'themeElement',
+                'ExternalApp' => 'externalApp',
             );
 
             foreach ($entities as $classname => $relation) {
@@ -1105,6 +1151,7 @@ class ValidationController extends ODRCustomController
                 'SidebarLayout' => 'sidebarLayout',
                 'Theme' => 'theme',
                 'ThemeElement' => 'themeElement',
+                'ExternalApp' => 'externalApp',
             );
 
             foreach ($entities as $classname => $relation) {
@@ -1540,6 +1587,7 @@ class ValidationController extends ODRCustomController
                 'SidebarLayout',
                 'Theme',
                 'ThemeElement',
+                'ExternalApp',
             );
             $query_targets = array();
 
@@ -1552,7 +1600,7 @@ class ValidationController extends ODRCustomController
                 if (strlen($filename) > 3
                     && strpos($filename, '~') === false
                     && strpos($filename, '.bck') === false && strpos($filename, '.backup') === false
-                    && strpos($filename, 'Meta') === false      // Meta entries are handled in self::fixdatatreeentriesAction() because they can just get deleted without further side-effects
+                    && strpos($filename, 'Meta') === false
                 ) {
                     $handle = fopen($filepath.$filename, 'r');
                     if (!$handle)
@@ -3290,6 +3338,19 @@ class ValidationController extends ODRCustomController
                 $dtsf_ids[] = $result['dtsf_id'];
 
 
+            // ExternalApp Datatype links
+            $query_str =
+               'SELECT eadtl.id AS eadtl_id
+                FROM odr_external_app_datatype_link AS eadtl
+                WHERE eadtl.data_type_id IN (?)';
+            $parameters = array(1 => $datatype_ids);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $results = $conn->fetchAll($query_str, $parameters, $types);
+            $external_app_datatype_link_ids = array();
+            foreach ($results as $result)
+                $external_app_datatype_link_ids[] = $result['eadtl_id'];
+
+
             // Themes
             $query_str =
                 'SELECT t.id AS t_id
@@ -3651,6 +3712,13 @@ class ValidationController extends ODRCustomController
             }
             else {
                 fprintf($handle, "# No storedSearchKey entries to delete\n");
+            }
+
+            if ( !empty($external_app_datatype_link_ids) ) {
+                fprintf($handle, "DELETE FROM odr_external_app_datatype_link eadtl WHERE eadtl.data_type_id IN (".implode(',', $datatype_ids).");\n");
+            }
+            else {
+                fprintf($handle, "# No externalAppDatatypeLink entries to delete\n");
             }
 
             if ( !empty($datatype_ids) ) {

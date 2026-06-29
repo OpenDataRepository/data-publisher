@@ -1,0 +1,79 @@
+{% spaceless %}
+
+{% set app_id = 0 %}
+{% if external_app|length > 0 %}
+    {% set app_id = external_app.id %}
+{% endif %}
+
+<div id="ODRExternalApp_{{ app_id }}" class="ODRExternalApp_details pure-u-11-24 ODRHidden" rel="{{ app_id }}">
+    <div class="ODRExternalApp_header pure-u-1">
+    {% if app_id == 0 %}
+        <h1 class="pure-u-2-3">Create New App</h1>
+    {% else %}
+        <h1 class="pure-u-2-3">Configuration for "{{ external_app_meta.appName }}"</h1>
+        <button class="pure-button ODRExternalApp_delete FRight" rel="{{ app_id }}">Delete App</button>
+    {% endif %}
+    </div>
+
+    <div class="ODRExternalApp_header pure-u-1">
+        Unlike most other places in ODR, this location <b><i>does not</i></b> automatically save changes.<br>You must click the Save button below.
+    </div>
+
+    <form id="ODRExternalApp_{{ app_id }}_form" class="pure-u-1 pure-form-aligned" rel="{{ app_id }}" action="{% if app_id == 0 %}{{ path('odr_external_app_create') }}{% else %}{{ path('odr_external_app_edit') }}{% endif %}">
+        <input type="hidden" name="app_id" value="{{ app_id }}" />
+        <input type="hidden" name="csrf_token" value="{{ csrf_tokens[app_id] }}" />
+        <fieldset>
+            <div class="pure-control-group">
+                <label for="ODRExternalApp_{{ app_id }}_name">
+                    App Name:&nbsp;
+                </label>
+                <input type="hidden" id="ODRExternalApp_{{ app_id }}_original_name" value="{{ appName }}" disabled />
+                <input type="text" id="ODRExternalApp_{{ app_id }}_name" class="ODRExternalAppDetails_name pure-u-xl-2-3 pure-u-lg-1-2 pure-u-md-1-3" name="app_name" value="{{ appName }}" />
+            </div>
+            <div class="pure-control-group">
+                <label for="ODRExternalApp_{{ app_id }}_url">
+                    App Url:&nbsp;
+                </label>
+                <input type="hidden" id="ODRExternalApp_{{ app_id }}_original_url" value="{{ appUrl }}" disabled />
+                <input type="text" id="ODRExternalApp_{{ app_id }}_url" class="ODRExternalAppDetails_url pure-u-xl-2-3 pure-u-lg-1-2 pure-u-md-1-3" name="app_url" value="{{ appUrl }}" />
+            </div>
+            <div class="pure-control-group">
+                <label for="ODRExternalApp_{{ app_id }}_description">
+                    App Description:&nbsp;
+                </label>
+                <input type="hidden" id="ODRExternalApp_{{ app_id }}_original_description" value="{{ appDescription }}" disabled />
+                <textarea type="text" id="ODRExternalApp_{{ app_id }}_description" class="ODRExternalAppDetails_description pure-u-xl-2-3 pure-u-lg-1-2 pure-u-md-1-3" name="app_description">{{ appDescription }}</textarea>
+            </div>
+        </fieldset>
+
+        {% if app_id != 0 %}
+        <fieldset style="margin-top: 15px">
+            <h1 class="pure-u-1">Linked Datatypes</h1>
+            <div id="ODRExternalApp_{{ app_id }}_dt_list" class="ODRExternalApp_dt_list">
+            {% if external_app.externalAppDatatypeLinks is defined and external_app.externalAppDatatypeLinks|length > 0 %}
+                {% for dt_id,dt_name in external_app.externalAppDatatypeLinks %}
+                    <div class="ODRExternalApp_dt_{{ dt_id }}">
+                        <input type="hidden" name="linked_datatypes[]" value="{{ dt_id }}"/>
+                        <span class="ODRExternalApp_dt_list_spacer">&nbsp;</span>
+                        <span class="ODRExternalApp_deleteLink">
+                            <i class="fa fa-trash Pointer"></i>
+                        </span>
+                        <span class="ODRExternalApp_linked_dt_name">
+                            {{ dt_name }}
+                        </span>
+                    </div>
+                {% endfor %}
+            {% endif %}
+            </div>
+            Add Datatype:&nbsp;<input class="ODRExternalApp_linked_dt_search" placeholder="Type to search" rel="{{ app_id }}"/>
+        </fieldset>
+        {% endif %}
+
+        <div class="pure-u-1">
+            <button id="ODRExternalApp_{{ app_id }}_save" class="pure-button pure-button-disabled ODRExternalApp_save" title="Save changes" rel="{{ app_id }}">{% if app_id == 0 %}Save New App{% else %}Save Changes {% endif %}</button>
+            <span id="ODRExternalApp_{{ app_id }}_warn" class="ODRHidden ODRInputError ODRExternalApp_warn">&nbsp;<i class="fa fa-exclamation-triangle"></i>The Name and URL fields cannot be blank</span>
+        </div>
+    </form>
+</div>
+
+{% endspaceless %}

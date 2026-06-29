@@ -56,6 +56,11 @@
     {% endif %}
 {% endif %}
 
+{% set has_external_apps = false %}
+{% if intent == 'searching' and (page_type == 'search_results' or page_type == 'table') and datatype.externalAppDatatypeLinks|length > 0 %}
+    {% set has_external_apps = true %}
+{% endif %}
+
 {% if notitle is defined %}
 {% else %}
     <h1 class="no-margin-top-phone ODRSearchPageTitle">
@@ -122,6 +127,14 @@
             </li>
         {% endif %}
 #}
+
+        {% if has_external_apps %}
+            <li class="pure-menu-item SpacerRight">
+                <label id="ODRTriggerExternalApp" class="pure-button">
+                    Send to External App...
+                </label>
+            </li>
+        {% endif %}
         </ul>
 {#
     {% if display_export_options is defined and display_export_options == true and intent == 'searching' and has_datarecords %}
@@ -254,6 +267,12 @@
                     }
                 }
             });
+        });
+{% endif %}
+
+{% if has_external_apps %}
+        $(".ODRTriggerExternalApp").unbind('click').click(function(event) {
+            // TODO
         });
 {% endif %}
     });

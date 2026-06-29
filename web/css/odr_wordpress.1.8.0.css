@@ -5826,3 +5826,18 @@ div.ODRRenderPlugin_CSVTable_wrapper div.dataTables_scrollBody {
     cursor: pointer;
     color: rgb(75,75,75) !important;
 }
+
+.ODRExternalApp_header {
+    margin-bottom: 10px;
+}
+.ODRExternalApp_dt_list_spacer {
+    min-width: 25px;
+    display: inline-block;
+    cursor: default;
+}
+.ODRExternalApp_linked_dt_name {
+    margin-left: 5px;
+}
+.ODRExternalApp_dt_list {
+    margin-bottom: 10px;
+}

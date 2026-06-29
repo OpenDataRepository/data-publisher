@@ -2002,6 +2002,28 @@ odr_system_opcache:
     defaults: { _controller: ODRAdminBundle:ODRSystem:opcache }
 #-----------------------------------------
 
+#-----------------------------------------
+# ExternalApp Controller
+odr_external_app_list:
+    path: /admin/app_list
+    defaults: { _controller: ODRAdminBundle:ExternalApp:list }
+
+odr_external_app_create:
+    path: /admin/app_list/create
+    defaults: { _controller: ODRAdminBundle:ExternalApp:create }
+    methods: [ POST ]
+odr_external_app_edit:
+    path: /admin/app_list/edit
+    defaults: { _controller: ODRAdminBundle:ExternalApp:edit }
+    methods: [ POST ]
+
+odr_external_app_delete:
+    path: /admin/app_list/delete/{external_app_id}
+    defaults: { _controller: ODRAdminBundle:ExternalApp:delete }
+    requirements:
+        external_app_id: \d+
+#-----------------------------------------
+
 #odr_asdf:
 #    path: /admin/asdf
 #    defaults: { _controller: ODRAdminBundle:Worker:asdf }

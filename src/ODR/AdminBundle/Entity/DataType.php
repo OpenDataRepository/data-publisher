@@ -158,6 +158,11 @@ class DataType
     private $storedSearchKeys;
 
     /**
+     * @var \Doctrine\Common\Collections\Collection
+     */
+    private $externalAppDatatypeLinks;
+
+    /**
      * @var \ODR\AdminBundle\Entity\DataType
      */
     private $metadata_datatype;
@@ -215,6 +220,7 @@ class DataType
         $this->renderPluginInstances = new \Doctrine\Common\Collections\ArrayCollection();
         $this->dataTypeSpecialFields = new \Doctrine\Common\Collections\ArrayCollection();
         $this->storedSearchKeys = new \Doctrine\Common\Collections\ArrayCollection();
+        $this->externalAppDatatypeLinks = new \Doctrine\Common\Collections\ArrayCollection();
     }
 
     /**
@@ -909,6 +915,42 @@ class DataType
     public function getStoredSearchKeys()
     {
         return $this->storedSearchKeys;
+    }
+
+    /**
+     * Add externalAppDatatypeLink.
+     *
+     * @param \ODR\AdminBundle\Entity\ExternalAppDatatypeLink $externalAppDatatypeLink
+     *
+     * @return DataType
+     */
+    public function addExternalAppDatatypeLink(\ODR\AdminBundle\Entity\ExternalAppDatatypeLink $externalAppDatatypeLink)
+    {
+        $this->externalAppDatatypeLinks[] = $externalAppDatatypeLink;
+
+        return $this;
+    }
+
+    /**
+     * Remove externalAppDatatypeLink.
+     *
+     * @param \ODR\AdminBundle\Entity\ExternalAppDatatypeLink $externalAppDatatypeLink
+     *
+     * @return boolean TRUE if this collection contained the specified element, FALSE otherwise.
+     */
+    public function removeExternalAppDatatypeLink(\ODR\AdminBundle\Entity\ExternalAppDatatypeLink $externalAppDatatypeLink)
+    {
+        return $this->externalAppDatatypeLinks->removeElement($externalAppDatatypeLink);
+    }
+
+    /**
+     * Get externalAppDatatypeLinks.
+     *
+     * @return \Doctrine\Common\Collections\Collection
+     */
+    public function getExternalAppDatatypeLinks()
+    {
+        return $this->externalAppDatatypeLinks;
     }
 
     /**

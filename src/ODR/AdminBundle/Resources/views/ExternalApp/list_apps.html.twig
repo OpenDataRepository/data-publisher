@@ -1,0 +1,549 @@
+{% spaceless %}
+
+<h2>
+    <span id="ODRExternalApp_header">External Apps list</span>
+</h2>
+
+<div class="pure-u-1" style="padding-bottom: 10px;">
+    <button id="ODRExternalApp_create" class="pure-button pure-button-primary">Create New</button>
+</div>
+
+<div class="pure-u-1-2">
+    <table id="ODRExternalApps_table" class="display dataTable">
+        <thead>
+            <tr>
+                <th></th>
+                <th>App Name</th>
+{#                <th>App Url</th>#}
+                <th>App Description</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for ea_id, ea in app_list %}
+            {% if ea_id == 0 %}
+            {% else %}
+                {% set external_app_meta = ea.externalAppMeta %}
+                <tr>
+                    <td>
+                        <span class="ODRDatatypeInfoDiv">
+                            <i class="fa fa-lg fa-info-circle"></i>
+                            <span class="ODRDatatypeInfo">
+                                <div>
+                                    <b>Created By: </b>{{ ea.createdBy|user_string }}<b> on </b>{{ ea.created|date('Y-m-d') }}
+                                </div>
+                            </span>
+                        </span>
+                    </td>
+                    <td>
+                        {{ external_app_meta.appName }}
+                    </td>
+                    {#
+                    <td>
+                        {{ external_app_meta.appUrl }}
+                    </td>
+                    #}
+                    <td>
+                        {{ external_app_meta.appDescription }}
+                    </td>
+                    <td id="ODRExternalApp_{{ ea_id }}_arrow" class="Pointer ODRListExpand">
+                        <i class="fa fa-lg fa-caret-down ODRGrayIcon" rel="{{ ea_id }}"></i>
+                    </td>
+                </tr>
+            {% endif %}
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="pure-u-1-24"></div>
+
+{% for ea_id, ea in app_list %}
+    {% set appName = '' %}
+    {% set appDescription = '' %}
+    {% set appUrl = '' %}
+
+    {% if ea_id != 0 %}
+        {% set external_app_meta = ea.externalAppMeta %}
+        {% set appName = external_app_meta.appName %}
+        {% set appDescription = external_app_meta.appDescription %}
+        {% set appUrl = external_app_meta.appUrl %}
+    {% endif %}
+
+    {% include 'ODRAdminBundle:ExternalApp:app_form.html.twig' with {
+        'external_app': ea,
+        'csrf_tokens': csrf_tokens,
+
+        'app_name': appName,
+        'app_description': appDescription,
+        'app_url': appUrl
+    } %}
+{% endfor %}
+
+<style>
+    {# IMPORTANT: this is a local override #}
+    .ui-autocomplete {
+        max-height: 275px;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+</style>
+
+<script>
+    $(function() {
+        disableSearchSidebar();    {# defined in ODRAdminBundle:Default:common_js.html.twig #}
+
+        var available_datatypes = [{% for dt_id,dt_name in datatype_lookup %}{value: "{{ dt_id }}", label: "{{ dt_name }}"},{% endfor %}];
+        // console.log(available_datatypes);
+
+        // https://jqueryui.com/autocomplete/#custom-data
+        $(".ODRExternalApp_linked_dt_search").each(function() {
+            var inst = $(this).autocomplete({
+                minLength: 0,
+                source: available_datatypes,
+                select: function(event, ui) {
+                    // console.log(event, ui);
+
+                    var app_id = $(this).attr('rel');
+                    var list_div = $("#ODRExternalApp_" + app_id + "_dt_list");
+                    // console.log( $(list_div) );
+
+                    // Don't insert duplicates
+                    if ( $(list_div).find(".ODRExternalApp_dt_" + ui.item.value).length > 0 ) {
+                        $(this).val('');
+                        return false;
+                    }
+
+                    // Splice html onto the page to indicate the presence of a new linked dt
+                    var html = '<div class="ODRExternalApp_dt_' + ui.item.value + '">' +
+                        '<input type="hidden" name="linked_datatypes[]" value="' + ui.item.value + '"/>' +
+                        '<span class="ODRExternalApp_dt_list_spacer" title="Unsaved changes"><i class="fa fa-exclamation-triangle"></i></span>' +
+                        '<span class="ODRExternalApp_deleteLink">' +
+                            '<i class="fa fa-trash Pointer"></i>' +
+                        '</span>' +
+                        '<span class="ODRExternalApp_linked_dt_name">' +
+                            ui.item.label +
+                        '</span>' +
+                    '</div>';
+                    $(list_div).append(html);
+
+                    // Clear the autocomplete element
+                    $(this).val('');
+
+                    // Activate the delete handler for this new bit of HTML
+                    $(".ODRExternalApp_dt_" + ui.item.value).children('.ODRExternalApp_deleteLink').first().unbind('click').click(function() {
+                        // Unlike the handler for existing links, just delete the HTML for this entry
+                        //  since it hasn't been saved yet
+                        $(this).parent().remove();
+                    });
+                    ODRExternalApp_updateSaveButton(app_id);
+
+                    // Don't allow the autocomplete plugin to do what it wants to afterwards
+                    return false;
+                }
+            });
+            // $(inst).autocomplete( "instance" )._renderItem = function (ul, item) {
+            //     console.log('renderItem', ul, item);
+            // };
+            // $(inst).autocomplete( "instance" )._renderMenu = function(ul, items) {
+            //     console.log('renderMenu', ul, items);
+            // };
+        });
+
+        $(".ODRListExpand").unbind('click').click(function() {
+            // If clicking an already open group list, don't run the block that will open it again
+            var already_open = false;
+            if ( $(this).children("i").hasClass('fa-caret-right') )
+                already_open = true;
+
+            // Hide any open group lists and reset the caret that indicates it's open
+            $("#ODRExternalApp_0").addClass('ODRHidden');
+            $(".ODRListExpand").children(".fa-caret-right").each(function() {   // should only return one
+                var row_num = $(this).attr('rel');
+                $("#ODRExternalApp_" + row_num).addClass('ODRHidden');
+
+                $(this).removeClass('fa-caret-right').addClass('fa-caret-down ODRGrayIcon');
+            });
+
+            if ( !already_open ) {
+                // If a group list wasn't open...then open it, and mark this row as selected
+                ODRExternalApp_showDetails( $(this) );
+                selected_row = $(this);
+            }
+            else {
+                // If a group list was already open, it has since been closed...therefore there's
+                //  no selected row right now
+                selected_row = null;
+            }
+
+            ODRExternalApp_resetSaveButtons();
+        });
+
+        $(".ODRExternalAppDetails_name").unbind('change keyup paste').on('keyup paste', function() {
+            var app_id = $(this).parents('form').first().attr('rel');
+            ODRExternalApp_updateSaveButton(app_id);
+        });
+        $(".ODRExternalAppDetails_url").unbind('change keyup paste').on('keyup paste', function() {
+            var app_id = $(this).parents('form').first().attr('rel');
+            ODRExternalApp_updateSaveButton(app_id);
+        });
+        $(".ODRExternalAppDetails_description").unbind('change keyup paste').on('keyup paste', function() {
+            var app_id = $(this).parents('form').first().attr('rel');
+            ODRExternalApp_updateSaveButton(app_id);
+        });
+
+        $(".ODRExternalApp_deleteLink").unbind('click').click(function() {
+            // Unlike the handler for new links, want to mark this as "marked for deletion"
+            if ( !$(this).next().hasClass('strikethrough') ) {
+                $(this).next().addClass('strikethrough');
+                $(this).prev().prop('title', 'Unsaved Changes').append('<i class="fa fa-exclamation-triangle"></i>');
+                $(this).prev().prev().attr('disabled', 'disabled');
+            }
+            else {
+                // ...if clicked again, then "undo" the "marked for deletion"
+                $(this).next().removeClass('strikethrough');
+                $(this).prev().html('').prop('title', '');
+                $(this).prev().prev().removeAttr('disabled');
+            }
+
+            // Update the save button
+            var app_id = $(this).parents('form').first().attr('rel');
+            ODRExternalApp_updateSaveButton(app_id);
+        });
+
+        $("#ODRExternalApp_create").unbind('click').click(function() {
+            // Hide any currently displayed app detail divs
+            $(".ODRExternalApp_details").addClass('ODRHidden');
+            // Reset any open arrows
+            $(".ODRListExpand").children("i").each(function(index,elem) {
+                $(elem).removeClass('fa-caret-right').addClass('fa-caret-down ODRGrayIcon');
+            });
+
+            // Reset any changes in the forms
+            ODRExternalApp_resetSaveButtons();
+            // Reveal the interface to create a new external app
+            $("#ODRExternalApp_0").removeClass('ODRHidden');
+        });
+        $(".ODRExternalApp_save").unbind('click').click(function(event) {
+            // Don't use default browser submit
+            event.preventDefault();
+            event.stopPropagation();
+
+            // Stop this button from being spam-clicked
+            if ( $(this).hasClass('pure-button-disabled') )
+                return false
+            $(this).addClass('pure-button-disabled');
+
+            // Don't submit if name/url are blank
+            var app_id = $(this).attr('rel');
+            var app_name = $("#ODRExternalApp_" + app_id + "_name");
+            var app_url = $("#ODRExternalApp_" + app_id + "_url");
+            if ( $(app_name).val().trim() == '' || $(app_url).val().trim() == '' )
+                return;
+
+            var form = $(this).parent().parent();
+            var url = $(form).attr('action');
+            var form_data = $(form).serialize();
+            // console.log( $(form), url, form_data );  return;
+
+            $.ajax({
+                type: 'POST',
+                url: url,
+                dataType: 'json',
+                data: form_data,
+                success: function(data, textStatus, jqXHR) {
+                    if ( data['d']['reload'] == true )
+                        reloadPage();
+                    else
+                        notifySaved();
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Do need to do anything
+                },
+                complete: function (jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                    }
+                }
+            });
+        });
+        $(".ODRExternalApp_delete").unbind('click').click(function(event) {
+            // Don't use default browser submit
+            event.preventDefault();
+            event.stopPropagation();
+
+            if ( confirm('Are you sure you want to delete this External App?') ) {
+                var app_id = $(this).attr('rel');
+
+                var url = "{{ path('odr_external_app_delete', {'external_app_id': 0}) }}";
+                url = url.substring(0,(url.length - 1));
+                url += app_id;
+
+                $.ajax({
+                    cache: false,
+                    type: 'GET',
+                    url: url,
+                    dataType: 'json',
+                    success: function(data, textStatus, jqXHR) {
+                        reloadPage();
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        // Do need to do anything
+                    },
+                    complete: function (jqXHR, textStatus) {
+                        // Get the xdebugToken from response headers
+                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                        // If the Sfjs object exists
+                        if (typeof Sfjs !== "undefined") {
+                            // Grab the toolbar element
+                            var currentElement = $('.sf-toolbar')[0];
+
+                            // Load the data of the given xdebug token into the current toolbar wrapper
+                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                        }
+                    }
+                });
+            }
+        });
+
+        $("#ODRExternalApps_table").dataTable({
+            "paging": false,
+            "info": false,
+            "columnDefs": [
+                {
+                    // "targets": [0, 4],
+                    "targets": [0, 3],
+                    "orderable": false,
+                    "searchable": false
+                }
+            ],
+            "order": [[1, "asc"]],
+            "language": {
+                "emptyTable": "No External Apps found"
+            }
+        });
+
+        // Need to ensure that the app list div on the right stays synchronized with the selected
+        //  row of the table on the left
+        var selected_row = null;
+
+        var table = $("#ODRExternalApps_table").DataTable();
+        table.on( 'draw.dt', function() {
+            // This datatables event is called after the "order" and "search" events have fired,
+            //  and the table has been redrawn on the page...this redrawing means the position or
+            //  visibility of the app list needs to be updated
+
+            // If the app list div on the right is visible, save which row it's meant for
+            var selected_row_id = '';
+            if ( selected_row !== null )
+                selected_row_id = $(selected_row).attr('id');
+
+            // Iterate over all visible rows, attempting to find the one that is currently selected
+            var selected_element = null;
+            $(".ODRListExpand").not('.ODRHidden').each(function() {
+                if ( $(this).children(".fa-caret-right").length > 0 ) {
+                    selected_element = $(this);
+                }
+            });
+
+
+            if ( selected_row_id !== '' && selected_element === null ) {
+                // In this case, the app list div is visible but the corresponding row wasn't found
+                // ...the search function has hidden the corresponding row, so hide the app list div
+                $(".ODRExternalApp_details").addClass('ODRHidden');
+                selected_row = null;
+            }
+            else if ( selected_row_id !== '' && selected_element !== null ) {
+                // The app list div and its corresponding row are both visible...ensure the app
+                //  list div is in a sensible place relative to its corresponding row
+                ODRExternalApp_showDetails( $(selected_element) );
+            }
+            else if ( selected_row_id === '' && selected_element === null ) {
+                // Neither the app list div nor its corresponding row are visible...do nothing
+            }
+            else if ( selected_row_id === '' && selected_element !== null ) {
+                // The app list div isn't displayed, but one of the rows is currently "selected"
+                //  ...reset the arrows
+                $(selected_element).children(".fa-caret-right").each(function() {   // should only return one
+                    var row_num = $(this).attr('rel');
+                    $("#ODRExternalApp_" + row_num).addClass('ODRHidden');
+
+                    $(this).removeClass('fa-caret-right').addClass('fa-caret-down ODRGrayIcon');
+                });
+            }
+
+            // NOTE - need to also execute this whenever the table finishes drawing
+            ODRExternalApp_setupIntroJS();
+        });
+
+        $("#ODRExternalApps_table").removeAttr('style');
+
+        $('#ODRHelpButton').unbind('click').click(function() {
+            ODRExternalApp_startIntroJS();
+        });
+
+        // NOTE - the 'draw.dt' event for dataTables.js only executes when something is typed in the
+        //  search filter, since the table already "exists" on the page when dataTables is initialized.
+        // Therefore, need to also initialize introJS after page load
+        ODRExternalApp_setupIntroJS();
+    });
+
+    /**
+     * Opens and aligns the details for the selected app.
+     * @param {HTMLElement} element
+     */
+    function ODRExternalApp_showDetails(element) {
+        // Going to need these three numbers to determine where to put the group list div
+        var table_offset = $("#ODRExternalApps_table_wrapper").offset().top;
+        var table_height = $("#ODRExternalApps_table_wrapper").height();
+        var offset_top = $(element).parent().offset().top - 15;
+
+        // Open the selected datarecord list
+        $(element).children("i").each(function() {     // should only return one
+            var row_num = $(this).attr('rel');
+            $(this).removeClass('fa-caret-down ODRGrayIcon').addClass('fa-caret-right');
+
+            // Determine height of the div displaying this datatype's groups
+            var app_div = $("#ODRExternalApp_" + row_num);
+            $(app_div).removeClass('ODRHidden');
+            var app_div_height = $(app_div).height();
+
+            var final_offset = offset_top;
+
+            // If the height of the group div is less than the height of the datatype list table...
+            if (table_height > app_div_height) {
+                // ...adjust the offset so the bottom of the group div isn't below the bottom of the datatype list table
+                if ((final_offset + app_div_height) > (table_offset + table_height))
+                    final_offset = (table_offset + table_height) - app_div_height;
+            }
+
+            $(app_div).offset({ top: final_offset });
+        });
+    }
+
+    /**
+     * Updates the save button for this particular app
+     * @param {number} app_id
+     */
+    function ODRExternalApp_updateSaveButton(app_id) {
+        var original_app_name = $("#ODRExternalApp_" + app_id + "_original_name").val().trim();
+        var current_app_name = $("#ODRExternalApp_" + app_id + "_name").val().trim();
+        var original_app_url = $("#ODRExternalApp_" + app_id + "_original_url").val().trim();
+        var current_app_url = $("#ODRExternalApp_" + app_id + "_url").val().trim();
+        var original_app_description = $("#ODRExternalApp_" + app_id + "_original_description").val().trim();
+        var current_app_description = $("#ODRExternalApp_" + app_id + "_description").val().trim();
+
+        var change_made = false;
+        if (original_app_name != current_app_name || original_app_url != current_app_url || original_app_description != current_app_description)
+            change_made = true;
+        else if ( $("#ODRExternalApp_" + app_id + "_dt_list").find(".fa-exclamation-triangle").length > 0 )
+            change_made = true;
+
+        if ( change_made ) {
+            if ( current_app_name == '' || current_app_url == '' ) {
+                $("#ODRExternalApp_" + app_id + "_warn").removeClass('ODRHidden');
+                $("#ODRExternalApp_" + app_id + "_save").addClass('pure-button-disabled').removeClass('pure-button-primary')
+                    .prop('title', '');
+            }
+            else {
+                $("#ODRExternalApp_" + app_id + "_warn").addClass('ODRHidden');
+                $("#ODRExternalApp_" + app_id + "_save").removeClass('pure-button-disabled').addClass('pure-button-primary')
+                    .prop('title', 'No changes made yet');
+            }
+        }
+        else {
+            $("#ODRExternalApp_" + app_id + "_warn").addClass('ODRHidden');
+            $("#ODRExternalApp_" + app_id + "_save").addClass('pure-button-disabled').removeClass('pure-button-primary')
+                .prop('title', 'No changes made yet');
+        }
+    }
+
+    /**
+     * Resets all apps on the page back to their initial state
+     */
+    function ODRExternalApp_resetSaveButtons() {
+        $(".ODRExternalApp_details").each(function(index, elem) {
+            var app_id = $(elem).attr('rel');
+
+            var original_app_name = $("#ODRExternalApp_" + app_id + "_original_name").val().trim();
+            $('#ODRExternalApp_' + app_id + '_name').val(original_app_name);
+            var original_app_url = $("#ODRExternalApp_" + app_id + "_original_url").val().trim();
+            $('#ODRExternalApp_' + app_id + '_url').val(original_app_url);
+            var original_app_description = $("#ODRExternalApp_" + app_id + "_original_description").val().trim();
+            $('#ODRExternalApp_' + app_id + '_description').val(original_app_description);
+        });
+
+        $(".ODRExternalApp_dt_list_spacer").html('&nbsp;').prop('title', '');
+        $(".ODRExternalApp_linked_dt_name").removeClass('strikethrough');
+
+        $(".ODRExternalApp_warn").addClass('ODRHidden');
+        $(".ODRExternalApp_save").addClass('pure-button-disabled').removeClass('pure-button-primary')
+            .prop('title', 'No changes made yet');
+    }
+
+    /**
+     * Some of the elements needed for the introJS tour don't exist when this page is first loaded,
+     * so the setup needs to happen after a database has been selected.
+     */
+    function ODRExternalApp_setupIntroJS() {
+        // Setup IntroJS Walkthrough
+        $('#ODRHelpButton')
+            .attr('data-step', '1')
+            .attr('data-intro', 'Welcome to the ODR Help System.  This system will guide you through the features of this page.<br><br>For quicker navigation, use your left and right arrow keys to go through the tutorial.');
+
+        $('#ODRExternalApp_header')
+            .attr('data-step', '2')
+            .attr('data-intro', 'This page allows you to setup and configure External Apps, which TODO');
+        $('#ODRDatatypeList_filter')
+            .attr('data-step', '3')
+            .attr('data-intro', "If you know which app you're looking for, the table can be filtered by typing in this field.");
+
+        $('.ODRDatatypeInfoDiv').first()
+            .attr('data-step', '4')
+            .attr('data-intro', "Hovering over this icon brings up additional basic information about the app, in case you need more than just the name/description.");
+        // $('tr.odd:nth-child(1) td:nth-child(5)')
+        $('.ODRListExpand').first()
+            .attr('data-step', '5')
+            .attr('data-intro', 'Clicking on this caret icon will display the edit form for the app.');
+
+        $("#ODRExternalApp_0").next().find('fieldset').first()
+            .attr('data-step', '6')
+            .attr('data-intro', 'The configuration details for the app can be changed here.  App Name and URL can not be blank.');
+
+        $("#ODRExternalApp_0").next().find('fieldset').first().next().find('.ODRExternalApp_linked_dt_search').first()
+            .attr('data-step', '7')
+            .attr('data-intro', 'Typing in here brings up a list of matching databases that the app can be added to');
+        $("#ODRExternalApp_0").next().find('fieldset').first().next().find('.ODRExternalApp_deleteLink').first()
+            .attr('data-step', '8')
+            .attr('data-intro', 'Clicking the related trash icon will remove the app from the search results for a database.');
+
+        $("#ODRExternalApp_0").next().find('.ODRExternalApp_save')
+            .attr('data-step', '9')
+            .attr('data-intro', 'The form does not automatically save changes.  You must click here to save.');
+        $("#ODRExternalApp_0").next().find('.ODRExternalApp_delete')
+            .attr('data-step', '10')
+            .attr('data-intro', 'Click this button to delete the app.');
+    }
+
+    /**
+     * Begins the introJS tour for ODR's user group management page.
+     */
+    function ODRExternalApp_startIntroJS() {
+        // Ensure a group list is visible before starting the tour
+        if ( $('.ODRExternalApp_details').first().hasClass('ODRHidden') )
+            $('.ODRListExpand').first().trigger('click');
+
+        introJs().setOption("disableInteraction", true)
+            .start();
+    }
+</script>
+{% endspaceless %}

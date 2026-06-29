@@ -1,0 +1,60 @@
+ODR\AdminBundle\Entity\ExternalApp:
+    type: entity
+    table: odr_external_app
+    gedmo:
+        soft_deleteable:
+            field_name: deletedAt
+    fields:
+        id:
+            id: true
+            type: integer
+            unsigned: false
+            nullable: false
+            generator:
+                strategy: IDENTITY
+
+        created:
+            type: datetime
+            gedmo:
+                timestampable:
+                    on: create
+        deletedAt:
+            type: datetime
+            nullable: true
+
+    oneToMany:
+        externalAppMeta:
+            targetEntity: ExternalAppMeta
+            cascade: { }
+            mappedBy: externalApp
+            inversedBy: null
+            orphanRemoval: false
+
+        externalAppDatatypeLinks:
+            targetEntity: ExternalAppDatatypeLink
+            cascade: { }
+            mappedBy: externalApp
+            inversedBy: null
+            orphanRemoval: false
+
+    manyToOne:
+        createdBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                createdBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+        deletedBy:
+            targetEntity: ODR\OpenRepository\UserBundle\Entity\User
+            cascade: {  }
+            mappedBy: null
+            inversedBy: null
+            joinColumns:
+                deletedBy:
+                    referencedColumnName: id
+            orphanRemoval: false
+
+    lifecycleCallbacks: {  }

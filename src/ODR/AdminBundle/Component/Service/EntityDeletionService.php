@@ -1200,6 +1200,17 @@ class EntityDeletionService
             $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
             $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
 
+            // ----------------------------------------
+            // Delete all ExternalAppDatatypeLink entries for the datatypes that are getting deleted
+            $query_str =
+               'UPDATE odr_external_app_datatype_link AS eadtl
+                SET eadtl.deletedAt = NOW(), eadtl.deletedBy = '.$user->getId().'
+                WHERE eadtl.data_type_id IN (?)
+                AND eadtl.deletedAt IS NULL';
+            $parameters = array(1 => $datatypes_to_delete);
+            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $rowsAffected = $conn->executeUpdate($query_str, $parameters, $types);
+
 
             // ----------------------------------------
 /*

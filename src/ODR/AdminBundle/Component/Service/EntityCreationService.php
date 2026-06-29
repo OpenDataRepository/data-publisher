@@ -29,6 +29,9 @@ use ODR\AdminBundle\Entity\DataTypeMeta;
 use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 use ODR\AdminBundle\Entity\DatetimeValue;
 use ODR\AdminBundle\Entity\DecimalValue;
+use ODR\AdminBundle\Entity\ExternalApp;
+use ODR\AdminBundle\Entity\ExternalAppDatatypeLink;
+use ODR\AdminBundle\Entity\ExternalAppMeta;
 use ODR\AdminBundle\Entity\FieldType;
 use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\FileMeta;
@@ -783,6 +786,96 @@ class EntityCreationService
             $this->em->flush();
 
         return $dtsf;
+    }
+
+
+    /**
+     * Creates and persists a new ExternalApp entity.
+     *
+     * @param ODRUser $user
+     * @param string $app_name
+     * @param string $app_description
+     * @param string $app_url
+     * @param bool $delay_flush If true, then don't flush prior to returning
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
+     *
+     * @return ExternalApp
+     */
+    public function createExternalApp($user, $app_name, $app_description, $app_url, $delay_flush = false, $created = null)
+    {
+        // ----------------------------------------
+        // Have some verification to do first...
+        if ( is_null($created) )
+            $created = new \DateTime();
+
+        // ----------------------------------------
+        // Initial create
+        $ea = new ExternalApp();
+
+        $ea->setCreated($created);
+        $ea->setCreatedBy($user);
+
+        $this->em->persist($ea);
+
+        $eam = new ExternalAppMeta();
+        $eam->setExternalApp($ea);
+        $eam->setAppName($app_name);
+        $eam->setAppDescription($app_description);
+        $eam->setAppUrl($app_url);
+
+        $eam->setCreated($created);
+        $eam->setUpdated($created);
+        $eam->setCreatedBy($user);
+        $eam->setUpdatedBy($user);
+
+        // Ensure the "in-memory" version of the new group knows about its meta entry
+        $ea->addExternalAppMetum($eam);
+        $this->em->persist($eam);
+
+        if ( !$delay_flush )
+            $this->em->flush();
+
+        return $ea;
+    }
+
+
+    /**
+     * Creates and persists a new ExternalAppDatatypeLink entity, used for stating a specific
+     * ExternalApp can work with a specific Datatype.
+     *
+     * @param ODRUser $user
+     * @param ExternalApp $external_app
+     * @param DataType $datatype
+     * @param bool $delay_flush If true, then don't flush prior to returning
+     * @param \DateTime|null $created If provided, then the created/updated dates are set to this
+     *
+     * @return ExternalAppDatatypeLink
+     */
+    public function createExternalAppDatatypeLink($user, $external_app, $datatype, $delay_flush = false, $created = null)
+    {
+        // ----------------------------------------
+        // Have some verification to do first...
+        if ( is_null($created) )
+            $created = new \DateTime();
+
+        // ----------------------------------------
+        // Initial create
+        $eadtl = new ExternalAppDatatypeLink();
+        $eadtl->setExternalApp($external_app);
+        $eadtl->setDatatype($datatype);
+
+        $eadtl->setCreated($created);
+        $eadtl->setCreatedBy($user);
+
+        $external_app->addExternalAppDatatypeLink($eadtl);
+        $datatype->addExternalAppDatatypeLink($eadtl);
+
+        $this->em->persist($eadtl);
+
+        if ( !$delay_flush )
+            $this->em->flush();
+
+        return $eadtl;
     }
 
 
