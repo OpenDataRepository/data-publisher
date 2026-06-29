@@ -92,6 +92,6 @@ reversals. Transitional until all are done; validated by SearchAPIServiceTest vs
 | SearchService | FINAL | D12d | 17 aliases->FQCN |
 | SearchSidebarService | FINAL | D12d | 10 aliases->FQCN; $this->session-> -> $this->request_stack->getSession()->; findUsers via ODRUserManager shim |
 | SearchQueryService | FINAL | D12e | 31 $conn->fetchAll(...) -> fetchAllAssociative(...) (the only DBAL mapping needed; 4 executeQuery already DBAL3-valid); 0 aliases |
-| SearchAPIServiceNoConflict | pending | D12f | DI changed + shrinks 2242->681 (f418ad30 deleted dead code); needs special handling |
+| SearchAPIServiceNoConflict | FINAL | D12f | f418ad30 deleted dead code (2242->681) + dropped 4 unused ctor deps (search_service/search_cache_service/search_key_service/sort_service -- 0 refs in final body). Rebuilt 5-dep promoted ctor + services.yml updated; 5 aliases->FQCN; $stmt->fetchAll->fetchAllAssociative; token ->getToken()?->getUser() ?? 'anon.'. $this->container latent dead-code ref preserved (as in fork/branch/final). Only used by FacadeController |
 | PaginationHelperService (Admin) | pending | D12g | +34 (new pagination helper bits) |
 | Consumers (DefaultController/Facade/SearchSidebar ctrls, Admin ctrls, templates, render plugins, CSVExport) | pending | D12h+ | per-file; reconcile D9a immediate-search consumer in SearchBundle DefaultController |
