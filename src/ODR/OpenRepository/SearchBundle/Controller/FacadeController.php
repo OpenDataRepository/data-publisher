@@ -546,11 +546,11 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
             // ----------------------------------------
             // TODO - where is this used?
-            $default_search_params = [];
+            $search_params = $default_search_params = [];
 
             // Need to build everything used by the sidebar...
             $sidebar_layout_id = $ssb_service->getPreferredSidebarLayoutId($admin_user, $target_datatype->getId(), 'searching');
-            $sidebar_array = $ssb_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId(), $default_search_params, 'searching', $sidebar_layout_id);
+            $sidebar_array = $ssb_service->getSidebarDatatypeArray($admin_user, $target_datatype->getId(), $search_params, $default_search_params, 'searching', $sidebar_layout_id);
             $user_list = $ssb_service->getSidebarUserList($admin_user, $sidebar_array);
 
             // ----------------------------------------
