@@ -58,6 +58,11 @@ twig:
         config_images_directory: '%odr_images_directory%'
 
 # Doctrine Configuration
+doctrine_migrations:
+    migrations_paths:
+        'DoctrineMigrations': '%kernel.project_dir%/app/DoctrineMigrations'
+    enable_profiler: '%kernel.debug%'
+
 doctrine:
     dbal:
         driver:   "%database_driver%"
