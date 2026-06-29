@@ -4882,7 +4882,8 @@ if ($debug)
             }
 
             // Now that we have the search params, load the related set of sidebar data
-            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $datatype->getId(), $search_params, 'stored_search_keys');
+            $default_search_params = [];
+            $sidebar_array = $search_sidebar_service->getSidebarDatatypeArray($user, $datatype->getId(), $search_params, $default_search_params, 'stored_search_keys');
             $inverse_dt_names = $search_sidebar_service->getSidebarInverseDatatypeNames($user, $datatype->getId());
             // Don't want the user list or the preferred theme id
 
