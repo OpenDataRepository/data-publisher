@@ -27,6 +27,26 @@ class SearchQueryService
 {
 
     /**
+     * This service has been granted the ability to modify what it receives from SearchQueryService,
+     * but this is only required in specific situations...neither of which this query satisfies.
+     */
+    const NO_MODIFICATION = 0;
+
+    /**
+     * In most situations where the incoming query can match the empty string, there are two different
+     * methods of dealing with it...one method is to negate the given query so that whatever matches
+     * can be subtracted from the set of all records at a later point in time..
+     */
+    const NEGATED_QUERY = 1;
+
+    /**
+     * ...the other method for dealing with empty string queries is to require record transforms
+     * to also splice in target records that aren't related to source records.
+     */
+    const NEED_UNRELATED_RECORDS = 2;
+
+
+    /**
      * @var array
      */
     private $typeclass_map;
