@@ -35,6 +35,7 @@ class AppKernel extends Kernel
 
 	        new Http\HttplugBundle\HttplugBundle(),
             new Doctrine\Bundle\DoctrineBundle\DoctrineBundle(),
+            new Doctrine\Bundle\MigrationsBundle\DoctrineMigrationsBundle(),
             new Twig\Extra\TwigExtraBundle\TwigExtraBundle(),
             new Snc\RedisBundle\SncRedisBundle(),
 

@@ -67,7 +67,9 @@
         "ml/json-ld": "^1.2",
         "amnuts/opcache-gui": "*",
         "doctrine/annotations": "^2.0",
-        "symfony/mailer": "7.4.*"
+        "symfony/mailer": "7.4.*",
+        "doctrine/doctrine-migrations-bundle": "^3.3",
+        "symfony/type-info": "^7.4"
     },
     "scripts": {
         "post-install-cmd": [
