@@ -799,7 +799,6 @@ class FacadeController extends Controller
         // Initialize the output array
         $output = [];
         foreach($dataset_uuids as $dataset_uuid) {
-            // print $dataset_uuid . "<br />";
 
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
@@ -831,7 +830,7 @@ class FacadeController extends Controller
             $ch = curl_init($url);
             # Setup request to send json via POST.
             curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
-            curl_setopt($ch, CURLOPT_POSTFIELDS,'{"index.mapping.total_fields.limit": 8000}');
+            curl_setopt($ch, CURLOPT_POSTFIELDS,'{"index.mapping.total_fields.limit": 6000}');
             curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
             # Return response instead of printing.
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -862,7 +861,7 @@ class FacadeController extends Controller
                 $ch = curl_init($url);
                 # Setup request to send json via POST.
                 curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
-                curl_setopt($ch, CURLOPT_POSTFIELDS, '{"index.mapping.total_fields.limit": 8000}');
+                curl_setopt($ch, CURLOPT_POSTFIELDS, '{"index.mapping.total_fields.limit": 6000}');
                 curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
                 # Return response instead of printing.
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -900,9 +899,9 @@ class FacadeController extends Controller
                 );
 
                 $pheanstalk->useTube('odr_seed_elastic_record')->put($payload);
-                if($counter == 5) {
-                    break;
-                }
+                // if($counter == 5) {
+                    // break;
+                // }
                 $counter++;
 
             }
@@ -983,7 +982,7 @@ class FacadeController extends Controller
 
         // API Login URL
         $api_login_url = $this->generateUrl(
-            'api_login_check',
+            'api_login_check_v4_odr',
             array(
             )
         );
@@ -1093,7 +1092,7 @@ class FacadeController extends Controller
 
         // API Login URL
         $api_login_url = $this->generateUrl(
-            'api_login_check',
+            'api_login_check_v4_odr',
             array(
             )
         );
@@ -1300,7 +1299,7 @@ class FacadeController extends Controller
 
             // API Login URL
             $api_login_url = $this->generateUrl(
-                'api_login_check',
+                'api_login_check_v4_odr',
                 array(
                 )
             );
@@ -1431,7 +1430,6 @@ class FacadeController extends Controller
         if($limit > 0) {
             $records = array_slice($records, $offset, $limit);
         }
-        /** @var SearchAPIServiceNoConflict $search_api_service_nc */
         $search_api_service_nc = $this->container->get('odr.search_api_service_no_conflict');
 
         $output_data = [];

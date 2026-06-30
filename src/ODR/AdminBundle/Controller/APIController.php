@@ -5214,7 +5214,7 @@ class APIController extends ODRCustomController
             $content = $request->getContent();
             $data = json_decode($content, true);
             if (!is_array($data) && $datarecord_uuid === null)
-                throw new ODRJsonException('A record uuid or JSON body with a record_uuids[] array is rquired.', 400);
+                throw new ODRBadRequestException('A record uuid or JSON body with a record_uuids[] array is required.');
 
 /*
             $user_email = '';
@@ -5302,12 +5302,10 @@ class APIController extends ODRCustomController
             ));
         } catch (\Exception $e) {
             $source = 0x517a7d01;
-            if ($e instanceof ODRException) {
-                throw new ODRJsonException($e->getMessage(), $e->getStatusCode(), $e);
-            }
-            else {
-                throw new ODRJsonException($e->getMessage(), $e->getStatusCode(), $e);
-            }
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
 
@@ -8676,7 +8674,7 @@ class APIController extends ODRCustomController
                 $tracked_job->setAdditionalData($job['additional_data']);
             }
             else {
-                throw new ODRJsonException('Not Found');
+                throw new ODRNotFoundException('Tracked job');
             }
 
             $em->persist($tracked_job);
