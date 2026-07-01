@@ -101,7 +101,7 @@ $(function() {
     window.scrollTo(0,0);
 
     {% if has_linked_datatypes > 0 %}
-    GetLinkedDatarecords({{ datarecord.id }});  {# defined in @ODRAdmin/Default/common_js.html.twig #}
+    GetLinkedDatarecords({{ datarecord.id }}, 'edit');  {# defined in @ODRAdmin/Default/common_js.html.twig #}
     {% endif %}
 
     {# Layout-sync notification disabled (ported from develop c2661c5f)

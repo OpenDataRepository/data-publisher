@@ -63,7 +63,7 @@
         <div id="TextResults_wrapper" class="ODRTableOuterWrap"></div>
     </div>
 
-    {% if allow_multiple_links %}
+    {% if show_mass_selection_buttons %}
     <div id="ODRLinkSelection" class="pure-u-1">
         <button class="pure-button" type="button" onclick="ODRLinkDatarecords_selectAllRecords();">Select All</button>
         <button class="pure-button" type="button" onclick="ODRLinkDatarecords_deselectAllRecords();">Deselect All</button>
@@ -329,7 +329,7 @@
         });
     }
 
-{% if allow_multiple_links %}
+{% if show_mass_selection_buttons %}
     /**
      * Convenience function to select all datarecords in the returned search result, which will cause
      *  the controller to link to all remote records in the search result if the form is submitted.
@@ -338,12 +338,15 @@
         // Add hidden input elements for all currently unselected datarecords
         jQuery.each(all_datarecords, function(index, dr_id) {
             // Check all boxes for the element on the page
-            $(".dr_" + dr_id).prop('checked', true);
+            var elem = $(".dr_" + dr_id);
+            if ( !$(elem).is(':disabled') ) {
+                $(elem).prop('checked', true);
 
-            // If the hidden form input does not exist...
-            if ( $("#dr_" + dr_id).length == 0 ) {
-                // ...then create it
-                ODRLinkDatarecords_insertFormInput(dr_id);
+                // If the hidden form input does not exist...
+                if ( $("#dr_" + dr_id).length == 0 ) {
+                    // ...then create it
+                    ODRLinkDatarecords_insertFormInput(dr_id);
+                }
             }
         });
 

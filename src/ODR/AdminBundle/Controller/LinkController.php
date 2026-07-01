@@ -1855,7 +1855,7 @@ class LinkController extends ODRCustomController
      *
      * @return Response
      */
-    public function getlinkeddatarecordsAction($local_datarecord_id, Request $request)
+    public function getlinkeddatarecordsAction($local_datarecord_id, $context, Request $request)
     {
         $return = [];
         $return['r'] = 0;
@@ -2213,6 +2213,7 @@ class LinkController extends ODRCustomController
                     [
                         'local_datarecord' => $local_datarecord,
                         'linked_record_data' => $linked_record_data,
+                        'context' => $context,
                     ]
                 )
             ];
@@ -2425,6 +2426,17 @@ class LinkController extends ODRCustomController
             // Store whether the link allows multiple records or not
             $allow_multiple_links = $datatree_info_service->allowsMultipleLinkedDatarecords($ancestor_datatype->getid(), $descendant_datatype->getId());
 
+            // The "Select All" and "Deselect All" buttons need to show up in three of the four
+            //  possible situations...
+            $show_mass_selection_buttons = true;
+            if ( !$allow_multiple_links && $local_datarecord_is_ancestor ) {
+                // ...this one being the only situation they shouldn't
+                $show_mass_selection_buttons = false;
+
+                // These buttons are still useful when coming from the descendant side of a link
+                //  that only allows at most one descendant
+            }
+
             // Determine which, if any, datarecords can't be linked to because doing so would
             //  violate the "multiple_allowed" rule
             $illegal_datarecords = [];
@@ -2495,6 +2507,7 @@ class LinkController extends ODRCustomController
                         'descendant_datatype' => $descendant_datatype,
 
                         'allow_multiple_links' => $allow_multiple_links,
+                        'show_mass_selection_buttons' => $show_mass_selection_buttons,
                         'illegal_datarecords' => $illegal_datarecords,
                         'remote_theme_id' => $remote_theme_id,
 
