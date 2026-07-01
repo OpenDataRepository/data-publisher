@@ -41,6 +41,7 @@ namespace ODR\OpenRepository\GraphBundle\Plugins\RRUFF;
 use ODR\AdminBundle\Entity\DataFields;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchQueryService;
 // Services
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\SortService;
@@ -120,16 +121,16 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
     /**
      * @inheritDoc
      */
-    public function searchOverriddenField($datafield, $search_term, $render_plugin_fields, $render_plugin_options)
+    public function searchOverriddenField($datafield, $search_term, $render_plugin_fields, $render_plugin_options, $use_set_logic)
     {
         // ----------------------------------------
         // Don't continue if called on the wrong type of datafield
-        $allowed_typeclasses = [
+        $allowed_typeclasses = array(
             'ShortVarchar',
             'MediumVarchar',
             'LongVarchar',
             'LongText'
-        ];
+        );
         $typeclass = $datafield->getFieldType()->getTypeClass();
         if ( !in_array($typeclass, $allowed_typeclasses) )
             throw new ODRBadRequestException('ChemicalElementsSearchPlugin::searchPluginField() called with '.$typeclass.' datafield', 0xc508f89f);
@@ -156,7 +157,7 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
         $recache = false;
         $cached_searches = $this->cache_service->get('cached_search_df_'.$datafield->getId());
         if ( !$cached_searches )
-            $cached_searches = [];
+            $cached_searches = array();
 
         // Need to go through all three "groups" of elements...
         foreach ($elements['all'] as $element) {
@@ -268,7 +269,7 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
 
         // Pretty sure this isn't needed, but remain safe
         if ( is_null($results) )
-            $results = [];
+            $results = array();
 
 
         // ----------------------------------------
@@ -283,17 +284,17 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
 
             // These records must not contain elements that aren't already in the 'all' and
             //  'at_least_one' arrays in order to pass this requirement
-            $existing_elements = [];
+            $existing_elements = array();
             foreach ($elements['all'] as $num => $elem)
                 $existing_elements[$elem] = 1;
             foreach ($elements['at_least_one'] as $num => $elem)
                 $existing_elements[$elem] = 1;
 
             // Intentionally wipe the existing list of matching records, it's part of $dr_list now
-            $results = [];
+            $results = array();
             foreach ($dr_list as $dr_id => $value) {
                 // Explode the chemical element list for this record...
-                $dr_elems = explode(' ', strtolower((string) $value));
+                $dr_elems = explode(' ', strtolower($value));
 
                 $include_record = true;
                 foreach ($dr_elems as $elem) {
@@ -320,11 +321,11 @@ class ChemicalElementsSearchPlugin implements DatafieldPluginInterface, SearchOv
 
         // Now that the elements have been combined, convert into the format SearchAPIService
         //  expects...
-        $end_result = [
+        $end_result = array(
             'dt_id' => $datafield->getDataType()->getId(),
             'records' => $results,
-            'guard' => false,    // the plugin never explicitly searches on the empty string
-        ];
+            'modify' => SearchQueryService::NO_MODIFICATION,    // the plugin never explicitly searches on the empty string
+        );
 
         // ...then return the results of the search
         return $end_result;

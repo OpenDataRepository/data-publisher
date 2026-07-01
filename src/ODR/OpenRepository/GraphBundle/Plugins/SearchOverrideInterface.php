@@ -65,8 +65,9 @@ interface SearchOverrideInterface
      * @param array $search_term
      * @param array $render_plugin_fields
      * @param array $render_plugin_options
+     * @param bool $use_set_logic
      *
      * @return array
      */
-    public function searchOverriddenField($datafield, $search_term, $render_plugin_fields, $render_plugin_options);
+    public function searchOverriddenField($datafield, $search_term, $render_plugin_fields, $render_plugin_options, $use_set_logic);
 }

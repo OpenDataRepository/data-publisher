@@ -501,14 +501,14 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
     /**
      * @inheritDoc
      */
-    public function searchOverriddenField($datafield, $search_term, $render_plugin_fields, $render_plugin_options)
+    public function searchOverriddenField($datafield, $search_term, $render_plugin_fields, $render_plugin_options, $use_set_logic)
     {
         // ----------------------------------------
         // Don't continue if somehow called on the wrong type of datafield
-        $allowed_typeclasses = [
+        $allowed_typeclasses = array(
 //            'DecimalValue',    // TODO - implement this
             'ShortVarchar',
-        ];
+        );
         $typeclass = $datafield->getFieldType()->getTypeClass();
         if ( !in_array($typeclass, $allowed_typeclasses) )
             throw new ODRBadRequestException('UnitConversionPlugin::searchPluginField() called with '.$typeclass.' datafield', 0x7a7d1906);
@@ -518,13 +518,19 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
         // See if this search result is already cached...
         $cached_searches = $this->cache_service->get('cached_search_df_'.$datafield->getId());
         if ( !$cached_searches )
-            $cached_searches = [];
+            $cached_searches = array();
 
         // Since MYSQL's collation is case-insensitive, the php caching should treat it the same
         $value = $search_term['value'];
-        $cache_key = mb_strtolower((string) $value);
-        if ( isset($cached_searches[$cache_key]) )
-            return $cached_searches[$cache_key];
+        $cache_key = mb_strtolower($value);
+        if ( !$use_set_logic ) {
+            if ( isset($cached_searches[$cache_key]) )
+                return $cached_searches[$cache_key];
+        }
+        else {
+            if ( isset($cached_searches['set'][$cache_key]) )
+                return $cached_searches['set'][$cache_key];
+        }
 
 
         // ----------------------------------------
@@ -535,29 +541,30 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
             $search_converted = true;
 
         // How to recache the search depends on what the user searched for...
-        $end_result = [];
-        if ( !str_contains((string) $value, ':') ) {
+        $end_result = array();
+        if ( strpos($value, ':') === false ) {
             // If the user is only searching with the "main" input, then only need to run one query
             $result = $this->search_query_service->searchTextOrNumberDatafield(
                 $datafield->getDataType()->getId(),
                 $datafield->getId(),
                 $typeclass,
                 $value,
+                $use_set_logic,
                 false,    // don't change doublequote handling
                 $search_converted    // get whichever value the user wants by default
             );
 
-            $end_result = [
+            $end_result = array(
                 'dt_id' => $datafield->getDataType()->getId(),
                 'records' => $result['records'],
-                'guard' => $result['guard'],
-            ];
+                'modify' => $result['modify'],
+            );
         }
         else {
             // If the user is not searching with just the "alt" input, then need to get a bit fancier
             // The search term is given in "<'main' input value>:<'alt' input value>", where either
             //  input value might be blank (but theoretically not both)
-            $values = explode(':', (string) $value);
+            $values = explode(':', $value);
 
             $original_value = $converted_value = '';
             if ( $search_converted ) {
@@ -575,19 +582,20 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
 
             // Run the required searches
             $original_result = $converted_result = null;
-            $original_involves_empty_string = $converted_involves_empty_string = false;
+            $original_was_modified = $converted_was_modified = false;
             if ( $original_value !== '' ) {
                 $original_result = $this->search_query_service->searchTextOrNumberDatafield(
                     $datafield->getDataType()->getId(),
                     $datafield->getId(),
                     $typeclass,
                     $original_value,
+                    $use_set_logic,
                     false,    // don't change doublequote handling
                     false    // get the original value stored in this field
                 );
 
-                if ( $original_result['guard'] )
-                    $original_involves_empty_string = true;
+                if ( $original_result['modify'] > SearchQueryService::NO_MODIFICATION )
+                    $original_was_modified = true;
             }
 
             if ( $converted_value !== '' ) {
@@ -596,19 +604,20 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
                     $datafield->getId(),
                     $typeclass,
                     $converted_value,
+                    $use_set_logic,
                     false,    // don't change doublequote handling
                     true    // get the converted value stored in this field
                 );
 
-                if ( $original_result['guard'] )
-                    $converted_involves_empty_string = true;
+                if ( $original_result['modify'] > SearchQueryService::NO_MODIFICATION )
+                    $converted_was_modified = true;
             }
 
             // Need to combine the two results together
-            $result = [];
+            $result = array();
             if ( is_null($original_result) && is_null($converted_result) ) {
                 // If neither search was run, then nothing can be matched
-                $result = [];
+                $result = array();
             }
             else if ( !is_null($original_result) && is_null($converted_result) ) {
                 // Only searched on the original value
@@ -620,20 +629,23 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
             }
             else {
                 // Searched on both...take the intersection of both arrays
-                $result = ['records' => array_intersect_key($original_result['records'], $converted_result['records'])];
+                $result = array('records' => array_intersect_key($original_result['records'], $converted_result['records']));
             }
 
-            $end_result = [
+            $end_result = array(
                 'dt_id' => $datafield->getDataType()->getId(),
                 'records' => $result['records'],
-                'guard' => $original_involves_empty_string | $converted_involves_empty_string,
-            ];
+                'modify' => $original_was_modified | $converted_was_modified,  // TODO
+            );
         }
 
 
         // ----------------------------------------
         // Recache the search result...
-        $cached_searches[$cache_key] = $end_result;
+        if ( !$use_set_logic )
+            $cached_searches[$cache_key] = $end_result;
+        else
+            $cached_searches['set'][$cache_key] = $end_result;
         $this->cache_service->set('cached_search_df_'.$datafield->getId(), $cached_searches);
 
         // ...then return it
@@ -751,7 +763,7 @@ class UnitConversionPlugin implements DatafieldPluginInterface, ExportOverrideIn
         $this->em->getFilters()->disable('softdeleteable');
 
         $query = $this->em->createQuery(
-           'UPDATE ODRAdminBundle:'.$typeclass.' AS e
+           'UPDATE ODR\AdminBundle\Entity\\'.$typeclass.' AS e
             SET e.converted_value = :new_value, e.updated = :now, e.updatedBy = :user_id
             WHERE e.dataField = :datafield_id'
         )->setParameters(
