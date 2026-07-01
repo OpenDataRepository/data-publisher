@@ -5107,65 +5107,68 @@ class APIController extends ODRCustomController
 
     public function datasetQuotaByUUIDAction($version, $dataset_uuid, Request $request)
     {
-        // get user from post body
         try {
             /** @var EntityManager $em */
             $em = $this->getDoctrine()->getManager();
 
+            // Act as the logged-in (JWT) user by default; a SuperAdmin may
+            // supply user_email (in the JSON body or as a query param) to act
+            // as another user. Same convention as the other API actions.
+            $override_email = $request->query->get('user_email');
             $content = $request->getContent();
             if (!empty($content)) {
-                $data = json_decode($content, true); // 2nd param to get as array
-                // user
-                /** @var UserManager $user_manager */
-                $user_manager = $this->container->get('fos_user.user_manager');
+                $data = json_decode($content, true);
+                if (is_array($data) && isset($data['user_email']))
+                    $override_email = $data['user_email'];
+            }
+            $user = self::resolveApiActingUser($override_email);
 
-                /** @var ODRUser $user */
-                $user = $user_manager->findUserBy(array('email' => $data['user_email']));
-                if (is_null($user))
-                    throw new ODRNotFoundException('unrecognized email: "' . $data['user_email'] . '"');
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
+                array(
+                    'unique_id' => $dataset_uuid
+                )
+            );
+            if ($datatype === null)
+                throw new ODRNotFoundException('Datatype');
 
-                /** @var DataType $datatype */
-                $datatype = $em->getRepository('ODRAdminBundle:DataType')->findOneBy(
-                    array(
-                        'unique_id' => $dataset_uuid
-                    )
+            // When calling with a metadata datatype, automatically use the
+            // actual dataset data and the related metadata
+            if ($data_datatype = $datatype->getMetadataFor()) {
+                $datatype = $data_datatype;
+            }
+
+            /** @var PermissionsManagementService $pm_service */
+            $pm_service = $this->container->get('odr.permissions_management_service');
+            // Ensure user has permissions to be doing this.  A datatype admin
+            // (or superadmin) qualifies, as does anyone with the ability to edit
+            // the datatype's records/files (the "dr_edit" permission).
+            if ( !$pm_service->isDatatypeAdmin($user, $datatype)
+                && !$pm_service->canEditDatatype($user, $datatype)
+            ) {
+                throw new ODRForbiddenException();
+            }
+
+            // http://office_dev/app_dev.php/v3/dataset/quota/520cd6a
+            // Only check the datatype files
+            $query = $em->createQuery("
+                SELECT SUM(odrf.filesize) FROM ODRAdminBundle:File AS odrf
+                join odrf.dataRecord as dr
+                join dr.dataType as dt
+                where dt.id = :datatype_id ")
+                ->setParameter("datatype_id", $datatype->getId()
                 );
 
-                // When calling with a metadata datatype, automatically delete the
-                // actual dataset data and the related metadata
-                if ($data_datatype = $datatype->getMetadataFor()) {
-                    $datatype = $data_datatype;
-                }
+            $total = $query->getScalarResult();
 
-                /** @var PermissionsManagementService $pm_service */
-                $pm_service = $this->container->get('odr.permissions_management_service');
-                // Ensure user has permissions to be doing this
-                if (!$pm_service->isDatatypeAdmin($user, $datatype))
-                    throw new ODRForbiddenException();
-
-                // http://office_dev/app_dev.php/v3/dataset/quota/520cd6a
-                // Only check the datatype files
-                $query = $em->createQuery("
-                    SELECT SUM(odrf.filesize) FROM ODRAdminBundle:File AS odrf
-                    join odrf.dataRecord as dr
-                    join dr.dataType as dt
-                    where dt.id = :datatype_id ")
-                    ->setParameter("datatype_id", $datatype->getId()
-                    );
-
-                $total = $query->getScalarResult();
-
-                if ($total[0][1] === null) {
-                    $total[0][1] = 0;
-                }
-
-                $result = array('total_bytes' => $total[0][1]);
-
-                $response = new JsonResponse($result);
-                return $response;
-            } else {
-                throw new ODRBadRequestException('User must be identified for permissions check.');
+            if ($total[0][1] === null) {
+                $total[0][1] = 0;
             }
+
+            $result = array('total_bytes' => $total[0][1]);
+
+            $response = new JsonResponse($result);
+            return $response;
         } catch (\Exception $e) {
             $source = 0x19238491;
             if ($e instanceof ODRException)
@@ -6215,9 +6218,9 @@ class APIController extends ODRCustomController
             )->setParameters(array('datatype_id' => $datatype->getId()));
             $total = $query->getScalarResult();
 
-            if ($total[0][1] > 25000000000) {
+            if ($total[0][1] > 50000000000) {
                 // 25 GB temporary limit
-                throw new ODRForbiddenException("Quota Exceeded (25GB)");
+                throw new ODRForbiddenException("Quota Exceeded (50GB)");
             }
 
             // Check for local file on server (with name & path from data
