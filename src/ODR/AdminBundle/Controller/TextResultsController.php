@@ -21,6 +21,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
 use ODR\AdminBundle\Entity\DataRecord;
+use ODR\AdminBundle\Entity\StoredSearchKey;
 use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
@@ -273,8 +274,16 @@ class TextResultsController extends ODRCustomController
                     $odr_tab_service->clearSearchResults($odr_tab_id);
                 }
 
+                // Merge the incoming search key with the datatype's default search key for the
+                //  relevant context before updating the tab's criteria
+                $merged_search_key = '';
+                if ($intent === 'searching')
+                    $merged_search_key = $pagination_helper_service->mergeWithDefaultSearchKey($search_key, $datatype, StoredSearchKey::SEARCH_CONTEXT);
+                else if ($intent === 'linking')
+                    $merged_search_key = $pagination_helper_service->mergeWithDefaultSearchKey($search_key, $datatype, StoredSearchKey::LINK_CONTEXT);
+
                 // Update the tab's search key, sort criteria, and datarecord list for pagination purposes
-                $original_datarecord_list = $pagination_helper_service->updateTabSearchCriteria($odr_tab_id, $datatype, $theme, $user_permissions, $search_key);
+                $original_datarecord_list = $pagination_helper_service->updateTabSearchCriteria($odr_tab_id, $datatype, $theme, $user_permissions, $merged_search_key);
 
 
                 // ----------------------------------------
