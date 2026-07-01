@@ -813,10 +813,20 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
             // ----------------------------------------
             // NOTE: DisplaytemplateController::converttostoredsearchkeyAction() also parses a form
             //  to generate a search key, and thus is vaguely similar
+            // However, that location intentionally ignores any existing "default parameters"
+            $default_search_key = '';
+            if ( $intent === 'searching' )
+                $default_search_key = $search_key_service->getDefaultSearchKeyForContext($datatype, StoredSearchKey::SEARCH_CONTEXT);
+            else if ( $intent === 'linking' )
+                $default_search_key = $search_key_service->getDefaultSearchKeyForContext($datatype, StoredSearchKey::LINK_CONTEXT);
+
+            $default_search_params = [];
+            if ($default_search_key !== '' )
+                $default_search_params = $search_key_service->decodeSearchKey($default_search_key);
 
             // Convert the POST request into a search key and validate it
             $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
-            $search_key = $search_key_service->convertPOSTtoSearchKey($search_params, $is_wordpress_integrated);
+            $search_key = $search_key_service->convertPOSTtoSearchKey($search_params, $is_wordpress_integrated, $default_search_params);
             $search_key_service->validateSearchKey($search_key);
 
             // Don't need to filter out the stuff that the user isn't allowed to see...everywhere
@@ -1049,8 +1059,16 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
             else
                 $odr_tab_id = $odr_tab_service->createTabId();
 
+            // This could be a search key from a 3rd-party source...as such, it needs to be merged
+            //  with whatever the datatype has stored for default search parameters
+            $merged_search_key = '';
+            if ($intent === 'searching')
+                $merged_search_key = $pagination_helper_service->mergeWithDefaultSearchKey($search_key, $datatype, StoredSearchKey::SEARCH_CONTEXT);
+            else
+                $merged_search_key = $pagination_helper_service->mergeWithDefaultSearchKey($search_key, $datatype, StoredSearchKey::LINK_CONTEXT);
+
             // Update the tab's search key, sort criteria, and datarecord list for pagination purposes
-            $grandparent_datarecord_list = $pagination_helper_service->updateTabSearchCriteria($odr_tab_id, $datatype, $theme, $user_permissions, $search_key, true);
+            $grandparent_datarecord_list = $pagination_helper_service->updateTabSearchCriteria($odr_tab_id, $datatype, $theme, $user_permissions, $merged_search_key, true);
 
             // Bypass search results list entirely if only one datarecord...
             if ( count($grandparent_datarecord_list) == 1 && $intent === 'searching') {
