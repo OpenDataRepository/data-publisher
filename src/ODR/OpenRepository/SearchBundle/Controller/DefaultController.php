@@ -322,6 +322,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
                     // defaults if needed
                     'search_key' => $default_search_key,
                     'search_params' => $default_search_params,
+                    'default_search_params' => $default_search_params,
 
                     // theme selection
 //                    'available_themes' => $available_themes,
@@ -606,6 +607,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
                         // defaults if needed
                         'search_key' => $default_search_key,
                         'search_params' => $default_search_params,
+                        'default_search_params' => $default_search_params,
 
                         // theme selection
 //                        'available_themes' => $available_themes,
@@ -646,6 +648,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
                         // defaults if needed
                         'search_key' => $default_search_key,
                         'search_params' => $default_search_params,
+                        'default_search_params' => $default_search_params,
 
                         // theme selection
 //                    'available_themes' => $available_themes,
