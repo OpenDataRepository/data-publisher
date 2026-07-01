@@ -328,17 +328,34 @@ class SearchSidebarController extends ODRCustomController
             $search_key_service = $this->search_key_service;
             /** @var SearchSidebarService $search_sidebar_service */
             $search_sidebar_service = $this->search_sidebar_service;
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->container->get('doctrine')->getManager();
 
             // Convert the given search key into an array of parameters...
             $search_key_service->validateSearchKey($search_key);
             $search_params = $search_key_service->decodeSearchKey($search_key);
 
+            $datatype_id = $search_params['dt_id'];
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->find($datatype_id);
+
             // ...but only want to datatype id from it, because it's going to be completely replaced
             $new_search_params = ['dt_id' => $search_params['dt_id']];
 
+            // What to do with the inverse datatype id depends on whether the datatype has a default
+            //  search key that involves it
+            $default_search_key = $search_key_service->getDefaultSearchKeyForContext($datatype, StoredSearchKey::SEARCH_CONTEXT);
+            $has_default_inverse_datatype = false;
+            if ($default_search_key !== '') {
+                $default_search_params = $search_key_service->decodeSearchKey($default_search_key);
+                if ( isset($default_search_params['inverse']) )
+                    $has_default_inverse_datatype = true;
+            }
+
             $inverse_datatype_id = intval($inverse_datatype_id);
-            if ( $inverse_datatype_id > -1 ) {
-                // A value of greater than '-1' means to enable inverse searching
+            if ( $has_default_inverse_datatype || $inverse_datatype_id > -1 ) {
+                // The inverse parameter should always exist if the datatype's default search key
+                //  has it, or when the value is greater than '-1'
                 $new_search_params['inverse'] = $inverse_datatype_id;
                 unset( $search_params['inverse'] );
             }
