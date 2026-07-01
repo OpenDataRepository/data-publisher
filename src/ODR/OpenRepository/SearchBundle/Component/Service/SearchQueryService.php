@@ -2893,7 +2893,7 @@ class SearchQueryService
 
         // Child datarecords can only have a single parent datarecord
         $datarecords = array();
-        foreach ($results as $result)
+        foreach ($results->iterateAssociative() as $result)
             $datarecords[ $result['dr_id'] ] = intval($result['parent_id']);
 
         return $datarecords;
@@ -2932,7 +2932,7 @@ class SearchQueryService
 
         // Parent datarecords could have multiple children, but may also not have any
         $datarecords = array();
-        foreach ($results as $result) {
+        foreach ($results->iterateAssociative() as $result) {
             $child_dr_id = $result['child_dr_id'];
             $parent_dr_id = $result['parent_dr_id'];
 
@@ -2979,7 +2979,7 @@ class SearchQueryService
 
         // Linked datarecords can have multiple ancestor datarecords
         $datarecords = array();
-        foreach ($results as $result) {
+        foreach ($results->iterateAssociative() as $result) {
             $ancestor_id = $result['ancestor_id'];
             $descendant_id = $result['descendant_id'];
 
@@ -3026,7 +3026,7 @@ class SearchQueryService
 
         // Linked datarecords can have multiple ancestor datarecords
         $datarecords = array();
-        foreach ($results as $result) {
+        foreach ($results->iterateAssociative() as $result) {
             $ancestor_id = $result['ancestor_id'];
             $descendant_id = $result['descendant_id'];
 

@@ -540,7 +540,7 @@ class SearchSidebarService
             AND gdtp.deletedAt IS NULL AND g.deletedAt IS NULL';
         $results = $conn->executeQuery($query, $params, $types);
 
-        foreach ($results as $result) {
+        foreach ($results->iterateAssociative() as $result) {
             $dt_id = $result['dt_id'];
             $user_id = $result['user_id'];
 
@@ -564,7 +564,7 @@ class SearchSidebarService
             AND df.deletedAt IS NULL AND gdfp.deletedAt IS NULL AND g.deletedAt IS NULL';
         $results = $conn->executeQuery($query, $params, $types);
 
-        foreach ($results as $result) {
+        foreach ($results->iterateAssociative() as $result) {
             $dt_id = $result['dt_id'];
             $user_id = $result['user_id'];
 
@@ -1020,7 +1020,7 @@ class SearchSidebarService
         $results = $conn->executeQuery($query, $params);
 
         // Should only be one...
-        foreach ($results as $result) {
+        foreach ($results->iterateAssociative() as $result) {
             $sl_id = $result['id'];
 
             /** @var SidebarLayout $sl */
@@ -1165,7 +1165,7 @@ class SearchSidebarService
         $results = $conn->executeQuery($query, $params);
 
         // Should only be one...
-        foreach ($results as $result) {
+        foreach ($results->iterateAssociative() as $result) {
             $slp_id = $result['id'];
 
             /** @var SidebarLayoutPreferences $slp */
@@ -1217,7 +1217,7 @@ class SearchSidebarService
         $conn = $this->em->getConnection();
         $results = $conn->executeQuery($query, $params);
 
-        foreach ($results as $result) {
+        foreach ($results->iterateAssociative() as $result) {
             // ...if any exist, then mark them as "not default" since there's going to be a new default
             $slp_id = $result['id'];
 
@@ -1297,7 +1297,7 @@ class SearchSidebarService
         $conn = $this->em->getConnection();
         $results = $conn->executeQuery($query, $params);
 
-        foreach ($results as $result) {
+        foreach ($results->iterateAssociative() as $result) {
             // ...if any exist, then mark them as "not default"
             $slp_id = $result['id'];
 
