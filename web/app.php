@@ -18,11 +18,24 @@ if (
 }
 
 use Symfony\Component\HttpFoundation\Request;
+
+// Resolve the instance root from the *requested* script path rather than __DIR__.
+// __DIR__ follows symlinks, so on a symlinked instance (e.g. dev.rruff.net) it
+// would resolve back to the shared source tree — loading that instance's autoload,
+// kernel, cache, logs, and config from the wrong place. SCRIPT_FILENAME keeps the
+// unresolved instance path. ODR_APP_DIR feeds AppKernel::getProjectDir() so cache,
+// logs, and config all resolve to the instance too. On a normal (non-symlinked)
+// install this is identical to the __DIR__-based path.
+$symlink_basepath = dirname($_SERVER['SCRIPT_FILENAME']);   // the web/ dir, as requested
+$odr_instance_root = preg_replace('#/web$#', '', $symlink_basepath);   // strip the trailing web/
+if (!defined('ODR_APP_DIR'))
+    define('ODR_APP_DIR', $odr_instance_root.'/app');
+
 /**
  * @var Composer\Autoload\ClassLoader
  */
-$loader = require __DIR__.'/../app/autoload.php';
-require_once __DIR__.'/../app/AppKernel.php';
+$loader = require $odr_instance_root.'/app/autoload.php';
+require_once $odr_instance_root.'/app/AppKernel.php';
 $kernel = new AppKernel('prod', false);
 
 // When using the HttpCache, you need to call the method in your front controller instead of relying on the configuration parameter

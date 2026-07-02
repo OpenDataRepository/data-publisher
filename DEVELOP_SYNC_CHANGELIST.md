@@ -94,3 +94,36 @@ port mechanically; needs per-mode JWT testing"):**
 4. **Per-mode JWT testing** — token issuance on base + `/odr` + `/odr_rruff` + `/odr_data` for v3/v4/v5.
 
 Live box unaffected: active routing.yml/security.yml unchanged; prod cache:clear boots clean.
+
+---
+
+## Symlinked-instance front controllers (web/app.php, web/app_dev.php)
+
+Restored the instance-root resolution from develop 8f6fb8c2 (its `bootstrap.php.cache` /
+`loadClassCache()` lines were SF3.4-only and correctly dropped; the symlink resolution itself is
+required and was mistakenly skipped in the first pass):
+
+```php
+$symlink_basepath  = dirname($_SERVER['SCRIPT_FILENAME']);   // the web/ dir
+$odr_instance_root = preg_replace('#/web$#', '', $symlink_basepath);
+if (!defined('ODR_APP_DIR'))
+    define('ODR_APP_DIR', $odr_instance_root.'/app');
+$loader = require $odr_instance_root.'/app/autoload.php';
+require_once $odr_instance_root.'/app/AppKernel.php';
+```
+
+`__DIR__` follows symlinks, so a symlinked instance would load autoload/kernel/cache/logs/config
+from the shared source tree. `SCRIPT_FILENAME` keeps the unresolved instance path, and defining
+`ODR_APP_DIR` feeds `AppKernel::getProjectDir()` (D13g) so cache/logs/config resolve to the instance
+too. Regex anchored at `$` (was `/\/web/`, which stripped *every* `/web` in the path). No-op on
+normal installs (instance root == repo root).
+
+**⚠️ Console/CLI caveat for symlinked instances:** `app/console` does NOT define `ODR_APP_DIR`
+(develop didn't touch it; a relative `php app/console` invocation can't reliably self-detect the
+instance root). So CLI commands (cache:clear, doctrine:migrations, workers) fall back to
+`getProjectDir()`'s default, which resolves the symlink to the *source* tree — a mismatch with the
+web front controllers on symlinked deployments. If you run per-instance console commands on a
+symlinked box, define `ODR_APP_DIR` for CLI via your deploy mechanism, e.g.:
+`php -d auto_prepend_file=<file-that-defines-ODR_APP_DIR> app/console ...`, a systemd
+`Environment=`/wrapper that sets it, or invoke with the instance's absolute path. Non-symlinked
+installs are unaffected.

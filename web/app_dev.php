@@ -33,11 +33,19 @@ if (
     exit('You are not allowed to access this file. Check '.basename(__FILE__).' for more information.');
 }
 
+// Resolve the instance root from the *requested* script path rather than __DIR__,
+// which follows symlinks (see web/app.php for the full rationale). ODR_APP_DIR feeds
+// AppKernel::getProjectDir() so cache/logs/config resolve to the linked instance.
+$symlink_basepath = dirname($_SERVER['SCRIPT_FILENAME']);   // the web/ dir, as requested
+$odr_instance_root = preg_replace('#/web$#', '', $symlink_basepath);   // strip the trailing web/
+if (!defined('ODR_APP_DIR'))
+    define('ODR_APP_DIR', $odr_instance_root.'/app');
+
 /**
  * @var Composer\Autoload\ClassLoader
  */
-$loader = require __DIR__.'/../app/autoload.php';
-require_once __DIR__.'/../app/AppKernel.php';
+$loader = require $odr_instance_root.'/app/autoload.php';
+require_once $odr_instance_root.'/app/AppKernel.php';
 
 $kernel = new AppKernel('dev', true);
 $request = Request::createFromGlobals();
