@@ -1420,12 +1420,13 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
         $records = $search_api_service->performSearch(
             $datatype,
             $search_key,
+            [], // empty array without searching as super-admin means only public results
+            false,   // only return grandparent records
+            [], // do not sort the matching records
             [],
-            false,
-            [],
-            [],
-            false,
-            true
+            false,   // do not search as a super-admin
+            false,   // do not ignore field searchable status
+            true     // ...all just to return the datarecord list in a different format than usual
         );
 
         // Flatten the associative array

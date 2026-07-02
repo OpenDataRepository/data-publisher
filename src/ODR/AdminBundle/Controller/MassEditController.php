@@ -31,9 +31,9 @@ use ODR\AdminBundle\Entity\MediumVarchar;
 use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\ShortVarchar;
+use ODR\AdminBundle\Entity\StoredSearchKey;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\TrackedJob;
-use ODR\AdminBundle\Entity\XYZData;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
 use ODR\AdminBundle\Component\Event\DatarecordDeletedEvent;
@@ -199,17 +199,21 @@ class MassEditController extends ODRCustomController
             // Verify the search key, and ensure the user can view the results
             $search_key_service->validateSearchKey($search_key);
 
+            // Need to "manually" apply the default search parameters
+            $default_search_key = $search_key_service->getDefaultSearchKeyForContext($datatype, StoredSearchKey::SEARCH_CONTEXT);
+            $merged_search_key = $search_key_service->mergeSearchKeys($search_key, $default_search_key);
+
             // Get the list of grandparent datarecords specified by this search key
             $grandparent_datarecord_list = $search_api_service->performSearch(
                 $datatype,
-                $search_key,
+                $merged_search_key,
                 $user_permissions
             );    // this will only return grandparent datarecord ids
 
             // If the user is attempting to view a datarecord from a search that returned no results...
             if ( count($grandparent_datarecord_list) === 0 ) {
                 // ...redirect to the "no results found" page
-                return $search_redirect_service->redirectToSearchResult($search_key, $search_theme_id);
+                return $search_redirect_service->redirectToSearchResult($merged_search_key, $search_theme_id);
             }
 
             // Further restrictions on which datarecords the user can edit will be dealt with later
@@ -224,7 +228,7 @@ class MassEditController extends ODRCustomController
                 $list = [];
 
             $list[$odr_tab_id] = [
-                'encoded_search_key' => $search_key
+                'encoded_search_key' => $merged_search_key
             ];
             $session->set('mass_edit_datarecord_lists', $list);
 
@@ -303,7 +307,7 @@ class MassEditController extends ODRCustomController
                 '@ODRAdmin/MassEdit/massedit_header.html.twig',
                 [
                     'search_theme_id' => $search_theme_id,
-                    'search_key' => $search_key,
+                    'search_key' => $merged_search_key,
                     'offset' => $offset,
                 ]
             );
@@ -381,6 +385,8 @@ class MassEditController extends ODRCustomController
             $permissions_service = $this->permissions_management_service;
             /** @var SearchAPIService $search_api_service */
             $search_api_service = $this->search_api_service;
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->search_key_service;
             /** @var SearchRedirectService $search_redirect_service */
             $search_redirect_service = $this->search_redirect_service;
             /** @var TrackedJobService $tracked_job_service */
@@ -445,9 +451,12 @@ class MassEditController extends ODRCustomController
             if ( !isset($list[$odr_tab_id]['encoded_search_key']) )
                 throw new ODRBadRequestException('Malformed MassEdit session variable');
 
+            // The search key needs to not be blank, but doesn't need to be merged with a default
+            //   search key...the value in the user's session has already been merged
             $search_key = $list[$odr_tab_id]['encoded_search_key'];
             if ($search_key === '')
                 throw new ODRBadRequestException('Search key is blank');
+//            $search_params = $search_key_service->decodeSearchKey($search_key);
 
 
             // Need both lists of datarecords that the search can return...
@@ -1745,9 +1754,12 @@ class MassEditController extends ODRCustomController
             if ( !isset($list[$odr_tab_id]['encoded_search_key']) )
                 throw new ODRBadRequestException('Malformed MassEdit session variable');
 
+            // The search key needs to not be blank, but doesn't need to be merged with a default
+            //   search key...the value in the user's session has already been merged
             $search_key = $list[$odr_tab_id]['encoded_search_key'];
             if ($search_key === '')
                 throw new ODRBadRequestException('Search key is blank');
+//            $search_params = $search_key_service->decodeSearchKey($search_key);
 
 
             // Need both lists of datarecords that the search can return...
