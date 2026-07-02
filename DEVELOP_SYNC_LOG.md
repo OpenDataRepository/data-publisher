@@ -61,16 +61,16 @@ Living state for the SF7 ⇄ `develop` synchronization (see `SYNCHRONIZATION_PLA
 | 44 | 5137749e | 2026-05-28 | the 'logical contradiction' is technically a combination of unexpected set subtraction and | | Pending | | |
 | 45 | 105c2e44 | 2026-06-01 | ...each new instance where set subtraction does something that's correct yet unexpected ma | | Pending | | |
 | 46 | 9da3f32c | 2026-06-01 | fix for #315 | bugfix | Ported | Phase D12j | the #315 search_sidebar.html.twig fix (empty-dropdown-value handling) is in f418ad30, folded into the net-final-state template port; verified present |
-| 47 | 244cb7ab | 2026-06-01 | wordpress css tweak for #311 | | Pending | | |
+| 47 | 244cb7ab | 2026-06-01 | wordpress css tweak for #311 | feature | Ported | Phase D12n | odr_wordpress.1.8.0.css: min-height 650px -> 650px !important (#311 file-editor textarea) |
 | 48 | 7cce2cb4 | 2026-06-02 | finally to the point where nothing appears broken...but still feel like a fair bit is miss | | Pending | | |
 | 49 | d557dc48 | 2026-06-02 | cleaned up previous commits somewhat... | | Pending | | |
 | 50 | d81bdecc | 2026-06-08 | re-enabled the non-set merging, because set merging breaks MassEdit/CSVExport... | | Pending | | |
 | 51 | 7c161e97 | 2026-06-09 | Fix to detection of sidebar and wordpress integration status for "modify search" display. | feature | Ported | Phase D6 | the Display/Edit "Modify Search" button (search_header) gated on `config_odr_wordpress_integrated and theme is defined and theme.themeMeta.disableSearchSidebar`; DisplayController/EditController resolve $theme BEFORE the header render + pass it; display_header/edit_header forward theme to search_header. Cluster final state |
 | 52 | a0ffd923 | 2026-06-09 | Apparently need to completely restrict unathenticated users from zip archive creation/down | security | Ported | Phase B | `$user_id===0` guard in 4 DisplayController + 1 ReportsController zip methods; disabled `listsearchresultfiles` + 2 routes; hid download-all UI in 4 templates |
 | 53 | bdeaba90 | 2026-06-10 | Some cleanup, forgot about shennanigans in CSVExportHelperService... | | Pending | | |
-| 54 | 8021e7f5 | 2026-06-11 | Added monospace class to implementation of issue #311 | | Pending | | |
+| 54 | 8021e7f5 | 2026-06-11 | Added monospace class to implementation of issue #311 | feature | Ported | Phase D12n | file_direct_edit_dialog_form.html.twig: textarea gains class="ODRMonospace" (#311) |
 | 55 | 8fe9ba6d | 2026-06-11 | got CSVExport working again, did (semi)final cleanup | | Pending | | |
-| 56 | cbc36f2a | 2026-06-12 | Fixed #314 on non-wordpress side by copying relevant CSS from wordpress side | | Pending | | |
+| 56 | cbc36f2a | 2026-06-12 | Fixed #314 on non-wordpress side by copying relevant CSS from wordpress side | feature | Ported | Phase D12n | css_smart/style.1.8.0.css: #ThemeDesignWrapper width/overflow + #ThemeLeftColumn position:sticky + first-of-type padding (#314 theme-designer layout) |
 | 57 | 12d96962 | 2026-06-12 | The SearchLink page should not be directly accessible from a record's Display page | feature | Ported | Phase D12l | threaded a $context param (display/edit) through getlinkeddatarecordsAction + the route (/{context}, requirement '|display|edit') + GetLinkedDatarecords JS (common_js) + display_ajax('display')/edit_ajax('edit') + datarecord_link_info.html.twig (link/unlink UI gated on context=='edit') |
 | 58 | 3f498fdd | 2026-06-12 | Forgot to change an array key in the ChemicalElementsSearch plugin as part of search syste | | Pending | | |
 | 59 | a094325b | 2026-06-12 | Fixed the select/deselect buttons on the SearchLink page not displaying when coming from t | feature | Ported | Phase D12l | LinkController computes $show_mass_selection_buttons (true unless !allow_multiple_links && local_datarecord_is_ancestor) + passes to render; link_datarecord_form.html.twig gates the Select/Deselect All buttons on it (2 spots) + the select-all JS skips :disabled checkboxes |

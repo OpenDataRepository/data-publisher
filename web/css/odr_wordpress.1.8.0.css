@@ -3740,7 +3740,7 @@ View codepen on my website: https://www.domsammut.com/projects/pure-css-loading-
 #FileDirectEditForm_textarea {
     width: 95%;
     color: revert;
-    min-height: 650px;
+    min-height: 650px !important;
 }
 
 @keyframes rotate-loading {
