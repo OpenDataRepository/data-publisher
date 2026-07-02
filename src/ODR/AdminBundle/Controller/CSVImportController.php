@@ -3034,7 +3034,7 @@ class CSVImportController extends ODRCustomController
                     // Notify that a datafield was just created...
                     try {
                         $event = new DatafieldCreatedEvent($new_datafield, $user);
-                        $dispatcher->dispatch(DatafieldCreatedEvent::NAME, $event);
+                        $dispatcher->dispatch($event, DatafieldCreatedEvent::NAME);
                     }
                     catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -3147,7 +3147,7 @@ print_r($new_mapping);
                 //  tags were added
                 try {
                     $event = new DatatypeModifiedEvent($datatype, $user);
-                    $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
                 }
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -3625,7 +3625,7 @@ exit();
                 //  creation of the new datarecord...
                 try {
                     $event = new DatarecordCreatedEvent($datarecord, $user, null);
-                    $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatarecordCreatedEvent::NAME);
                 }
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -4317,7 +4317,7 @@ exit();
 
                     try {
                         $event = new DatatypeModifiedEvent($datatype, $user);
-                        $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                        $dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
                     }
                     catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -4331,7 +4331,7 @@ exit();
                 //  relevant to this datatype
                 try {
                     $event = new DatatypeImportedEvent($datatype, $user);
-                    $dispatcher->dispatch(DatatypeImportedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatatypeImportedEvent::NAME);
                 }
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -4353,7 +4353,7 @@ exit();
             // Mark this datarecord as updated...
             try {
                 $event = new DatarecordModifiedEvent($datarecord, $user);
-                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -4635,7 +4635,7 @@ exit();
                 // Force a rebuild of the cached entry for the ancestor datarecord
                 try {
                     $event = new DatarecordModifiedEvent($local_datarecord, $user);
-                    $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
                     $logger->debug('DatarecordModifiedEvent dispatched');
                 }
                 catch (\Exception $e) {
@@ -4648,7 +4648,7 @@ exit();
                 // Also rebuild the cached list of which datarecords this ancestor datarecord now links to
                 try {
                     $event = new DatarecordLinkStatusChangedEvent( [$local_datarecord->getId()], $remote_datarecord->getDataType(), $user);
-                    $dispatcher->dispatch(DatarecordLinkStatusChangedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatarecordLinkStatusChangedEvent::NAME);
                     $logger->debug('DatarecordLinkStatusChangedEvent dispatched');
                 }
                 catch (\Exception) {

@@ -2353,7 +2353,7 @@ class EntityMetaModifyService
                 //  event subscribers will prevent file encryption otherwise...
                 try {
                     $event = new PostUpdateEvent($entity, $user);
-                    $this->event_dispatcher->dispatch(PostUpdateEvent::NAME, $event);
+                    $this->event_dispatcher->dispatch($event, PostUpdateEvent::NAME);
 
                     // TODO - callers of this function can't access $event, so they can't get a reference to any derived storage entity...
                 }
@@ -2437,7 +2437,7 @@ class EntityMetaModifyService
             //  event subscribers will prevent file encryption otherwise...
             try {
                 $event = new PostUpdateEvent($new_entity, $user);
-                $this->event_dispatcher->dispatch(PostUpdateEvent::NAME, $event);
+                $this->event_dispatcher->dispatch($event, PostUpdateEvent::NAME);
 
                 // TODO - callers of this function can't access $event, so they can't get a reference to any derived storage entity...
             }

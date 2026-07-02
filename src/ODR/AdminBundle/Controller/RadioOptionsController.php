@@ -341,11 +341,11 @@ class RadioOptionsController extends ODRCustomController
             try {
                 if ( $is_derived_field ) {
                     $event = new DatafieldModifiedEvent($datafield->getMasterDataField(), $user);
-                    $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
                 }
 
                 $event = new DatafieldModifiedEvent($datafield, $user);
-                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -358,11 +358,11 @@ class RadioOptionsController extends ODRCustomController
             try {
                 if ( $is_derived_field ) {
                     $event = new DatatypeModifiedEvent($datatype->getMasterDataType(), $user);
-                    $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
                 }
 
                 $event = new DatatypeModifiedEvent($datatype, $user);
-                $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -576,11 +576,11 @@ class RadioOptionsController extends ODRCustomController
             try {
                 if ( $is_derived_field ) {
                     $event = new DatafieldModifiedEvent($datafield->getMasterDataField(), $user);
-                    $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
                 }
 
                 $event = new DatafieldModifiedEvent($datafield, $user);
-                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -593,11 +593,11 @@ class RadioOptionsController extends ODRCustomController
             try {
                 if ( $is_derived_field ) {
                     $event = new DatatypeModifiedEvent($datatype->getMasterDataType(), $user, true);    // need to clear the cached datarecord entries since deletion could have unselected a radio option
-                    $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
                 }
 
                 $event = new DatatypeModifiedEvent($datatype, $user, true);    // need to clear the cached datarecord entries since deletion could have unselected a radio option
-                $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
 
                 // TODO - modify the modal so that it blocks further changes until the event finishes?
                 // TODO - ...or modify the event to clear a subset of records?  neither is appealing...
@@ -791,11 +791,11 @@ class RadioOptionsController extends ODRCustomController
             try {
                 if ( $is_derived_field ) {
                     $event = new DatafieldModifiedEvent($datafield->getMasterDataField(), $user);
-                    $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
                 }
 
                 $event = new DatafieldModifiedEvent($datafield, $user);
-                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -808,11 +808,11 @@ class RadioOptionsController extends ODRCustomController
             try {
                 if ( $is_derived_field ) {
                     $event = new DatatypeModifiedEvent($datatype->getMasterDataType(), $user, true);    // need to wipe cached datarecord entries since they have radio option names
-                    $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
                 }
 
                 $event = new DatatypeModifiedEvent($datatype, $user, true);    // need to wipe cached datarecord entries since they have radio option names
-                $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
 
                 // TODO - modify the modal so that it blocks further changes until the event finishes?
                 // TODO - ...or modify the event to clear a subset of records?  neither is appealing...
@@ -972,11 +972,11 @@ class RadioOptionsController extends ODRCustomController
             try {
                 if ( $is_derived_field ) {
                     $event = new DatatypeModifiedEvent($datatype->getMasterDataType(), $user);
-                    $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
                 }
 
                 $event = new DatatypeModifiedEvent($datatype, $user);
-                $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1197,7 +1197,7 @@ class RadioOptionsController extends ODRCustomController
                 // Not updating the master datafield also means not having to fire events for it
 
                 $event = new DatatypeModifiedEvent($datatype, $user);
-                $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1415,11 +1415,11 @@ class RadioOptionsController extends ODRCustomController
             try {
                 if ( $is_derived_field ) {
                     $event = new DatafieldModifiedEvent($datafield->getMasterDataField(), $user);
-                    $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
                 }
 
                 $event = new DatafieldModifiedEvent($datafield, $user);
-                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1432,11 +1432,11 @@ class RadioOptionsController extends ODRCustomController
             try {
                 if ( $is_derived_field ) {
                     $event = new DatatypeModifiedEvent($datatype->getMasterDataType(), $user);
-                    $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
                 }
 
                 $event = new DatatypeModifiedEvent($datatype, $user);
-                $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1618,7 +1618,7 @@ class RadioOptionsController extends ODRCustomController
             // Fire off an event notifying that the modification of the datafield is done
             try {
                 $event = new DatafieldModifiedEvent($datafield, $user);
-                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1630,7 +1630,7 @@ class RadioOptionsController extends ODRCustomController
             // Mark this datarecord as updated
             try {
                 $event = new DatarecordModifiedEvent($datarecord, $user);
-                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this

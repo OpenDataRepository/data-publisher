@@ -504,7 +504,7 @@ class FakeEditController extends ODRCustomController
             //  creation of the new datarecord...
             try {
                 $event = new DatarecordCreatedEvent($new_datarecord, $user, $linked_ancestor_datarecord);
-                $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatarecordCreatedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -583,7 +583,7 @@ class FakeEditController extends ODRCustomController
 
                     try {
                         $event = new DatafieldModifiedEvent($df, $user);
-                        $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                        $dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
                     }
                     catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -598,7 +598,7 @@ class FakeEditController extends ODRCustomController
             //  should fire off a modified event
             try {
                 $event = new DatarecordModifiedEvent($new_datarecord, $user);
-                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this

@@ -193,7 +193,7 @@ class RRUFFFileHeaderInserterController extends ODRCustomController
                 foreach ($updated_datafield_list as $df_id => $df) {
                     try {
                         $event = new DatafieldModifiedEvent($df, $user);
-                        $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                        $dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
                     }
                     catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -207,7 +207,7 @@ class RRUFFFileHeaderInserterController extends ODRCustomController
                 foreach ($updated_datarecord_list as $dr_id => $dr) {
                     try {
                         $event = new DatarecordModifiedEvent($datarecord, $user);
-                        $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                        $dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
                     }
                     catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -369,7 +369,7 @@ class RRUFFFileHeaderInserterController extends ODRCustomController
                 // Fire off an event notifying that the modification of the datafield is done
                 try {
                     $event = new DatafieldModifiedEvent($datafield, $user);
-                    $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
                 }
                 catch (\Exception $e) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -381,7 +381,7 @@ class RRUFFFileHeaderInserterController extends ODRCustomController
                 // Since a file got renamed, need to mark the record as updated
                 try {
                     $event = new DatarecordModifiedEvent($datarecord, $user);
-                    $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
                 }
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this

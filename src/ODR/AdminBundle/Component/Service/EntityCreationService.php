@@ -2387,7 +2387,7 @@ class EntityCreationService
                 if ($fire_event) {
                     try {
                         $event = new PostUpdateEvent($storage_entity, $user);
-                        $this->event_dispatcher->dispatch(PostUpdateEvent::NAME, $event);
+                        $this->event_dispatcher->dispatch($event, PostUpdateEvent::NAME);
 
                         // TODO - callers of this function can't access $event, so they can't get a reference to any derived storage entity...
                     }

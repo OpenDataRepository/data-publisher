@@ -540,7 +540,7 @@ class WorkerController extends ODRCustomController
                         /** @var EventDispatcherInterface $event_dispatcher */
                         $dispatcher = $this->container->get('event_dispatcher');
                         $event = new DatafieldModifiedEvent($datafield, $user);
-                        $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                        $dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
                     }
                     catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1406,7 +1406,7 @@ $ret .= '  Set current to '.$count."\n";
             if ( !empty($datarecord_lookup) ) {
                 try {
                     $event = new DatafieldModifiedEvent($datafield, $user);
-                    $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
                 }
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1418,7 +1418,7 @@ $ret .= '  Set current to '.$count."\n";
                 foreach ($datarecord_lookup as $dr_id => $dr) {
                     try {
                         $event = new DatarecordModifiedEvent($dr, $user);
-                        $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                        $dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
                     }
                     catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this

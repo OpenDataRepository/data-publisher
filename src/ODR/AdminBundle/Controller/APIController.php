@@ -1451,7 +1451,7 @@ class APIController extends ODRCustomController
                 /** @var EventDispatcherInterface $event_dispatcher */
                 $dispatcher = $this->container->get('event_dispatcher');
                 $event = new DatarecordCreatedEvent($dataset_record, $user, null);
-                $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatarecordCreatedEvent::NAME);
             } catch (\Exception $e) {
                 // ...don't particularly want to rethrow the error since it'll interrupt
                 //  everything downstream of the event (such as file encryption...), but
@@ -1723,7 +1723,7 @@ class APIController extends ODRCustomController
 //                    /** @var EventDispatcherInterface $event_dispatcher */
 //                    $dispatcher = $this->container->get('event_dispatcher');
 //                    $event = new DatatypeCreatedEvent($datatype, $user);
-//                    $dispatcher->dispatch(DatatypeCreatedEvent::NAME, $event);
+//                    $dispatcher->dispatch($event, DatatypeCreatedEvent::NAME);
 //                }
 //                catch (\Exception $e) {
 //                    // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1766,7 +1766,7 @@ class APIController extends ODRCustomController
                     /** @var EventDispatcherInterface $event_dispatcher */
                     $dispatcher = $this->container->get('event_dispatcher');
                     $event = new DatarecordCreatedEvent($metadata_record, $user, null);
-                    $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatarecordCreatedEvent::NAME);
                 } catch (\Exception) {
                     // ...don't particularly want to rethrow the error since it'll interrupt
                     //  everything downstream of the event (such as file encryption...), but
@@ -1805,7 +1805,7 @@ class APIController extends ODRCustomController
                         /** @var EventDispatcherInterface $event_dispatcher */
                         $dispatcher = $this->container->get('event_dispatcher');
                         $event = new DatarecordCreatedEvent($actual_data_record, $user, null);
-                        $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
+                        $dispatcher->dispatch($event, DatarecordCreatedEvent::NAME);
                     } catch (\Exception) {
                         // ...don't particularly want to rethrow the error since it'll interrupt
                         //  everything downstream of the event (such as file encryption...), but
@@ -3530,7 +3530,7 @@ class APIController extends ODRCustomController
                             //  creation of the new datarecord...
                             try {
                                 $event = new DatarecordCreatedEvent($new_child_record, $user, null);
-                                $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
+                                $dispatcher->dispatch($event, DatarecordCreatedEvent::NAME);
                             } catch (\Exception) {
                                 // ...don't want to rethrow the error since it'll interrupt everything after this
                                 //  event.  In this case, a datarecord gets created, but the rest of the values
@@ -3588,7 +3588,7 @@ class APIController extends ODRCustomController
                 // TODO - does this need to distinguish between a DatarecordPublicStatusChanged event and a DatarecordModified event?
                 try {
                     $event = new DatarecordModifiedEvent($data_record, $user);
-                    $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
                 }
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -3602,7 +3602,7 @@ class APIController extends ODRCustomController
                 // Mark the new child datatype's parent as updated
                 try {
                     $event = new DatatypeModifiedEvent($data_record->getDataType(), $user);
-                    $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
                 }
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -3627,7 +3627,7 @@ class APIController extends ODRCustomController
                 foreach ($events as $dt_id => $data) {
                     try {
                         $event = new DatarecordLinkStatusChangedEvent($data['records'], $data['descendant_datatype'], $user);
-                        $dispatcher->dispatch(DatarecordLinkStatusChangedEvent::NAME, $event);
+                        $dispatcher->dispatch($event, DatarecordLinkStatusChangedEvent::NAME);
                     }
                     catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -4746,7 +4746,7 @@ class APIController extends ODRCustomController
             // Need to fire off this event so derived fields can get their value
             try {
                 $event = new PostUpdateEvent($new_storage_entity, $user);
-                $dispatcher->dispatch(PostUpdateEvent::NAME, $event);
+                $dispatcher->dispatch($event, PostUpdateEvent::NAME);
             }
             catch (\Exception) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -4939,7 +4939,7 @@ class APIController extends ODRCustomController
             // Fire off any events
             try {
                 $event = new DatatypeImportedEvent($datarecord->getDataType(), $user);
-                $dispatcher->dispatch(DatatypeImportedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatatypeImportedEvent::NAME);
             } catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
@@ -5582,7 +5582,7 @@ class APIController extends ODRCustomController
             // Need to fire off a DatarecordModified event because a file got deleted
             try {
                 $event = new DatarecordModifiedEvent($data_record, $user);
-                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
             } catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
@@ -5594,7 +5594,7 @@ class APIController extends ODRCustomController
             if ($deleting_file) {
                 try {
                     $event = new FileDeletedEvent($file->getId(), $datafield, $data_record, $user);
-                    $dispatcher->dispatch(FileDeletedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, FileDeletedEvent::NAME);
                 } catch (\Exception) {
                     // ...don't particularly want to rethrow the error since it'll interrupt
                     //  everything downstream of the event (such as file encryption...), but
@@ -5731,7 +5731,7 @@ class APIController extends ODRCustomController
                 /** @var EventDispatcherInterface $event_dispatcher */
                 $dispatcher = $this->container->get('event_dispatcher');
                 $event = new DatarecordPublicStatusChangedEvent($data_record, $user);
-                $dispatcher->dispatch(DatarecordPublicStatusChangedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatarecordPublicStatusChangedEvent::NAME);
             } catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
@@ -5955,7 +5955,7 @@ class APIController extends ODRCustomController
                 /** @var EventDispatcherInterface $event_dispatcher */
                 $dispatcher = $this->container->get('event_dispatcher');
                 $event = new DatarecordPublicStatusChangedEvent($data_record, $user);
-                $dispatcher->dispatch(DatarecordPublicStatusChangedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatarecordPublicStatusChangedEvent::NAME);
             } catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
@@ -5970,7 +5970,7 @@ class APIController extends ODRCustomController
                 /** @var EventDispatcherInterface $event_dispatcher */
                 $dispatcher = $this->container->get('event_dispatcher');
                 $event = new DatatypePublicStatusChangedEvent($data_type, $user);
-                $dispatcher->dispatch(DatatypePublicStatusChangedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatatypePublicStatusChangedEvent::NAME);
             } catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
                 //  event
@@ -5986,7 +5986,7 @@ class APIController extends ODRCustomController
                     /** @var EventDispatcherInterface $event_dispatcher */
                     $dispatcher = $this->container->get('event_dispatcher');
                     $event = new DatarecordPublicStatusChangedEvent($actual_data_record, $user);
-                    $dispatcher->dispatch(DatarecordPublicStatusChangedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatarecordPublicStatusChangedEvent::NAME);
                 } catch (\Exception $e) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event
@@ -6000,7 +6000,7 @@ class APIController extends ODRCustomController
                     /** @var EventDispatcherInterface $event_dispatcher */
                     $dispatcher = $this->container->get('event_dispatcher');
                     $event = new DatatypePublicStatusChangedEvent($actual_data_type, $user);
-                    $dispatcher->dispatch(DatatypePublicStatusChangedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatatypePublicStatusChangedEvent::NAME);
                 } catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
                     //  event

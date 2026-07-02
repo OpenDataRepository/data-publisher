@@ -98,7 +98,7 @@ class ODRUploadService
         //  event subscribers will prevent file encryption otherwise...
         try {
             $event = new FilePreEncryptEvent($file, $drf->getDataField());
-            $this->event_dispatcher->dispatch(FilePreEncryptEvent::NAME, $event);
+            $this->event_dispatcher->dispatch($event, FilePreEncryptEvent::NAME);
         }
         catch (\Exception) {
             // ...don't particularly want to rethrow the error since it'll interrupt
@@ -205,7 +205,7 @@ class ODRUploadService
         //  event subscribers will prevent file encryption otherwise...
         try {
             $event = new FilePreEncryptEvent($image, $drf->getDataField());
-            $this->event_dispatcher->dispatch(FilePreEncryptEvent::NAME, $event);
+            $this->event_dispatcher->dispatch($event, FilePreEncryptEvent::NAME);
         }
         catch (\Exception $e) {
             // ...don't particularly want to rethrow the error since it'll interrupt
@@ -256,7 +256,7 @@ class ODRUploadService
 
         try {
             $event = new DatafieldModifiedEvent($datafield, $user);
-            $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+            $this->event_dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
         }
         catch (\Exception $e) {
             // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -267,7 +267,7 @@ class ODRUploadService
 
         try {
             $event = new DatarecordModifiedEvent($datarecord, $user, false);    // Do NOT mark the record as updated in the database
-            $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+            $this->event_dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
         }
         catch (\Exception $e) {
             // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -279,7 +279,7 @@ class ODRUploadService
         // Need this event to be after DatarecordModified, to ensure that cache entries aren't stale...
         try {
             $event = new FilePostEncryptEvent($image, $datafield);
-            $this->event_dispatcher->dispatch(FilePostEncryptEvent::NAME, $event);
+            $this->event_dispatcher->dispatch($event, FilePostEncryptEvent::NAME);
         }
         catch (\Exception) {
             // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -425,7 +425,7 @@ class ODRUploadService
 
         try {
             $event = new FilePostEncryptEvent($existing_image, $datafield);
-            $this->event_dispatcher->dispatch(FilePostEncryptEvent::NAME, $event);
+            $this->event_dispatcher->dispatch($event, FilePostEncryptEvent::NAME);
         }
         catch (\Exception $e) {
             // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -436,7 +436,7 @@ class ODRUploadService
 
         try {
             $event = new DatafieldModifiedEvent($datafield, $user);
-            $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+            $this->event_dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
         }
         catch (\Exception $e) {
             // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -447,7 +447,7 @@ class ODRUploadService
 
         try {
             $event = new DatarecordModifiedEvent($datarecord, $user);    // Do want to update the database here, unlike the image upload action
-            $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+            $this->event_dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
         }
         catch (\Exception) {
             // ...don't want to rethrow the error since it'll interrupt everything after this

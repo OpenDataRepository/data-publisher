@@ -1060,7 +1060,7 @@ class CloneTemplateService
             //  relevant to this datatype
             try {
                 $event = new DatatypeImportedEvent($dt, $user);
-                $this->event_dispatcher->dispatch(DatatypeImportedEvent::NAME, $event);
+                $this->event_dispatcher->dispatch($event, DatatypeImportedEvent::NAME);
             }
             catch (\Exception) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this

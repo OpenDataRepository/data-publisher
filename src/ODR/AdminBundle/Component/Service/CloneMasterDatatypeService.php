@@ -531,7 +531,7 @@ class CloneMasterDatatypeService
                 foreach ($this->created_datatypes as $dt) {
                     if ( $dt->getId() === $dt->getGrandparent()->getId() ) {
                         $event = new DatatypeCreatedEvent($datatype, $this->user);
-                        $this->event_dispatcher->dispatch(DatatypeCreatedEvent::NAME, $event);
+                        $this->event_dispatcher->dispatch($event, DatatypeCreatedEvent::NAME);
                     }
                 }
             }

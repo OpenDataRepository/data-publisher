@@ -271,7 +271,7 @@ class RRUFFCellparamsController extends ODRCustomController
             // Need to mark this datarecord as updated
             try {
                 $event = new DatarecordModifiedEvent($datarecord, $user);
-                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -293,7 +293,7 @@ class RRUFFCellparamsController extends ODRCustomController
                 // Fire off an event notifying that the modification of the datafield is done
                 try {
                     $event = new DatafieldModifiedEvent($df, $user);
-                    $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
                 }
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this

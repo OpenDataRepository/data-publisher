@@ -180,7 +180,7 @@ class TriggerController extends ODRCustomController
             //  a datatype imported event
             try {
                 $event = new DatatypeImportedEvent($datatype, $user, true);
-                $dispatcher->dispatch(DatatypeImportedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatatypeImportedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -251,7 +251,7 @@ class TriggerController extends ODRCustomController
             //  fire off a datafield modified event
             try {
                 $event = new DatafieldModifiedEvent($datafield, $user);
-                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this

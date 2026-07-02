@@ -305,7 +305,7 @@ class DatatypeController extends ODRCustomController
                         /** @var EventDispatcherInterface $event_dispatcher */
                         $dispatcher = $this->container->get('event_dispatcher');
                         $event = new DatarecordCreatedEvent($datarecord, $user, null);
-                        $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
+                        $dispatcher->dispatch($event, DatarecordCreatedEvent::NAME);
                     }
                     catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after
@@ -1316,7 +1316,7 @@ class DatatypeController extends ODRCustomController
 //                /** @var EventDispatcherInterface $event_dispatcher */
 //                $dispatcher = $this->container->get('event_dispatcher');
 //                $event = new DatatypeCreatedEvent($datatype, $admin);
-//                $dispatcher->dispatch(DatatypeCreatedEvent::NAME, $event);
+//                $dispatcher->dispatch($event, DatatypeCreatedEvent::NAME);
 //            }
 //            catch (\Exception $e) {
 //                // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1673,7 +1673,7 @@ class DatatypeController extends ODRCustomController
                                 /** @var EventDispatcherInterface $event_dispatcher */
                                 $dispatcher = $this->container->get('event_dispatcher');
                                 $event = new DatatypeCreatedEvent($datatype, $admin);
-                                $dispatcher->dispatch(DatatypeCreatedEvent::NAME, $event);
+                                $dispatcher->dispatch($event, DatatypeCreatedEvent::NAME);
                             }
                             catch (\Exception) {
                                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1829,7 +1829,7 @@ class DatatypeController extends ODRCustomController
                 /** @var EventDispatcherInterface $event_dispatcher */
                 $dispatcher = $this->container->get('event_dispatcher');
                 $event = new DatatypeCreatedEvent($new_metadata_datatype, $admin);
-                $dispatcher->dispatch(DatatypeCreatedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatatypeCreatedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1845,7 +1845,7 @@ class DatatypeController extends ODRCustomController
                 /** @var EventDispatcherInterface $event_dispatcher */
                 $dispatcher = $this->container->get('event_dispatcher');
                 $event = new DatatypeModifiedEvent($datatype, $admin);
-                $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this

@@ -346,7 +346,7 @@ class EntityDeletionService
 
                 try {
                     $event = new DatatypeModifiedEvent($dt, $user, true);    // Also need to rebuild datarecord cache entries because they store sort/name field values
-                    $this->event_dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                    $this->event_dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
                 }
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -454,7 +454,7 @@ class EntityDeletionService
             // Inform that this datafield was deleted
             try {
                 $event = new DatafieldDeletedEvent($datafield_id, $datafield_uuid, $datatype, $user);
-                $this->event_dispatcher->dispatch(DatafieldDeletedEvent::NAME, $event);
+                $this->event_dispatcher->dispatch($event, DatafieldDeletedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -466,7 +466,7 @@ class EntityDeletionService
             // Mark this datatype as updated
             try {
                 $event = new DatatypeModifiedEvent($datatype, $user, true);    // Also need to rebuild datarecord cache entries in case they reference the datafield
-                $this->event_dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                $this->event_dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -692,7 +692,7 @@ class EntityDeletionService
             // Fire off an event notifying that this datarecord got deleted
             try {
                 $event = new DatarecordDeletedEvent($datarecord_id, $datarecord_uuid, $datatype, $user);
-                $this->event_dispatcher->dispatch(DatarecordDeletedEvent::NAME, $event);
+                $this->event_dispatcher->dispatch($event, DatarecordDeletedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -706,7 +706,7 @@ class EntityDeletionService
                 // ...then ensure no other datarecords think they're still linked to it
                 try {
                     $event = new DatarecordLinkStatusChangedEvent($ancestor_datarecord_ids, $datatype, $user, true);
-                    $this->event_dispatcher->dispatch(DatarecordLinkStatusChangedEvent::NAME, $event);
+                    $this->event_dispatcher->dispatch($event, DatarecordLinkStatusChangedEvent::NAME);
                 }
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -721,7 +721,7 @@ class EntityDeletionService
                 if ( $fire_datarecord_modified_event ) {
                     try {
                         $event = new DatarecordModifiedEvent($parent_datarecord, $user);
-                        $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                        $this->event_dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
                     }
                     catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1350,7 +1350,7 @@ class EntityDeletionService
             // Notify which datatype got deleted
             try {
                 $event = new DatatypeDeletedEvent($datatype_id, $datatype_uuid, $user, $deleting_top_level_datatype);
-                $this->event_dispatcher->dispatch(DatatypeDeletedEvent::NAME, $event);
+                $this->event_dispatcher->dispatch($event, DatatypeDeletedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...unlike most other events, kind of want to throw errors here if they occur
@@ -1393,7 +1393,7 @@ class EntityDeletionService
             foreach ($datatypes_needing_events as $dt_id => $dt) {
                 try {
                     $event = new DatatypeModifiedEvent($dt, $user, true);    // ...and they all need to rebuild cache entries
-                    $this->event_dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                    $this->event_dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
                 }
                 catch (\Exception $e) {
                     // ...unlike most other events, kind of want to throw errors here if they occur
@@ -1484,7 +1484,7 @@ class EntityDeletionService
             // Notify that a file got deleted...
             try {
                 $event = new FileDeletedEvent($file_id, $datafield, $datarecord, $user);
-                $this->event_dispatcher->dispatch(FileDeletedEvent::NAME, $event);
+                $this->event_dispatcher->dispatch($event, FileDeletedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't particularly want to rethrow the error since it'll interrupt
@@ -1497,7 +1497,7 @@ class EntityDeletionService
             // ...and that something happened to the datafield...
             try {
                 $event = new DatafieldModifiedEvent($datafield, $user);
-                $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                $this->event_dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1509,7 +1509,7 @@ class EntityDeletionService
             // ...and finally that something happened to the datarecord
             try {
                 $event = new DatarecordModifiedEvent($datarecord, $user);
-                $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                $this->event_dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1594,7 +1594,7 @@ class EntityDeletionService
             // Notify that something happened to the datafield...
             try {
                 $event = new DatafieldModifiedEvent($datafield, $user);
-                $this->event_dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                $this->event_dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1606,7 +1606,7 @@ class EntityDeletionService
             // ...and to the datarecord
             try {
                 $event = new DatarecordModifiedEvent($datarecord, $user);
-                $this->event_dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                $this->event_dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this

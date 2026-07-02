@@ -909,7 +909,7 @@ class AMCSDUpdateService
                 //  correct Reference ID
                 try {
                     $event = new DatarecordCreatedEvent($new_dr, $user, null);
-                    $this->event_dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
+                    $this->event_dispatcher->dispatch($event, DatarecordCreatedEvent::NAME);
                 }
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this

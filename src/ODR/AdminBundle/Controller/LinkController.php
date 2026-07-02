@@ -1235,7 +1235,7 @@ class LinkController extends ODRCustomController
                 //  in $datarecord_ids
                 try {
                     $event = new DatarecordLinkStatusChangedEvent($datarecords_to_update, $previous_remote_datatype, $user, true);
-                    $dispatcher->dispatch(DatarecordLinkStatusChangedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatarecordLinkStatusChangedEvent::NAME);
                 }
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1413,7 +1413,7 @@ class LinkController extends ODRCustomController
 
                 try {
                     $event = new DatatypeModifiedEvent($local_datatype, $user, $clear_datarecord_caches);
-                    $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
                 }
                 catch (\Exception $e) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1424,7 +1424,7 @@ class LinkController extends ODRCustomController
 
                 try {
                     $event = new DatatypeLinkStatusChangedEvent($local_datatype->getGrandparent(), $new_remote_datatype, $previous_remote_datatype, $user);
-                    $dispatcher->dispatch(DatatypeLinkStatusChangedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatatypeLinkStatusChangedEvent::NAME);
                 }
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -2949,7 +2949,7 @@ class LinkController extends ODRCustomController
             try {
                 foreach ($records_needing_events as $dr_id => $dr) {
                     $event = new DatarecordModifiedEvent($dr, $user);
-                    $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
                 }
             }
             catch (\Exception $e) {
@@ -2965,7 +2965,7 @@ class LinkController extends ODRCustomController
 
             try {
                 $event = new DatarecordLinkStatusChangedEvent($records_to_clear, $descendant_datatype, $user);
-                $dispatcher->dispatch(DatarecordLinkStatusChangedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatarecordLinkStatusChangedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -3223,7 +3223,7 @@ class LinkController extends ODRCustomController
             try {
                 foreach ($records_needing_events as $dr_id => $dr) {
                     $event = new DatarecordModifiedEvent($dr, $user);
-                    $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
                 }
             }
             catch (\Exception $e) {
@@ -3237,7 +3237,7 @@ class LinkController extends ODRCustomController
             $records_to_clear = array_keys($records_needing_events);
             try {
                 $event = new DatarecordLinkStatusChangedEvent($records_to_clear, $descendant_datatype, $user);
-                $dispatcher->dispatch(DatarecordLinkStatusChangedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatarecordLinkStatusChangedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -3909,7 +3909,7 @@ class LinkController extends ODRCustomController
             try {
                 foreach ($datarecord_modified_events as $dr_id => $dr) {
                     $event = new DatarecordModifiedEvent($dr, $user);
-                    $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
                 }
             }
             catch (\Exception $e) {
@@ -3926,7 +3926,7 @@ class LinkController extends ODRCustomController
                     $descendant_dt = $data['dt'];
 
                     $event = new DatarecordLinkStatusChangedEvent($record_list, $descendant_dt, $user);
-                    $dispatcher->dispatch(DatarecordLinkStatusChangedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatarecordLinkStatusChangedEvent::NAME);
                 }
             }
             catch (\Exception $e) {

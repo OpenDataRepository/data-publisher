@@ -1040,7 +1040,7 @@ class MassEditController extends ODRCustomController
                 //  the database changes and cache clearing that a DatarecordModified event would cause
                 try {
                     $event = new DatarecordPublicStatusChangedEvent($datarecord, $user);
-                    $dispatcher->dispatch(DatarecordPublicStatusChangedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatarecordPublicStatusChangedEvent::NAME);
                 }
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1276,7 +1276,7 @@ class MassEditController extends ODRCustomController
                     foreach ($event_trigger as $rp_id => $rp_classname) {
                         try {
                             $event = new MassEditTriggerEvent($drf, $user, $rp_classname);
-                            $dispatcher->dispatch(MassEditTriggerEvent::NAME, $event);
+                            $dispatcher->dispatch($event, MassEditTriggerEvent::NAME);
                         }
                         catch (\Exception $e) {
                             // ...don't particularly want to rethrow the error since it'll interrupt
@@ -1308,7 +1308,7 @@ class MassEditController extends ODRCustomController
                     foreach ($event_trigger as $rp_id => $rp_classname) {
                         try {
                             $event = new MassEditTriggerEvent($drf, $user, $rp_classname);
-                            $dispatcher->dispatch(MassEditTriggerEvent::NAME, $event);
+                            $dispatcher->dispatch($event, MassEditTriggerEvent::NAME);
                         }
                         catch (\Exception $e) {
                             // ...don't particularly want to rethrow the error since it'll interrupt
@@ -1377,7 +1377,7 @@ class MassEditController extends ODRCustomController
                             // Fire off an event for each file that was modified
                             try {
                                 $event = new FilePublicStatusChangedEvent($file, $datafield, 'mass_edit');
-                                $dispatcher->dispatch(FilePublicStatusChangedEvent::NAME, $event);
+                                $dispatcher->dispatch($event, FilePublicStatusChangedEvent::NAME);
                             }
                             catch (\Exception) {
                                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1397,7 +1397,7 @@ class MassEditController extends ODRCustomController
                             $drf = $entity_create_service->createDatarecordField($user, $datarecord, $datafield);
 
                             $event = new MassEditTriggerEvent($drf, $user, $rp_classname);
-                            $dispatcher->dispatch(MassEditTriggerEvent::NAME, $event);
+                            $dispatcher->dispatch($event, MassEditTriggerEvent::NAME);
                         }
                         catch (\Exception $e) {
                             // ...don't particularly want to rethrow the error since it'll interrupt
@@ -1466,7 +1466,7 @@ class MassEditController extends ODRCustomController
                             // Fire off an event for each image that was modified
                             try {
                                 $event = new FilePublicStatusChangedEvent($image, $datafield, 'mass_edit');
-                                $dispatcher->dispatch(FilePublicStatusChangedEvent::NAME, $event);
+                                $dispatcher->dispatch($event, FilePublicStatusChangedEvent::NAME);
                             }
                             catch (\Exception) {
                                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1486,7 +1486,7 @@ class MassEditController extends ODRCustomController
                             $drf = $entity_create_service->createDatarecordField($user, $datarecord, $datafield);
 
                             $event = new MassEditTriggerEvent($drf, $user, $rp_classname);
-                            $dispatcher->dispatch(MassEditTriggerEvent::NAME, $event);
+                            $dispatcher->dispatch($event, MassEditTriggerEvent::NAME);
                         }
                         catch (\Exception $e) {
                             // ...don't particularly want to rethrow the error since it'll interrupt
@@ -1525,7 +1525,7 @@ class MassEditController extends ODRCustomController
                             $drf = $storage_entity->getDataRecordFields();
 
                             $event = new MassEditTriggerEvent($drf, $user, $rp_classname);
-                            $dispatcher->dispatch(MassEditTriggerEvent::NAME, $event);
+                            $dispatcher->dispatch($event, MassEditTriggerEvent::NAME);
                         }
                         catch (\Exception $e) {
                             // ...don't particularly want to rethrow the error since it'll interrupt
@@ -1548,7 +1548,7 @@ class MassEditController extends ODRCustomController
                             $drf = $entity_create_service->createDatarecordField($user, $datarecord, $datafield);
 
                             $event = new MassEditTriggerEvent($drf, $user, $rp_classname);
-                            $dispatcher->dispatch(MassEditTriggerEvent::NAME, $event);
+                            $dispatcher->dispatch($event, MassEditTriggerEvent::NAME);
                         }
                         catch (\Exception $e) {
                             // ...don't particularly want to rethrow the error since it'll interrupt
@@ -1591,7 +1591,7 @@ class MassEditController extends ODRCustomController
                             $drf = $storage_entity->getDataRecordFields();
 
                             $event = new MassEditTriggerEvent($drf, $user, $rp_classname);
-                            $dispatcher->dispatch(MassEditTriggerEvent::NAME, $event);
+                            $dispatcher->dispatch($event, MassEditTriggerEvent::NAME);
 
                             $ret .= 'dispatching MassEditTriggerEvent for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId()."\n";
                         }
@@ -1611,7 +1611,7 @@ class MassEditController extends ODRCustomController
             // Mark this datarecord as updated
             try {
                 $event = new DatarecordModifiedEvent($datarecord, $user);
-                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1636,7 +1636,7 @@ class MassEditController extends ODRCustomController
                     //  relevant to this datatype
                     try {
                         $event = new DatatypeImportedEvent($datatype, $user);
-                        $dispatcher->dispatch(DatatypeImportedEvent::NAME, $event);
+                        $dispatcher->dispatch($event, DatatypeImportedEvent::NAME);
                     }
                     catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1948,7 +1948,7 @@ class MassEditController extends ODRCustomController
             // Ensure no records think they're still linked to this now-deleted record
             try {
                 $event = new DatarecordLinkStatusChangedEvent($ancestor_datarecord_ids, $datatype, $user, true);
-                $dispatcher->dispatch(DatarecordLinkStatusChangedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatarecordLinkStatusChangedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1961,7 +1961,7 @@ class MassEditController extends ODRCustomController
             //  here, so the event was designed to permit arrays of ids/uuids
             try {
                 $event = new DatarecordDeletedEvent($ancestor_datarecord_ids, $ancestor_datarecord_uuids, $datatype, $user);
-                $dispatcher->dispatch(DatarecordDeletedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatarecordDeletedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1977,7 +1977,7 @@ class MassEditController extends ODRCustomController
             //  event either
             try {
                 $event = new DatatypeImportedEvent($datatype, $user);
-                $dispatcher->dispatch(DatatypeImportedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatatypeImportedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this

@@ -3755,7 +3755,7 @@ class PluginsController extends ODRCustomController
             //  by the event subscribers will prevent further progress...
             try {
                 $event = new PluginPreRemoveEvent($rpi, $user);
-                $dispatcher->dispatch(PluginPreRemoveEvent::NAME, $event);
+                $dispatcher->dispatch($event, PluginPreRemoveEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't particularly want to rethrow the error since it'll interrupt
@@ -3821,7 +3821,7 @@ class PluginsController extends ODRCustomController
             // Now that all the database changes have been made, wipe the relevant cache entries
             try {
                 $event = new DatatypeModifiedEvent($datatype, $user);
-                $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -4190,7 +4190,7 @@ class PluginsController extends ODRCustomController
                 foreach ($new_datafields as $df) {
                     try {
                         $event = new DatafieldCreatedEvent($df, $user);
-                        $dispatcher->dispatch(DatafieldCreatedEvent::NAME, $event);
+                        $dispatcher->dispatch($event, DatafieldCreatedEvent::NAME);
                     }
                     catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -4347,7 +4347,7 @@ class PluginsController extends ODRCustomController
                 //  by the event subscribers will prevent further progress...
                 try {
                     $event = new PluginAttachEvent($selected_render_plugin_instance, $user);
-                    $dispatcher->dispatch(PluginAttachEvent::NAME, $event);
+                    $dispatcher->dispatch($event, PluginAttachEvent::NAME);
                 }
                 catch (\Exception) {
                     // ...don't particularly want to rethrow the error since it'll interrupt
@@ -4371,7 +4371,7 @@ class PluginsController extends ODRCustomController
                 //  by the event subscribers will prevent further progress...
                 try {
                     $event = new PluginOptionsChangedEvent($selected_render_plugin_instance, $user, $changed_fields, $plugin_settings_changed);
-                    $dispatcher->dispatch(PluginOptionsChangedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, PluginOptionsChangedEvent::NAME);
                 }
                 catch (\Exception) {
                     // ...don't particularly want to rethrow the error since it'll interrupt
@@ -4397,7 +4397,7 @@ class PluginsController extends ODRCustomController
                 // Mark the datatype as updated
                 try {
                     $event = new DatatypeModifiedEvent($target_datatype, $user);
-                    $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
                 }
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -5139,7 +5139,7 @@ class PluginsController extends ODRCustomController
 //                //  by the event subscribers will prevent further progress...
 //                try {
 //                    $event = new PluginOptionsChangedEvent($selected_render_plugin_instance, $user, $changed_fields, $plugin_settings_changed);
-//                    $dispatcher->dispatch(PluginOptionsChangedEvent::NAME, $event);
+//                    $dispatcher->dispatch($event, PluginOptionsChangedEvent::NAME);
 //                }
 //                catch (\Exception $e) {
 //                    // ...don't particularly want to rethrow the error since it'll interrupt
@@ -5165,7 +5165,7 @@ class PluginsController extends ODRCustomController
                 // Mark the datatype as updated
                 try {
                     $event = new DatatypeModifiedEvent($target_datatype, $user);
-                    $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
                 }
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this

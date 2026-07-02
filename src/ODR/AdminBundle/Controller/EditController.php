@@ -229,7 +229,7 @@ class EditController extends ODRCustomController
             //  creation of the new datarecord...
             try {
                 $event = new DatarecordCreatedEvent($datarecord, $user, null);
-                $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatarecordCreatedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -354,7 +354,7 @@ class EditController extends ODRCustomController
             //  creation of the new datarecord...
             try {
                 $event = new DatarecordCreatedEvent($datarecord, $user, null);
-                $dispatcher->dispatch(DatarecordCreatedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatarecordCreatedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -374,7 +374,7 @@ class EditController extends ODRCustomController
             // Need to fire off a DatarecordModified event for the parent datarecord
             try {
                 $event = new DatarecordModifiedEvent($parent_datarecord, $user);
-                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -660,7 +660,7 @@ class EditController extends ODRCustomController
             // Fire off an event notifying that the modification of the datafield is done
             try {
                 $event = new DatafieldModifiedEvent($datafield, $user);
-                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -672,7 +672,7 @@ class EditController extends ODRCustomController
             // Need to fire off a DatarecordModified event because a file got renamed
             try {
                 $event = new DatarecordModifiedEvent($datarecord, $user);
-                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -796,7 +796,7 @@ class EditController extends ODRCustomController
             // Fire off an event notifying that the modification of the datafield is done
             try {
                 $event = new DatafieldModifiedEvent($datafield, $user);
-                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -808,7 +808,7 @@ class EditController extends ODRCustomController
             // Need to fire off a DatarecordModified event because a file got renamed
             try {
                 $event = new DatarecordModifiedEvent($datarecord, $user);
-                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -956,7 +956,7 @@ class EditController extends ODRCustomController
                 // Fire off an event notifying of the modification of a datafield
                 try {
                     $event = new DatafieldModifiedEvent($datafield, $user);
-                    $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
                 }
                 catch (\Exception $e) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -968,7 +968,7 @@ class EditController extends ODRCustomController
                 // Need to fire off a DatarecordModified event because the file's array entry needs rebuilt
                 try {
                     $event = new DatarecordModifiedEvent($datarecord, $user);
-                    $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
                 }
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1119,7 +1119,7 @@ class EditController extends ODRCustomController
                 // Fire off an event notifying of the modification of a datafield
                 try {
                     $event = new DatafieldModifiedEvent($datafield, $user);
-                    $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
                 }
                 catch (\Exception $e) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1131,7 +1131,7 @@ class EditController extends ODRCustomController
                 // Need to fire off a DatarecordModified event because the image's array entry needs rebuilt
                 try {
                     $event = new DatarecordModifiedEvent($datarecord, $user);
-                    $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
                 }
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1303,7 +1303,7 @@ class EditController extends ODRCustomController
             // Fire off an event notifying that file was modified
             try {
                 $event = new FilePublicStatusChangedEvent($file, $datafield, 'edit');
-                $dispatcher->dispatch(FilePublicStatusChangedEvent::NAME, $event);
+                $dispatcher->dispatch($event, FilePublicStatusChangedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1315,7 +1315,7 @@ class EditController extends ODRCustomController
             // Fire off an event notifying that the modification of the datafield is done
             try {
                 $event = new DatafieldModifiedEvent($datafield, $user);
-                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1327,7 +1327,7 @@ class EditController extends ODRCustomController
             // Need to fire off a DatarecordModified event because a file's public status was changed
             try {
                 $event = new DatarecordModifiedEvent($datarecord, $user);
-                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1482,7 +1482,7 @@ class EditController extends ODRCustomController
             // Fire off an event notifying that file was modified
             try {
                 $event = new FilePublicStatusChangedEvent($image, $datafield, 'edit');
-                $dispatcher->dispatch(FilePublicStatusChangedEvent::NAME, $event);
+                $dispatcher->dispatch($event, FilePublicStatusChangedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1494,7 +1494,7 @@ class EditController extends ODRCustomController
             // Fire off an event notifying that the modification of the datafield is done
             try {
                 $event = new DatafieldModifiedEvent($datafield, $user);
-                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1506,7 +1506,7 @@ class EditController extends ODRCustomController
             // Need to fire off a DatarecordModified event because an image's public status got changed
             try {
                 $event = new DatarecordModifiedEvent($datarecord, $user);
-                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -2052,7 +2052,7 @@ class EditController extends ODRCustomController
             //  over RSS are technically out of sync until they redownload
             try {
                 $event = new DatarecordModifiedEvent($datarecord, $user);
-                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -2157,7 +2157,7 @@ class EditController extends ODRCustomController
             //  double the work any event subscribers (such as RSS) would have to do
             try {
                 $event = new DatarecordPublicStatusChangedEvent($datarecord, $user);
-                $dispatcher->dispatch(DatarecordPublicStatusChangedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatarecordPublicStatusChangedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -2256,7 +2256,7 @@ class EditController extends ODRCustomController
             // Fire off a DatarecordModified event
             try {
                 $event = new DatarecordModifiedEvent($datarecord, $user);
-                $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -2547,7 +2547,7 @@ class EditController extends ODRCustomController
                         // Fire off an event notifying that the modification of the datafield is done
                         try {
                             $event = new DatafieldModifiedEvent($datafield, $user);
-                            $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                            $dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
                         }
                         catch (\Exception $e) {
                             // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -2559,7 +2559,7 @@ class EditController extends ODRCustomController
                         // Mark this datarecord as updated
                         try {
                             $event = new DatarecordModifiedEvent($datarecord, $user);
-                            $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                            $dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
                         }
                         catch (\Exception) {
                             // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -2708,7 +2708,7 @@ class EditController extends ODRCustomController
                 // Fire off an event notifying that the modification of the datafield is done
                 try {
                     $event = new DatafieldModifiedEvent($datafield, $user);
-                    $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
                 }
                 catch (\Exception $e) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -2720,7 +2720,7 @@ class EditController extends ODRCustomController
                 // Mark this datarecord as updated
                 try {
                     $event = new DatarecordModifiedEvent($datarecord, $user);
-                    $dispatcher->dispatch(DatarecordModifiedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
                 }
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this

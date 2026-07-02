@@ -591,7 +591,7 @@ class DisplaytemplateController extends ODRCustomController
             // Notify that a datafield was just created
             try {
                 $event = new DatafieldCreatedEvent($datafield, $user);
-                $dispatcher->dispatch(DatafieldCreatedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatafieldCreatedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -603,7 +603,7 @@ class DisplaytemplateController extends ODRCustomController
             // Update the cached version of the datatype and its master theme
             try {
                 $event = new DatatypeModifiedEvent($datatype, $user);
-                $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -871,7 +871,7 @@ class DisplaytemplateController extends ODRCustomController
             // Notify that a datafield was just created
             try {
                 $event = new DatafieldCreatedEvent($new_df, $user);
-                $dispatcher->dispatch(DatafieldCreatedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatafieldCreatedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -883,7 +883,7 @@ class DisplaytemplateController extends ODRCustomController
             // Updated the cached version of the datatype and its master theme
             try {
                 $event = new DatatypeModifiedEvent($datatype, $user);
-                $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1178,7 +1178,7 @@ class DisplaytemplateController extends ODRCustomController
             // Fire off a DatatypeCreated event for the new child datatype
             try {
                 $event = new DatatypeCreatedEvent($child_datatype, $user);
-                $dispatcher->dispatch(DatatypeCreatedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatatypeCreatedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1190,7 +1190,7 @@ class DisplaytemplateController extends ODRCustomController
             // Mark the new child datatype's parent as updated
             try {
                 $event = new DatatypeModifiedEvent($parent_datatype, $user);
-                $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -1719,7 +1719,7 @@ class DisplaytemplateController extends ODRCustomController
                     // Update cached version of datatype
                     try {
                         $event = new DatatypeModifiedEvent($datatype, $user, $clear_datarecord_caches);
-                        $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                        $dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
                     }
                     catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -2204,7 +2204,7 @@ class DisplaytemplateController extends ODRCustomController
                     // Then delete the cached version of the affected datatype
                     try {
                         $event = new DatatypeModifiedEvent($ancestor_datatype, $user, $clear_datarecord_cache);
-                        $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                        $dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
                     }
                     catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -2682,7 +2682,7 @@ class DisplaytemplateController extends ODRCustomController
                     // ...though this won't necessarily be true if the fieldtype is getting changed
                     try {
                         $event = new DatafieldModifiedEvent($datafield, $user);
-                        $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                        $dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
                     }
                     catch (\Exception $e) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -2694,7 +2694,7 @@ class DisplaytemplateController extends ODRCustomController
                     // Mark the datatype as updated
                     try {
                         $event = new DatatypeModifiedEvent($datatype, $user);
-                        $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                        $dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
 
                         // While this controller action can make changes that would require a rebuild
                         //  of the cached datarecord entries, it doesn't need to be done here...
@@ -3447,7 +3447,7 @@ if ($debug)
             // Updated cached version of datatype
             try {
                 $event = new DatatypePublicStatusChangedEvent($datatype, $user);
-                $dispatcher->dispatch(DatatypePublicStatusChangedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatatypePublicStatusChangedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -3548,7 +3548,7 @@ if ($debug)
             //  off a DatafieldModified event anyways
             try {
                 $event = new DatafieldModifiedEvent($datafield, $user);
-                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -3560,7 +3560,7 @@ if ($debug)
             // Update cached version of datatype
             try {
                 $event = new DatatypeModifiedEvent($datatype, $user);
-                $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -3697,7 +3697,7 @@ if ($debug)
             // Marking the datatype as updated and clearing caches is probably overkill, but meh.
             try {
                 $event = new DatatypeModifiedEvent($datatype, $user);
-                $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                $dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
             }
             catch (\Exception $e) {
                 // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -4312,7 +4312,7 @@ if ($debug)
                     // Fire off an event notifying that the modification of the datafield is done
                     try {
                         $event = new DatafieldModifiedEvent($df, $user);
-                        $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+                        $dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
                     }
                     catch (\Exception) {
                         // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -4325,7 +4325,7 @@ if ($debug)
                 // Mark the datatype as updated
                 try {
                     $event = new DatatypeModifiedEvent($datatype, $user);
-                    $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
                 }
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
@@ -4747,7 +4747,7 @@ if ($debug)
                 // Mark the datatype as updated
                 try {
                     $event = new DatatypeModifiedEvent($datatype, $user, true);    // Also need to rebuild datarecord cache entries because they store sort/name field values
-                    $dispatcher->dispatch(DatatypeModifiedEvent::NAME, $event);
+                    $dispatcher->dispatch($event, DatatypeModifiedEvent::NAME);
                 }
                 catch (\Exception) {
                     // ...don't want to rethrow the error since it'll interrupt everything after this
