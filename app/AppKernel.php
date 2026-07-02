@@ -57,10 +57,33 @@ class AppKernel extends Kernel
     }
 
     /**
+     * Symlinked instances (e.g. dev.rruff.net) define ODR_APP_DIR — the
+     * *unresolved* path to that instance's app/ directory — so cache, logs,
+     * and config resolve to the linked instance rather than the shared source
+     * tree the symlink points at. SF7's default getProjectDir() walks up to
+     * composer.json via ReflectionObject, which follows the symlink; overriding
+     * it here (and only when ODR_APP_DIR is defined) redirects everything that
+     * derives from the project dir. Re-implements develop 12cbb3d7's
+     * getRootDir() override, which SF7 removed. No-op on normal installs.
+     *
+     * @inheritdoc
+     */
+    public function getProjectDir(): string
+    {
+        if (defined('ODR_APP_DIR'))
+            return dirname(ODR_APP_DIR);
+
+        return parent::getProjectDir();
+    }
+
+    /**
      * @inheritdoc
      */
     public function registerContainerConfiguration(LoaderInterface $loader): void
     {
-        $loader->load(__DIR__.'/config/config_'.$this->getEnvironment().'.yml');
+        // Load config from the linked instance's app/config when symlinked
+        // (see getProjectDir() above); otherwise from this file's directory.
+        $config_dir = defined('ODR_APP_DIR') ? ODR_APP_DIR : __DIR__;
+        $loader->load($config_dir.'/config/config_'.$this->getEnvironment().'.yml');
     }
 }
