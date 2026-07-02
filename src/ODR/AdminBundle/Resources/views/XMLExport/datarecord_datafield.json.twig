@@ -244,10 +244,10 @@
         "value": "{% if valuefield_value != '' and valuefield_value|date('Y-m-d') != '9999-12-31' %}{{ valuefield_value|date('Y-m-d') }}{% elseif version == 'v5' %}1900-01-01{% endif %}"
         {% else %}
         "_field_metadata": {
-            "_public_date": "{{ datafield_meta.publicDate|date('Y-m-d H:i:s') }}",
-            "_create_date": "{{ valuefield.created|date('Y-m-d H:i:s') }}",
-            "_update_date": "{{ valuefield.updated|date('Y-m-d H:i:s') }}",
-            "_create_auth": "{% if valuefield.updatedBy != '' %}{{ valuefield.updatedBy|user_string|xml }}{% endif %}"
+            "_public_date": "{{ datafield_meta.publicDate|date('Y-m-d H:i:s') }}"
+            {# "_create_date": "{{ valuefield.created|date('Y-m-d H:i:s') }}", #}
+            {# "_update_date": "{{ valuefield.updated|date('Y-m-d H:i:s') }}", #}
+            {# "_create_auth": "{% if valuefield.updatedBy != '' %}{{ valuefield.updatedBy|user_string|xml }}{% endif %}" #}
             {#
                         "_master_published_version": "{{ datafield_meta.master_published_revision }}",
                         "_master_revision": "{{ datafield_meta.master_revision }}",

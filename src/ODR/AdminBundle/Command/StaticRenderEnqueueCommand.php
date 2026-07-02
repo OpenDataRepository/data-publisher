@@ -34,7 +34,8 @@ class StaticRenderEnqueueCommand extends ContainerAwareCommand
             ->setDescription('Enqueues static-render jobs for every public top-level record of a datatype.')
             ->addOption('datatype_id', null, InputOption::VALUE_REQUIRED, 'Numeric datatype id')
             ->addOption('datatype_uuid', null, InputOption::VALUE_REQUIRED, 'Datatype UUID (alternative to --datatype_id)')
-            ->addOption('limit', null, InputOption::VALUE_REQUIRED, 'Cap how many records to enqueue (default: all). Useful for smoke tests.', 0);
+            ->addOption('limit', null, InputOption::VALUE_REQUIRED, 'Cap how many records to enqueue (default: all). Useful for smoke tests.', 0)
+            ->addOption('purge-schemas', null, InputOption::VALUE_NONE, "Delete this datatype's cached schema.json before enqueueing so the daemon regenerates it.");
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -68,6 +69,17 @@ class StaticRenderEnqueueCommand extends ContainerAwareCommand
         $limit = (int)$input->getOption('limit');
         if ($limit < 0)
             $limit = 0;
+
+        // Optionally drop the cached schema so the daemon re-fetches it.
+        // The daemon skips the schema fetch when schema.json already
+        // exists, so without this a schema change would never propagate.
+        if ($input->getOption('purge-schemas')) {
+            $purged = $static_render_service->purgeSchema($datatype->getUniqueId());
+            $output->writeln($purged
+                ? sprintf('Purged cached schema for datatype %s.', $datatype->getUniqueId())
+                : sprintf('No cached schema to purge for datatype %s.', $datatype->getUniqueId())
+            );
+        }
 
         $output->writeln(sprintf(
             'Enqueueing public records for datatype %d (%s)%s...',
