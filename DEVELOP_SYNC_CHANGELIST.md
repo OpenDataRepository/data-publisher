@@ -62,3 +62,35 @@ selects it on **every** DataFieldsMeta hydration (i.e. almost every page). Apply
 flush caches. After it's applied: a File datafield's properties gains an "Editable File Extensions"
 field (comma-separated, no dots); files whose name matches get an "Edit File Contents" pencil in the
 Edit view that opens an in-browser editor (routes odr_direct_edit_file_start / _save).
+
+---
+
+## Phase D13d — 866664e1 (routing + WordPress-integration API security) + ad11b59d/326f8158 (IMA)
+
+**Ported (tracked templates + app code):**
+- `app/config/routing.yml.dist` — adopted develop HEAD: expanded api_login_check routes to
+  v3/v4/v5 × {base, /odr, /odr_rruff, /odr_data}; standard-mode prefix defaults.
+- `app/config/security.yml.dist` — replaced login0–login5 firewalls with the 12 expanded
+  login_v{3,4,5}[_odr[_rruff|_data]] firewalls. **Converted to SF7 authenticator syntax**:
+  develop's originals used `anonymous: true` (removed in Symfony 6) — dropped. check_path names
+  now match the expanded routes. access_control token exceptions were already complete (ea49a842).
+- `app/config/parameters.yml.dist` — site_baseurl WP `/odr_data` comment.
+- `FacadeController` — IMA update login URL: `api_login_check` → `api_login_check_v4_odr` (×3).
+- `JsonExceptionSubscriber` — ad11b59d logic ported onto the branch's SF7 version: JSON-ify ANY
+  exception on `/api/v\d` requests, resolve the real HTTP status, log, stopPropagation, priority 64.
+
+**⚠️ DEFERRED — operator action required before/at end-testing (per the 866664e1 flag: "do not
+port mechanically; needs per-mode JWT testing"):**
+1. **Active `app/config/routing.yml` (gitignored)** — regenerate/merge from the updated
+   `routing.yml.dist` so the expanded `api_login_check_v*` routes exist at runtime. Until then, the
+   ported FacadeController IMA-update path (`api_login_check_v4_odr`) will throw RouteNotFound on this
+   box (WP-only code path; not exercised in standard mode).
+2. **Active `app/config/security.yml` (local)** — mirror the expanded login firewalls from
+   `security.yml.dist` for whichever WP mode this deployment runs.
+3. **`app/config/routing_prefixed.yml` (tracked, WP-mode)** — NOT reconciled. develop HEAD re-adds
+   `@FOSUserBundle` / `@FOSOAuthServerBundle` / `@HWIOAuthBundle` route imports that the SF7 upgrade
+   deliberately removed (routes relocated to `@ODROpenRepositoryUser`). Porting verbatim would break
+   WP-mode routing. Needs manual SF7-aware reconciliation + per-mode boot test.
+4. **Per-mode JWT testing** — token issuance on base + `/odr` + `/odr_rruff` + `/odr_data` for v3/v4/v5.
+
+Live box unaffected: active routing.yml/security.yml unchanged; prod cache:clear boots clean.

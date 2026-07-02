@@ -988,7 +988,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
         // API Login URL
         $api_login_url = $this->generateUrl(
-            'api_login_check',
+            'api_login_check_v4_odr',
             [
             ]
         );
@@ -1098,7 +1098,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
         // API Login URL
         $api_login_url = $this->generateUrl(
-            'api_login_check',
+            'api_login_check_v4_odr',
             [
             ]
         );
@@ -1305,7 +1305,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
 
             // API Login URL
             $api_login_url = $this->generateUrl(
-                'api_login_check',
+                'api_login_check_v4_odr',
                 [
                 ]
             );
