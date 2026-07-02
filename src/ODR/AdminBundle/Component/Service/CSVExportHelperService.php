@@ -59,51 +59,15 @@ class CSVExportHelperService
 
 
     /**
-     * Recursively digs through a single top-level datarecord from $inflated list to find all of its
-     * child/linked datarecords that exist in $complete_datarecord_list.
-     *
-     * @param array $inflated_list @see SearchAPIService::buildDatarecordTree()
-     * @param array $complete_datarecord_list The list of all datarecords matching the original search
-     *                                        that this CSVExport is being run on...datarecord ids
-     *                                        are the array keys
-     *
-     * @return array
-     */
-    public function getFilteredDatarecordList($inflated_list, $complete_datarecord_list)
-    {
-        $filtered_list = [];
-
-        foreach ($inflated_list as $dr_id => $child_dt_list) {
-            if ( isset($complete_datarecord_list[$dr_id]) ) {
-                $filtered_list[] = $dr_id;
-                if ( is_array($child_dt_list) ) {
-                    // This datarecord has child/linked records, so those should get checked too
-                    foreach ($child_dt_list as $child_dt_id => $dr_list) {
-                        $tmp = self::getFilteredDatarecordList($dr_list, $complete_datarecord_list);
-                        // Any matching child/linked records found should get added to the full list
-                        foreach ($tmp as $num => $dr)
-                            $filtered_list[] = $dr;
-                    }
-                }
-            }
-
-            // Otherwise, this datarecord is not in the search results list...it and any children
-            //  should get ignored
-        }
-
-        return $filtered_list;
-    }
-
-
-    /**
      * CSVExport needs to have a fresh set of datarecords to be able to find the data to export...
      *
+     * @param array $datatree_array {@see DatatreeInfoService::getDatatreeArray()}
      * @param DataType $datatype
      * @param string $search_key
      * @param array $user_permissions
      * @return array
      */
-    public function getExportSearchResults($datatype, $search_key, $user_permissions)
+    public function getExportSearchResults($datatree_array, $datatype, $search_key, $user_permissions)
     {
         // CSVExport needs both versions of the lists of datarecords from a search result...
 
@@ -131,44 +95,80 @@ class CSVExportHelperService
         $complete_datarecord_list = array_flip($complete_datarecord_list);
 
 
-        // The most...reusable...method of performing this filtering is to copy the initial logic
-        //  from SearchAPIService::performSearch().  This is duplication of work, but it should
+        // ----------------------------------------
+        // The most...reusable...method of performing this filtering is to copy most of the initial
+        //  logic from SearchAPIService::performSearch().  This is duplication of work, but it should
         //  be fast enough to not make a noticable difference...
+        $filtered_search_key = $this->search_api_service->filterSearchKeyForUser($datatype->getId(), $search_key, $user_permissions);
+        $search_params = $this->search_key_service->decodeSearchKey($filtered_search_key);
 
+        // Extract the inverse target datatype, if it exists
+        $inverse_target_datatype_id = null;
+        if ( isset($search_params['inverse']) ) {
+            $inverse_target_datatype_id = intval($search_params['inverse']);
 
-        // Convert the search key into a format suitable for searching
-        $searchable_datafields = $this->search_api_service->getSearchableDatafieldsForUser([$datatype->getId()], $user_permissions);
+            // values less than 1 disable this feature
+            if ( $inverse_target_datatype_id < 1 ) {
+                unset( $search_params['inverse'] );
+                $inverse_target_datatype_id = null;
+            }
+        }
+
+        // Need the list of datafields (and their typeclasses) that can be searched on...
+        $searchable_datafields = [];
+        if ( is_null($inverse_target_datatype_id) )
+            $searchable_datafields = $this->search_api_service->getSearchableDatafieldsForUser([$datatype->getId()], $user_permissions);
+        else
+            $searchable_datafields = $this->search_api_service->getSearchableDatafieldsForUser([$inverse_target_datatype_id], $user_permissions);
+
+        // Once the filtering is completed, then the search key can be converted into a considerably
+        //  more complicated array format that serves as a repository for the upcoming search
         $criteria = $this->search_key_service->convertSearchKeyToCriteria($search_key, $searchable_datafields, $user_permissions);
 
         // Need to grab hydrated versions of the datafields/datatypes being searched on
         $hydrated_entities = $this->search_api_service->hydrateCriteria($criteria);
 
-        // Each datatype being searched on (or the datatype of a datafield being search on) needs
-        //  to be initialized to "-1" (does not match) before the results of each facet search
-        //  are merged together into the final array
+        // The process of building the criteria also created a number of other useful utility arrays
         $affected_datatypes = $criteria['affected_datatypes'];
-        unset( $criteria['affected_datatypes'] );
-        // Also don't want the list of all datatypes anymore either
-        unset( $criteria['all_datatypes'] );
-        // ...or what type of search this is
+//        $datatypes_with_criteria = $criteria['datatypes_with_criteria'];
+        $all_datatypes = $criteria['all_datatypes'];
+//        $default_merge_type = $criteria['default_merge_type'];
+
+        // No longer want any of these keys in the criteria array
         unset( $criteria['search_type'] );
+        unset( $criteria['affected_datatypes'] );
+        unset( $criteria['datatypes_with_criteria'] );
+        unset( $criteria['all_datatypes'] );
+        unset( $criteria['default_merge_type'] );
 
         // Get the base information needed so getSearchArrays() can properly setup the search arrays
         $search_permissions = $this->search_api_service->getSearchPermissionsArray($hydrated_entities['datatype'], $affected_datatypes, $user_permissions);
 
-        // Going to need these two arrays to be able to accurately determine which datarecords
-        //  end up matching the query
-        $ignored_prefixes = [];    // TODO
-        $search_arrays = $this->search_api_service->getSearchArrays($datatype->getId(), $search_permissions, $ignored_prefixes);
-//        $flattened_list = $search_arrays['flattened'];
-        $inflated_list = $search_arrays['inflated'];
-        // The top-level of $inflated_list is wrapped in the top-level datatype id...get rid of it
-        $inflated_list = $inflated_list[ $datatype->getId() ];
+        // Determine whether the search should completely ignore any descendants
+        $ignored_prefixes = $this->search_api_service->getIgnoredPrefixes($search_params, $datatype);  // TODO - ...i forget why the second parameter was in here
+
+
+        // ----------------------------------------
+        // The initial graph needs to mirror how ODR's rendering systems sees the datatypes...
+        $graph = $counts = [];
+
+        $all_datatypes = array_flip($all_datatypes);
+        if ( is_null($inverse_target_datatype_id) )
+            $this->search_api_service->buildSearchDependencyGraph($datatree_array, $all_datatypes, $ignored_prefixes, $datatype->getId(), '', $graph, $counts);
+        else
+            $this->search_api_service->buildSearchDependencyGraph($datatree_array, $all_datatypes, $ignored_prefixes, $inverse_target_datatype_id, '', $graph, $counts);
+
+        // ...but that graph needs to be "inverted" if the user wants the final set of results
+        //  to belong to a datatype that isn't considered to be the ancestor by the rendering
+        //  system
+        if ( !is_null($inverse_target_datatype_id) && $datatype->getId() !== $inverse_target_datatype_id )
+            $counts = $this->search_api_service->invertSearchDependencyGraph($graph, $counts, $datatype->getId());
 
         return [
             'grandparent_datarecord_list' => $grandparent_datarecord_list,
             'complete_datarecord_list' => $complete_datarecord_list,
-            'inflated_list' => $inflated_list
+            'search_permissions' => $search_permissions,
+            'graph' => $graph,
         ];
     }
 
@@ -196,6 +196,7 @@ class CSVExportHelperService
             $this->logger->debug( print_r($parameters, true) );
             throw new ODRBadRequestException();
         }
+//        $this->logger->debug( 'CSVExportHelperService: '.print_r($parameters, true) );
 
         // Pull data from the parameters
         $api_key = $parameters['api_key'];
@@ -207,7 +208,7 @@ class CSVExportHelperService
 
         $datatype_id = intval($parameters['datatype_id']);
         $datarecord_ids = $parameters['datarecord_id'];
-        $complete_datarecord_list_array = $parameters['complete_datarecord_list'];
+        $complete_datarecord_list_array = array_flip($parameters['complete_datarecord_list']);
 
         // The datafield list needs to be decoded from json...it seems as if passing it through the
         //  symfony command turns it into an object otherwise
@@ -476,14 +477,19 @@ class CSVExportHelperService
         $types = [1 => DBALConnection::PARAM_INT_ARRAY];
 
         $conn = $this->em->getConnection();
+//        $results = $conn->fetchAll($query, $parameters, $types);  // better for debugging
         $results = $conn->executeQuery($query, $parameters, $types);
 
-        foreach ($results as $result) {
-//            $dr_id = $result['dr_id'];
-            $dt_id = $result['dt_id'];
+        foreach ($results->iterateAssociative() as $result) {
+            $dr_id = $result['dr_id'];
+            $dt_id = intval($result['dt_id']);
 
-            if ( $dt_id !== $datatype_id )
-                throw new ODRBadRequestException('Datarecord does not match Datatype');
+            if ( $dt_id !== $datatype_id ) {
+                if ($tracked_job_id !== -1)
+                    throw new ODRBadRequestException('Datarecord does not belong to Datatype');
+                else
+                    throw new ODRBadRequestException('Datarecord '.$dr_id.' does not belong to Datatype '.$dt_id);
+            }
         }
 
 
@@ -507,9 +513,8 @@ class CSVExportHelperService
             // ----------------------------------------
             // Remove all datarecords and datafields from the stacked datarecord array that the
             //  user doesn't want to export
-            $datarecords = array_flip($complete_datarecord_list_array[$i]);
             $current_prefix = $datatype_id;
-            $filtered_dr_array = self::filterDatarecordArray($current_prefix, $user_permissions, $stacked_dt_array, $datafields, $stacked_dr_array, $datarecords, $inversed_tag_hierarchy, $delimiters, $plugin_executions);
+            $filtered_dr_array = self::filterDatarecordArray($current_prefix, $user_permissions, $stacked_dt_array, $datafields, $stacked_dr_array, $complete_datarecord_list_array, $inversed_tag_hierarchy, $delimiters, $plugin_executions);
 
             // Unfortunately, this CSV exporter needs to be able to deal with the possibility of
             //  exporting more than one child/linked datatype that allows multiple child/linked

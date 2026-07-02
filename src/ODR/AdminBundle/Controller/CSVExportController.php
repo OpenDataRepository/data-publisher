@@ -19,6 +19,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
 // Entities
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\StoredSearchKey;
 use ODR\AdminBundle\Entity\Theme;
 use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
@@ -31,6 +32,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\CSVExportHelperService;
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
+use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
@@ -179,17 +181,21 @@ class CSVExportController extends ODRCustomController
             // Verify the search key, and ensure the user can view the results
             $search_key_service->validateSearchKey($search_key);
 
+            // Need to "manually" apply the default search parameters
+            $default_search_key = $search_key_service->getDefaultSearchKeyForContext($datatype, StoredSearchKey::SEARCH_CONTEXT);
+            $merged_search_key = $search_key_service->mergeSearchKeys($search_key, $default_search_key);
+
             // Get the list of grandparent datarecords specified by this search key
             $grandparent_datarecord_list = $search_api_service->performSearch(
                 $datatype,
-                $search_key,
+                $merged_search_key,
                 $user_permissions
             );    // this will only return grandparent datarecord ids
 
             // If the user is attempting to view a datarecord from a search that returned no results...
             if ( empty($grandparent_datarecord_list) ) {
                 // ...redirect to the "no results found" page
-                return $search_redirect_service->redirectToSearchResult($search_key, $search_theme_id);
+                return $search_redirect_service->redirectToSearchResult($merged_search_key, $search_theme_id);
             }
 
             // Store the datarecord list in the user's session...there is a chance that it could get
@@ -200,7 +206,7 @@ class CSVExportController extends ODRCustomController
                 $list = [];
 
             $list[$odr_tab_id] = [
-                'filtered_search_key' => $search_key,
+                'filtered_search_key' => $merged_search_key,
             ];
             $session->set('csv_export_datarecord_lists', $list);
 
@@ -211,7 +217,7 @@ class CSVExportController extends ODRCustomController
                 '@ODRAdmin/CSVExport/csvexport_header.html.twig',
                 [
                     'search_theme_id' => $search_theme_id,
-                    'search_key' => $search_key,
+                    'search_key' => $merged_search_key,
                     'offset' => $offset,
                 ]
             );
@@ -269,7 +275,7 @@ class CSVExportController extends ODRCustomController
 
             $odr_tab_id = $post['odr_tab_id'];
             $datafields = $post['datafields'];    // TODO - plugin_datafields?
-            $datatype_id = $post['datatype_id'];
+            $datatype_id = intval($post['datatype_id']);
             $delimiter = trim($post['delimiter']);
 
             $file_image_delimiter = null;
@@ -297,8 +303,12 @@ class CSVExportController extends ODRCustomController
             $csv_export_helper_service = $this->csv_export_helper_service;
             /** @var DatabaseInfoService $database_info_service */
             $database_info_service = $this->database_info_service;
+            /** @var DatatreeInfoService $datatree_info_service */
+            $datatree_info_service = $this->datatree_info_service;
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->permissions_management_service;
+            /** @var SearchAPIService $search_api_service */
+            $search_api_service = $this->search_api_service;
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->tracked_job_service;
 
@@ -494,10 +504,12 @@ class CSVExportController extends ODRCustomController
             if ( !isset($list[$odr_tab_id]['filtered_search_key']) )
                 throw new ODRBadRequestException('Malformed CSVExport session variable');
 
-            // ...and need to not be blank
+            // The search key needs to not be blank, but doesn't need to be merged with a default
+            //   search key...the value in the user's session has already been merged
             $search_key = $list[$odr_tab_id]['filtered_search_key'];
             if ($search_key === '')
                 throw new ODRBadRequestException('Search key is blank');
+//            $search_params = $search_key_service->decodeSearchKey($search_key);
 
             // Shouldn't be an issue, but delete the datarecord list out of the user's session
             unset( $list[$odr_tab_id] );
@@ -505,11 +517,15 @@ class CSVExportController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Going to need this...
+            $datatree_array = $datatree_info_service->getDatatreeArray();
+
             // Need to re-run the search to get a couple lists of datarecords for the export
-            $export_search_results = $csv_export_helper_service->getExportSearchResults($datatype, $search_key, $user_permissions);
+            $export_search_results = $csv_export_helper_service->getExportSearchResults($datatree_array, $datatype, $search_key, $user_permissions);
             $grandparent_datarecord_list = $export_search_results['grandparent_datarecord_list'];
             $complete_datarecord_list = $export_search_results['complete_datarecord_list'];
-            $inflated_list = $export_search_results['inflated_list'];
+            $search_permissions = $export_search_results['search_permissions'];
+            $graph = $export_search_results['graph'];
 
 
             // ----------------------------------------
@@ -572,16 +588,12 @@ class CSVExportController extends ODRCustomController
             // ----------------------------------------
             // Create a beanstalk job for each of these datarecords
             $datarecord_ids = [];
-            $complete_datarecord_list_array = [];
+            $related_datarecord_ids = [];
             $job_order = 0;
             $counter = 0;
             foreach ($grandparent_datarecord_list as $num => $datarecord_id) {
-                // Need to use $complete_datarecord_list and $inflated_list to locate the child/linked
-                //  datarecords related to this top-level datarecord
-                $tmp_list = [$datarecord_id => $inflated_list[$datarecord_id]];
-                $filtered_datarecord_list = $csv_export_helper_service->getFilteredDatarecordList($tmp_list, $complete_datarecord_list);
+                // Need to split the datarecord list into chunks so it doesn't overwhelm beanstalk
                 $datarecord_ids[] = $datarecord_id;
-                $complete_datarecord_list_array[] = $filtered_datarecord_list;
 
                 // Job order - used for reassembly of export temp files in the proper
                 // order to match the original query.
@@ -590,6 +602,14 @@ class CSVExportController extends ODRCustomController
                     $counter % 100 === 0
                     || $counter === count($grandparent_datarecord_list)
                 ) {
+                    // Need to use other parts of SearchAPIService to determine which child/linked
+                    //  datarecords are related to the grandparent records
+                    $tmp_flattened_list = $search_api_service->getFlattenedList($search_permissions, $complete_datarecord_list);
+                    $related_datarecord_ids = $search_api_service->getCompleteDatarecordList($datatree_array, $graph, $tmp_flattened_list, $datatype_id);
+                    // This array was returned with the datarecord ids as keys, but it needs to have
+                    //  them as values instead for beanstalk
+                    $related_datarecord_ids = array_keys($related_datarecord_ids);
+
                     $priority = 1024;   // should be roughly default priority
                     $payload = [
                         'tracked_job_id' => $tracked_job_id,
@@ -603,10 +623,10 @@ class CSVExportController extends ODRCustomController
                         'job_order' => $job_order,
 
                         'datatype_id' => $datatype_id,
-                        // top-level datarecord id
+                        // top-level datarecord ids
                         'datarecord_id' => $datarecord_ids,
                         // list of all datarecords related to $datarecord_id that matched the search
-                        'complete_datarecord_list' => $complete_datarecord_list_array,
+                        'complete_datarecord_list' => $related_datarecord_ids,
                         'datafields' => $datafields,
 
                         'redis_prefix' => $redis_prefix,    // debug purposes only
@@ -616,13 +636,14 @@ class CSVExportController extends ODRCustomController
                     if ( !is_null($user) )
                         $payload['user_id'] = $user->getId();
                     $payload = json_encode($payload);
+//                    $logger->debug( 'CSVExportController: '.print_r($payload, true) );
 
 //                    $logger->debug('CSVExportController::newCsvExportStart() tracked_job_id: '.$tracked_job_id.', payload size: '.strlen($payload));
                     $pheanstalk->useTube('csv_export_worker_express')->put($payload, $priority, 0, 300);    // try to use a 5 minute ttl
 
                     // Reset for the next payload
                     $datarecord_ids = [];
-                    $complete_datarecord_list_array = [];
+                    $related_datarecord_ids = [];
                     $job_order++;
                 }
             }
