@@ -84,6 +84,10 @@ services:
                 # used by the direct-AbstractController controllers (SearchBundle)
                 security.authentication_utils: '@security.authentication_utils'
                 odr_custom_controller: '@odr_custom_controller'
+                # full container, so controllers that dispatch to arbitrary render-plugin
+                # services by id (Plugins/FakeEdit/MassEdit) can reach them — the plugin
+                # services are public, but not individually listed on this locator
+                service_container: '@service_container'
 
     # --- C-tail: controllers that extend AbstractController directly (no ODRCustomController base) ---
     ODR\OpenRepository\SearchBundle\Controller\DefaultController:

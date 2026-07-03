@@ -278,7 +278,7 @@ class MassEditController extends ODRCustomController
             foreach ($mass_edit_trigger_plugins as $plugin_classname => $rpi_list) {
                 // ...load up each of the plugins...
                 /** @var MassEditTriggerEventInterface $plugin_svc */
-                $plugin_svc = $this->container->get($plugin_classname);
+                $plugin_svc = $this->container->get('service_container')->get($plugin_classname);
 
                 // ...and "ask" them what fields they intend to override
                 foreach ($rpi_list as $num => $rpi) {

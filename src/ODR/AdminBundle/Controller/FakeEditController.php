@@ -696,7 +696,7 @@ class FakeEditController extends ODRCustomController
                 // If a datafield from this plugin is derived...
                 if ($load_render_plugin) {
                     /** @var DatafieldDerivationInterface $render_plugin */
-                    $render_plugin = $this->container->get($plugin_classname);
+                    $render_plugin = $this->container->get('service_container')->get($plugin_classname);
 
                     if ($render_plugin instanceof DatafieldDerivationInterface) {
                         // ...then request an array of the datafields that are derived from some other

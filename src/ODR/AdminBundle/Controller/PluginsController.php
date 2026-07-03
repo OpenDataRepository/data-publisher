@@ -237,7 +237,7 @@ class PluginsController extends ODRCustomController
                                 continue;
 
                             // Ignore plugin files that aren't being loaded as symfony services
-                            if ( !$this->container->has($plugin_classname) )
+                            if ( !$this->container->get('service_container')->has($plugin_classname) )
                                 continue;
 
                             // Don't allow duplicate plugin definitions
@@ -288,9 +288,9 @@ class PluginsController extends ODRCustomController
         // ----------------------------------------
         // Need to load the plugin file to be able to check implemented interfaces, events, and
         //  callables
-        if ( !$this->container->has($plugin_classname) )
+        if ( !$this->container->get('service_container')->has($plugin_classname) )
             throw new ODRException('RenderPlugin service "'.$plugin_classname.'" is not defined');
-        $plugin_service = $this->container->get($plugin_classname);
+        $plugin_service = $this->container->get('service_container')->get($plugin_classname);
 
 
         // ----------------------------------------
