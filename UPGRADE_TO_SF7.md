@@ -3,7 +3,7 @@
 This branch (`sf7-develop-sync`) moves ODR from **Symfony 3.4 / PHP 7.3 / Doctrine ORM 2.6**
 to **Symfony 7.4 LTS / PHP 8.3 / Doctrine ORM 2.7 + doctrine-migrations**. Because the stack,
 directory layout, and schema-management flow all changed, the old "pull code and run
-`regenerate_and_update.sh`" routine **no longer applies** (see [§9](#9-why-regenerate_and_updatesh-is-retired)).
+`regenerate_and_update.sh`" routine **no longer applies** (see [§11](#11-why-regenerate_and_updatesh-is-retired)).
 
 Follow the steps below in order on a staging/instance box. Each `###` step says what to run and how
 to confirm it worked. Commands assume you are in the project root and use the pre-Flex console at
@@ -143,7 +143,7 @@ Apply at minimum:
    (`api_login_check_v{3,4,5}[_odr[_rruff|_data]]`). Regenerate these from the updated `.dist`
    templates for whichever WordPress mode this instance runs. **This is required for the v4/v5 and
    `/odr*`-prefixed token endpoints to resolve** and must be validated with per-mode JWT tests
-   ([§8](#8-post-upgrade-verification)). The `security.yml.dist` firewalls are already in SF7
+   ([§10](#10-post-upgrade-verification)). The `security.yml.dist` firewalls are already in SF7
    authenticator syntax (no `anonymous: true`).
 
 > If this is a **symlinked instance** (e.g. `dev.rruff.net`), also see the `ODR_APP_DIR` /
@@ -183,7 +183,49 @@ php app/console odr_cache:flush
 
 ---
 
-## 7. Cache, assets, and permissions (new `var/` layout)
+## 7. Re-register render plugins (upgrading an older database)
+
+ODR stores each render plugin's category (`plugin_type`) in the `odr_render_plugin` **database**
+table, populated from the plugin's YAML config at *install* time — not read on every request. If the
+database predates a change to a plugin's category, its stored `plugin_type` is stale and the plugin
+renders incorrectly.
+
+The common case on this branch: the **File Header Inserter**, **File Renamer**, and **RRUFF File
+Header Inserter** plugins were moved into the `datafield_header` category (type 5), but an older DB
+still has them as `datafield` (type 3). With the wrong type, these *header* plugins are executed as
+*datafield* plugins and their icon **replaces the whole file/image field** — you see only the plugin
+icon, with the filenames, download/edit icons, and upload area missing.
+
+Re-register the plugins so the DB matches the YAML:
+
+1. Open **`/admin/plugins/list`** (Admin → Render Plugins). Any plugin whose stored config differs
+   from its YAML shows an **Update** action.
+2. Click **Update** on each flagged plugin (at minimum the three above).
+3. Flush caches so the cached datatype arrays rebuild with the corrected type:
+   ```bash
+   php app/console odr_cache:flush
+   ```
+
+Equivalent direct SQL, if you prefer (matches the Update action for these three):
+```sql
+UPDATE odr_render_plugin
+   SET plugin_type = 5   -- 5 = datafield_header (was 3 = datafield)
+ WHERE plugin_class_name IN (
+   'odr_plugins.base.file_header_inserter',
+   'odr_plugins.base.file_renamer',
+   'odr_plugins.rruff.file_header_inserter'
+ );
+```
+followed by `php app/console odr_cache:flush`.
+
+> The plugin manager needs the SF7 fix that lets ODR controllers reach render-plugin services by id
+> (they sit behind a restricted service locator otherwise). Without it, `/admin/plugins/list` 500s
+> with *"...is missing its config file on the server"* — make sure your checkout includes that fix
+> before relying on the Update action; older ones require the SQL path above.
+
+---
+
+## 8. Cache, assets, and permissions (new `var/` layout)
 
 Symfony 7 moved cache and logs from `app/cache` + `app/logs` to **`var/cache` + `var/log`**.
 
@@ -207,7 +249,7 @@ php app/console debug:router | grep odr_api_set_record   # new API routes should
 
 ---
 
-## 8. Background services (Node daemons)
+## 9. Background services (Node daemons)
 
 ```bash
 cd background_services
@@ -226,7 +268,7 @@ job workers, `graph_renderer_daemon.js`, `static_render_daemon.js`, `seed_elasti
 
 ---
 
-## 9. Post-upgrade verification
+## 10. Post-upgrade verification
 
 Smoke-test the request paths:
 
@@ -252,7 +294,7 @@ Run the PHPUnit suite once you consider the instance feature-complete (see the t
 
 ---
 
-## 10. Why `regenerate_and_update.sh` is retired
+## 11. Why `regenerate_and_update.sh` is retired
 
 The old script does two things that **break on this stack**:
 
@@ -276,7 +318,7 @@ php app/console odr_cache:flush
 
 ---
 
-## 11. Rollback
+## 12. Rollback
 
 ```bash
 git checkout <previous-commit>
