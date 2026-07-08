@@ -22,6 +22,7 @@ use ODR\AdminBundle\Entity\LongText;
 use ODR\AdminBundle\Entity\LongVarchar;
 use ODR\AdminBundle\Entity\MediumVarchar;
 use ODR\AdminBundle\Entity\ShortVarchar;
+use ODR\AdminBundle\Entity\XYZData;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Symfony
 use Symfony\Component\EventDispatcher\Event;
@@ -33,12 +34,12 @@ class PostUpdateEvent extends Event implements ODREventInterface
     const NAME = 'odr.event.post_update_event';
 
     /**
-     * @var ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar
+     * @var ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar|XYZData
      */
     private $storage_entity;
 
     /**
-     * @var null|ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar
+     * @var null|ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar|XYZData
      */
     private $derived_entity;
 
@@ -51,7 +52,7 @@ class PostUpdateEvent extends Event implements ODREventInterface
     /**
      * PostUpdateEvent constructor.
      *
-     * @param ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $storage_entity
+     * @param ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar|XYZData $storage_entity
      * @param ODRUser $user
      */
     public function __construct(

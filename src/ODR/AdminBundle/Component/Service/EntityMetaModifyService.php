@@ -1818,6 +1818,10 @@ class EntityMetaModifyService
      * Modifies a given radio selection entity by copying the old value into a new storage entity,
      * then deleting the old entity.
      *
+     * Unlike {@see self::updateStorageEntity()}, this function does not fire its related event...
+     * changes to Radio fields typically involve multiple calls to updateRadioSelection(), so the
+     * callers need to dispatch the event once they're done updating.
+     *
      * @param ODRUser $user
      * @param RadioSelection $radio_selection
      * @param array $properties
@@ -1838,10 +1842,8 @@ class EntityMetaModifyService
                 $changes_made = true;
         }
 
-        if (!$changes_made)
+        if ( !$changes_made )
             return $radio_selection;
-
-        // TODO - should changing radio/tag selections also trigger postUpdate events?  The Event itself isn't set up for it...
 
         // Determine whether to create a new entry or modify the previous one
         if ( is_null($created) )

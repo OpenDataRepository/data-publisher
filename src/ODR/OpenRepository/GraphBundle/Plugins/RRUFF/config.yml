@@ -71,6 +71,11 @@ services:
     odr_plugins.rruff.pin_data:
         class: '%odr_plugin_base_classpath%\RRUFF\RRUFFPinDataPlugin'
         arguments:
+            $entity_manager: "@doctrine.orm.entity_manager"
+            $database_info_service: "@odr.database_info_service"
+            $entity_create_service: "@odr.entity_creation_service"
+            $entity_modify_service: "@odr.entity_meta_modify_service"
+            $event_dispatcher: "@event_dispatcher"
             $templating: "@templating"
             $logger: "@logger"
 
