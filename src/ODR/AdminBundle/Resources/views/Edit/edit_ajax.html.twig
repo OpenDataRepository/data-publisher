@@ -975,7 +975,7 @@ function initPage() {
         }
     });
 
-    $(".SingleRadioGroup").unbind('click').click(function() {
+    $(".SingleRadioGroup").not('.ODRSpecializedHandler').unbind('click').click(function() {
 
         // Want to prevent sending unecessary ajax events...can't detect if option is already selected with is("checked")
 
@@ -1029,7 +1029,7 @@ function initPage() {
             }
         });
     });
-    $(".MultipleRadioGroup").unbind('click').click(function() {
+    $(".MultipleRadioGroup").not('.ODRSpecializedHandler').unbind('click').click(function() {
 
         // If this belongs to a "fake" record, don't attempt to save
         if ( $(this).closest(".ODRFieldArea").hasClass("ODRFakeRecord") )
@@ -1072,7 +1072,7 @@ function initPage() {
             }
         });
     });
-    $(".SingleSelectGroup").unbind('change').change(function() {
+    $(".SingleSelectGroup").not('.ODRSpecializedHandler').unbind('change').change(function() {
 
         // If this belongs to a "fake" record, don't attempt to save
         if ( $(this).closest(".ODRFieldArea").hasClass("ODRFakeRecord") )

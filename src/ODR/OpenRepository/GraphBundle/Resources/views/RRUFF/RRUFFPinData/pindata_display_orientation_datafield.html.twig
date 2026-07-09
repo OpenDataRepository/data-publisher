@@ -1,0 +1,35 @@
+{% spaceless %}
+
+{% set datafield_meta = datafield.dataFieldMeta %}
+{% set field_typename = datafield_meta.fieldType.typeName %}
+{% set field_typeclass = datafield_meta.fieldType.typeClass %}
+
+{% set datarecordfield = '' %}
+{% set valuefield = '' %}
+{% set valuefield_value = '' %}
+{% if datarecord.dataRecordFields[ datafield.id ] is defined %}
+    {% set datarecordfield = datarecord.dataRecordFields[ datafield.id ] %}
+
+    {% if field_typename == "Short Text" and datarecordfield.shortVarchar[0] is defined %}
+        {% set valuefield = datarecordfield.shortVarchar[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% elseif field_typename == "Long Text" and datarecordfield.longVarchar[0] is defined %}
+        {% set valuefield = datarecordfield.longVarchar[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% endif %}
+{% endif %}
+
+{% set unique_id = datarecord.id ~ '_' ~ datafield.id %}
+{% set input_id = field_typeclass ~ 'Form_' ~ unique_id %}
+
+    <form class="pure-u-1" id="ViewForm_{{ unique_id }}">
+
+        <fieldset>
+            <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+            <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+                <span id="{{ input_id }}" class="pure-u-1 Cursor ODRResultsPseudoField">{{ valuefield_value|raw }}</span>
+            </div>
+        </fieldset>
+
+</form>
+{% endspaceless %}

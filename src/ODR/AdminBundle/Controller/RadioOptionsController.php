@@ -23,6 +23,7 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatatypeModifiedEvent;
+use ODR\AdminBundle\Component\Event\RadioPostUpdateEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRConflictException;
@@ -1594,6 +1595,18 @@ class RadioOptionsController extends ODRCustomController
 
 
             // ----------------------------------------
+            // Fire off an event notifying that the modification of the radio stuff is done
+            try {
+                $event = new RadioPostUpdateEvent($drf, $user);
+                $dispatcher->dispatch(RadioPostUpdateEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
             // Fire off an event notifying that the modification of the datafield is done
             try {
                 $event = new DatafieldModifiedEvent($datafield, $user);
@@ -1617,7 +1630,6 @@ class RadioOptionsController extends ODRCustomController
 //                if ( $this->container->getParameter('kernel.environment') === 'dev' )
 //                    throw $e;
             }
-
         }
         catch (\Exception $e) {
             $source = 0x01019cfb;

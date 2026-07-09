@@ -47,6 +47,7 @@ use ODR\AdminBundle\Entity\TrackedJob;
 use ODR\AdminBundle\Entity\UserGroup;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
+use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordLinkStatusChangedEvent;
@@ -56,6 +57,7 @@ use ODR\AdminBundle\Component\Event\DatatypeImportedEvent;
 use ODR\AdminBundle\Component\Event\DatatypePublicStatusChangedEvent;
 use ODR\AdminBundle\Component\Event\FileDeletedEvent;
 use ODR\AdminBundle\Component\Event\PostUpdateEvent;
+use ODR\AdminBundle\Component\Event\RadioPostUpdateEvent;
 // Exceptions
 use ODR\AdminBundle\Component\CustomException\ODRJsonException;
 use ODR\AdminBundle\Exception\ODRBadRequestException;
@@ -6548,6 +6550,38 @@ class APIController extends ODRCustomController
             }
             else {
                 throw new ODRBadRequestException('Field type "' . $typeclass . '" does not support tag/radio selection');
+            }
+
+
+            // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
+            //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
+            /** @var EventDispatcherInterface $dispatcher */
+            $dispatcher = $this->container->get('event_dispatcher');
+
+            if ( $typeclass === 'Radio' ) {
+                // Fire off an event notifying that the modification of the radio stuff is done
+                try {
+                    $event = new RadioPostUpdateEvent($drf, $user);
+                    $dispatcher->dispatch(RadioPostUpdateEvent::NAME, $event);
+                }
+                catch (\Exception $e) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
+//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        throw $e;
+                }
+            }
+
+            // Fire off an event notifying that the modification of the datafield is done
+            try {
+                $event = new DatafieldModifiedEvent($datafield, $user);
+                $dispatcher->dispatch(DatafieldModifiedEvent::NAME, $event);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
             }
 
             // Selection updates don't fire PostUpdateEvent, so dispatch a

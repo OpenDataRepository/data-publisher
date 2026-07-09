@@ -1471,11 +1471,11 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
 
         // Only interested in overriding datafields mapped to these rpf entries
         $relevant_datafields = array(
-            'Space Group' => 'Lattice',
+            'Space Group' => 1,  // Source field for 'Lattice'
 
             // Due to the calculated volume requiring six different fields, it's better to have the
-            //  thingy on the one field...
-            'Calculated Volume' => 'Calculated Volume',
+            //  checkbox on the one field...
+            'Calculated Volume' => 1,
         );
 
         $ret = array();
@@ -1495,11 +1495,11 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
     {
         // Only interested in overriding datafields mapped to these rpf entries
         $relevant_datafields = array(
-            'Space Group' => 'Lattice',
+            'Space Group' => 1,  // Source field for 'Lattice'
 
             // Due to the calculated volume requiring six different fields, it's better to have the
-            //  thingy on the one field...
-            'Calculated Volume' => 'Calculated Volume',
+            //  checkbox on the one field...
+            'Calculated Volume' => 1,
         );
 
         $trigger_fields = array();

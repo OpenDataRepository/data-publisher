@@ -22,7 +22,7 @@
             <tbody>
 {% for num,data in plugin_uses %}
                 <tr>
-                    <td><a href="{{ tmp_baseurl }}/{{ data['gp_dt_search_slug'] }}#{{ path('odr_design_master_theme', {'datatype_id': data['gp_dt_id']}) }}" target="_blank"><i class='ODRRenderPlugin_Link fa fa-external-link'></i></a></td>
+                    <td><a href="{{ tmp_baseurl }}/admin#{{ path('odr_design_master_theme', {'datatype_id': data['gp_dt_id']}) }}" target="_blank"><i class='ODRRenderPlugin_Link fa fa-external-link'></i></a></td>
                     <td>{{ data['gp_dt_name'] }}</td>
                     <td>{% if data['gp_dt_name'] != data['dt_name'] %}{{ data['dt_name'] }}{% endif %}</td>
                     {% if is_datafield_plugin %}
