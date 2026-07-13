@@ -2062,6 +2062,10 @@ class EntityCreationService
      *
      * This function doesn't permit delaying flushes, because it's impossible to lock properly.
      *
+     * Unlike {@see self::createStorageEntity()}, this function does not fire its related event...
+     * changes to Radio fields typically involve multiple calls to updateRadioSelection(), so the
+     * callers need to dispatch the event once they're done updating.
+     *
      * @param ODRUser $user
      * @param RadioOptions $radio_option
      * @param DataRecordFields $drf

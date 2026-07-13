@@ -982,7 +982,7 @@ class FacadeController extends Controller
 
         // API Login URL
         $api_login_url = $this->generateUrl(
-            'api_login_check_v4_odr_rruff',
+            'api_login_check_v4_odr',
             array(
             )
         );
@@ -1092,7 +1092,7 @@ class FacadeController extends Controller
 
         // API Login URL
         $api_login_url = $this->generateUrl(
-            'api_login_check_v4_odr_rruff',
+            'api_login_check_v4_odr',
             array(
             )
         );
@@ -1299,7 +1299,7 @@ class FacadeController extends Controller
 
             // API Login URL
             $api_login_url = $this->generateUrl(
-                'api_login_check_v4_odr_rruff',
+                'api_login_check_v4_odr',
                 array(
                 )
             );

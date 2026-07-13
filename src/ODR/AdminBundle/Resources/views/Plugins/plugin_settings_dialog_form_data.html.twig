@@ -256,6 +256,8 @@
                 event.preventDefault();
                 event.stopImmediatePropagation();
 
+                showODRRemodalLoading();
+
                 var datatype_id = {{ local_datatype.id }};
                 var datafield_id = {% if local_datafield == null %}0{% else %}{{ local_datafield.id }}{% endif %};
                 var render_plugin_id = {{ render_plugin.id }};
@@ -290,12 +292,15 @@
                             var tmp = data.d.datafield_properties;
                             tmp = JSON.parse(tmp);    {# datafield_properties is effectively defined in design_datafield.html.twig #}
                             $.each(tmp, function(df_id, returned_df_props) {
-                                var df_props = datafield_properties.get( parseInt(df_id) );
-                                // console.log('df_id', df_id, 'current_df_props', df_props);
-                                // console.log('returned_df_props', returned_df_props);
-                                $.each(returned_df_props, function(key, value) {
-                                    df_props.set(key, value);
-                                });
+                                var df_id = parseInt(df_id);
+                                if ( datafield_properties.has(df_id) ) {
+                                    var df_props = datafield_properties.get(df_id);
+                                    // console.log('df_id', df_id, 'current_df_props', df_props);
+                                    // console.log('returned_df_props', returned_df_props);
+                                    $.each(returned_df_props, function(key, value) {
+                                        df_props.set(key, value);
+                                    });
+                                }
                             });
                             // console.log('datafield properties', datafield_properties);
 

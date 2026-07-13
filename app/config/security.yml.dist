@@ -225,7 +225,18 @@ security:
 ##########
 # API control
 
-        - { path: ^/api/v3/token, role: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: /api/v5/token, role: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: /odr/api/v5/token, role: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: /odr_data/api/v5/token, role: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: /odr_rruff/api/v5/token, role: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: /api/v4/token, role: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: /odr/api/v4/token, role: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: /odr_data/api/v4/token, role: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: /odr_rruff/api/v4/token, role: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: /api/v3/token, role: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: /odr/api/v3/token, role: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: /odr_data/api/v3/token, role: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: /odr_rruff/api/v3/token, role: IS_AUTHENTICATED_ANONYMOUSLY }
         - { path: ^/api,       role: IS_AUTHENTICATED_FULLY }
 #        - { path: ^/api, role: IS_AUTHENTICATED_ANONYMOUSLY }
 
