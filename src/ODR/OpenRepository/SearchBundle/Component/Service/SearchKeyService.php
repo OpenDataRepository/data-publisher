@@ -348,6 +348,295 @@ class SearchKeyService
 
 
     /**
+     * Converts a "friendly", UUID-based JSON search request that targets a single (non-template)
+     * datatype into a regular encoded search key that {@link SearchAPIService::performSearch()}
+     * understands.  This exists so API consumers can POST a readable JSON search key -- the same
+     * general shape as the template search API -- instead of hand-building the terse, numeric
+     * "regular" search key format.
+     *
+     * The decoded JSON is expected to have the following shape:
+     *   {
+     *       "dataset_uuid": "<datatype unique_id>",   // REQUIRED (may also be passed as an argument)
+     *       "general": "...",                          // optional general/"search everything" string
+     *       "fields": [ ... ],                         // optional array of per-field criteria
+     *       "sort_by": [
+     *           { "field_uuid": "...", "dir": "asc" }  // "template_field_uuid" also accepted
+     *       ]
+     *   }
+     *
+     * Each entry in "fields" MUST identify its datafield by EITHER "field_uuid" (the datatype's own
+     * datafield uuid) OR "template_field_uuid" (the uuid of the master-template field it derives
+     * from), plus exactly one criteria key appropriate to that field's type:
+     *   - "value"            => Text/Number/Boolean/XYZData fields
+     *   - "selected_options" => Radio; an array of objects, each with "radio_option_uuid"
+     *                           (or "template_radio_option_uuid"), optional "unselected": true
+     *   - "selected_tags"    => Tag; an array of objects, each with "template_tag_uuid"
+     *                           (or "tag_uuid"), optional "unselected": true
+     *   - "before" / "after" => Datetime; "Y-m-d" strings ("after" is the start, "before" the end)
+     *   - "filename"         => File/Image
+     *   - "public_status"    => File/Image
+     *   - "quality"          => File/Image
+     *
+     * Fields belonging to the datatype's child/linked descendants may also be searched on, since
+     * the whole datatype tree is loaded to build the uuid lookup.
+     *
+     * NOTE: cloning a datatype from a master template preserves radio-option and tag uuids, so the
+     * "radio_option_uuid"/"template_radio_option_uuid" (and tag) variants are interchangeable.
+     *
+     * @param string $dataset_uuid The unique_id of the datatype to search.  A "dataset_uuid" key
+     *                             inside $json, if present, takes precedence over this argument.
+     * @param array $json The decoded JSON search request.
+     *
+     * @return string The encoded (url-safe base64) regular search key.
+     *
+     * @throws ODRBadRequestException
+     * @throws ODRNotFoundException
+     */
+    public function convertJsonToDatasetSearchKey($dataset_uuid, $json)
+    {
+        $exception_code = 0x3b8f1c4a;
+
+        if ( !is_array($json) )
+            throw new ODRBadRequestException('Invalid search request: expected a JSON object', $exception_code);
+
+        // A "dataset_uuid" inside the JSON body overrides the value passed in
+        if ( isset($json['dataset_uuid']) )
+            $dataset_uuid = $json['dataset_uuid'];
+        if ( !is_string($dataset_uuid) || $dataset_uuid === '' )
+            throw new ODRBadRequestException('Invalid search request: missing "dataset_uuid"', $exception_code);
+
+        // Locate the datatype being searched on...
+        $datatype = $this->database_info_service->getDatatypeFromUniqueId($dataset_uuid);   // throws ODRNotFoundException when missing
+        $datatype_id = $datatype->getId();
+
+        // ...then load the cached data for it and all of its descendants, so that fields belonging
+        //  to child/linked datatypes can also be searched on
+        $grandparent_datatype_id = $this->datatree_info_service->getGrandparentDatatypeId($datatype_id);
+        $datatype_array = $this->database_info_service->getDatatypeArray($grandparent_datatype_id);
+
+        // Build a lookup of every datafield in the tree, keyed by BOTH its own fieldUuid and its
+        //  templateFieldUuid (when one exists).  Each entry also carries the maps needed to convert
+        //  radio-option/tag uuids into the ids the regular search key format requires.
+        $field_lookup = array();
+        foreach ($datatype_array as $dt_id => $dt_data) {
+            if ( !isset($dt_data['dataFields']) )
+                continue;
+
+            foreach ($dt_data['dataFields'] as $df_id => $df) {
+                $typeclass = null;
+                if ( isset($df['dataFieldMeta']['fieldType']['typeClass']) )
+                    $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
+
+                // Map radioOptionUuid => radio_option_id
+                $radio_lookup = array();
+                if ( isset($df['radioOptions']) ) {
+                    foreach ($df['radioOptions'] as $ro) {
+                        if ( isset($ro['radioOptionUuid']) )
+                            $radio_lookup[ $ro['radioOptionUuid'] ] = $ro['id'];
+                    }
+                }
+
+                // Map tagUuid => tag_id (tags are stored stacked, so this recurses)
+                $tag_lookup = array();
+                if ( isset($df['tags']) )
+                    self::flattenTagUuids($df['tags'], $tag_lookup);
+
+                $entry = array(
+                    'df_id' => $df_id,
+                    'typeclass' => $typeclass,
+                    'radio_lookup' => $radio_lookup,
+                    'tag_lookup' => $tag_lookup,
+                );
+
+                if ( isset($df['fieldUuid']) && $df['fieldUuid'] !== '' )
+                    $field_lookup[ $df['fieldUuid'] ] = $entry;
+                if ( isset($df['templateFieldUuid']) && $df['templateFieldUuid'] !== '' )
+                    $field_lookup[ $df['templateFieldUuid'] ] = $entry;
+            }
+        }
+
+
+        // ----------------------------------------
+        // Begin assembling a "regular" search key
+        $search_params = array('dt_id' => $datatype_id);
+
+        // General search string
+        if ( isset($json['general']) && trim($json['general']) !== '' )
+            $search_params['gen'] = trim($json['general']);
+
+
+        // ----------------------------------------
+        // Convert each field's criteria into the numeric search key format
+        if ( isset($json['fields']) && is_array($json['fields']) ) {
+            foreach ($json['fields'] as $num => $field) {
+                // Resolve the datafield via its own uuid or its template uuid
+                $field_uuid = self::extractFieldUuid($field);
+                if ( is_null($field_uuid) )
+                    throw new ODRBadRequestException('Invalid search request: "fields" entry '.$num.' is missing "field_uuid"/"template_field_uuid"', $exception_code);
+                if ( !isset($field_lookup[$field_uuid]) )
+                    throw new ODRBadRequestException('Invalid search request: unknown field uuid "'.$field_uuid.'"', $exception_code);
+
+                $lookup = $field_lookup[$field_uuid];
+                $df_id = $lookup['df_id'];
+                $typeclass = $lookup['typeclass'];
+
+                if ( array_key_exists('value', $field) ) {
+                    // Text/Number/Boolean/XYZData search
+                    $search_params[$df_id] = self::clean( trim( (string)$field['value'] ) );
+                }
+                else if ( isset($field['selected_options']) ) {
+                    if ( $typeclass !== 'Radio' )
+                        throw new ODRBadRequestException('Invalid search request: "selected_options" given for a "'.$typeclass.'" field, expected Radio ("'.$field_uuid.'")', $exception_code);
+
+                    $ids = array();
+                    foreach ($field['selected_options'] as $opt) {
+                        $opt_uuid = null;
+                        if ( isset($opt['radio_option_uuid']) )
+                            $opt_uuid = $opt['radio_option_uuid'];
+                        else if ( isset($opt['template_radio_option_uuid']) )
+                            $opt_uuid = $opt['template_radio_option_uuid'];
+
+                        if ( is_null($opt_uuid) || !isset($lookup['radio_lookup'][$opt_uuid]) )
+                            throw new ODRBadRequestException('Invalid search request: unknown radio option "'.$opt_uuid.'" for field "'.$field_uuid.'"', $exception_code);
+
+                        // A "-" prefix means "must NOT be selected"
+                        if ( isset($opt['unselected']) && $opt['unselected'] === true )
+                            $ids[] = '-'.$lookup['radio_lookup'][$opt_uuid];
+                        else
+                            $ids[] = $lookup['radio_lookup'][$opt_uuid];
+                    }
+
+                    if ( !empty($ids) )
+                        $search_params[$df_id] = implode(',', $ids);
+                }
+                else if ( isset($field['selected_tags']) ) {
+                    if ( $typeclass !== 'Tag' )
+                        throw new ODRBadRequestException('Invalid search request: "selected_tags" given for a "'.$typeclass.'" field, expected Tag ("'.$field_uuid.'")', $exception_code);
+
+                    $ids = array();
+                    foreach ($field['selected_tags'] as $t) {
+                        $tag_uuid = null;
+                        if ( isset($t['tag_uuid']) )
+                            $tag_uuid = $t['tag_uuid'];
+                        else if ( isset($t['template_tag_uuid']) )
+                            $tag_uuid = $t['template_tag_uuid'];
+
+                        if ( is_null($tag_uuid) || !isset($lookup['tag_lookup'][$tag_uuid]) )
+                            throw new ODRBadRequestException('Invalid search request: unknown tag "'.$tag_uuid.'" for field "'.$field_uuid.'"', $exception_code);
+
+                        if ( isset($t['unselected']) && $t['unselected'] === true )
+                            $ids[] = '-'.$lookup['tag_lookup'][$tag_uuid];
+                        else
+                            $ids[] = $lookup['tag_lookup'][$tag_uuid];
+                    }
+
+                    if ( !empty($ids) )
+                        $search_params[$df_id] = implode(',', $ids);
+                }
+                else if ( isset($field['before']) || isset($field['after']) ) {
+                    if ( $typeclass !== 'DatetimeValue' )
+                        throw new ODRBadRequestException('Invalid search request: "before"/"after" given for a "'.$typeclass.'" field, expected Datetime ("'.$field_uuid.'")', $exception_code);
+
+                    // "after" is the start boundary, "before" is the end boundary
+                    if ( isset($field['after']) && trim($field['after']) !== '' )
+                        $search_params[$df_id.'_s'] = trim($field['after']);
+                    if ( isset($field['before']) && trim($field['before']) !== '' )
+                        $search_params[$df_id.'_e'] = trim($field['before']);
+                }
+                else if ( isset($field['filename']) ) {
+                    if ( $typeclass !== 'File' && $typeclass !== 'Image' )
+                        throw new ODRBadRequestException('Invalid search request: "filename" given for a "'.$typeclass.'" field, expected File or Image ("'.$field_uuid.'")', $exception_code);
+                    $search_params[$df_id] = self::clean( trim( (string)$field['filename'] ) );
+                }
+                else if ( isset($field['public_status']) ) {
+                    if ( $typeclass !== 'File' && $typeclass !== 'Image' )
+                        throw new ODRBadRequestException('Invalid search request: "public_status" given for a "'.$typeclass.'" field, expected File or Image ("'.$field_uuid.'")', $exception_code);
+                    $search_params[$df_id.'_pub'] = (string)$field['public_status'];
+                }
+                else if ( isset($field['quality']) ) {
+                    if ( $typeclass !== 'File' && $typeclass !== 'Image' )
+                        throw new ODRBadRequestException('Invalid search request: "quality" given for a "'.$typeclass.'" field, expected File or Image ("'.$field_uuid.'")', $exception_code);
+                    $search_params[$df_id.'_qual'] = (string)$field['quality'];
+                }
+                else {
+                    throw new ODRBadRequestException('Invalid search request: no recognized criteria for field "'.$field_uuid.'"', $exception_code);
+                }
+            }
+        }
+
+
+        // ----------------------------------------
+        // Sorting
+        if ( isset($json['sort_by']) && is_array($json['sort_by']) ) {
+            $sort_by = array();
+            foreach ($json['sort_by'] as $num => $sort) {
+                $field_uuid = self::extractFieldUuid($sort);
+                if ( is_null($field_uuid) || !isset($field_lookup[$field_uuid]) )
+                    throw new ODRBadRequestException('Invalid search request: unknown sort field uuid "'.$field_uuid.'"', $exception_code);
+
+                $dir = 'asc';
+                if ( isset($sort['dir']) && $sort['dir'] === 'desc' )
+                    $dir = 'desc';
+
+                $sort_by[] = array(
+                    'sort_df_id' => $field_lookup[$field_uuid]['df_id'],
+                    'sort_dir' => $dir,
+                );
+            }
+
+            if ( !empty($sort_by) )
+                $search_params['sort_by'] = $sort_by;
+        }
+
+
+        // ----------------------------------------
+        // Encode into a regular search key.  The caller should still run the result through
+        //  self::validateSearchKey() before searching.
+        ksort($search_params);
+        return self::encodeSearchKey($search_params);
+    }
+
+
+    /**
+     * Pulls a datafield uuid out of a "fields"/"sort_by" element, preferring the datatype's own
+     * "field_uuid" but falling back to the "template_field_uuid".
+     *
+     * @param array $element
+     * @return string|null
+     */
+    private function extractFieldUuid($element)
+    {
+        if ( !is_array($element) )
+            return null;
+        if ( isset($element['field_uuid']) && $element['field_uuid'] !== '' )
+            return $element['field_uuid'];
+        if ( isset($element['template_field_uuid']) && $element['template_field_uuid'] !== '' )
+            return $element['template_field_uuid'];
+        return null;
+    }
+
+
+    /**
+     * Recursively walks a stacked tag array, mapping each tag's uuid to its id.
+     *
+     * @param array $stacked_tags
+     * @param array $tag_lookup
+     */
+    private function flattenTagUuids($stacked_tags, &$tag_lookup)
+    {
+        foreach ($stacked_tags as $tag_id => $tag) {
+            if ( isset($tag['tagUuid']) ) {
+                // Prefer the explicit id, but the array is keyed by tag id as well
+                $tag_lookup[ $tag['tagUuid'] ] = isset($tag['id']) ? $tag['id'] : $tag_id;
+            }
+
+            if ( isset($tag['children']) )
+                self::flattenTagUuids($tag['children'], $tag_lookup);
+        }
+    }
+
+
+    /**
      * Strips newlines and extra spaces from search parameters, and also replaces several multibyte
      * character sequences with ascii equivalents.  Expects a trimmed string as input.
      *

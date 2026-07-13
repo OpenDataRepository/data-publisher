@@ -201,13 +201,144 @@ class FacadeController extends Controller
 
 
     /**
-     * Attempts to convert the given json-encoded key into a format usable by ODR, and then attempts
-     * to run a search that returns results across multiple datatypes.
+     * Runs a template-level search and returns the matching records as export data (JSON or XML).
      *
-     * @param string $version
-     * @param string $json_key
-     * @param integer $limit
-     * @param integer $offset
+     * A "template search" is performed against a master template's field/radio-option/tag UUIDs
+     * rather than against the concrete field IDs of a single database.  Because every database
+     * derived from a template shares the template's UUIDs, a single search key can therefore return
+     * results across every datatype built from that template.
+     *
+     *
+     * ---------------------------------------------------------------------------------------------
+     * THE SEARCH KEY
+     * ---------------------------------------------------------------------------------------------
+     * The `$json_key` path segment is a URL-safe Base64 encoding of a JSON object (see the
+     * "ENCODING" section below for exactly how to produce it).  Once decoded, the JSON object has
+     * the following shape:
+     *
+     *   {
+     *       "template_uuid": "92kasdfh2l",       // REQUIRED. unique_id of the master template to search.
+     *       "template_name": "AHED Core 1.0",    // optional, informational only (ignored by the search).
+     *       "general": "",                       // optional general/"search everything" text string.
+     *       "fields": [ ... ],                   // optional array of per-field criteria (see below).
+     *       "sort_by": [ ... ]                   // optional; at most ONE entry is currently supported.
+     *   }
+     *
+     * Only "template_uuid" is mandatory, and it must match `/^[a-z0-9]+$/`.  Every UUID referenced
+     * anywhere in the key ("template_field_uuid", "template_radio_option_uuid", "template_tag_uuid")
+     * must actually belong to that template, or the request is rejected with a 400.  An empty key
+     * (just a "template_uuid") matches every record built from the template.
+     *
+     * The "general" key holds a free-text string that is matched across all general-search-enabled
+     * fields, exactly like the single search box in the ODR UI.
+     *
+     * The "sort_by" key is an array of objects, each with:
+     *   - "template_field_uuid": the field to sort on
+     *   - "dir": either "asc" or "desc"
+     * NOTE: multi-field sorting is not implemented yet, so at most one entry may be provided.
+     *
+     *
+     * ---------------------------------------------------------------------------------------------
+     * THE "fields" ARRAY
+     * ---------------------------------------------------------------------------------------------
+     * Each entry in "fields" is an object that MUST contain a "template_field_uuid", plus exactly
+     * one criteria key.  The criteria key that is allowed depends on the field's type:
+     *
+     *   - Text/Number/Boolean fields (ShortVarchar, MediumVarchar, LongVarchar, LongText,
+     *     IntegerValue, DecimalValue, Boolean, XYZData) use "value":
+     *         { "template_field_uuid": "abc123", "value": "quartz" }
+     *
+     *   - Radio/Select fields use "selected_options", an array of objects each holding a
+     *     "template_radio_option_uuid" (the "name" is informational only):
+     *         { "template_field_uuid": "abc123", "selected_options": [
+     *               { "name": "Collection", "template_radio_option_uuid": "mc1kasdfsj" } ] }
+     *
+     *   - Tag fields use "selected_tags", an array of objects each holding a "template_tag_uuid":
+     *         { "template_field_uuid": "abc123", "selected_tags": [
+     *               { "template_tag_uuid": "0f9ktag12" } ] }
+     *
+     *   - Datetime fields use "before" and/or "after", each a "Y-m-d" date string:
+     *         { "template_field_uuid": "abc123", "after": "2020-01-01", "before": "2020-12-31" }
+     *
+     *   - File/Image fields use "filename", "public_status", and/or "quality".
+     *
+     * An optional, informational "field_name" may be included on any field entry; it is ignored by
+     * the search and exists only to make the decoded key human-readable.
+     *
+     * A worked example of a decoded key (two radio-option filters plus a sort):
+     *   {
+     *       "fields": [
+     *           {
+     *               "field_name": "Resource Type",
+     *               "selected_options": [
+     *                   {
+     *                       "name": "Collection",
+     *                       "template_radio_option_uuid": "mc1kasdfsj"
+     *                   }
+     *               ],
+     *               "template_field_uuid": "mc82kdkgh"
+     *           },
+     *           {
+     *               "field_name": "Funding Sources",
+     *               "selected_options": [
+     *                   {
+     *                       "name": "Foreign &gt; Government &gt; ESA (EU)",
+     *                       "template_radio_option_uuid": "28dkvmaso8"
+     *                   }
+     *               ],
+     *               "template_field_uuid": "mxcnvu2nd"
+     *           }
+     *       ],
+     *       "general": "",
+     *       "sort_by": [
+     *           {
+     *               "dir": "asc",
+     *               "template_field_uuid": "72dhuwkdk"
+     *           }
+     *       ],
+     *       "template_name": "AHED Core 1.0",
+     *       "template_uuid": "92kasdfh2l"
+     *   }
+     *
+     *
+     * ---------------------------------------------------------------------------------------------
+     * ENCODING THE KEY (URL-safe Base64)
+     * ---------------------------------------------------------------------------------------------
+     * The JSON object above is not passed raw; it is encoded so it can travel safely inside a URL
+     * path segment.  ODR uses a URL-safe variant of Base64 (see
+     * {@link SearchKeyService::encodeSearchKey()} / {@link SearchKeyService::convertBase64toSearchKey()}).
+     * To build `$json_key` from the JSON object:
+     *
+     *   1. Serialize the object to a JSON string (e.g. `json_encode($params)`).
+     *   2. Base64-encode that string (`base64_encode(...)`).
+     *   3. Strip any trailing '=' padding characters.
+     *   4. Replace every '+' with '-' and every '/' with '_'.
+     *
+     * In PHP this is exactly:
+     *   $json_key = strtr( rtrim( base64_encode( json_encode($params) ), '=' ), '+/', '-_' );
+     *
+     * Decoding (performed automatically by this action) simply reverses steps 4-2:
+     *   $params = json_decode( base64_decode( strtr($json_key, '-_', '+/') ), true );
+     *
+     * A raw Base64 string will still decode correctly, but URLs containing '+', '/', or '=' can be
+     * mangled by proxies/servers, so always use the URL-safe form above when constructing links.
+     *
+     * NOTE on oversized keys: if the encoded key would be too long for a URL, ODR can instead store
+     * the real key server-side and hand out a short key containing only a "uuid" that points at it.
+     * This action handles that transparently via {@link SearchKeyService::decodeSearchKey()}; callers
+     * building keys by hand do not need to do anything special.
+     *
+     *
+     * ---------------------------------------------------------------------------------------------
+     * QUERY PARAMETERS
+     * ---------------------------------------------------------------------------------------------
+     *   - ?metadata=false : trims the response down to the most useful info instead of full metadata.
+     *   - ?download=file  : returns the results as a file download instead of inline in the browser.
+     *
+     * @param string $version The API/export version (e.g. "v3").
+     * @param string $json_key The URL-safe Base64 encoded template search key (see above).
+     * @param integer $limit Maximum number of records to return; 0 means "return all".
+     * @param integer $offset Number of leading records to skip (for pagination).
      * @param Request $request
      *
      * @return Response
@@ -334,6 +465,214 @@ class FacadeController extends Controller
             return $response;
         } catch (\Exception $e) {
             $source = 0x9c2fcbde;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
+     * Runs a search against a single (non-template) datatype and returns the matching records as
+     * export data (JSON or XML).
+     *
+     * Unlike {@link self::searchTemplateGetAction()}, this is a POST endpoint that accepts a plain,
+     * human-readable JSON search key in the request body -- no base64 encoding required.  The JSON
+     * uses the same general shape as the template search, but targets one datatype by its uuid and
+     * lets each field be identified by either its own "field_uuid" or the "template_field_uuid" of
+     * the master-template field it derives from:
+     *
+     *   {
+     *       "dataset_uuid": "<datatype unique_id>",   // REQUIRED (may also be given in the URL)
+     *       "general": "quartz",                       // optional general search string
+     *       "fields": [
+     *           { "field_uuid": "abc123", "value": "Gold" },
+     *           { "template_field_uuid": "mc82kdkgh", "selected_options": [
+     *               { "radio_option_uuid": "mc1kasdfsj" } ] }
+     *       ],
+     *       "sort_by": [
+     *           { "field_uuid": "72dhuwkdk", "dir": "asc" }
+     *       ]
+     *   }
+     *
+     * See {@link SearchKeyService::convertJsonToDatasetSearchKey()} for the full set of per-field
+     * criteria keys ("value", "selected_options", "selected_tags", "before"/"after", "filename",
+     * "public_status", "quality").
+     *
+     * Query parameters:
+     *   - ?metadata=false : trims the response down to the most useful info instead of full metadata.
+     *   - ?download=file  : returns the results as a file download instead of inline.
+     *
+     * @param string $version
+     * @param string $dataset_uuid The unique_id of the datatype to search.  A "dataset_uuid" in the
+     *                             JSON body, if present, takes precedence over this.
+     * @param integer $limit Maximum number of records to return; 0 means "return all".
+     * @param integer $offset Number of leading records to skip.
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function datasetSearchByUUIDAction($version, $dataset_uuid, $limit, $offset, Request $request)
+    {
+        try {
+            // ----------------------------------------
+            // Default to showing all info about the datatype...
+            $display_metadata = true;
+            if ($request->query->has('metadata') && $request->query->get('metadata') == 'false')
+                $display_metadata = false;
+
+            // Default to returning the data straight to the browser...
+            $download_response = false;
+            if ($request->query->has('download') && $request->query->get('download') == 'file')
+                $download_response = true;
+
+
+            // ----------------------------------------
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var DatarecordExportService $datarecord_export_service */
+            $datarecord_export_service = $this->container->get('odr.datarecord_export_service');
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchAPIService $search_api_service */
+            $search_api_service = $this->container->get('odr.search_api_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
+            /** @var TokenGenerator $tokenGenerator */
+            $tokenGenerator = $this->container->get('fos_user.util.token_generator');
+
+
+            // ----------------------------------------
+            // Parse the JSON search request from the POST body
+            $content = $request->getContent();
+            $json = array();
+            if ($content !== '') {
+                $json = json_decode($content, true);
+                if ($json === null)
+                    throw new ODRBadRequestException('Invalid search request: request body is not valid JSON');
+            }
+
+            // Convert the friendly JSON request into a regular search key, then validate it
+            $search_key = $search_key_service->convertJsonToDatasetSearchKey($dataset_uuid, $json);
+            $search_key_service->validateSearchKey($search_key);
+
+            // The search key is valid, so the datatype it references exists
+            $params = $search_key_service->decodeSearchKey($search_key);
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find( $params['dt_id'] );
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+
+            // ----------------------------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();   // <-- will return 'anon.' when nobody is logged in
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
+
+            // Only allow searching a datatype the user is allowed to view
+            if ( !$permissions_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+
+
+            // ----------------------------------------
+            // Guard against a subtle footgun: the search system silently discards criteria that
+            //  reference fields the user can't view, and an empty search then returns EVERY record.
+            //  To avoid confusing "why is a value search returning non-matching records" behavior,
+            //  detect any criteria that would be stripped and fail loudly instead.
+            // NOTE: $ignore_searchable is true here (and in performSearch below) on purpose -- the
+            //  DataFields "searchable" flag only controls whether a field shows up in the search
+            //  sidebar UI, and shouldn't prevent an API caller from explicitly searching a field.
+            //  View permissions are still enforced.
+            $filtered_search_key = $search_api_service->filterSearchKeyForUser(
+                $datatype->getId(),
+                $search_key,
+                $user_permissions,
+                false,  // don't search as super-admin
+                true    // ignore the "searchable" flag; only enforce view permissions
+            );
+            $filtered_params = $search_key_service->decodeSearchKey($filtered_search_key);
+
+            // Any of my criteria keys that didn't survive filtering reference a non-viewable field
+            $reserved_keys = array('dt_id', 'gen', 'gen_lim', 'merge', 'set', 'inverse', 'ignore', 'sort_by');
+            $dropped = array();
+            foreach ($params as $key => $value) {
+                if ( in_array($key, $reserved_keys, true) )
+                    continue;
+                if ( !array_key_exists($key, $filtered_params) )
+                    $dropped[] = $key;
+            }
+            if ( !empty($dropped) )
+                throw new ODRForbiddenException('The search references one or more fields you do not have permission to view');
+
+
+            // ----------------------------------------
+            // Allow users to specify positive integer values less than a billion for these variables
+            $offset = intval($offset);
+            $limit = intval($limit);
+
+            // If limit is set to 0, then return all results
+            if ($limit === 0)
+                $limit = 999999999;
+
+            if ($offset >= 1000000000)
+                throw new ODRBadRequestException('Offset must be less than a billion');
+            if ($limit >= 1000000000)
+                throw new ODRBadRequestException('Limit must be less than a billion');
+
+
+            // ----------------------------------------
+            // Run the search against the single datatype.  Passing the user's permissions (and not
+            //  searching as a super-admin) means non-public records get filtered out automatically.
+            //  $ignore_searchable is true so that fields flagged "not searchable" in the UI can still
+            //  be searched when explicitly requested through the API.
+            $datarecord_list = $search_api_service->performSearch(
+                $datatype,
+                $search_key,
+                $user_permissions,
+                false,      // return_complete_list
+                array(),    // sort_datafields
+                array(),    // sort_directions
+                false,      // search_as_super_admin
+                true        // ignore_searchable
+            );
+
+            // Apply limit/offset to the results
+            $datarecord_list = array_slice($datarecord_list, $offset, $limit);
+
+            // Render the resulting list of datarecords into a single chunk of export data
+            $baseurl = $this->container->getParameter('site_baseurl');
+            $data = $datarecord_export_service->getData(
+                $version,
+                $datarecord_list,
+                $request->getRequestFormat(),
+                $display_metadata,
+                $user,
+                $baseurl,
+                1,
+                true
+            );
+
+
+            // ----------------------------------------
+            // Set up a response to return the datarecord list
+            $response = new Response();
+
+            if ($download_response) {
+                // Generate a token for this download
+                $token = substr($tokenGenerator->generateToken(), 0, 15);
+
+                $response->setPrivate();
+                $response->headers->set('Content-Disposition', 'attachment; filename="' . $token . '.' . $request->getRequestFormat() . '";');
+            }
+
+            $response->setContent($data);
+            return $response;
+        } catch (\Exception $e) {
+            $source = 0x7f31ac05;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else
