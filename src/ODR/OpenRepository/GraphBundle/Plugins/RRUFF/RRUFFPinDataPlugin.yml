@@ -3,9 +3,9 @@ odr_plugins.rruff.pin_data:
     category: RRUFF
     plugin_type: datatype
     render: odr_plugins.rruff.pin_data
-    version: 1.0.0
+    version: 2.0.0
     override_fields: true
-    override_field_reload: false
+    override_field_reload: true
     override_child: false
     override_table_fields: false
     override_export: false
@@ -14,15 +14,10 @@ odr_plugins.rruff.pin_data:
     suppress_no_fields_note: false
     description: This plugin converts the orientation data from RRUFF into a more readable format.
     registered_events:
+        RadioPostUpdateEvent: onRadioPostUpdate
+        MassEditTriggerEvent: onMassEditTrigger
+
     required_fields:
-
-        # ----------------------------------------
-        # These fields are temporary...they only exist to make it easier to import
-#        child_rruff_id:
-#            name: Child RRUFF ID
-#            description:
-#            type: ShortVarchar
-
         pin_label:
             name: Pin Label
             description:
@@ -61,5 +56,27 @@ odr_plugins.rruff.pin_data:
             name: Vector Perpendicular Reference Space
             description:
             type: Single Select
+
+        orientation_field:
+            name: Orientation
+            description:
+            type: LongVarchar
+            properties:
+                - no_user_edits
+                - is_derived
+        laser_direction:
+            name: Laser Direction
+            description:
+            type: ShortVarchar
+            properties:
+                - no_user_edits
+                - is_derived
+        laser_polarization:
+            name: Laser Polarization
+            description:
+            type: ShortVarchar
+            properties:
+                - no_user_edits
+                - is_derived
 
     config_options:

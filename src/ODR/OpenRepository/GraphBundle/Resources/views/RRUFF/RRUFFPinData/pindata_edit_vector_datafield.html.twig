@@ -1,0 +1,242 @@
+{% apply spaceless %}
+
+{% set datafield_meta = datafield.dataFieldMeta %}
+{% set field_typename = datafield_meta.fieldType.typeName %}
+{% set field_typeclass = datafield_meta.fieldType.typeClass %}
+
+{% set datarecordfield = '' %}
+{% set valuefield = '' %}
+{% set valuefield_value = '' %}
+{% if datarecord.dataRecordFields[ datafield.id ] is defined %}
+    {% set datarecordfield = datarecord.dataRecordFields[ datafield.id ] %}
+
+    {% if field_typeclass == "Radio" %}
+        {% set valuefield = datarecordfield.radioSelection %}
+    {% endif %}
+{% endif %}
+
+{% if valuefield == '' and field_typeclass == 'Radio' %}
+    {% set valuefield = [] %}
+{% endif %}
+
+{% set unique_id = datarecord.id ~ '_' ~ datafield.id %}
+{% set input_id = field_typeclass ~ 'Form_' ~ unique_id %}
+{% set input_name = field_typeclass ~ 'Form[value]' %}
+
+    <form
+        autocomplete="off"
+        action="{{ path('odr_record_save', { 'datarecord_id': datarecord.id, 'datafield_id': datafield.id }) }}"
+        class="pure-u-1"
+        id="EditForm_{{ unique_id }}"
+        method="POST"
+    >
+
+        <input type="hidden" id="{{ field_typeclass }}Form__token" name="{{ field_typeclass }}Form[_token]" value="{{ token_list[ datarecord.id ][ datafield.id ] }}" />
+
+    {% if field_typename == "Single Radio" %}
+        <fieldset>
+            <label class="ODRRadioField ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+
+            {% set print_null_option = false %}
+            {% set has_selection = false %}
+            {#{% if field_typename == "Single Radio" %}#}
+                {% set print_null_option = true %}
+
+                {% for radio_selection in valuefield %}
+                    {% if radio_selection.selected == 1 %}
+                        {% set has_selection = true %}
+                    {% endif %}
+                {% endfor %}
+            {#{% endif %}#}
+
+            {% if datafield.radioOptions is defined %}
+                <div id="{{ input_id }}" class="ODRRadioOptionsEdit">
+                {% for radio_option in datafield.radioOptions %}
+                    {% set is_selected = 0 %}
+                    {% if datarecordfield.radioSelection[ radio_option.id ] is defined %}
+                        {% set is_selected = datarecordfield.radioSelection[ radio_option.id ].selected %}
+                    {% endif %}
+
+                    {% if print_null_option == true %}
+                        {% set print_null_option = false %}
+                        <label for="{{ input_id }}_0" class="pure-u-1 pure-u-md-1-{{ datafield_meta.children_per_row }}" style="margin: 0.5em 0;">
+                            <input
+                                id="{{ input_id }}_0"
+                                type="radio"
+                                name="RadioGroup_{{ unique_id }}"
+                                {% if has_selection == false %}checked{% endif %}
+                                class="SingleRadioGroup ODRSpecializedHandler {% if has_selection == false %}ODRRadioOptionChecked{% endif %}"
+                            />
+                            No Option Selected
+                        </label>
+                    {% endif %}
+
+                    <label for="{{ input_id }}_{{ radio_option.id }}" class="pure-u-1 pure-u-md-1-{{ datafield_meta.children_per_row }}" style="margin: 0.5em 0;">
+
+                    {#{% if field_typename == "Single Radio" %}#}
+                        <input
+                            {% if datafield_meta.internal_reference_name != '' %}rel="{{ datafield_meta.internal_reference_name }}"{% endif %}
+                            id="{{ input_id }}_{{ radio_option.id }}"
+                            type="radio"
+                            name="RadioGroup_{{ unique_id }}"
+                            {% if is_selected == 1 %}checked{% endif %}
+                            class="SingleRadioGroup ODRSpecializedHandler {% if is_selected == 1 %}ODRRadioOptionChecked{%endif %}"
+                        />
+                    {#{% endif %}#}
+
+                    {{ radio_option.radioOptionMeta.optionName }}
+                    </label>
+                {% endfor %}
+                </div>
+            {% endif %}
+        </fieldset>
+
+    {% elseif field_typename == "Single Select" %}
+        <fieldset>
+            <label for="{{ input_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">{{ datafield_meta.fieldName }}</label>
+
+            <select
+                {% if datafield_meta.internal_reference_name != '' %}rel="{{ datafield_meta.internal_reference_name }}"{% endif %}
+                id="{{ input_id }}"
+                class="pure-u-24-24 SingleSelectGroup ODRSpecializedHandler"
+            >
+
+            {% if datafield.radioOptions is defined %}
+                {#{% if field_typename == "Single Select" %}#}
+                    <option id="Option_0" value="0">No Option Selected</option>
+                {#{% endif %}#}
+
+                {% for radio_option in datafield.radioOptions %}
+                    {% set is_selected = 0 %}
+                    {% if datarecordfield.radioSelection[ radio_option.id ] is defined %}
+                        {% set is_selected = datarecordfield.radioSelection[ radio_option.id ].selected %}
+                    {% endif %}
+
+                    <option id="Option_{{ radio_option.id }}"
+                            value="{{ radio_option.id}}"
+                            {% if is_selected == 1 %}selected{% endif %}
+                    >
+                        {{ radio_option.radioOptionMeta.optionName }}
+                    </option>
+                {% endfor %}
+            {% endif %}
+            </select>
+        </fieldset>
+
+    {% endif %}
+    </form>
+
+    <script>
+        $(function() {
+        {# NOTE: the vector fields are only Single Radio/Select, so there's no Multiple Radio/Select handlers here #}
+        {% if field_typename == "Single Radio" %}
+            $("#{{ input_id }}").find(".SingleRadioGroup").unbind('click').click(function() {
+
+                // Want to prevent sending unecessary ajax events...can't detect if option is already selected with is("checked")
+
+                // If this belongs to a "fake" record, don't attempt to save
+                if ( $(this).closest(".ODRFieldArea").hasClass("ODRFakeRecord") )
+                    return;
+                // If already checked, do nothing
+                if ( $(this).hasClass('ODRRadioOptionChecked') )
+                    return;
+
+                // Update classes to track which radio option is selected
+                $(this).parent().parent().find('input').each(function() {
+                    $(this).removeClass('ODRRadioOptionChecked');
+                });
+                $(this).addClass('ODRRadioOptionChecked');
+
+                // Grab relevant entity ids
+                var id_data = $(this).attr('id').split(/_/);
+                var datarecord_id = id_data[1];
+                var datafield_id = id_data[2];
+                var radio_option_id = id_data[3];
+
+                var url  = '{{ path('odr_record_radio_selection', {'datarecord_id': 0, 'datafield_id': 0, 'radio_option_id': 0} ) }}';
+                url = url.substring(0,(url.length - 5));
+                url += datarecord_id + '/' + datafield_id + '/' + radio_option_id;
+
+                $.ajax({
+                    cache: false,
+                    type: 'GET',
+                    url: url,
+                    dataType: "json",
+                    success: function(data, textStatus, jqXHR) {
+                        // Should reload the derived datafields
+                        {% if orientation_datafield_id is not null %}ReloadEditDatafield({{ datarecord.id }}, {{ orientation_datafield_id }});{% endif %}
+                        {% if direction_datafield_id is not null %}ReloadEditDatafield({{ datarecord.id }}, {{ direction_datafield_id }});{% endif %}
+                        {% if polarization_datafield_id is not null %}ReloadEditDatafield({{ datarecord.id }}, {{ polarization_datafield_id }});{% endif %}
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        // Just reload the datafield on error, since can't restore the old value
+                        ReloadEditDatafield(datarecord_id, datafield_id);
+                    },
+                    complete: function(jqXHR, textStatus) {
+                        // Get the xdebugToken from response headers
+                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                        // If the Sfjs object exists
+                        if (typeof Sfjs !== "undefined") {
+                            // Grab the toolbar element
+                            var currentElement = $('.sf-toolbar')[0];
+
+                            // Load the data of the given xdebug token into the current toolbar wrapper
+                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                        }
+                    }
+                });
+            });
+        {% elseif field_typename == "Single Select" %}
+            $("#{{ input_id }}").unbind('change').change(function() {
+
+                // If this belongs to a "fake" record, don't attempt to save
+                if ( $(this).closest(".ODRFieldArea").hasClass("ODRFakeRecord") )
+                    return;
+
+                // Grab relevant entity ids
+                var id_data = $(this).attr('id').split(/_/);
+                var datarecord_id = id_data[1];
+                var datafield_id = id_data[2];
+
+                var radio_option_id = $(this).val();
+
+                var url  = '{{ path('odr_record_radio_selection', {'datarecord_id': 0, 'datafield_id': 0, 'radio_option_id': 0} ) }}';
+                url = url.substring(0,(url.length - 5));
+                url += datarecord_id + '/' + datafield_id + '/' + radio_option_id;
+
+                $.ajax({
+                    cache: false,
+                    type: 'GET',
+                    url: url,
+                    dataType: "json",
+                    success: function(data, textStatus, jqXHR) {
+                        // Should reload the derived datafields
+                        {% if orientation_datafield_id is not null %}ReloadEditDatafield({{ datarecord.id }}, {{ orientation_datafield_id }});{% endif %}
+                        {% if direction_datafield_id is not null %}ReloadEditDatafield({{ datarecord.id }}, {{ direction_datafield_id }});{% endif %}
+                        {% if polarization_datafield_id is not null %}ReloadEditDatafield({{ datarecord.id }}, {{ polarization_datafield_id }});{% endif %}
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        // Just reload the datafield on error, since can't restore the old value
+                        ReloadEditDatafield(datarecord_id, datafield_id);
+                    },
+                    complete: function(jqXHR, textStatus) {
+                        // Get the xdebugToken from response headers
+                        var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                        // If the Sfjs object exists
+                        if (typeof Sfjs !== "undefined") {
+                            // Grab the toolbar element
+                            var currentElement = $('.sf-toolbar')[0];
+
+                            // Load the data of the given xdebug token into the current toolbar wrapper
+                            Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                        }
+                    }
+                });
+            });
+        {% endif %}
+        });
+    </script>
+
+{% endapply %}

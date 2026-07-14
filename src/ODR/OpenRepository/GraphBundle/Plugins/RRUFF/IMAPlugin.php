@@ -1067,8 +1067,8 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
 
         // Only interested in overriding datafields mapped to these rpf entries
         $relevant_datafields = [
-            'IMA Formula' => 'Chemistry Elements',
-            'RRUFF Formula' => 'Valence Elements',
+            'IMA Formula' => 1,  // source field for 'Chemistry Elements'
+            'RRUFF Formula' => 1,  // source field for 'Valence Elements'
         ];
 
         $ret = [];
@@ -1088,8 +1088,8 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
     {
         // Only interested in overriding datafields mapped to these rpf entries
         $relevant_datafields = [
-            'IMA Formula' => 'Chemistry Elements',
-            'RRUFF Formula' => 'Valence Elements',
+            'IMA Formula' => 1,  // source field for 'Chemistry Elements'
+            'RRUFF Formula' => 1,  // source field for 'Valence Elements'
         ];
 
         $trigger_fields = [];

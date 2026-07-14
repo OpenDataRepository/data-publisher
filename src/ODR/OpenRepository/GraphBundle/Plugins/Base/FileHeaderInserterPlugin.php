@@ -1652,11 +1652,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
 
 
     /**
-     * Returns an array of datafields where MassEdit should enable the abiilty to run a background
-     * job without actually changing their values.
-     *
-     * @param array $render_plugin_instance
-     * @return array An array where the values are datafield ids
+     * @inheritDoc
      */
     public function getMassEditOverrideFields($render_plugin_instance)
     {
@@ -1676,16 +1672,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
 
 
     /**
-     * The MassEdit system generates a checkbox for each RenderPlugin that returns something from
-     * self::getMassEditOverrideFields()...if the user selects the checkbox, then certain RenderPlugins
-     * may not want to activate if the user has also entered a value in the relevant field.
-     *
-     * For each datafield affected by this RenderPlugin, this function returns true if the plugin
-     * should always be activated, or false if it should only be activated when the user didn't
-     * also enter a value into the field.
-     *
-     * @param array $render_plugin_instance
-     * @return array
+     * @inheritDoc
      */
     public function getMassEditTriggerFields($render_plugin_instance)
     {

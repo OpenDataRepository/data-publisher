@@ -27,6 +27,7 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordCreatedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
+use ODR\AdminBundle\Component\Event\RadioPostUpdateEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRConflictException;
@@ -522,6 +523,7 @@ class FakeEditController extends ODRCustomController
             $em->persist($new_datarecord);
 
             // ...create any required storage entities and assign the requested values to them
+            $radio_drfs = array();
             foreach ($datafields as $df_id => $value) {
                 $df = $df_mapping[$df_id];
                 $typeclass = $df->getFieldType()->getTypeClass();
@@ -533,6 +535,7 @@ class FakeEditController extends ODRCustomController
 
                         // Create the drf entry...
                         $drf = $entity_create_service->createDatarecordField($user, $new_datarecord, $df);
+                        $radio_drfs[] = $drf;
                         // ...then create the radio selection
                         $radio_selection = $entity_create_service->createRadioSelection($user, $ro, $drf);
 
@@ -591,6 +594,20 @@ class FakeEditController extends ODRCustomController
 //                        if ( $this->getParameter('kernel.environment') === 'dev' )
 //                            throw $e;
                     }
+                }
+            }
+
+            foreach ($radio_drfs as $drf) {
+                // Fire off events notifying that the modification of the radio stuff is done
+                try {
+                    $event = new RadioPostUpdateEvent($drf, $user);
+                    $dispatcher->dispatch($event, RadioPostUpdateEvent::NAME);
+                }
+                catch (\Exception $e) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
+//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        throw $e;
                 }
             }
 

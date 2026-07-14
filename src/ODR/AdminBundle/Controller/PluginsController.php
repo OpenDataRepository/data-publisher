@@ -722,6 +722,7 @@ class PluginsController extends ODRCustomController
 //            'PluginPreRemoveEvent' => 0,
 
 //            'PostUpdateEvent' => 0,
+//            'RadioPostUpdateEvent' => 0,
         ];
         // ...though this is more due to a great reluctance to test that a render plugin will properly
         //  work in all situations the event can be triggered in, rather than some structural reason

@@ -28,8 +28,9 @@ interface MassEditTriggerEventInterface
 {
 
     /**
-     * Returns an array of datafield ids where MassEdit should enable the abiilty to run a background
-     * job without actually changing their values.
+     * Returns an array of datafield ids where MassEdit should enable a checkbox to "Activate the
+     * RenderPlugin on this field".  This is typically used to update the contents of a derived
+     * field without having to also change the values of any of the related source fields.
      *
      * @param array $render_plugin_instance
      * @return int[] An array where the values are datafield ids
@@ -38,14 +39,22 @@ interface MassEditTriggerEventInterface
 
 
     /**
-     * The MassEdit system generates a checkbox to "activate the RenderPlugin" for each datafield
-     * the implementing RenderPlugin returns via self::getMassEditOverrideFields()...but there are
-     * cases where certain RenderPlugins may not want or need to activate separately if the user has
-     * also entered a value in the relevant field.
+     * The checkbox added by {@link MassEditTriggerEventInterface::getMassEditOverrideFields()} is
+     * in addition to the default MassEdit input, so there's a possibility for both the user to both
+     * enter a regular value (unless it's a readonly field) and activate the extra checkbox.  This
+     * could dispatch more than one event for the same field, so this function allows the plugin
+     * to control whether that can happen or not.
      *
-     * For each datafield affected by this RenderPlugin, this function returns true if the plugin
-     * should always be activated, or false if it should only be activated when the user didn't
-     * also enter a value into the field.
+     * The datafields here should really be a subset of those returned by the other function...a
+     * value of false for that datafield means the MassEditTrigger event should only be fired when
+     * the field's value isn't changed...a value of true means the MassEditTrigger event should be
+     * fired regardless.
+     *
+     * Typically, plugins set this value to false for text/number fields, and true for file fields.
+     * The plugins that deal with text/number fields almost always also listen to the PostUpdate
+     * event, and don't need to derive the value twice...however, the ones dealing with file fields
+     * need the MassEditTrigger event to do their derivations, since it makes little sense to try
+     * to listen to a FilePublicStatusChanged event...
      *
      * @param array $render_plugin_instance
      * @return bool[] An array where the keys are datafield ids

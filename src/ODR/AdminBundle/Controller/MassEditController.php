@@ -43,6 +43,7 @@ use ODR\AdminBundle\Component\Event\DatarecordLinkStatusChangedEvent;
 use ODR\AdminBundle\Component\Event\DatatypeImportedEvent;
 use ODR\AdminBundle\Component\Event\FilePublicStatusChangedEvent;
 use ODR\AdminBundle\Component\Event\MassEditTriggerEvent;
+use ODR\AdminBundle\Component\Event\RadioPostUpdateEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRConflictException;
@@ -1215,6 +1216,7 @@ class MassEditController extends ODRCustomController
 
             if ($field_typeclass == 'Radio') {
                 // Ensure a datarecordfield entity exists...
+                $need_radio_event = false;
                 $drf = $entity_create_service->createDatarecordField($user, $datarecord, $datafield);
 
                 if ( !$datafield->getPreventUserEdits() && !is_null($value) ) {
@@ -1239,6 +1241,7 @@ class MassEditController extends ODRCustomController
                             // Ensure it has the correct selected value
                             $properties = ['selected' => $selected];
                             $entity_modify_service->updateRadioSelection($user, $radio_selection, $properties);
+                            $need_radio_event = true;
 
                             $ret .= 'setting radio_selection object for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId().', radio_option_id '.$radio_option_id.' to '.$selected."\n";
 
@@ -1259,6 +1262,7 @@ class MassEditController extends ODRCustomController
                                 // Ensure this RadioSelection is deselected
                                 $properties = ['selected' => 0];
                                 $entity_modify_service->updateRadioSelection($user, $rs, $properties, true);    // don't flush immediately...
+                                $need_radio_event = true;
                                 $changes_made = true;
 
                                 $ret .= 'deselecting radio_option_id '.$radio_option_id.' for datafield '.$datafield->getId().' ('.$field_typename.') of datarecord '.$datarecord->getId()."\n";
@@ -1267,6 +1271,20 @@ class MassEditController extends ODRCustomController
 
                         if ($changes_made)
                             $em->flush();
+                    }
+                }
+
+                if ( $need_radio_event ) {
+                    // Fire off events notifying that the modification of the radio stuff is done
+                    try {
+                        $event = new RadioPostUpdateEvent($drf, $user);
+                        $dispatcher->dispatch($event, RadioPostUpdateEvent::NAME);
+                    }
+                    catch (\Exception $e) {
+                        // ...don't want to rethrow the error since it'll interrupt everything after this
+                        //  event
+//                        if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                            throw $e;
                     }
                 }
 
