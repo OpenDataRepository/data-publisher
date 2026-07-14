@@ -4066,19 +4066,20 @@ if ($debug)
             if ( !isset($post['_token']) || !isset($post['searchable']) || !isset($post['public_status']) )
                 throw new ODRBadRequestException();
 
+            $searchable = [];
             foreach ($post['searchable'] as $df_id => $val)
-                $post['searchable'][$df_id] = intval($val);
+                $searchable[$df_id] = intval($val);
+            $public_status = [];
             foreach ($post['public_status'] as $df_id => $val)
-                $post['public_status'][$df_id] = intval($val);
+                $public_status[$df_id] = intval($val);
 
             // The fieldtypes variable might not be set, since those form entries are disabled when
             //  the user isn't allowed to change fieldtypes
+            $fieldtypes = [];
             if ( isset($post['fieldtypes']) ) {
                 foreach ($post['fieldtypes'] as $df_id => $val)
-                    $post['fieldtypes'][$df_id] = intval($val);
+                    $fieldtypes[$df_id] = intval($val);
             }
-            else
-                $post['fieldtypes'] = [];
 
 
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -4164,15 +4165,15 @@ if ($debug)
             foreach ($df_array as $df_id => $df) {
                 // Verify that none of the datafields got changed to a fieldtype they're not allowed
                 //  to have
-                if ( isset($post['fieldtypes'][$df_id]) ) {
+                if ( isset($fieldtypes[$df_id]) ) {
                     // If a fieldtype entry for this datafield exists in the post, then it's supposed
                     //  to allow its fieldtype to get changed
                     if ( $fieldtype_info[$df_id]['prevent_change'] === true )
                         throw new ODRBadRequestException('Datafield '.$df_id.' is not allowed to change its fieldtype');
 
                     // Verify that the submitted fieldtype is on the list of allowed fieldtypes
-                    if ( !in_array($post['fieldtypes'][$df_id], $fieldtype_info[$df_id]['allowed_fieldtypes']) )
-                        throw new ODRBadRequestException('Datafield '.$df_id.' is not allowed to change to fieldtype '.$post['fieldtypes'][$df_id]);
+                    if ( !in_array($fieldtypes[$df_id], $fieldtype_info[$df_id]['allowed_fieldtypes']) )
+                        throw new ODRBadRequestException('Datafield '.$df_id.' is not allowed to change to fieldtype '.$fieldtypes[$df_id]);
                 }
                 else {
                     // If a fieldtype entry for this datafield does not exist in the post, then it's
@@ -4181,32 +4182,35 @@ if ($debug)
                         throw new ODRBadRequestException('Form submited without fieldtype for datafield '.$df_id);
 
                     // Verifying the "searchable" entry is easier if a fieldtype entry exists though
-                    $post['fieldtypes'][$df_id] = $df['dataFieldMeta']['fieldType']['id'];
+                    $fieldtypes[$df_id] = $df['dataFieldMeta']['fieldType']['id'];
                 }
 
 
                 // Verify that all datafields in the post have an entry for public_status...
-                if ( !isset($post['public_status'][$df_id]) )
+                if ( !isset($public_status[$df_id]) )
                     throw new ODRBadRequestException('Form submitted without public_status for datafield '.$df_id);
 
                 // ...and that the public status is a boolean
-                $public_status = $post['public_status'][$df_id];
-                if ( $public_status !== 0 && $public_status !== 1 )
+                if ( $public_status[$df_id] !== 0 && $public_status[$df_id] !== 1 )
                     throw new ODRBadRequestException('Form submitted with invalid public status for datafield '.$df_id);
 
 
                 // Verify that all fields other than markdown fields have a searchable entry
-                $submitted_fieldtype_id = $post['fieldtypes'][$df_id];
+                $submitted_fieldtype_id = $fieldtypes[$df_id];
                 $submitted_typeclass = $fieldtype_map[$submitted_fieldtype_id]->getTypeClass();
-                if ( $submitted_typeclass === 'Markdown' && isset($post['searchable'][$df_id]) )
+                if ( $submitted_typeclass === 'Markdown' && isset($searchable[$df_id]) )
                     throw new ODRBadRequestException('Form submited with search status for Markdown datafield '.$df_id);
-                else if ( $submitted_typeclass !== 'Markdown' && !isset($post['searchable'][$df_id]) )
+                else if ( $submitted_typeclass !== 'Markdown' && !isset($searchable[$df_id]) )
                     throw new ODRBadRequestException('Form submitted without search status for datafield '.$df_id);
 
-                if ( isset($post['searchable'][$df_id]) ) {
-                    $searchable = $post['searchable'][$df_id];
-                    if ( !($searchable === DataFields::NOT_SEARCHABLE || $searchable === DataFields::SEARCHABLE) )
+                if ( isset($searchable[$df_id]) ) {
+                    if ( !($searchable[$df_id] === DataFields::NOT_SEARCHABLE || $searchable[$df_id] === DataFields::SEARCHABLE) )
                         throw new ODRBadRequestException('Form submitted with illegal searchable status for datafield '.$df_id);
+                }
+                else {
+                    // If the form was submitted without a searchable value for this datafield, then
+                    //  fill in with whatever value the datafield already has
+                    $searchable[$df_id] = $df['dataFieldMeta']['searchable'];
                 }
 
                 // Don't want to force a searchable value right this second, since it depends on
@@ -4226,7 +4230,7 @@ if ($debug)
                 // public date is never affected by changing the fieldtype, but want to set it equal
                 //  to the datafield's current public date if it's not being changed
                 $public_date = new \DateTime('2200-01-01 00:00:00');
-                if ( $post['public_status'][$df_id] === 1 ) {
+                if ( $public_status[$df_id] === 1 ) {
                     if ( $datafield->isPublic() )
                         $public_date = $datafield->getPublicDate();
                     else
@@ -4237,7 +4241,7 @@ if ($debug)
                 // Don't change the fieldtype if it's not allowed
                 $old_fieldtype = $new_fieldtype = $datafield->getFieldType();
                 if ( $fieldtype_info[$df_id]['prevent_change'] !== true )
-                    $new_fieldtype = $fieldtype_map[ $post['fieldtypes'][$df_id] ];
+                    $new_fieldtype = $fieldtype_map[ $fieldtypes[$df_id] ];
 
                 // If the user wants to change the fieldtype...
                 $migrate_data = false;
@@ -4268,14 +4272,14 @@ if ($debug)
 
                 // Only want to save if something got changed...
                 if ( $old_fieldtype->getId() !== $new_fieldtype->getId()
-                    || $datafield->getSearchable() !== $post['searchable'][$df_id]
+                    || $datafield->getSearchable() !== $searchable[$df_id]
                     || $datafield->getPublicDate() !== $public_date
                 ) {
                     $change_made = true;
 
                     $properties = [
                         'fieldType' => $new_fieldtype,
-                        'searchable' => $post['searchable'][$df_id],
+                        'searchable' => $searchable[$df_id],
                         'publicDate' => $public_date,
                     ];
                     $entity_modify_service->updateDatafieldMeta($user, $datafield, $properties, true);    // don't flush immediately
