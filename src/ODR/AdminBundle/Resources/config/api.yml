@@ -322,6 +322,23 @@ odr_search_api_general_search:
     _format: '|json|xml'
 
 #
+# Searches an individual (non-template) datatype identified by its uuid.
+# This is a POST endpoint that takes a plain JSON search key (our search
+# key JSON format) in the request body -- no base64 encoding required.
+# Fields may be referenced by their own field_uuid or by template_field_uuid.
+#
+odr_search_api_dataset_search_by_uuid:
+  path: /api/{version}/dataset/{dataset_uuid}/search/{limit}/{offset}.{_format}
+  defaults: { _controller: ODR\OpenRepository\SearchBundle\Controller\FacadeController::datasetSearchByUUIDAction, limit: 0, offset: 0, _format: 'json', version: 'v5' }
+  methods: [ POST ]
+  requirements:
+    version: 'v\d+'
+    dataset_uuid: '[a-z0-9]+'
+    limit: \d+
+    offset: \d+
+    _format: '|json|xml'
+
+#
 # Cross-template search.  Requires a master datatype
 # and searches across all datasets matching that type.
 #
