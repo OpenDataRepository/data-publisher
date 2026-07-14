@@ -3,12 +3,12 @@
 Living state for the SF7 ⇄ `develop` synchronization (see `SYNCHRONIZATION_PLAN.md`).
 
 ## High-water mark
-- **Synced `origin/develop` up to:** `a3847582` (origin/develop HEAD @ 2026-07-01)
-- **This run's pinned target (T):** `a3847582`
-- **Last sync date:** 2026-07-02
+- **Synced `origin/develop` up to:** `83dde93f` (origin/develop HEAD @ 2026-07-13)
+- **This run's pinned target (T):** `83dde93f`
+- **Last sync date:** 2026-07-14
 
-  Run 1 (`d42d71a4` → `f418ad30`, 63 non-merge commits) + Run 2 / new-delta
-  (`f418ad30` → `a3847582`, 7 non-merge commits) both complete. Every commit is
+  Run 1 (`d42d71a4` → `f418ad30`, 63 commits) + Run 2 (`f418ad30` → `a3847582`, 7
+  commits) + Run 3 (`a3847582` → `83dde93f`, 5 commits) all complete. Every commit is
   Ported, Skipped (obsolete/superseded/already-handled), or Ported-partial with the
   env-affecting remainder recorded in `DEVELOP_SYNC_CHANGELIST.md` for operator
   action at end-testing (notably 866664e1 active auth config + per-mode JWT tests,
@@ -117,3 +117,15 @@ Fetched 2026-07-01; re-confirmed 2026-07-02 that a3847582 is still origin/develo
 | 68 | 326f8158 | 2026-06-30 | Fix to IMA update to use new paths. | bugfix | Ported | Phase D13d | net effect (after ad11b59d) = FacadeController 3x api_login_check_v4_odr; requires the expanded api_login routing (866664e1) in the tracked .dist; active routing.yml regen deferred to operator (CHANGELIST) |
 | 69 | ea49a842 | 2026-07-01 | Fix to security.yml.dist to add all authentication routes. | security | Ported | (earlier) | security.yml.dist + active security.yml token-route PUBLIC_ACCESS exceptions (v3/v4/v5 x {base,odr,odr_data,odr_rruff}); done pre-D13 |
 | 70 | a3847582 | 2026-07-01 | Fix to quota system. Raised quota to 50GB. | feature | Ported | Phase D13f | APIController datasetQuotaByUUIDAction refactor (resolveApiActingUser + canEditDatatype) + quota 25GB->50GB (both the download guard and the dataset-quota endpoint) |
+
+## Ported-commits table (run 3: a3847582 → 83dde93f, 5 non-merge commits)
+
+Fetched + synced 2026-07-14. origin/develop advanced 5 commits past a3847582.
+
+| # | dev SHA | date | subject | group | decision | branch commit | notes |
+|---|---------|------|---------|-------|----------|---------------|-------|
+| 71 | 23c8b2b2 | 2026-07-02 | Fix CSVImport error when run on a datatype without an external id field | bugfix | Ported | Phase D14a | CSVImport/layout.html.twig — null-guard datatype.getexternalidfield (external_id_field.id -> null-checked external_id_field_id, 2 usages). lint:twig OK |
+| 72 | cc83f581 | 2026-07-02 | Fix 'Multiple Datafield Properties Dialog' on master design page for datatypes with Markdown fields | bugfix | Ported | Phase D14a | DisplaytemplateController — stop mutating $post in place (local $searchable/$public_status/$fieldtypes arrays) + fill in a datafield's existing searchable value when the form omits it (Markdown fields have none). php -l OK |
+| 73 | 56d022c4 | 2026-07-02 | Fixed ODR's remodals calculation of height to use browser window size instead of monitor size | bugfix | Ported | Phase D14a | odr_remodal.html.twig — size modals off window.innerHeight not window.screen.availHeight; dropped forced 200px min. lint:twig OK |
+| 74 | 83dde93f | 2026-07-13 | Single dataset search API endpoint | feature | Ported | Phase D14b | new POST route odr_search_api_dataset_search_by_uuid (SF7 FQCN _controller); SearchKeyService +3 additive methods (convertJsonToDatasetSearchKey/extractFieldUuid/flattenTagUuids); FacadeController::datasetSearchByUUIDAction SF7-reconciled (container doctrine, FQCN, container->get('odr.*')->ctor members, token null-safe). Skipped hunk-1 131-line docblock expansion on existing searchTemplateGetAction (docs only). Route registers; boots |
+| 75 | f3c9ae7e | 2026-07-13 | Modified RRUFFPinData plugin to store derived strings in fields instead of just displaying them | feature | Ported | Phase D14c | 27 files. new RadioPostUpdateEvent (Contracts\Event); ODREventSubscriber onRadioPostUpdate; 5 controllers dispatch it in SF7 event-first order (verified 0 old-order dispatches remain); RRUFFPinDataPlugin full rewrite 295->~1099 SF7-converted (LoggerInterface/Twig\Environment/FQCN/@-namespace/event-first dispatches) + config.yml ctor args; 5 sibling plugins MassEditTrigger tweaks; 3 new + 1 rewritten templates. Delegated+verified: php -l x18 / lint:twig x7 [OK] / prod+dev cache:clear [OK] |
