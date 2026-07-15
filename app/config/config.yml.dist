@@ -106,21 +106,27 @@ doctrine:
             string_functions:
                 MATCH: ODR\AdminBundle\Component\Utility\MatchAgainstFunction
         mappings:
+            # is_bundle: false is REQUIRED — without it newer doctrine-bundle treats the mapping
+            # name ("translatable" etc.) as a bundle and fails with 'Bundle "translatable" does not
+            # exist'. The dir also moved from lib/Gedmo/ to src/ in gedmo/doctrine-extensions 3.x.
             translatable:
                 type: annotation
                 alias: Gedmo
+                is_bundle: false
                 prefix: Gedmo\Translatable\Entity
-                dir: "%kernel.project_dir%/vendor/gedmo/doctrine-extensions/lib/Gedmo/Translatable/Entity"
+                dir: "%kernel.project_dir%/vendor/gedmo/doctrine-extensions/src/Translatable/Entity"
             loggable:
                 type: annotation
                 alias: Gedmo
+                is_bundle: false
                 prefix: Gedmo\Loggable\Entity
-                dir: "%kernel.project_dir%/vendor/gedmo/doctrine-extensions/lib/Gedmo/Loggable/Entity"
+                dir: "%kernel.project_dir%/vendor/gedmo/doctrine-extensions/src/Loggable/Entity"
             tree:
                 type: annotation
                 alias: Gedmo
+                is_bundle: false
                 prefix: Gedmo\Tree\Entity
-                dir: "%kernel.project_dir%/vendor/gedmo/doctrine-extensions/lib/Gedmo/Tree/Entity"
+                dir: "%kernel.project_dir%/vendor/gedmo/doctrine-extensions/src/Tree/Entity"
 
 lexik_jwt_authentication:
     secret_key:       '%kernel.project_dir%/app/config/jwt/private.pem' # required for token creation
