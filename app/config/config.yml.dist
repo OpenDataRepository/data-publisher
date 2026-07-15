@@ -169,6 +169,10 @@ services:
         arguments: ["@session.memcached", { prefix: "%session_memcached_prefix%", expiretime: "%session_memcached_expire%" }]
 
     ODR.exception_controller:
+        # public: true is REQUIRED — framework.error_controller references this as
+        # 'ODR.exception_controller::showAction', and a controller referenced by service id must be
+        # public (or tagged controller.service_arguments) or the ControllerResolver can't fetch it.
+        public: true
         class: ODR\AdminBundle\Controller\ODRExceptionController
         arguments: [ "@twig", "%kernel.debug%", "@security.token_storage" ]
 

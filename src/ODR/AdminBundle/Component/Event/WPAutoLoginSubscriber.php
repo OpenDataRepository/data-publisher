@@ -163,7 +163,9 @@ class WPAutoLoginSubscriber implements EventSubscriberInterface
                     if($user) {
                         // var_dump($user, true);exit();
                         $event->getRequest()->attributes->set('integrated_user', $user);
-                        $token = new UsernamePasswordToken($user, null, 'main', $user->getRoles());
+                        // SF6/7 dropped the $credentials arg: UsernamePasswordToken is now
+                        // ($user, string $firewallName, array $roles). 'main' is the firewall.
+                        $token = new UsernamePasswordToken($user, 'main', $user->getRoles());
                         $this->container->get('security.token_storage')->setToken($token);
                     }
                 }
