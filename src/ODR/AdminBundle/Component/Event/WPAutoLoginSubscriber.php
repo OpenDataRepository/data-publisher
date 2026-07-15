@@ -27,7 +27,7 @@ class WPAutoLoginSubscriber implements EventSubscriberInterface
      * @param UserManager $user_manager
      * @param LoggerInterface $logger
      */
-    public function __construct(private readonly string $env, private readonly ContainerInterface $container, private readonly UserManager $user_manager, private readonly LoggerInterface $logger)
+    public function __construct(private readonly string $env, private readonly ContainerInterface $container, private readonly UserManager $user_manager, private readonly LoggerInterface $logger, private readonly TokenStorageInterface $token_storage)
     {
     }
 
@@ -166,7 +166,9 @@ class WPAutoLoginSubscriber implements EventSubscriberInterface
                         // SF6/7 dropped the $credentials arg: UsernamePasswordToken is now
                         // ($user, string $firewallName, array $roles). 'main' is the firewall.
                         $token = new UsernamePasswordToken($user, 'main', $user->getRoles());
-                        $this->container->get('security.token_storage')->setToken($token);
+                        // SF7: security.token_storage is private -> can't be pulled via
+                        // container->get(); use the injected TokenStorageInterface instead.
+                        $this->token_storage->setToken($token);
                     }
                 }
                 else {

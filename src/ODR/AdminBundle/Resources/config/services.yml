@@ -641,6 +641,7 @@ services:
             $container: "@service_container"    # needed in order to execute arbitrary render plugins
             $user_manager: "@fos_user.user_manager"
             $logger: "@logger"
+            $token_storage: "@security.token_storage"   # SF7: inject (private, not fetchable via container->get)
         tags:
             - { name: "kernel.event_subscriber" }
 
