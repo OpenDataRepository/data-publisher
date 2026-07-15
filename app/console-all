@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+#
+# console-all — run one app/console command against every linked ODR instance.
+#
+# The everyday console auto-detects a single instance from the current directory
+# (see app/console). This wrapper is for the bulk case: after a deploy, clear cache
+# or run migrations across ALL linked sites in one shot instead of cd-ing a dozen times.
+#
+# It reads instance roots from app/config/instances.list (one per line; # comments and
+# blank lines ignored), cd's into each, and runs THIS checkout's app/console there — so
+# the console's CWD auto-detection targets each instance automatically.
+#
+#   app/console-all cache:clear --env=prod
+#   app/console-all doctrine:migrations:migrate --no-interaction
+#
+# Exit code is non-zero if the command failed for any instance (the run still continues
+# through the rest). Copy app/config/instances.list.dist to app/config/instances.list and
+# fill in your instance roots to get started.
+
+set -u
+
+SRC="$(cd "$(dirname "$0")/.." && pwd)"          # source project root (app/ -> root)
+LIST="$SRC/app/config/instances.list"
+CONSOLE="$SRC/app/console"
+
+if [ ! -f "$LIST" ]; then
+    echo "console-all: no instance list at $LIST" >&2
+    echo "  cp app/config/instances.list.dist app/config/instances.list  and add one instance root per line." >&2
+    exit 1
+fi
+if [ "$#" -eq 0 ]; then
+    echo "usage: $(basename "$0") <console command and args...>" >&2
+    echo "  e.g. $(basename "$0") cache:clear --env=prod" >&2
+    exit 2
+fi
+
+rc=0
+count=0
+while IFS= read -r raw; do
+    line="${raw%%#*}"                            # strip trailing comment
+    line="$(printf '%s' "$line" | awk '{$1=$1};1')"   # trim surrounding whitespace
+    [ -z "$line" ] && continue
+
+    count=$((count + 1))
+    printf '\n===== [%d] %s =====\n' "$count" "$line"
+    if [ ! -d "$line/app/config" ]; then
+        echo "  SKIP: $line has no app/config (not an instance root?)" >&2
+        rc=1
+        continue
+    fi
+    if ( cd "$line" && php "$CONSOLE" "$@" ); then
+        :
+    else
+        echo "  FAILED (exit $?) for $line" >&2
+        rc=1
+    fi
+done < "$LIST"
+
+printf '\n===== done: %d instance(s), overall %s =====\n' "$count" "$([ "$rc" -eq 0 ] && echo OK || echo 'ERRORS — see above')"
+exit "$rc"

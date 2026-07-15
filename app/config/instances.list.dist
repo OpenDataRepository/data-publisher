@@ -1,0 +1,14 @@
+# instances.list — linked / WordPress-integrated ODR instance roots, one per line.
+#
+# Copy this to  app/config/instances.list  (which is gitignored — it's per-server) and list the
+# ROOT directory of each linked instance (the dir that contains app/config), NOT the app dir.
+#
+# Used by  app/console-all  to fan a single console command out across every site:
+#     app/console-all cache:clear --env=prod
+#
+# Blank lines and everything after a '#' are ignored.
+#
+# Example:
+# /home/rruff/data-publisher
+# /home/amcsd/data-publisher
+# /home/ima/data-publisher

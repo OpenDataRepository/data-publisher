@@ -319,20 +319,40 @@ it never refreshes the instance's compiled container (and if the instance's `var
 source, it actively clobbers the good instance-built container with a source-built one). Symptom: you
 edit an instance's `config.yml`, clear cache, and the change *still* doesn't take effect.
 
-**Always target the instance explicitly** (env var; `page-odr.php` still sets the constant on its own):
-```bash
-# instance root (the dir containing app/config):
-ODR_INSTANCE=/home/rruff/data-publisher php app/console cache:clear --env=prod
-# — or the raw app dir, mirroring the constant —
-ODR_APP_DIR=/home/rruff/data-publisher/app php app/console cache:clear --env=prod
-```
-The console prints `[console] targeting instance: …` when the selector is active. Use it for **every**
-per-instance command — `cache:clear`, `doctrine:migrations:*`, `assets:install`, plugin
-(re)registration. To force a clean rebuild you can also just delete the instance's compiled container:
-`rm -rf /home/rruff/data-publisher/var/cache/prod` and let the next web request rebuild it from the
-instance config.
+`app/console` resolves the target instance in this order (first match wins), printing
+`[console] targeting instance: …` whenever it lands on one:
 
-Check which tree a path actually resolves to with `readlink -f /home/rruff/data-publisher/var/cache`.
+1. **Just `cd` into the site** — the everyday path. The console auto-detects the instance from your
+   working directory (walks up looking for a tree with its own `app/config/config.yml` that isn't
+   this source checkout). No env var, no flags:
+   ```bash
+   cd /home/rruff/data-publisher
+   php /path/to/source/app/console cache:clear --env=prod     # targets /home/rruff/data-publisher
+   ```
+2. **Env override** (scripts / cron / ambiguous CWD):
+   ```bash
+   ODR_INSTANCE=/home/rruff/data-publisher php app/console cache:clear --env=prod   # instance root
+   ODR_APP_DIR=/home/rruff/data-publisher/app php app/console ...                   # raw app dir
+   ```
+
+Running from the **source tree** (or anywhere with no instance above the CWD) leaves the console on the
+source tree as before — behaviour there is unchanged.
+
+**All linked sites at once** — `app/console-all` fans a single command across every instance listed in
+`app/config/instances.list` (copy `instances.list.dist`, one instance root per line). It `cd`s into
+each and reuses the auto-detection above, continues past a failing site, and exits non-zero if any
+failed:
+```bash
+cp app/config/instances.list.dist app/config/instances.list   # once; then add your roots
+app/console-all cache:clear --env=prod
+app/console-all doctrine:migrations:migrate --no-interaction
+```
+
+Use one of these for **every** per-instance command — `cache:clear`, `doctrine:migrations:*`,
+`assets:install`, plugin (re)registration. To force a clean rebuild you can also just delete the
+instance's compiled container: `rm -rf /home/rruff/data-publisher/var/cache/prod` and let the next web
+request rebuild it. Check which tree a path resolves to with
+`readlink -f /home/rruff/data-publisher/var/cache`.
 
 ---
 

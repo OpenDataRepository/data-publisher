@@ -26,16 +26,35 @@ $debug = getenv('SYMFONY_DEBUG') !== '0' && !$input->hasParameterOption(array('-
 // derive ODR_APP_DIR from the request path; the console cannot, so WITHOUT this every console command
 // (cache:clear, doctrine:migrations, odr:plugins ...) silently targets the shared SOURCE tree instead
 // of the instance -- e.g. `cache:clear` rebuilds the container from the source config and never
-// refreshes (or actively clobbers) the instance's compiled container. Select the instance with an env
-// var; page-odr.php already defines the constant, so this only fires from the CLI:
-//     ODR_INSTANCE=/home/rruff/data-publisher   php app/console cache:clear --env=prod   (instance root)
-//     ODR_APP_DIR=/home/rruff/data-publisher/app php app/console ...                      (raw app dir)
+// refreshes (or actively clobbers) the instance's compiled container.
+//
+// Resolution order (first match wins):
+//   1. ODR_APP_DIR env   -- raw app dir, exact parity with the constant page-odr.php defines.
+//   2. ODR_INSTANCE env  -- instance ROOT (the dir containing app/config); /app is appended.
+//   3. auto-detect from the CURRENT WORKING DIRECTORY -- if you're cd'd inside a linked instance
+//      (a tree with its own app/config/config.yml that is NOT this source checkout), target it.
+//      This is the everyday path: `cd /home/rruff/data-publisher && php <source>/app/console ...`.
+// Running from the source tree itself (or anywhere with no instance above) leaves ODR_APP_DIR unset,
+// so behaviour there is unchanged. page-odr.php still defines the constant on its own for the web.
 if (!defined('ODR_APP_DIR')) {
     if ($odr_app_dir = getenv('ODR_APP_DIR')) {
         define('ODR_APP_DIR', rtrim($odr_app_dir, '/'));
     } elseif ($odr_instance = getenv('ODR_INSTANCE')) {
         $odr_instance = rtrim($odr_instance, '/');
         define('ODR_APP_DIR', is_dir($odr_instance.'/app/config') ? $odr_instance.'/app' : $odr_instance);
+    } else {
+        // Walk up from CWD looking for an instance root (has app/config/config.yml). If the first one
+        // found is THIS source checkout, don't override -- that's the normal source-tree case.
+        $source_project = realpath(dirname(__DIR__));   // app/ -> project root of this console
+        $dir = getcwd();
+        while ($dir && $dir !== dirname($dir)) {
+            if (is_file($dir.'/app/config/config.yml')) {
+                if (realpath($dir) !== $source_project)
+                    define('ODR_APP_DIR', $dir.'/app');
+                break;
+            }
+            $dir = dirname($dir);
+        }
     }
     if (defined('ODR_APP_DIR'))
         fwrite(STDERR, "[console] targeting instance: ".ODR_APP_DIR."\n");

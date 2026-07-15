@@ -2,3 +2,6 @@ config.yml
 parameters.yml
 security.yml
 routing.yml
+
+# per-server list of linked instance roots for app/console-all (template: instances.list.dist)
+instances.list

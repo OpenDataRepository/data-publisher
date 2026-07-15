@@ -1,5 +1,5 @@
 Open Data Repository Data Publisher
-Version 3.01
+Version 3.02
 ===================================
 
 The Open Data Repository's Data Publisher aims to create a simple tool
