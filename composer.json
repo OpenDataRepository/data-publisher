@@ -8,6 +8,7 @@
         "classmap": [ "app/AppKernel.php", "app/AppCache.php" ]
     },
     "require": {
+        "php": ">=8.2",
         "symfony/asset": "7.4.*",
         "symfony/cache": "7.4.*",
         "symfony/config": "7.4.*",
@@ -83,6 +84,10 @@
         "bin-dir": "bin",
         "audit": {
             "block-insecure": false
+        },
+        "platform": {
+            "php": "8.2.0",
+            "ext-redis": "6.1"
         }
     },
     "minimum-stability": "stable",
@@ -97,11 +102,11 @@
         }
     },
     "require-dev": {
-        "symfony/phpunit-bridge": "^4.4",
+        "symfony/phpunit-bridge": "7.4.*",
         "symfony/maker-bundle": "^1.11",
         "symfony/web-profiler-bundle": "7.4.*",
         "symfony/var-dumper": "7.4.*",
-        "phpunit/phpunit": "^7.5",
+        "phpunit/phpunit": "^11.0",
         "symfony/test-pack": "^1.0"
     }
 }
