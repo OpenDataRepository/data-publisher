@@ -344,8 +344,8 @@ each and reuses the auto-detection above, continues past a failing site, and exi
 failed:
 ```bash
 cp app/config/instances.list.dist app/config/instances.list   # once; then add your roots
-app/console-all cache:clear --env=prod
-app/console-all doctrine:migrations:migrate --no-interaction
+php app/console-all cache:clear --env=prod
+php app/console-all doctrine:migrations:migrate --no-interaction
 ```
 
 Use one of these for **every** per-instance command — `cache:clear`, `doctrine:migrations:*`,
