@@ -67,6 +67,15 @@ const DIST = [
 // parameters.yml is ALL instance-specific values -> compare keys only, never flag value diffs.
 const KEYS_ONLY = ['parameters.yml'];
 
+// Per-file value differences to SUPPRESS: flattened keys matching these regexes are inherently
+// instance-specific and legitimately differ from the template (not drift). Missing/extra keys are
+// still reported -- only the value comparison is skipped.
+//   routing *.prefix : linked / WordPress-integrated instances mount ODR under "/odr"; a standalone
+//                      install sits at "/". Either is correct, so don't flag the difference.
+const IGNORE_VALUE = [
+    'routing.yml' => ['/\.prefix$/'],
+];
+
 // ---- args -----------------------------------------------------------------------------------
 $args = array_slice($argv, 1);
 $instanceArg = null; $reference = __DIR__; $fix = false;
@@ -167,14 +176,22 @@ foreach (DIST as $live => $dist) {
     $missing = array_diff_key($rf, $if);              // in template, absent from instance -> ADD
     $extra   = array_diff_key($if, $rf);              // in instance, gone from template   -> REMOVE/REVIEW
     $changed = [];                                    // shared key, different value       -> REVIEW
+    $suppressed = 0;                                  // instance-specific values we skipped
+    $ignore = IGNORE_VALUE[$live] ?? [];
     if (!$keysOnly) {
         foreach (array_intersect_key($rf, $if) as $k => $v) {
-            if (scalarStr($v) !== scalarStr($if[$k])) $changed[$k] = [scalarStr($v), scalarStr($if[$k])];
+            if (scalarStr($v) === scalarStr($if[$k])) continue;
+            $skip = false;
+            foreach ($ignore as $re) { if (preg_match($re, $k)) { $skip = true; break; } }
+            if ($skip) { $suppressed++; continue; }
+            $changed[$k] = [scalarStr($v), scalarStr($if[$k])];
         }
     }
 
-    if (!$missing && !$extra && !$changed) { echo "    " . ok("ok") . " structurally in sync\n"; continue; }
+    $note = $suppressed ? warn("  ($suppressed instance-specific value(s) ignored, e.g. route prefix)") : '';
+    if (!$missing && !$extra && !$changed) { echo "    " . ok("ok") . " structurally in sync" . $note . "\n"; continue; }
     $issues++;
+    if ($note) echo "    " . trim($note) . "\n";
 
     if ($missing) {
         echo "    " . bad("MISSING keys") . " (present in $dist, add to instance):\n";
