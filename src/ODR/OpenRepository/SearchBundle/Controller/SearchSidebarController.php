@@ -1324,7 +1324,7 @@ class SearchSidebarController extends ODRCustomController
             $results = $conn->executeQuery($query, $params);
 
             // Each of the layouts found by this query need to be set to "not default"...
-            foreach ($results as $result) {
+            foreach ($results->iterateAssociative() as $result) {
                 $sl_id = $result['id'];
                 if ( $sidebar_layout->getId() !== $sl_id ) {
                     /** @var SidebarLayout $sl */

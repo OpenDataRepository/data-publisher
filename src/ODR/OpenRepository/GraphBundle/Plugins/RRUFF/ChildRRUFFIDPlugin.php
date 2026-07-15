@@ -178,7 +178,7 @@ class ChildRRUFFIDPlugin implements DatafieldPluginInterface
         $results = $conn->executeQuery($query, $params);
 
         $df_id = $rpi_id = null;
-        foreach ($results as $result) {
+        foreach ($results->iterateAssociative() as $result) {
             if ( is_null($df_id) ) {
                 $df_id = $result['df_id'];
                 $rpi_id = $result['rpi_id'];
@@ -210,7 +210,7 @@ class ChildRRUFFIDPlugin implements DatafieldPluginInterface
         $results = $conn->executeQuery($query, $params);
 
         $options = [];
-        foreach ($results as $result) {
+        foreach ($results->iterateAssociative() as $result) {
             $option_name = $result['option_name'];
             $option_value = $result['option_value'];
 

@@ -843,7 +843,7 @@ class ReportsController extends ODRCustomController
             $results = $conn->executeQuery($query);
 
             $content = [];
-            foreach ($results as $num => $result) {
+            foreach ($results->iterateAssociative() as $num => $result) {
                 $gdr_id = $result['gdr_id'];
                 $dr_id = $result['dr_id'];
                 $value = $result['value'];
@@ -1614,7 +1614,7 @@ class ReportsController extends ODRCustomController
         if ( $typeclass === 'Radio' || $typeclass === 'Tag' ) {
             // Radio/Tag fields need to "manually" determine how many records are going to get
             //  changed
-            foreach ($results as $result) {
+            foreach ($results->iterateAssociative() as $result) {
                 $df_id = $result['df_id'];
                 $dr_id = $result['dr_id'];
 

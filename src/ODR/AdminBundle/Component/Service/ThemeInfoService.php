@@ -384,7 +384,7 @@ class ThemeInfoService
         $results = $conn->executeQuery($query, $params);
 
         // Should only be one...
-        foreach ($results as $result) {
+        foreach ($results->iterateAssociative() as $result) {
             $tp_id = $result['id'];
 
             /** @var ThemePreferences $tp */
@@ -438,7 +438,7 @@ class ThemeInfoService
         $conn = $this->em->getConnection();
         $results = $conn->executeQuery($query, $params);
 
-        foreach ($results as $result) {
+        foreach ($results->iterateAssociative() as $result) {
             // If they do, then mark it as "not default", since there's going to be a new default...
             $tp_id = $result['id'];
 
@@ -521,7 +521,7 @@ class ThemeInfoService
         $results = $conn->executeQuery($query, $params);
 
         // Should only be one...
-        foreach ($results as $result) {
+        foreach ($results->iterateAssociative() as $result) {
             $t_id = $result['id'];
 
             /** @var Theme $t */

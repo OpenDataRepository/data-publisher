@@ -345,7 +345,7 @@ class RRUFFSamplePlugin implements DatatypePluginInterface
 
         // Should only be one value in the result...
         $current_value = null;
-        foreach ($results as $result)
+        foreach ($results->iterateAssociative() as $result)
             $current_value = intval( $result['value'] );
 
         // ...but if there's not for some reason, then use zero as the "current"
@@ -398,7 +398,7 @@ class RRUFFSamplePlugin implements DatatypePluginInterface
 
         // Should only be one value in the result...
         $current_value = null;
-        foreach ($results as $result)
+        foreach ($results->iterateAssociative() as $result)
             $current_value = $result['value'];
 
         if ( is_null($current_value) ) {

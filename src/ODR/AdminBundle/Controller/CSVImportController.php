@@ -3684,7 +3684,7 @@ exit();
                 $conn = $em->getConnection();
                 $results = $conn->executeQuery($query);
 
-                foreach ($results as $result) {
+                foreach ($results->iterateAssociative() as $result) {
                     $typeclass = $result['type_class'];
                     if ( isset($prefixes[$typeclass]) ) {
                         // If this is a relevant fieldtype...

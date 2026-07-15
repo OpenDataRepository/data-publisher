@@ -4157,7 +4157,7 @@ class ValidationController extends ODRCustomController
                 print 'dt: '.$dt_id."\n";
 
                 $prev_drf_id = $prev_dr_id = $prev_df_id = null;
-                foreach ($results as $result) {
+                foreach ($results->iterateAssociative() as $result) {
                     if ( is_null($prev_dr_id) ) {
                         $prev_drf_id = $result['drf_id'];
                         $prev_dr_id = $result['dr_id'];
@@ -4272,7 +4272,7 @@ class ValidationController extends ODRCustomController
 
                 print 'dt: '.$dt_id."\n";
 
-                foreach ($results as $result) {
+                foreach ($results->iterateAssociative() as $result) {
                     $e_id = $result['e_id'];
                     $e_dr_id = $result['e_dr_id'];
                     $e_df_id = $result['e_df_id'];
@@ -4381,7 +4381,7 @@ class ValidationController extends ODRCustomController
                 print 'dt: '.$dt_id."\n";
 
                 $prev_e_id = $prev_dr_id = $prev_df_id = null;
-                foreach ($results as $result) {
+                foreach ($results->iterateAssociative() as $result) {
                     if ( is_null($prev_dr_id) ) {
                         $prev_e_id = $result['e_id'];
                         $prev_dr_id = $result['dr_id'];
@@ -4495,7 +4495,7 @@ class ValidationController extends ODRCustomController
 
                 $df_list = [];
                 $storage_entities = [];
-                foreach ($results as $result) {
+                foreach ($results->iterateAssociative() as $result) {
                     $e_id = $result['e_id'];
                     $dr_id = $result['dr_id'];
                     $df_id = $result['df_id'];
@@ -4524,7 +4524,7 @@ class ValidationController extends ODRCustomController
 //                $results = $conn->fetchAllAssociative($drf_query);    // runs into memory issues
                 $results = $conn->executeQuery($drf_query);
 
-                foreach ($results as $result) {
+                foreach ($results->iterateAssociative() as $result) {
                     $dr_id = $result['dr_id'];
                     $df_id = $result['df_id'];
                     $drf_id = $result['drf_id'];

@@ -316,7 +316,7 @@ class CheminAnalogPlugin implements DatatypePluginInterface
 
         // Should only be one value in the result...
         $current_value = null;
-        foreach ($results as $result)
+        foreach ($results->iterateAssociative() as $result)
             $current_value = $result['value'];
         // ...but if there's not for some reason, use this value as the "current".  onDatarecordCreate()
         //  will increment it so that the value "CA00001" is what will actually get saved.

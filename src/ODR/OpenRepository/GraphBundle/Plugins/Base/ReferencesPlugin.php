@@ -442,7 +442,7 @@ class ReferencesPlugin implements DatatypePluginInterface, TableResultsOverrideI
                 $conn = $this->em->getConnection();
                 $results = $conn->executeQuery($query);
 
-                foreach ($results as $result) {
+                foreach ($results->iterateAssociative() as $result) {
                     $gdr_id = $result['gdr_id'];
                     $this->cache_service->delete('cached_table_data_'.$gdr_id);
                 }

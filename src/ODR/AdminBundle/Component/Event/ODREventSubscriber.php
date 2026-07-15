@@ -718,7 +718,7 @@ class ODREventSubscriber implements EventSubscriberInterface
             $results = $conn->executeQuery($query, $params);
 
             $relevant_plugins = [];
-            foreach ($results as $result) {
+            foreach ($results->iterateAssociative() as $result) {
                 $plugin_classname = $result['pluginClassName'];
                 $event_callable = $result['event_callable'];
 

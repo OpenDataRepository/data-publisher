@@ -571,7 +571,7 @@ class TrackingController extends ODRCustomController
                 // ...because the admin user can only track changes made by users who are members in
                 //  groups for datatypes that the admin user has the is_datatype_admin permission
                 $found = false;
-                foreach ($results as $result) {
+                foreach ($results->iterateAssociative() as $result) {
                     $dt_id = $result['dt_id'];
                     if ( isset($valid_datatype_ids[$dt_id]) ) {
                         $found = true;
@@ -1050,7 +1050,7 @@ class TrackingController extends ODRCustomController
         $conn = $em->getConnection();
         $results = $conn->executeQuery($query, $params, $types);
 
-        foreach ($results as $result) {
+        foreach ($results->iterateAssociative() as $result) {
             $df_id = intval($result['df_id']);
             $typeclass = $result['typeclass'];
 
@@ -1092,7 +1092,7 @@ class TrackingController extends ODRCustomController
         $results = $conn->executeQuery($query, $params, $types);
 
         $datatype_ids = [];
-        foreach ($results as $result) {
+        foreach ($results->iterateAssociative() as $result) {
             $dt_id = intval($result['dt_id']);
             $datatype_ids[] = $dt_id;
         }
@@ -1189,7 +1189,7 @@ class TrackingController extends ODRCustomController
                 continue;
 
             $results = $conn->executeQuery($query, $params, $types);
-            foreach ($results as $result) {
+            foreach ($results->iterateAssociative() as $result) {
                 $dt_id = $result['dt_id'];
                 $dr_id = $result['dr_id'];
                 $df_id = $result['df_id'];
@@ -1374,7 +1374,7 @@ class TrackingController extends ODRCustomController
 
                 $results = $conn->executeQuery($query, $params, $types);
 
-                foreach ($results as $result) {
+                foreach ($results->iterateAssociative() as $result) {
                     $dt_id = $result['dt_id'];
                     $dr_id = $result['dr_id'];
                     $df_id = $result['df_id'];
@@ -1543,7 +1543,7 @@ class TrackingController extends ODRCustomController
                 continue;
 
             $results = $conn->executeQuery($query, $params, $types);
-            foreach ($results as $result) {
+            foreach ($results->iterateAssociative() as $result) {
                 $dt_id = $result['dt_id'];
                 $dr_id = $result['dr_id'];
                 $df_id = $result['df_id'];
@@ -1657,7 +1657,7 @@ class TrackingController extends ODRCustomController
                 continue;
 
             $results = $conn->executeQuery($query, $params, $types);
-            foreach ($results as $result) {
+            foreach ($results->iterateAssociative() as $result) {
                 $dt_id = $result['dt_id'];
                 $dr_id = $result['dr_id'];
                 $df_id = $result['df_id'];
@@ -1798,7 +1798,7 @@ class TrackingController extends ODRCustomController
 
             $results = $conn->executeQuery($query, $params, $types);
 
-            foreach ($results as $result) {
+            foreach ($results->iterateAssociative() as $result) {
                 $dt_id = $result['dt_id'];
                 $dr_id = $result['dr_id'];
 
@@ -2507,7 +2507,7 @@ class TrackingController extends ODRCustomController
         $results = $conn->executeQuery($query, $parameters, $types);
 
         $dr_lookup = [];
-        foreach ($results as $result) {
+        foreach ($results->iterateAssociative() as $result) {
             $dr_id = $result['dr_id'];
             $gdr_id = $result['gdr_id'];
 
@@ -2614,7 +2614,7 @@ class TrackingController extends ODRCustomController
             $results = $conn->executeQuery($query, $params, $types);
 
             $list = [];
-            foreach ($results as $result) {
+            foreach ($results->iterateAssociative() as $result) {
                 $top_level_dt_name = $result['gdt_name'];
                 $dt_name = $result['dt_name'];
                 $df_id = $result['df_id'];
@@ -2755,7 +2755,7 @@ class TrackingController extends ODRCustomController
                 $results = $conn->executeQuery($query, $params, $types);
 
                 $allowed_users = [];
-                foreach ($results as $result)
+                foreach ($results->iterateAssociative() as $result)
                     $allowed_users[ $result['user_id'] ] = 1;
 
                 foreach ($user_list as $num => $target_user) {

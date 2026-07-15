@@ -1924,7 +1924,7 @@ class LinkController extends ODRCustomController
 //            $results = $conn->fetchAllAssociative($query);    // can debug with this, but might run into memory issues
             $results = $conn->executeQuery($query);
 
-            foreach ($results as $result) {
+            foreach ($results->iterateAssociative() as $result) {
                 $dt_id = $result['dt_id'];
                 $dt_public_date = $result['dt_public_date'];
                 $dt_name = $result['dt_name'];
@@ -1954,7 +1954,7 @@ class LinkController extends ODRCustomController
 //            $results = $conn->fetchAllAssociative($query);    // can debug with this, but might run into memory issues
             $results = $conn->executeQuery($query);
 
-            foreach ($results as $result) {
+            foreach ($results->iterateAssociative() as $result) {
                 $dt_id = $result['adt_id'];
                 $dt_public_date = $result['adt_public_date'];
                 $dt_name = $result['adt_name'];
@@ -1994,7 +1994,7 @@ class LinkController extends ODRCustomController
 //            $results = $conn->fetchAllAssociative($query);    // can debug with this, but might run into memory issues
             $results = $conn->executeQuery($query);
 
-            foreach ($results as $result) {
+            foreach ($results->iterateAssociative() as $result) {
                 $ddr_id = $result['ddr_id'];
                 $ddrm_public_date = $result['ddrm_public_date'];
                 $ddt_id = $result['ddt_id'];
@@ -2028,7 +2028,7 @@ class LinkController extends ODRCustomController
 //            $results = $conn->fetchAllAssociative($query);    // can debug with this, but might run into memory issues
             $results = $conn->executeQuery($query);
 
-            foreach ($results as $result) {
+            foreach ($results->iterateAssociative() as $result) {
                 $adr_id = $result['adr_id'];
                 $adrm_public_date = $result['adrm_public_date'];
                 $adt_id = $result['adt_id'];

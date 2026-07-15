@@ -1530,7 +1530,7 @@ class DatarecordInfoService
             $results = $conn->executeQuery($query, $parameters, $types);
 
             $datarecords_to_process = [];
-            foreach ($results as $result) {
+            foreach ($results->iterateAssociative() as $result) {
                 $ddr_id = intval($result['ddr_id']);
 
                 $datarecords_to_process[$ddr_id] = 0;

@@ -1071,7 +1071,7 @@ $ret .= '  Set current to '.$count."\n";
             $conn = $em->getConnection();
             $results = $conn->executeQuery($query);
 
-            foreach ($results as $result) {
+            foreach ($results->iterateAssociative() as $result) {
                 $df_id = intval($result['df_id']);
 
 //                if ( $df_id > 10 )
@@ -1163,7 +1163,7 @@ $ret .= '  Set current to '.$count."\n";
             $prev_id = $prev_drf = $prev_value = null;
             $blank_ids = [];
 
-            foreach ($results as $result) {
+            foreach ($results->iterateAssociative() as $result) {
                 $id = $result['id'];
                 $drf_id = $result['drf_id'];
                 $value = $result['value'];

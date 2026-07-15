@@ -121,7 +121,7 @@ class FieldtypeMigrationService
 
         $data = [];
         if ( !$return_values ) {
-            foreach ($results as $result) {
+            foreach ($results->iterateAssociative() as $result) {
                 $dr_id = $result['dr_id'];
                 $data[] = $dr_id;
             }
@@ -197,7 +197,7 @@ class FieldtypeMigrationService
 //            }
 //        }
 //        else {
-            foreach ($results as $result) {
+            foreach ($results->iterateAssociative() as $result) {
                 $dr_id = $result['dr_id'];
                 $gdr_id = $result['gdr_id'];
                 $old_value = $result['old_value'];
@@ -265,7 +265,7 @@ class FieldtypeMigrationService
             $query = str_replace("\\", "\\\\", $query);
             $results = $conn->executeQuery($query);
 
-            foreach ($results as $result) {
+            foreach ($results->iterateAssociative() as $result) {
                 $dr_id = $result['dr_id'];
                 $data[] = $dr_id;
             }
@@ -291,7 +291,7 @@ class FieldtypeMigrationService
             $results = $conn->executeQuery($query);
 
             $data = [];
-            foreach ($results as $result) {
+            foreach ($results->iterateAssociative() as $result) {
                 $gdr_id = $result['gdr_id'];
                 $dr_id = $result['dr_id'];
                 $old_value = $result['value'];
@@ -315,7 +315,7 @@ class FieldtypeMigrationService
             $query = str_replace("\\", "\\\\", $query);
             $results = $conn->executeQuery($query);
 
-            foreach ($results as $result) {
+            foreach ($results->iterateAssociative() as $result) {
                 $dr_id = $result['dr_id'];
                 $new_value = $result['new_value'];
 
@@ -392,7 +392,7 @@ class FieldtypeMigrationService
             $query = str_replace("\\", "\\\\", $query);
             $results = $conn->executeQuery($query);
 
-            foreach ($results as $result) {
+            foreach ($results->iterateAssociative() as $result) {
                 $dr_id = $result['dr_id'];
                 $data[] = $dr_id;
             }
@@ -418,7 +418,7 @@ class FieldtypeMigrationService
             $results = $conn->executeQuery($query);
 
             $data = [];
-            foreach ($results as $result) {
+            foreach ($results->iterateAssociative() as $result) {
                 $gdr_id = $result['gdr_id'];
                 $dr_id = $result['dr_id'];
                 $old_value = $result['value'];
@@ -444,7 +444,7 @@ class FieldtypeMigrationService
             $query = str_replace("\\", "\\\\", $query);
             $results = $conn->executeQuery($query);
 
-            foreach ($results as $result) {
+            foreach ($results->iterateAssociative() as $result) {
                 $dr_id = $result['dr_id'];
                 $new_value = $result['new_value'];
 
@@ -468,7 +468,7 @@ class FieldtypeMigrationService
             $query = str_replace("\\", "\\\\", $query);
             $results = $conn->executeQuery($query);
 
-            foreach ($results as $result) {
+            foreach ($results->iterateAssociative() as $result) {
                 $dr_id = $result['dr_id'];
                 $new_value = $result['new_value'];
 
@@ -526,7 +526,7 @@ class FieldtypeMigrationService
         $results = $conn->executeQuery($query);
 
         $data = [];
-        foreach ($results as $result) {
+        foreach ($results->iterateAssociative() as $result) {
             $gdr_id = $result['gdr_id'];
             $dr_id = $result['dr_id'];
             $ro_id = $result['ro_id'];

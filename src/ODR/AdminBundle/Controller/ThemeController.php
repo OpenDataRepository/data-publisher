@@ -665,7 +665,7 @@ class ThemeController extends ODRCustomController
             $results = $conn->executeQuery($query, $params);
 
             // Each of the themes in this query need to be set to "not default"...
-            foreach ($results as $result) {
+            foreach ($results->iterateAssociative() as $result) {
                 $t_id = $result['id'];
                 if ( $theme->getId() !== $t_id ) {
                     /** @var Theme $t */

@@ -893,7 +893,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
             $tmp = $conn->executeQuery($query, $params);
 
             $results = [];
-            foreach ($tmp as $key => $value)
+            foreach ($tmp->iterateAssociative() as $key => $value)
                 $results[$key] = $value;
 
             // Ideally, there's only a single "ultimate ancestor" for the requested datarecord...

@@ -455,7 +455,7 @@ class MigrationController extends ODRCustomController
             // Going to need to hydrate these
             $rpi_ids = [];
             $user_ids = [];
-            foreach ($results as $result) {
+            foreach ($results->iterateAssociative() as $result) {
                 $rp_id = $result['rp_id'];
                 $rpi_id = $result['rpi_id'];
                 $optionName = $result['option_name'];
@@ -2035,7 +2035,7 @@ class MigrationController extends ODRCustomController
 
             $linked_datatree_ids = [];
             $new_parent_ids = [];
-            foreach ($results as $result) {
+            foreach ($results->iterateAssociative() as $result) {
                 $ldt_id = $result['ldt_id'];
                 $gp_adr_id = $result['gp_adr_id'];
                 $adr_id = $result['adr_id'];
@@ -2440,7 +2440,7 @@ class MigrationController extends ODRCustomController
             $results = $conn->executeQuery($query);
 
             $original_datarecord_hierarchy = [];
-            foreach ($results as $result) {
+            foreach ($results->iterateAssociative() as $result) {
                 $dr_id = $result['dr_id'];
                 $parent_dr_id = $result['dr_parent_id'];
                 $original_datarecord_hierarchy[$dr_id] = $parent_dr_id;
@@ -2460,7 +2460,7 @@ class MigrationController extends ODRCustomController
             $results = $conn->executeQuery($query);
 
             $current_themes = [];
-            foreach ($results as $result) {
+            foreach ($results->iterateAssociative() as $result) {
                 $theme_id = $result['theme_id'];
                 $parent_theme_id = $result['parent_theme_id'];
                 $soure_theme_id = $result['soure_theme_id'];
