@@ -173,6 +173,39 @@ Apply at minimum:
 > If this is a **symlinked instance** (e.g. `dev.rruff.net`), also see the `ODR_APP_DIR` /
 > `setup_virtualhost.sh` notes in `DEVELOP_SYNC_CHANGELIST.md`.
 
+### Validator for linked / WordPress-integrated instances
+
+**Linked and WordPress-integrated instances keep their OWN copies of `app/config`** (they do not
+symlink or pull it from the source tree), so upgrade fixes to the config never reach them and the
+kernel fails at boot one stale file at a time. `app/config/validate_instance_config.php` diffs an
+instance's config against a current source checkout in a single pass — and needs **only
+`symfony/yaml`** (it never boots the app, so it works on an instance that can't start):
+
+```bash
+# from a CURRENT source checkout; point it at the instance root (or its app/config dir)
+php app/config/validate_instance_config.php /home/rruff/data-publisher
+```
+
+It reports two classes of file:
+
+- **Tracked files** (`config_{dev,prod,test}.yml`, `doctrine_extensions.yml`, `routing_dev.yml`,
+  `routing_prefixed.yml`, `security.openapi`) must be **byte-identical** to source. Stale/missing
+  ones are shown with a diff and can be synced automatically with `--fix` (safe — they hold no
+  instance-specific values).
+- **Live `.dist`-backed files** (`config.yml`, `security.yml`, `routing.yml`, `parameters.yml`) are
+  compared **structurally** against their `.dist` template — missing keys (add), removed keys
+  (review/delete), and changed values — so instance-specific values don't create noise
+  (`parameters.yml` is compared keys-only). Each live file is also **parse-checked with the same
+  YAML parser the kernel uses**, so it catches boot-blockers like an unquoted `%…%` scalar *before*
+  you hit them in the browser. These must be merged by hand.
+
+```bash
+php app/config/validate_instance_config.php /home/rruff/data-publisher --fix   # sync tracked files
+php app/config/validate_instance_config.php /home/rruff/data-publisher         # re-check; hand-merge the rest
+```
+
+Exit code is `0` when in sync, `1` when drift is found (usable in a deploy gate).
+
 ---
 
 ## 6. Database migrations (replaces `doctrine:schema:update`)
