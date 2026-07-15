@@ -71,8 +71,12 @@ Install any that are `MISSING` (e.g. Debian/Ubuntu: `sudo apt install php8.3-int
 Confirm they're up: `systemctl status mysql memcached redis-server beanstalkd` (names vary by distro).
 
 ### Composer
-- Composer 2.x. This project pins package versions in `composer.json`; there is no `composer.lock`
-  edit needed. Use the checked-in `composer.phar` or a system `composer`.
+- Composer 2.x. Use the checked-in **`composer.phar`** (project root) — there is no system-wide
+  `composer` on the reference boxes; run everything as `php composer.phar …`.
+- The repo ships a committed **`composer.lock`**, and `composer.json` sets
+  `config.platform` (`php: 8.2.0`, `ext-redis: 6.1`) so dependency resolution is deterministic and
+  portable to any PHP ≥ 8.2 host, regardless of the box's exact PHP/phpredis version. **Deploy with
+  `composer install` (from the lock), never `composer update`** — see [§3](#3-install-php-dependencies-replaces-the-old-entityschema-regeneration).
 
 ---
 
@@ -92,13 +96,33 @@ git pull --ff-only origin sf7-develop-sync
 php composer.phar install --no-interaction
 ```
 
+- **`install`, not `update`.** `install` reproduces the exact versions in the committed
+  `composer.lock`. `update` re-resolves every dependency to the newest allowed and rewrites the lock —
+  never run it on staging/prod. (Only run `update` deliberately on a dev box when you *intend* to move
+  dependency versions, then commit the regenerated lock.)
 - This runs the **incenteev parameter handler** (`post-install-cmd`), which interactively reconciles
   `app/config/parameters.yml` against `parameters.yml.dist` — it will prompt for any **new** parameter
   keys and keep your existing values. See [§5](#5-reconcile-active-config).
-- If a transitive platform check blocks you on a CI/build box, `--ignore-platform-reqs` is acceptable
-  for install, but the **runtime** box must still satisfy [§1](#1-system-requirements).
+
+**About the platform pin.** `composer.json` declares `config.platform` (`php: 8.2.0`,
+`ext-redis: 6.1`). This makes resolution reproducible and lets `install` succeed on hosts whose actual
+PHP/phpredis differs, so you should **not** need `--ignore-platform-reqs`:
+- `php: 8.2.0` — the lock is resolved for PHP 8.2, so it installs on any PHP ≥ 8.2 (8.3 recommended)
+  without pulling in packages that require a newer PHP than the host has.
+- `ext-redis: 6.1` — `symfony/cache` 7.4 declares `conflict: ext-redis <6.1` (old phpredis had cache
+  bugs). ODR's Redis client is `type: predis` (pure PHP), so the phpredis extension is never used by
+  the cache adapter; the platform pin satisfies that conflict at install time on hosts with older
+  phpredis (or none). If you'd rather remove the pin, upgrade phpredis to ≥ 6.1 on every host instead.
+
+> If a build genuinely can't satisfy a platform requirement (e.g. an offline CI image), a *scoped*
+> `--ignore-platform-req=ext-<name>` is acceptable for that build only; the **runtime** host must still
+> satisfy [§1](#1-system-requirements).
 
 Confirm: `php composer.phar validate` and that `vendor/` populated without errors.
+
+> **Security advisories.** `composer` reports several advisories against the known abandoned deps
+> (`php-http/guzzle6-adapter`, etc. — see CLAUDE.md's tech-debt list). Run `php composer.phar audit`
+> for the current list; these are tracked for replacement and are not upgrade blockers.
 
 ---
 
