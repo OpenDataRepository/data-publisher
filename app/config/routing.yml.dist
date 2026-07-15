@@ -65,60 +65,8 @@ api_login_check_v3_odr_data:
 #    resource: "@FrameworkBundle/Resources/config/routing/internal.xml"
 #    prefix:   /_internal
 
-fos_user_security:
-    resource: "@FOSUserBundle/Resources/config/routing/security.xml"
-
-# routes are unused, but required so FoS:ResettingController and FoS:ChangePasswordController don't throw errors
-#fos_user_profile:
-#    resource: "@FOSUserBundle/Resources/config/routing/profile.xml"
-#    prefix: /profile
-
-# currently not allowing users to self-register to the site
-#fos_user_register:
-#    resource: "@FOSUserBundle/Resources/config/routing/registration.xml"
-#    prefix: /admin/register
-
-# using FoS built-in password reset functionality
-fos_user_resetting:
-    resource: "@FOSUserBundle/Resources/config/routing/resetting.xml"
-    prefix: /resetting
-    #prefix:   /odr/resetting   # Use prefix when Wordpress Integrated
-
-# also using FoS built-in password change functionality
-#fos_user_change_password:
-#    resource: "@FOSUserBundle/Resources/config/routing/change_password.xml"
-#    prefix: /profile
-
-# ----------------------------------------
-# FOSOAuthServerBundle routes
-fos_oauth_server_token:
-    resource: "@FOSOAuthServerBundle/Resources/config/routing/token.xml"
-
-fos_oauth_server_authorize:
-    resource: "@FOSOAuthServerBundle/Resources/config/routing/authorize.xml"
-
-# ----------------------------------------
-# HWIOAuthBundle routes
-hwi_oauth_redirect:
-    resource: "@HWIOAuthBundle/Resources/config/routing/redirect.xml"
-    prefix:   /connect
-    #prefix:   /odr/connect   # Use prefix when Wordpress Integrated
-
-hwi_oauth_connect:
-    resource: "@HWIOAuthBundle/Resources/config/routing/connect.xml"
-    prefix:   /connect
-    #prefix:   /odr/connect   # Use prefix when Wordpress Integrated
-
-# unused, FOSUserBundle's login files are overridden to include pieces from this bundle
-#hwi_oauth_login:
-#    resource: "@HWIOAuthBundle/Resources/config/routing/login.xml"
-#    prefix:   /login
-
-# Resource file needs to contain the routes listed in app/config/security.yml under  security: -> firewalls: -> main: -> oauth: -> resource_owners:
-odr_open_repository_oauth_client:
-    resource: "@ODROpenRepositoryOAuthClientBundle/Resources/config/routing.yml"
-    prefix:   /
-    #prefix:   /odr   # Use prefix when Wordpress Integrated
+# FOSUserBundle removed in the Symfony 5 upgrade; its security + resetting routes are now defined
+# (with the same route names) in @ODROpenRepositoryUser/Resources/config/routing.yml
 
 # ----------------------------------------
 # ODR routes
@@ -137,10 +85,6 @@ odr_open_repository_user:
     prefix:   /
     #prefix:   /odr   # Use prefix when Wordpress Integrated
 
-odr_open_repository_oauth_server:
-    resource: "@ODROpenRepositoryOAuthServerBundle/Resources/config/routing.yml"
-    prefix:   /
-    #prefix:   /odr   # Use prefix when Wordpress Integrated
 
 odr_open_repository_jupyterhub_bridge:
     resource: "@ODROpenRepositoryJupyterhubBridgeBundle/Resources/config/routing.yml"
@@ -150,15 +94,6 @@ odr_open_repository_jupyterhub_bridge:
 odr_admin:
     resource: "@ODRAdminBundle/Resources/config/routing.yml"
     prefix:   /
-    #prefix:   /odr   # Use prefix when Wordpress Integrated
-
-
-#
-# API Route does not need prefixing even when WP Integrated
-#
-odr_api:
-    resource: "@ODRAdminBundle/Resources/config/api.yml"
-    prefix:   /   
     #prefix:   /odr   # Use prefix when Wordpress Integrated
 
 
