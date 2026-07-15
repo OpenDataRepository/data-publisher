@@ -20,6 +20,27 @@ $input = new ArgvInput();
 $env = $input->getParameterOption(array('--env', '-e'), getenv('SYMFONY_ENV') ?: 'dev');
 $debug = getenv('SYMFONY_DEBUG') !== '0' && !$input->hasParameterOption(array('--no-debug', '')) && $env !== 'prod';
 
+// --- linked / WordPress-integrated instance selection -------------------------------------------
+// Instances keep their OWN app/config, var/cache and var/logs, chosen at runtime via the ODR_APP_DIR
+// constant (see AppKernel::getProjectDir + registerContainerConfiguration). The web front controllers
+// derive ODR_APP_DIR from the request path; the console cannot, so WITHOUT this every console command
+// (cache:clear, doctrine:migrations, odr:plugins ...) silently targets the shared SOURCE tree instead
+// of the instance -- e.g. `cache:clear` rebuilds the container from the source config and never
+// refreshes (or actively clobbers) the instance's compiled container. Select the instance with an env
+// var; page-odr.php already defines the constant, so this only fires from the CLI:
+//     ODR_INSTANCE=/home/rruff/data-publisher   php app/console cache:clear --env=prod   (instance root)
+//     ODR_APP_DIR=/home/rruff/data-publisher/app php app/console ...                      (raw app dir)
+if (!defined('ODR_APP_DIR')) {
+    if ($odr_app_dir = getenv('ODR_APP_DIR')) {
+        define('ODR_APP_DIR', rtrim($odr_app_dir, '/'));
+    } elseif ($odr_instance = getenv('ODR_INSTANCE')) {
+        $odr_instance = rtrim($odr_instance, '/');
+        define('ODR_APP_DIR', is_dir($odr_instance.'/app/config') ? $odr_instance.'/app' : $odr_instance);
+    }
+    if (defined('ODR_APP_DIR'))
+        fwrite(STDERR, "[console] targeting instance: ".ODR_APP_DIR."\n");
+}
+
 $kernel = new AppKernel($env, $debug);
 $application = new Application($kernel);
 $application->run($input);

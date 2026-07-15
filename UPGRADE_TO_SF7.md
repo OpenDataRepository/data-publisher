@@ -309,6 +309,31 @@ php app/console cache:clear --env=prod && echo "prod OK"
 php app/console debug:router | grep odr_api_set_record   # new API routes should appear
 ```
 
+### ⚠ Linked / WordPress-integrated instances: clear the INSTANCE cache, not the source
+
+A linked instance keeps its own `app/config`, `var/cache`, and `var/log`, selected at runtime by the
+`ODR_APP_DIR` constant. **The web front controllers (`page-odr.php`, `web/app.php`) define it from the
+request path; `app/console` cannot infer it.** So a plain `php app/console cache:clear` resolves
+`getProjectDir()` to the **shared source tree** and rebuilds *that* container from the *source* config —
+it never refreshes the instance's compiled container (and if the instance's `var/` is symlinked to the
+source, it actively clobbers the good instance-built container with a source-built one). Symptom: you
+edit an instance's `config.yml`, clear cache, and the change *still* doesn't take effect.
+
+**Always target the instance explicitly** (env var; `page-odr.php` still sets the constant on its own):
+```bash
+# instance root (the dir containing app/config):
+ODR_INSTANCE=/home/rruff/data-publisher php app/console cache:clear --env=prod
+# — or the raw app dir, mirroring the constant —
+ODR_APP_DIR=/home/rruff/data-publisher/app php app/console cache:clear --env=prod
+```
+The console prints `[console] targeting instance: …` when the selector is active. Use it for **every**
+per-instance command — `cache:clear`, `doctrine:migrations:*`, `assets:install`, plugin
+(re)registration. To force a clean rebuild you can also just delete the instance's compiled container:
+`rm -rf /home/rruff/data-publisher/var/cache/prod` and let the next web request rebuild it from the
+instance config.
+
+Check which tree a path actually resolves to with `readlink -f /home/rruff/data-publisher/var/cache`.
+
 ---
 
 ## 9. Background services (Node daemons)
