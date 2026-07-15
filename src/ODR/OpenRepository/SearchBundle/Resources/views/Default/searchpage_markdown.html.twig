@@ -5,9 +5,9 @@
 
 {% set content = '' %}
 {% if position == 'upper' %}
-    {% set content = upper_value %}
+    {% set content = upper_value ?? '' %}
 {% elseif position == 'lower' %}
-    {% set content = lower_value %}
+    {% set content = lower_value ?? '' %}
 {% endif %}
 
 {% if position == 'upper' %}

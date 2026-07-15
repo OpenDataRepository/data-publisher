@@ -54,7 +54,7 @@
                    rel="{{ tag_id }}"
             />
         </span>
-        {{ tag.tagMeta.tagName|markdown_to_html }}
+        {{ (tag.tagMeta.tagName ?? "")|markdown_to_html }}
     </label>
 
 {% if has_children %}
