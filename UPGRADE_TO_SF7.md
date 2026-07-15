@@ -202,8 +202,13 @@ php app/console odr_cache:flush
 ```
 
 > First run on a DB that already matches the schema? If `doctrine:migrations:status` shows the
-> migration as *not executed* but the columns already exist, mark it executed instead of re-running:
-> `php app/console doctrine:migrations:version Version20260629205824 --add --no-interaction`.
+> migration as *not executed* but the columns already exist, mark it executed instead of re-running.
+> doctrine-migrations 3.x identifies a migration by its **fully-qualified class name** (the
+> `DoctrineMigrations\` namespace prefix is required — the bare `Version…` fails with
+> *"Could not find migration version"*), and the backslash must be quoted for the shell:
+> ```bash
+> php app/console doctrine:migrations:version 'DoctrineMigrations\Version20260629205824' --add --no-interaction
+> ```
 
 ---
 
