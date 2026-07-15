@@ -28,6 +28,16 @@ framework:
         gc_probability: 0
         handler_id: ~  #  session.handler.memcached
         cookie_lifetime:  1209600   # 2 weeks
+    # PSR-6 cache pools backing Doctrine's result/metadata/query caches (referenced from
+    # doctrine.orm.*_cache_driver below). Symfony 7 / newer doctrine-bundle require pools here
+    # instead of the old inline memcached host/port config under each cache driver.
+    cache:
+        default_memcached_provider: 'memcached://127.0.0.1:11211'
+        pools:
+            doctrine.result_cache_pool:
+                adapter: cache.adapter.memcached
+            doctrine.system_cache_pool:
+                adapter: cache.adapter.memcached
     #trusted_hosts:   ~
      
 
@@ -76,21 +86,18 @@ doctrine:
     orm:
         auto_generate_proxy_classes: "%kernel.debug%"
         auto_mapping: true
+        # Symfony 7 / newer doctrine-bundle: cache drivers reference a PSR-6 cache pool
+        # (defined under framework.cache.pools above), not the old inline
+        # type/host/port/instance_class block.
         result_cache_driver:
-            type: memcached
-            host: 127.0.0.1
-            port: 11211
-            instance_class: Memcached
+            type: pool
+            pool: doctrine.result_cache_pool
         metadata_cache_driver:
-            type: memcached
-            host: 127.0.0.1
-            port: 11211
-            instance_class: Memcached
+            type: pool
+            pool: doctrine.system_cache_pool
         query_cache_driver:
-            type: memcached
-            host: 127.0.0.1
-            port: 11211
-            instance_class: Memcached
+            type: pool
+            pool: doctrine.system_cache_pool
         filters:
             softdeleteable:
                 class: Gedmo\SoftDeleteable\Filter\SoftDeleteableFilter
