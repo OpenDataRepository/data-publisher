@@ -1,9 +1,16 @@
 #!/bin/bash
 
-rm -rf ./app/cache/dev/
+#
+# Clears all caches for the main ODR site
+# and all linked sites.
+# 
+# Linked sites must be listed in 
+#  /app/config/instances.list
+#
+# run from /home/odr/data-publisher
 
-php app/console doctrine:cache:clear-query
-php app/console doctrine:cache:clear-result
-php app/console doctrine:cache:clear-metadata
-
+# Clears main ODR site
 php app/console cache:clear
+
+# Clears linked sites
+php app/console-all cache:clear --env=prod
