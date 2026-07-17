@@ -185,7 +185,6 @@ class UpdateDataFieldsForm extends AbstractType
                         '6' => '6',
                         '8' => '8'
                     ],
-                    'choices_as_values' => true,
                     'label'  => '',     // label set in Displaytemplate::datafield_properties_form.html.twig
                     'expanded' => false,
                     'multiple' => false,

@@ -56,7 +56,6 @@ class UpdateDataTreeForm extends AbstractType
                 ChoiceType::class,
                 [
                     'choices' => $choices,
-                    'choices_as_values' => true,
                     'label'  => 'Edit Behavior',
                     'expanded' => false,
                     'multiple' => false,

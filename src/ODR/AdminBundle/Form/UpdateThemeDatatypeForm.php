@@ -63,7 +63,6 @@ class UpdateThemeDatatypeForm extends AbstractType
             ChoiceType::class,
             [
                 'choices' => $display_choices,
-                'choices_as_values' => true,
                 'label'  => 'Display As',
                 'expanded' => false,
                 'multiple' => false,
