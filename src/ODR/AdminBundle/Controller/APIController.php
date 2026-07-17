@@ -2421,7 +2421,7 @@ class APIController extends ODRCustomController
                     throw new ODRBadRequestException('Files/Images in the Field "'.$datafield->getFieldUuid().'" must have a file_uuid set to be able to modify them', $exception_source);
 
                 /** @var File|Image $file_obj */
-                $file_obj = $em->getRepository('ODRAdminBundle:'.$typeclass)->findOneBy(
+                $file_obj = $em->getRepository("ODR\\AdminBundle\\Entity\\".$typeclass)->findOneBy(
                     [
                         'unique_id' => $file['file_uuid'],
                         'dataRecord' => $datarecord->getId(),
@@ -4689,7 +4689,7 @@ class APIController extends ODRCustomController
             }
 
             /** @var Boolean|IntegerValue|DecimalValue|ShortVarchar|MediumVarchar|longVarchar|LongText|DateTimeValue $existing_storage_entity */
-            $existing_storage_entity = $em->getRepository('ODRAdminBundle:'.$typeclass)->findOneBy(
+            $existing_storage_entity = $em->getRepository("ODR\\AdminBundle\\Entity\\".$typeclass)->findOneBy(
                 [
                     'dataRecord' => $datarecord->getId(),
                     'dataField' => $datafield->getId()

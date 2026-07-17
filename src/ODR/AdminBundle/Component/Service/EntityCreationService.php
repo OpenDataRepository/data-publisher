@@ -2318,7 +2318,7 @@ class EntityCreationService
 
         // Return the storage entity if it already exists
         /** @var ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $storage_entity */
-        $storage_entity = $this->em->getRepository('ODRAdminBundle:'.$typeclass)->findOneBy(
+        $storage_entity = $this->em->getRepository("ODR\\AdminBundle\\Entity\\".$typeclass)->findOneBy(
             [
                 'dataRecord' => $datarecord->getId(),
                 'dataField' => $datafield->getId()
@@ -2334,7 +2334,7 @@ class EntityCreationService
 
                 // ...then reload and return the storage entity that got created
                 /** @var ODRBoolean|DatetimeValue|DecimalValue|IntegerValue|LongText|LongVarchar|MediumVarchar|ShortVarchar $storage_entity */
-                $storage_entity = $this->em->getRepository('ODRAdminBundle:'.$typeclass)->findOneBy(
+                $storage_entity = $this->em->getRepository("ODR\\AdminBundle\\Entity\\".$typeclass)->findOneBy(
                     [
                         'dataRecord' => $datarecord->getId(),
                         'dataField' => $datafield->getId()
@@ -3023,7 +3023,7 @@ class EntityCreationService
 
         // Return the storage entity if it already exists
         /** @var XYZData $storage_entity */
-        $storage_entity = $this->em->getRepository('ODRAdminBundle:'.$typeclass)->findOneBy(
+        $storage_entity = $this->em->getRepository("ODR\\AdminBundle\\Entity\\".$typeclass)->findOneBy(
             [
                 'dataRecord' => $datarecord->getId(),
                 'dataField' => $datafield->getId(),
@@ -3040,7 +3040,7 @@ class EntityCreationService
 
                 // ...then reload and return the storage entity that got created
                 /** @var XYZData $storage_entity */
-                $storage_entity = $this->em->getRepository('ODRAdminBundle:'.$typeclass)->findOneBy(
+                $storage_entity = $this->em->getRepository("ODR\\AdminBundle\\Entity\\".$typeclass)->findOneBy(
                     [
                         'dataRecord' => $datarecord->getId(),
                         'dataField' => $datafield->getId(),
