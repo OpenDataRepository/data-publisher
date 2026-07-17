@@ -32,8 +32,7 @@ class ODRException extends HttpException
         protected $source_code = 0,
         \Exception $previous_exception = null
     ) {
-
-if ( is_null($statusCode) )
+        if ( is_null($statusCode) )
             $statusCode = 500;
 
         parent::__construct($statusCode, $message, $previous_exception, [], $this->source_code);

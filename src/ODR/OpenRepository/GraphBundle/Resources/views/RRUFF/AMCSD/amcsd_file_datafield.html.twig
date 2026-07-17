@@ -53,7 +53,7 @@
     {% endfor %}
 
         {# NOTE - this will only ever be called on a File field #}
-        <input type="hidden" id="{{ field_typeclass }}Form__token" name="{{ field_typeclass }}Form[_token]" value="{{ token_list[ datarecord.id ][ datafield.id ] }}" />
+        <input type="hidden" id="{{ field_typeclass }}Form__token" name="{{ field_typeclass }}Form[_token]" value="{{ csrf_token(token_list[ datarecord.id ][ datafield.id ]) }}" />
 
         {% set has_file = false %}
         {% if valuefield|length > 0 %}

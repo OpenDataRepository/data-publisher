@@ -11,7 +11,7 @@
         <input type="hidden" id="FileDataForm_df_id" value="{{ file.datafield.id }}" />
 
         <input type="hidden" name="FileDataForm[file_id]" value="{{ file.id }}" />
-        <input type="hidden" name="FileDataForm[_token]" value="{{ csrf_token }}" />
+        <input type="hidden" name="FileDataForm[_token]" value="{{ csrf_token(token_id) }}" />
 
         <div class="pure-u-1">
             <label for="ODRFileDirectEdit_linux" class="pure-u-1-4">

@@ -14,7 +14,7 @@
         id="DatafieldHistoryForm"
         method="POST"
     >
-        <input type="hidden" id="{{ current_typeclass }}Form__token" name="{{ current_typeclass }}Form[_token]" value="{{ csrf_token }}" />
+        <input type="hidden" id="{{ current_typeclass }}Form__token" name="{{ current_typeclass }}Form[_token]" value="{{ csrf_token(token_id) }}" />
         <input type="hidden" value="" required="required" name="{{ current_typeclass }}Form[value]" id="{{ current_typeclass }}Form_revert" />
         {% if current_typeclass == "XYZData" %}
         <input type="hidden" required="required" name="replace_all" value="1" />

@@ -54,7 +54,8 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
-use Symfony\Component\Security\Csrf\CsrfTokenManager;
+
+
 class DatatypeController extends ODRCustomController
 {
 
@@ -1889,8 +1890,6 @@ class DatatypeController extends ODRCustomController
 
             /** @var DatatreeInfoService $datatree_info_service */
             $datatree_info_service = $this->datatree_info_service;
-            /** @var CsrfTokenManager $token_generator */
-            $token_generator = $this->container->get('security.csrf.token_manager');
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
             /** @var \Twig\Environment $templating */
@@ -1959,7 +1958,7 @@ class DatatypeController extends ODRCustomController
 
             // ----------------------------------------
             // Generate a CSRF token from the combined data
-            $csrf_token = $token_generator->getToken('CopyDatatypeForm_'.$admin->getId())->getValue();
+            $token_id = 'CopyDatatypeForm_'.$admin->getId();
 
             // Render and return the html for the datatype list
             $return['d'] = [
@@ -1970,7 +1969,7 @@ class DatatypeController extends ODRCustomController
 
                         'user_list' => $user_list,
                         'datatypes' => $datatypes,
-                        'csrf_token' => $csrf_token,
+                        'token_id' => $token_id,
                     ]
                 )
             ];
@@ -2018,7 +2017,7 @@ class DatatypeController extends ODRCustomController
 
             $datatype_id = $post['datatype_id'];
             $user_id = $post['user_id'];
-            $token = $post['_token'];
+            $csrf_token = $post['_token'];
 
 
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -2026,8 +2025,6 @@ class DatatypeController extends ODRCustomController
 
             /** @var EntityCreationService $entity_create_service */
             $entity_create_service = $this->entity_creation_service;
-            /** @var CsrfTokenManager $token_generator */
-            $token_generator = $this->container->get('security.csrf.token_manager');
             /** @var UserManager $user_manager */
             $user_manager = $this->container->get('fos_user.user_manager');
 
@@ -2061,10 +2058,9 @@ class DatatypeController extends ODRCustomController
                 throw new ODRForbiddenException();
             // ----------------------------------------
 
-            $expected_token = $token_generator->getToken('CopyDatatypeForm_'.$admin->getId())->getValue();
-            if ( $token !== $expected_token )
-                throw new ODRBadRequestException();
-
+            $token_id = 'CopyDatatypeForm_'.$admin->getId();
+            if ( !$this->isCsrfTokenValid($token_id, $csrf_token) )
+                throw new ODRBadRequestException('Invalid CSRF token');
 
             // ----------------------------------------
             // Nothing created during the copy (datatypes, datafields, options/tags, etc) should

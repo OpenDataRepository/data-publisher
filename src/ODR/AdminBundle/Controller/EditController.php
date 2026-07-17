@@ -86,7 +86,8 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Routing\Router;
-use Symfony\Component\Security\Csrf\CsrfTokenManager;
+
+
 class EditController extends ODRCustomController
 {
 
@@ -2682,15 +2683,9 @@ class EditController extends ODRCustomController
             //  UI to "correctly" interact with the underlying field, and in the interest of not
             //  screwing with Symfony form components/transformers/etc to convert a string into the
             //  "correct" underlying structure...this is all going to be done manually
-
-            /** @var CsrfTokenManager $token_generator */
-            $token_generator = $this->container->get('security.csrf.token_manager');
-
             $token_id = 'XYZDataForm_'.$datarecord->getId().'_'.$datafield->getId();
-            $expected_csrf_token = $token_generator->getToken($token_id)->getValue();
-            if ( $csrf_token !== $expected_csrf_token )
+            if ( !$this->isCsrfTokenValid($token_id, $csrf_token) )
                 throw new ODRBadRequestException('Invalid Form');
-
 
             // Now that the token is valid, save the given value
             $changes_made = $xyzdata_helper_service->updateXYZData(
@@ -2867,11 +2862,7 @@ class EditController extends ODRCustomController
 
             // ----------------------------------------
             // Also need a csrf token
-            /** @var CsrfTokenManager $token_generator */
-            $token_generator = $this->get('security.csrf.token_manager');
-
             $token_id = 'FileDataForm_'.$datarecord->getId().'_'.$datafield->getId().'_'.$user->getId();
-            $expected_csrf_token = $token_generator->getToken($token_id)->getValue();
 
             // Render and return the dialog contents
             $return['d'] = array(
@@ -2879,7 +2870,7 @@ class EditController extends ODRCustomController
                     '@ODRAdmin/Edit/file_direct_edit_dialog_form.html.twig',
                     array(
                         'file' => $file,
-                        'csrf_token' => $expected_csrf_token,
+                        'token_id' => $token_id,
                         'file_contents' => $file_contents,
 
                         'reload_entire_page' => $reload_entire_page,
@@ -2950,9 +2941,9 @@ class EditController extends ODRCustomController
             /** @var CryptoService $crypto_service */
             $crypto_service = $this->crypto_service;
             /** @var EntityDeletionService $entity_deletion_service */
-            $entity_deletion_service = $this->get('odr.entity_deletion_service');
+            $entity_deletion_service = $this->entity_deletion_service;
             /** @var ODRUploadService $odr_upload_service */
-            $odr_upload_service = $this->container->get('odr.upload_service');
+            $odr_upload_service = $this->upload_service;
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->permissions_management_service;
 
@@ -2993,14 +2984,9 @@ class EditController extends ODRCustomController
 
             // ----------------------------------------
             // Check the csrf token
-            /** @var CsrfTokenManager $token_generator */
-            $token_generator = $this->get('security.csrf.token_manager');
-
             $token_id = 'FileDataForm_'.$datarecord->getId().'_'.$datafield->getId().'_'.$user->getId();
-            $expected_csrf_token = $token_generator->getToken($token_id)->getValue();
-            if ( $csrf_token !== $expected_csrf_token )
+            if ( !$this->isCsrfTokenValid($token_id, $csrf_token) )
                 throw new ODRBadRequestException('Invalid Form');
-
 
             // ----------------------------------------
             // Due to how the crypto system works, the file has to be decrypted to a file instead
@@ -3979,12 +3965,7 @@ class EditController extends ODRCustomController
 
             // Generate a csrf token to use if the user wants to revert back to an earlier value
             $current_typeclass = $datafield->getFieldType()->getTypeClass();
-
-            /** @var CsrfTokenManager $token_generator */
-            $token_generator = $this->container->get('security.csrf.token_manager');
-
             $token_id = $current_typeclass.'Form_'.$datarecord->getId().'_'.$datafield->getId();
-            $csrf_token = $token_generator->getToken($token_id)->getValue();
 
 
             // Render the dialog box for this request
@@ -3998,7 +3979,7 @@ class EditController extends ODRCustomController
                         'datafield' => $datafield,
                         'current_typeclass' => $current_typeclass,
 
-                        'csrf_token' => $csrf_token,
+                        'token_id' => $token_id,
                     ]
                 )
             ];
@@ -4253,13 +4234,7 @@ class EditController extends ODRCustomController
 
             // Generate a csrf token to use if the user wants to revert back to an earlier value
             $current_typeclass = $datafield->getFieldType()->getTypeClass();
-
-            /** @var CsrfTokenManager $token_generator */
-            $token_generator = $this->container->get('security.csrf.token_manager');
-
             $token_id = $current_typeclass.'Form_'.$datarecord->getId().'_'.$datafield->getId();
-            $csrf_token = $token_generator->getToken($token_id)->getValue();
-
 
             // Render the dialog box for this request
             $return['d'] = [
@@ -4272,7 +4247,7 @@ class EditController extends ODRCustomController
                         'datafield' => $datafield,
                         'current_typeclass' => $current_typeclass,
 
-                        'csrf_token' => $csrf_token,
+                        'token_id' => $token_id,
                     ]
                 )
             ];

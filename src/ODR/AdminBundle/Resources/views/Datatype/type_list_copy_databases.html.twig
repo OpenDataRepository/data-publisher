@@ -18,7 +18,7 @@
                     </div>
                     <div class="ODRBodyContent">
                         <form id="CopyDatatypeForm">
-                            <input type="hidden" name="_token" value="{{ csrf_token }}" />
+                            <input type="hidden" name="_token" value="{{ csrf_token(token_id) }}" />
                             <input type="hidden" id="selected_datatype_id" name="datatype_id" value="" />
 
                             <label for="selected_user_id"><b>Select owner of new database:&nbsp;</b></label>
