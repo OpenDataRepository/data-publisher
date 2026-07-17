@@ -64,6 +64,7 @@ use ODR\OpenRepository\GraphBundle\Plugins\SortOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\TableResultsOverrideInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\ThemeElementPluginInterface;
 // Symphony
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -3074,6 +3075,8 @@ class PluginsController extends ODRCustomController
 
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->permissions_management_service;
+            /** @var ContainerInterface $service_container */
+            $service_container = $this->container->get('service_container');
             /** @var \Twig\Environment $templating */
             $templating = $this->container->get('twig');
 
@@ -3370,7 +3373,7 @@ class PluginsController extends ODRCustomController
             if ( $uses_custom_render ) {
                 // If any of them do, then call the relevant function defined in the render plugin
                 /** @var PluginSettingsDialogOverrideInterface $plugin */
-                $plugin = $this->container->get( $target_render_plugin->getPluginClassName() );
+                $plugin = $service_container->get( $target_render_plugin->getPluginClassName() );
 
                 $custom_render_plugin_options_html =
                     $plugin->getRenderPluginOptionsOverride(

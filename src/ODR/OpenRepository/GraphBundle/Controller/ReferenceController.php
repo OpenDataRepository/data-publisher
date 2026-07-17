@@ -30,6 +30,7 @@ use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 // Symfony
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -203,8 +204,10 @@ class ReferenceController extends ODRCustomController
                 'is_datatype_admin' => $is_datatype_admin,
             ];
 
+            /** @var ContainerInterface $service_container */
+            $service_container = $this->container->get('service_container');
             /** @var DatatypePluginInterface $svc */
-            $svc = $this->container->get($plugin_classname);
+            $svc = $service_container->get($plugin_classname);
             $str = $svc->execute($plugin_dr_array, $plugin_dt_array, $plugin_rpi_array, $plugin_theme_array, $rendering_options, $plugin_parent_dr_array, $datatype_permissions, $datafield_permissions);
 
             $return['d'] = $str;

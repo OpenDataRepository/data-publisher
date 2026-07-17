@@ -80,6 +80,7 @@ use ODR\AdminBundle\Component\Utility\ValidUtility;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldReloadOverrideInterface;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -3233,6 +3234,8 @@ class EditController extends ODRCustomController
             $permissions_service = $this->permissions_management_service;
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->theme_info_service;
+            /** @var ContainerInterface $service_container */
+            $service_container = $this->container->get('service_container');
 
 
             /** @var DataFields $datafield */
@@ -3323,7 +3326,7 @@ class EditController extends ODRCustomController
                 // Load the render plugin as a service
                 $render_plugin_classname = $render_plugin_instance->getRenderPlugin()->getPluginClassName();
                 /** @var DatafieldReloadOverrideInterface $render_plugin */
-                $render_plugin = $this->container->get($render_plugin_classname);
+                $render_plugin = $service_container->get($render_plugin_classname);
 
                 // Request a set of parameters from the render plugin for ODRRenderService to use
                 $extra_parameters = $render_plugin->getOverrideParameters(

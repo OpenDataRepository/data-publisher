@@ -41,6 +41,7 @@ use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\OpenRepository\GraphBundle\Plugins\FileRenamerPluginInterface;
 // Symfony
 use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -124,8 +125,10 @@ class FileRenamerController extends ODRCustomController
                 throw new ODRForbiddenException();
             // ----------------------------------------
 
+            /** @var ContainerInterface $service_container */
+            $service_container = $this->container->get('service_container');
             /** @var FileRenamerPluginInterface $plugin_service */
-            $plugin_service = $this->container->get('odr_plugins.base.file_renamer');
+            $plugin_service = $service_container->get('odr_plugins.base.file_renamer');
 
             // ----------------------------------------
             // Permissions are going to be a pain...easiest way is to filter cached arrays
@@ -361,8 +364,10 @@ class FileRenamerController extends ODRCustomController
             }
             else {
                 // Loading the service makes sense now that we know the datafield is using the plugin
+                /** @var ContainerInterface $service_container */
+                $service_container = $this->container->get('service_container');
                 /** @var FileRenamerPluginInterface $plugin_service */
-                $plugin_service = $this->container->get($plugin_classname);
+                $plugin_service = $service_container->get($plugin_classname);
 
                 // Update the filenames in this drf
                 $changes_made = self::renameFilesInDatafield($em, $entity_modify_service, $logger, $user, $drf, $plugin_service, $plugin_classname);

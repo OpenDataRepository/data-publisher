@@ -69,6 +69,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchRedirectService;
 // Symfony
 use ODR\OpenRepository\UserBundle\Component\Service\ODRUserManager as UserManager;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -135,6 +136,8 @@ class MassEditController extends ODRCustomController
             $search_key_service = $this->search_key_service;
             /** @var SearchRedirectService $search_redirect_service */
             $search_redirect_service = $this->search_redirect_service;
+            /** @var ContainerInterface $service_container */
+            $service_container = $this->container->get('service_container');
             /** @var \Twig\Environment $templating */
             $templating = $this->container->get('twig');
 
@@ -279,7 +282,7 @@ class MassEditController extends ODRCustomController
             foreach ($mass_edit_trigger_plugins as $plugin_classname => $rpi_list) {
                 // ...load up each of the plugins...
                 /** @var MassEditTriggerEventInterface $plugin_svc */
-                $plugin_svc = $this->container->get('service_container')->get($plugin_classname);
+                $plugin_svc = $service_container->get($plugin_classname);
 
                 // ...and "ask" them what fields they intend to override
                 foreach ($rpi_list as $num => $rpi) {
@@ -390,6 +393,8 @@ class MassEditController extends ODRCustomController
             $search_key_service = $this->search_key_service;
             /** @var SearchRedirectService $search_redirect_service */
             $search_redirect_service = $this->search_redirect_service;
+            /** @var ContainerInterface $service_container */
+            $service_container = $this->container->get('service_container');
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->tracked_job_service;
 
@@ -599,7 +604,7 @@ class MassEditController extends ODRCustomController
                     if ( !isset($plugin_response_cache[$rpi_id]) ) {
                         // Need to load the plugin service via the classname...
                         /** @var MassEditTriggerEventInterface $plugin_svc */
-                        $plugin_svc = $this->container->get( $rpi['renderPlugin']['pluginClassName'] );
+                        $plugin_svc = $service_container->get( $rpi['renderPlugin']['pluginClassName'] );
                         // ...so the plugin can return whether to trigger the event depending on
                         //  whether the user has entered a value or not
                         $plugin_response_cache[$rpi_id] = $plugin_svc->getMassEditTriggerFields($rpi);

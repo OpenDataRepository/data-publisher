@@ -34,6 +34,7 @@ use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
 // Symfony
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -285,8 +286,10 @@ class GraphController extends ODRCustomController
             // Render the static graph using the correct plugin
             $plugin_classname = $plugin_rpi_array['renderPlugin']['pluginClassName'];
 
+            /** @var ContainerInterface $service_container */
+            $service_container = $this->container->get('service_container');
             /** @var DatatypePluginInterface $svc */
-            $svc = $this->container->get($plugin_classname);
+            $svc = $service_container->get($plugin_classname);
             $svc->execute($plugin_dr_array, $plugin_dt_array, $plugin_rpi_array, $plugin_theme_array, $rendering_options, $plugin_parent_dr_array, $datatype_permissions, $datafield_permissions);
 
 //            $site_baseurl = $this->getParameter('site_baseurl');
