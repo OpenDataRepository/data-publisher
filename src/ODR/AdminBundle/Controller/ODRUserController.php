@@ -1021,11 +1021,11 @@ class ODRUserController extends ODRCustomController
 
             // Determine whether the Jupyterhub role needs to be displayed
             $using_jupyterhub = false;
-            if ( $this->container->hasParameter('jupyterhub_config') ) {
-                $jupyterhub_config = $this->getParameter('jupyterhub_config');
-
-                $using_jupyterhub = $jupyterhub_config['use_jupyterhub'];
-            }
+//            if ( $this->container->hasParameter('jupyterhub_config') ) {
+//                $jupyterhub_config = $this->getParameter('jupyterhub_config');
+//
+//                $using_jupyterhub = $jupyterhub_config['use_jupyterhub'];
+//            }
 
             // Render them in a list
             $return['d'] = [
