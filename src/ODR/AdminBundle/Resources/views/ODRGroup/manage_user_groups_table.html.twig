@@ -14,6 +14,11 @@
             <tbody>
             {% for dt_id, dt in datatypes %}
                 {% set datatype_meta = dt.dataTypeMeta %}
+
+                {% set display_name = datatype_meta.shortName %}
+                {% if dt.unique_id != dt.template_group %}
+                    {% set display_name = dt_name_lookup[ dt.template_group ] ~ ' >> ' ~ datatype_meta.shortName %}
+                {% endif %}
                 <tr>
                     <td>
                         <span class="ODRDatatypeInfoDiv">
@@ -28,14 +33,7 @@
                             </span>
                         </span>
                     </td>
-                    <td>
-                    {% if dt.unique_id == dt.template_group %}
-                        {{ datatype_meta.shortName }}
-                    {% else %}
-                        {% set group_dt_name = dt_name_lookup[ dt.template_group ] %}
-                        {{ group_dt_name }} &gt;&gt; {{ datatype_meta.shortName }}
-                    {% endif %}
-                    </td>
+                    <td>{{ display_name }}</td>
                     <td>
                         <i
                             id="in_datatype_{{ dt_id }}_group"
