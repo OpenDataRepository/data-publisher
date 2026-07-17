@@ -40,7 +40,7 @@ class ThemeElementToNumberTransformer implements DataTransformerInterface
      *
      * @return string
      */
-    public function transform($theme_element)
+    public function transform($theme_element): mixed
     {
         if ($theme_element === null) {
             return "";
@@ -59,7 +59,7 @@ class ThemeElementToNumberTransformer implements DataTransformerInterface
      *
      * @throws TransformationFailedException if the ThemeElement is not found.
      */
-    public function reverseTransform($number)
+    public function reverseTransform($number): mixed
     {
         if (!$number) {
             return null;

@@ -37,7 +37,7 @@ class ODRIntegerToLocalizedStringTransformer extends IntegerToLocalizedStringTra
      * {@inheritDoc}
      */
     #[\Override]
-    public function transform($value)
+    public function transform($value): string
     {
         // The parent function throws an error when it receives the empty string, but apparently
         //  will happily convert <null> values into the empty string...
@@ -58,7 +58,7 @@ class ODRIntegerToLocalizedStringTransformer extends IntegerToLocalizedStringTra
      * {@inheritdoc}
      */
     #[\Override]
-    public function reverseTransform($value)
+    public function reverseTransform($value): float|int|null
     {
         if ( !ValidUtility::isValidInteger($value) )
             throw new TransformationFailedException();

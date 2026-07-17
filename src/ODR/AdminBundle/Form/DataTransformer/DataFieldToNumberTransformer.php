@@ -40,7 +40,7 @@ class DataFieldToNumberTransformer implements DataTransformerInterface
      *
      * @return string
      */
-    public function transform($datafield)
+    public function transform($datafield): mixed
     {
         if ($datafield === null) {
             return "";
@@ -59,7 +59,7 @@ class DataFieldToNumberTransformer implements DataTransformerInterface
      *
      * @throws TransformationFailedException if the DataField is not found.
      */
-    public function reverseTransform($number)
+    public function reverseTransform($number): mixed
     {
         if (!$number) {
             return null;

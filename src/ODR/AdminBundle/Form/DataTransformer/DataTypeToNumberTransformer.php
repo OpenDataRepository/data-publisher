@@ -40,7 +40,7 @@ class DataTypeToNumberTransformer implements DataTransformerInterface
      *
      * @return string
      */
-    public function transform($datatype)
+    public function transform($datatype): mixed
     {
         if ($datatype === null) {
             return "";
@@ -59,7 +59,7 @@ class DataTypeToNumberTransformer implements DataTransformerInterface
      *
      * @throws TransformationFailedException if the Datatype is not found.
      */
-    public function reverseTransform($number)
+    public function reverseTransform($number): mixed
     {
         if (!$number) {
             return null;
