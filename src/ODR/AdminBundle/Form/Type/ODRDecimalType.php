@@ -28,7 +28,7 @@ class ODRDecimalType extends NumberType
      * {@inheritdoc}
      */
     #[\Override]
-    public function buildForm(FormBuilderInterface $builder, array $options)
+    public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder->addViewTransformer(
             new ODRDecimalToLocalizedStringTransformer(
@@ -44,7 +44,7 @@ class ODRDecimalType extends NumberType
      * {@inheritdoc}
      */
     #[\Override]
-    public function configureOptions(OptionsResolver $resolver)
+    public function configureOptions(OptionsResolver $resolver): void
     {
         parent::configureOptions($resolver);
     }
@@ -63,7 +63,7 @@ class ODRDecimalType extends NumberType
      * {@inheritdoc}
      */
     #[\Override]
-    public function getBlockPrefix()
+    public function getBlockPrefix(): string
     {
         return 'odr_decimal';
     }
