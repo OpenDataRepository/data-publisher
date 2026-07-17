@@ -160,7 +160,7 @@
                                 "class": "ODRFakeEdit_autogenerate",
                                 "type": "hidden",
                                 // "name": "",    // don't want a name here
-                                "value": "{{ special_tokens[ datafield.id ] }}",
+                                "value": "{{ csrf_token(special_tokens[ datafield.id ]) }}",
                                 "rel": "{{ datafield.id }}",
                             }).appendTo("#Field_{{ datarecord.id }}_{{ datafield.id }}");
                         });

@@ -92,7 +92,7 @@
         method="POST"
     >
 
-        <input type="hidden" id="{{ field_typeclass }}Form__token" name="{{ field_typeclass }}Form[_token]" value="{{ token_list[ datarecord.id ][ datafield.id ] }}" />
+        <input type="hidden" id="{{ field_typeclass }}Form__token" name="{{ field_typeclass }}Form[_token]" value="{{ csrf_token(token_list[ datarecord.id ][ datafield.id ]) }}" />
 
         {# Determine whether a render plugin needs to be run #}
         {% set rendering_options = {'is_link': is_link, 'is_datatype_admin': is_datatype_admin, 'context': 'fake_edit'} %}

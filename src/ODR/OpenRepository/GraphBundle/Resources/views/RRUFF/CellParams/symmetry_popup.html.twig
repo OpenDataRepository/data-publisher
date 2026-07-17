@@ -261,7 +261,7 @@
 
             element = $("<input>", {"type": "hidden", "value": "{{ datarecord.id }}", "name": "datarecord_id"});
             $(form).append(element);
-            element = $("<input>", {"type": "hidden", "value": "{{ form_token }}", "name": "token"});
+            element = $("<input>", {"type": "hidden", "value": "{{ csrf_token(form_token) }}", "name": "token"});
             $(form).append(element);
 
             var crystal_system_df_id = "{{ field_identifiers['Crystal System'] }}".split(/_/)[2];

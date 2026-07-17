@@ -14,7 +14,7 @@
         </div>
 
         <form id="ODRMultipleDatafieldPropertiesForm" class="pure-form">
-            <input type="hidden" name="_token" value="{{ token }}" />
+            <input type="hidden" name="_token" value="{{ csrf_token(token_key) }}" />
             {% for df_id, df in datafields %}
                 {% set datafield_meta = df['dataFieldMeta'] %}
                 <input type="hidden" id="ODRMultiDatafield_{{ df_id }}_publicStatus" name="public_status[{{ df_id }}]" value="{% if datafield_meta.publicDate|is_public %}1{% else %}0{% endif %}" />

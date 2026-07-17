@@ -42,7 +42,6 @@ use ODR\OpenRepository\GraphBundle\Plugins\CrystallographyDef;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
 class RRUFFCellparamsController extends ODRCustomController
@@ -111,8 +110,6 @@ class RRUFFCellparamsController extends ODRCustomController
             $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->permissions_management_service;
-            /** @var CsrfTokenManager $token_manager */
-            $token_manager = $this->container->get('security.csrf.token_manager');
 
 
             /** @var DataRecord $datarecord */
@@ -182,8 +179,7 @@ class RRUFFCellparamsController extends ODRCustomController
             $token_id .= '_'.$relevant_fields['Space Group'];
             $token_id .= '_Form';
 
-            $check_token = $token_manager->getToken($token_id)->getValue();
-            if ( $csrf_token !== $check_token )
+            if ( !$this->isCsrfTokenValid($token_id, $csrf_token) )
                 throw new ODRBadRequestException('Invalid CSRF Token');
 
 

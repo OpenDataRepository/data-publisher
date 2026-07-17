@@ -27,7 +27,6 @@ use ODR\AdminBundle\Component\Utility\UserUtility;
 use Doctrine\DBAL\Connection as DBALConnection;
 use Doctrine\ORM\EntityManager;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
 class DatarecordInfoService
@@ -40,10 +39,9 @@ class DatarecordInfoService
      * @param CacheService $cache_service
      * @param DatatreeInfoService $datatree_info_service
      * @param TagHelperService $tag_helper_service
-     * @param CsrfTokenManager $token_manager
      * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly DatatreeInfoService $datatree_info_service, private readonly TagHelperService $tag_helper_service, private readonly CsrfTokenManager $token_manager, private readonly LoggerInterface $logger)
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly DatatreeInfoService $datatree_info_service, private readonly TagHelperService $tag_helper_service, private readonly LoggerInterface $logger)
     {
     }
 
@@ -1210,21 +1208,18 @@ class DatarecordInfoService
         $token_list = [];
 
         foreach ($datarecord_array as $dr_id => $dr) {
-            if (!isset($token_list[$dr_id]))
+            if ( !isset($token_list[$dr_id]) )
                 $token_list[$dr_id] = [];
 
             $dt_id = $dr['dataType']['id'];
-
-            if (!isset($datatype_array[$dt_id]))
+            if ( !isset($datatype_array[$dt_id]) )
                 continue;
 
             foreach ($datatype_array[$dt_id]['dataFields'] as $df_id => $df) {
-
                 $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
 
-                $token_id = $typeclass . 'Form_' . $dr_id . '_' . $df_id;
-                $token_list[$dr_id][$df_id] = $this->token_manager->getToken($token_id)->getValue();
-
+                $token_id = $typeclass.'Form_'.$dr_id.'_'.$df_id;
+                $token_list[$dr_id][$df_id] = $token_id;
             }
         }
 

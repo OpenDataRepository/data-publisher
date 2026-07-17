@@ -41,7 +41,7 @@
         method="POST"
     >
 
-        <input type="hidden" id="{{ field_typeclass }}Form__token" name="{{ field_typeclass }}Form[_token]" value="{{ token_list[ datarecord.id ][ datafield.id ] }}" />
+        <input type="hidden" id="{{ field_typeclass }}Form__token" name="{{ field_typeclass }}Form[_token]" value="{{ csrf_token(token_list[ datarecord.id ][ datafield.id ]) }}" />
 
 {#{% if field_typename == "Integer" or field_typename == "Decimal" or field_typename == "Long Text" or field_typename == "Medium Text" or field_typename == "Short Text" %}#}
         <fieldset>
@@ -82,7 +82,7 @@
             "class": "ODRFakeEdit_autogenerate",
             "type": "hidden",
             // "name": "",    // don't want a name here
-            "value": "{{ special_tokens[ datafield.id ] }}",
+            "value": "{{ csrf_token(special_tokens[ datafield.id ]) }}",
             "rel": "{{ datafield.id }}",
         }).appendTo("#Field_{{ datarecord.id }}_{{ datafield.id }}");
     });

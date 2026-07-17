@@ -15,7 +15,6 @@ services:
             $upload_service: "@odr.upload_service"
             $xyzdata_helper_service: "@odr.xyzdata_helper_service"
             $event_dispatcher: "@event_dispatcher"
-            $token_manager: "@security.csrf.token_manager"
             $templating: "@twig"
             $logger: "@logger"
 
@@ -31,7 +30,6 @@ services:
             $entity_modify_service: "@odr.entity_meta_modify_service"
             $lock_service: "@odr.lock_service"
             $event_dispatcher: "@event_dispatcher"
-            $token_manager: "@security.csrf.token_manager"
             $templating: "@twig"
             $logger: "@logger"
 
@@ -47,7 +45,6 @@ services:
             $lock_service: "@odr.lock_service"
             $search_service: "@odr.search_service"
             $event_dispatcher: "@event_dispatcher"
-            $token_manager: "@security.csrf.token_manager"
             $templating: "@twig"
             $logger: "@logger"
 
@@ -99,7 +96,6 @@ services:
             $search_query_service: "@odr.search_query_service"
             $sort_service: "@odr.sort_service"
             $event_dispatcher: "@event_dispatcher"
-            $token_manager: "@security.csrf.token_manager"
             $templating: "@twig"
             $logger: "@logger"
 
@@ -111,7 +107,6 @@ services:
             $entity_create_service: "@odr.entity_creation_service"
             $lock_service: "@odr.lock_service"
             $event_dispatcher: "@event_dispatcher"
-            $token_manager: "@security.csrf.token_manager"
             $templating: "@twig"
             $logger: "@logger"
 
@@ -178,7 +173,6 @@ services:
             $entity_create_service: "@odr.entity_creation_service"
             $lock_service: "@odr.lock_service"
             $event_dispatcher: "@event_dispatcher"
-            $token_manager: "@security.csrf.token_manager"
             $templating: '@twig'
             $logger: "@logger"
 

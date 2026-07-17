@@ -24,7 +24,6 @@ use ODR\AdminBundle\Component\Utility\UniqueUtility;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Security\Csrf\CsrfTokenManager;
 
 
 class TagHelperService
@@ -38,10 +37,9 @@ class TagHelperService
      * @param EntityCreationService $entity_create_service
      * @param EntityMetaModifyService $entity_modify_service
      * @param LockService $lock_service
-     * @param CsrfTokenManager $token_manager
      * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly EntityCreationService $entity_create_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly LockService $lock_service, private readonly CsrfTokenManager $token_manager, private readonly LoggerInterface $logger)
+    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly EntityCreationService $entity_create_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly LockService $lock_service, private readonly LoggerInterface $logger)
     {
     }
 
@@ -334,7 +332,7 @@ class TagHelperService
 
                 foreach ($df['tags'] as $tag_id => $tag) {
                     $token_id = $typeclass.'Form_'.$df_id.'_'.$tag_id;
-                    $token_list[$df_id][$tag_id] = $this->token_manager->getToken($token_id)->getValue();
+                    $token_list[$df_id][$tag_id] = $token_id;
                 }
             }
         }

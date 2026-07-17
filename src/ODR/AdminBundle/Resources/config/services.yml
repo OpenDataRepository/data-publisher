@@ -789,7 +789,6 @@ services:
             $cache_service: "@odr.cache_service"
             $datatree_info_service: "@odr.datatree_info_service"
             $tag_helper_service: "@odr.tag_helper_service"
-            $token_manager: "@security.csrf.token_manager"
             $logger: "@logger"
 
     odr.datarecord_export_service:
@@ -998,7 +997,6 @@ services:
             $entity_create_service: "@odr.entity_creation_service"
             $entity_modify_service: "@odr.entity_meta_modify_service"
             $lock_service: "@odr.lock_service"
-            $token_manager: "@security.csrf.token_manager"
             $logger: "@logger"
 
     odr.theme_info_service:

@@ -3960,8 +3960,6 @@ if ($debug)
         try {
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->container->get('doctrine')->getManager();
-            /** @var CsrfTokenManager $token_manager */
-            $token_manager = $this->container->get('security.csrf.token_manager');
 
             /** @var DatabaseInfoService $database_info_service */
             $database_info_service = $this->database_info_service;
@@ -3997,7 +3995,6 @@ if ($debug)
             foreach ($df_array as $df_id => $df)
                 $token_key .= $df_id.'_';
             $token_key .= 'Datafields';
-            $token = $token_manager->getToken($token_key)->getValue();
 
             // Sort the datafields by name so they're easier to locate in the list
             uasort($df_array, fn($a, $b) => strcmp((string) $a['dataFieldMeta']['fieldName'], (string) $b['dataFieldMeta']['fieldName']));
@@ -4021,7 +4018,7 @@ if ($debug)
                     '@ODRAdmin/Displaytemplate/multi_datafield_properties_dialog_form.html.twig',
                     [
                         'datafields' => $df_array,
-                        'token' => $token,
+                        'token_key' => $token_key,
 
                         'fieldtype_info' => $fieldtype_info,
                         'fieldtype_map' => $fieldtype_map,
@@ -4102,8 +4099,6 @@ if ($debug)
             $permissions_service = $this->permissions_management_service;
             /** @var TrackedJobService $tracked_job_service */
             $tracked_job_service = $this->tracked_job_service;
-            /** @var CsrfTokenManager $token_manager */
-            $token_manager = $this->container->get('security.csrf.token_manager');
 
 
             /** @var DataType $datatype */
@@ -4151,10 +4146,8 @@ if ($debug)
             foreach ($df_array as $df_id => $df)
                 $token_key .= $df_id.'_';
             $token_key .= 'Datafields';
-            $token = $token_manager->getToken($token_key)->getValue();
-
-            if ( $token !== $post['_token'] )
-                throw new ODRBadRequestException();
+            if ( !$this->isCsrfTokenValid($token_key, $post['_token']) )
+                throw new ODRBadRequestException('Invalid CSRF Token');
 
 
             // Also need to verify that the provided fieldtypes are valid
@@ -4383,8 +4376,6 @@ if ($debug)
             $permissions_service = $this->permissions_management_service;
             /** @var \Twig\Environment $templating */
             $templating = $this->container->get('twig');
-            /** @var CsrfTokenManager $token_manager */
-            $token_manager = $this->container->get('security.csrf.token_manager');
 
 
             /** @var DataType $datatype */
@@ -4423,7 +4414,6 @@ if ($debug)
                     $token_key .= $df_id.'_';
             }
             $token_key .= 'Datafields';
-            $token = $token_manager->getToken($token_key)->getValue();
 
 
             // ----------------------------------------
@@ -4432,7 +4422,7 @@ if ($debug)
                 'html' => $templating->render(
                     '@ODRAdmin/Displaytemplate/special_datafield_selection_dialog_form.html.twig',
                     [
-                        'token' => $token,
+                        'token_key' => $token_key,
                         'purpose' => $type,
 
                         'available_datafields' => $available_datafields,
@@ -4483,8 +4473,6 @@ if ($debug)
             $permissions_service = $this->permissions_management_service;
             /** @var EngineInterface $templating */
             $templating = $this->container->get('twig');
-            /** @var CsrfTokenManager $token_manager */
-            $token_manager = $this->container->get('security.csrf.token_manager');
 
 
             /** @var DataType $datatype */
@@ -4517,7 +4505,6 @@ if ($debug)
                     $token_key .= $df_id.'_';
             }
             $token_key .= 'Datafields';
-            $token = $token_manager->getToken($token_key)->getValue();
 
 
             // ----------------------------------------
@@ -4526,7 +4513,7 @@ if ($debug)
                 'html' => $templating->render(
                     '@ODRAdmin/Displaytemplate/special_datafield_selection_dialog_form.html.twig',
                     array(
-                        'token' => $token,
+                        'token_key' => $token_key,
                         'purpose' => 'search',
 
                         'available_datafields' => $available_datafields,
@@ -4609,8 +4596,6 @@ if ($debug)
             $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
             $permissions_service = $this->permissions_management_service;
-            /** @var CsrfTokenManager $token_manager */
-            $token_manager = $this->container->get('security.csrf.token_manager');
 
 
             /** @var DataType $datatype */
@@ -4657,10 +4642,9 @@ if ($debug)
                 }
             }
             $token_key .= 'Datafields';
-            $token = $token_manager->getToken($token_key)->getValue();
 
             // If the token doesn't match, then throw an exception
-            if ( $token !== $post['_token'] )
+            if ( !$this->isCsrfTokenValid($token_key, $post['_token']) )
                 throw new ODRBadRequestException('Invalid token');
 
             // If one of the submitted datafields is illegal, then throw an exception

@@ -31,7 +31,7 @@
 
         <div class="pure-u-1-2">
             <form id="ODRSpecialDatafieldSelectionForm" class="pure-form">
-                <input type="hidden" name="_token" value="{{ token }}" />
+                <input type="hidden" name="_token" value="{{ csrf_token(token_key) }}" />
                 <input type="hidden" name="purpose" value="{{ purpose }}" />
 
                 {% for df_id, df_data in current_datafields %}
