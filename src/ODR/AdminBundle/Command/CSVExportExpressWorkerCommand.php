@@ -121,7 +121,7 @@ class CSVExportExpressWorkerCommand extends ContainerAwareCommand
             catch (\Exception $e) {
                 if ( $e->getMessage() == 'retry' ) {
                     $output->writeln( 'Could not resolve host, releasing job to try again' );
-                    $logger->err('CSVExportExpressWorkerCommand.php: '.$e->getMessage());
+                    $logger->error('CSVExportExpressWorkerCommand.php: '.$e->getMessage());
 
                     // Release the job back into the ready queue to try again
                     $pheanstalk->release($job);
@@ -132,7 +132,7 @@ class CSVExportExpressWorkerCommand extends ContainerAwareCommand
                 else {
                     $output->writeln('ERROR: ' . $e->getMessage());
 
-                    $logger->err('CSVExportExpressWorkerCommand.php: '.$e->getMessage());
+                    $logger->error('CSVExportExpressWorkerCommand.php: '.$e->getMessage());
 
                     // Delete the job so the queue doesn't hang, in theory
                     $pheanstalk->delete($job);

@@ -175,7 +175,7 @@ class CryptoCommand extends ContainerAwareCommand
             catch (\Exception $e) {
                 if ( $e->getMessage() == 'retry' ) {
                     $output->writeln( 'Could not resolve host, releasing job to try again' );
-                    $logger->err('CryptoCommand.php: '.$e->getMessage());
+                    $logger->error('CryptoCommand.php: '.$e->getMessage());
 
                     // Release the job back into the ready queue to try again
                     $pheanstalk->release($job);
@@ -186,7 +186,7 @@ class CryptoCommand extends ContainerAwareCommand
                 else {
                     $output->writeln($e->getMessage());
 
-                    $logger->err('CryptoCommand.php: '.$e->getMessage());
+                    $logger->error('CryptoCommand.php: '.$e->getMessage());
 
                     // Delete the job so the queue doesn't hang, in theory
                     $pheanstalk->delete($job);

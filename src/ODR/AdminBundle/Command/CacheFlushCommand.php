@@ -51,7 +51,7 @@ class CacheFlushCommand extends ContainerAwareCommand
         }
         catch (\Exception $e) {
 $output->writeln($e->getMessage());
-            $logger->err('CacheFlushCommand.php: '.$e->getMessage());
+            $logger->error('CacheFlushCommand.php: '.$e->getMessage());
         }
         return 0;
     }
