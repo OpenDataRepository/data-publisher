@@ -47,6 +47,9 @@ class ClearTagRebuildCommand extends ContainerAwareCommand
 
         $redis_prefix = $container->getParameter('memcached_key_prefix');
 
+        // Startup banner so operators can confirm the daemon is running (it then blocks
+        // on the tube until a job arrives).
+        $output->writeln('[odr_record:clear_tag_rebuild] started '.(new \DateTime())->format('Y-m-d H:i:s').' — waiting for jobs (Ctrl+C to stop)');
         while (true) {
             // Wait for a job?
             if ($input->getOption('old'))

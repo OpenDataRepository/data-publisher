@@ -48,6 +48,9 @@ class AMCSD_2_DecryptFilesCommand extends ContainerAwareCommand
         $pheanstalk = $container->get('pheanstalk');
         $beanstalk_api_key = $container->getParameter('beanstalk_api_key');
 
+        // Startup banner so operators can confirm the daemon is running (it then blocks
+        // on the tube until a job arrives).
+        $output->writeln('[odr_amcsd_update:2_decrypt] started '.(new \DateTime())->format('Y-m-d H:i:s').' — waiting for jobs (Ctrl+C to stop)');
         while (true) {
             // Run command until manually stopped
             $job = null;
