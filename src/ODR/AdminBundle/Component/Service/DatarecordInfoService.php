@@ -24,7 +24,7 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Component\Utility\UniqueUtility;
 use ODR\AdminBundle\Component\Utility\UserUtility;
 // Other
-use Doctrine\DBAL\Connection as DBALConnection;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManager;
 use Psr\Log\LoggerInterface;
 
@@ -1436,12 +1436,12 @@ class DatarecordInfoService
                 FROM odr_data_record ddr
                 LEFT JOIN odr_linked_data_tree ldt ON ldt.descendant_id = ddr.id AND ldt.deletedAt IS NULL
                 LEFT JOIN odr_data_record adr ON ldt.ancestor_id = adr.id
-                WHERE ddr.id IN (?)';
+                WHERE ddr.id IN (:dr_ids)';
             if ( !$include_deleted )
                 $query .= ' AND ddr.deletedAt IS NULL';
-            $parameters = [1 => $datarecords_to_process];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $results = $conn->executeQuery($query, $parameters, $types);  // change to fetchAll() for debugging
+            $parameters = ['dr_ids' => $datarecords_to_process];
+            $types = ['dr_ids' => ArrayParameterType::INTEGER];
+            $results = $conn->fetchAllAssociative($query, $parameters, $types);
 
             $datarecords_to_process = [];
             foreach ($results as $result) {
@@ -1493,13 +1493,13 @@ class DatarecordInfoService
             $query =
                'SELECT dr.id AS dr_id
                 FROM odr_data_record dr
-                WHERE dr.grandparent_id IN (?)';
+                WHERE dr.grandparent_id IN (:dr_ids)';
             if ( !$include_deleted )
                 $query .= ' AND dr.deletedAt IS NULL';
 
-            $parameters = [1 => $datarecords_to_process];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $results = $conn->executeQuery($query, $parameters, $types);  // change to fetchAll() for debugging
+            $parameters = ['dr_ids' => $datarecords_to_process];
+            $types = ['dr_ids' => ArrayParameterType::INTEGER];
+            $results = $conn->fetchAllAssociative($query, $parameters, $types);
 
             $datarecords_to_process = [];
             foreach ($results as $result) {
@@ -1516,16 +1516,16 @@ class DatarecordInfoService
                'SELECT ldt.descendant_id AS ddr_id
                 FROM odr_data_record adr
                 JOIN odr_linked_data_tree ldt ON ldt.ancestor_id = adr.id
-                WHERE adr.id IN (?)';
+                WHERE adr.id IN (:dr_ids)';
             if ( !$include_deleted )
                 $query .= ' AND ldt.deletedAt IS NULL';
 
-            $parameters = [1 => $datarecords_to_process];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
-            $results = $conn->executeQuery($query, $parameters, $types);
+            $parameters = ['dr_ids' => $datarecords_to_process];
+            $types = ['dr_ids' => ArrayParameterType::INTEGER];
+            $results = $conn->fetchAllAssociative($query, $parameters, $types);
 
             $datarecords_to_process = [];
-            foreach ($results->iterateAssociative() as $result) {
+            foreach ($results as $result) {
                 $ddr_id = intval($result['ddr_id']);
 
                 $datarecords_to_process[$ddr_id] = 0;

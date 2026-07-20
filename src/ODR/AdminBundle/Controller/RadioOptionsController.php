@@ -40,10 +40,10 @@ use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Service\TrackedJobService;
 // Symfony
+use Doctrine\DBAL\ArrayParameterType;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Doctrine\DBAL\Connection as DBALConnection;
 
 
 class RadioOptionsController extends ODRCustomController
@@ -543,19 +543,19 @@ class RadioOptionsController extends ODRCustomController
                'UPDATE odr_radio_options AS ro, odr_radio_options_meta AS rom
                 SET ro.deletedAt = NOW(), rom.deletedAt = NOW(),
                     ro.deletedBy = '.$user->getId().'
-                WHERE rom.radio_option_id = ro.id AND ro.id IN (?)
+                WHERE rom.radio_option_id = ro.id AND ro.id IN (:ro_ids)
                 AND ro.deletedAt IS NULL AND rom.deletedAt IS NULL';
-            $parameters = [1 => $radio_options_to_delete];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+            $parameters = ['ro_ids' => $radio_options_to_delete];
+            $types = ['ro_ids' => ArrayParameterType::INTEGER];
             $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
             // Delete the RadioSelection entries
             $query_str =
                'UPDATE odr_radio_selection AS rs
                 SET rs.deletedAt = NOW()
-                WHERE rs.id IN (?)';
-            $parameters = [1 => $radio_selections_to_delete];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+                WHERE rs.id IN (:rs_ids)';
+            $parameters = ['rs_ids' => $radio_selections_to_delete];
+            $types = ['rs_ids' => ArrayParameterType::INTEGER];
             $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
             // No errors, commit transaction

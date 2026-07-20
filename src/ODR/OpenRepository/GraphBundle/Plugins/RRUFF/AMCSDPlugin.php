@@ -3251,13 +3251,11 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         $query =
            'SELECT e.value
             FROM odr_short_varchar e
-            WHERE e.data_field_id = :datafield AND e.value REGEXP "^[0-9]{7,7}$"
+            WHERE e.data_field_id = :df_id AND e.value REGEXP "^[0-9]{7,7}$"
             AND e.deletedAt IS NULL
             ORDER BY e.value DESC
             LIMIT 0,1';
-        $params = [
-            'datafield' => $datafield_id,
-        ];
+        $params = ['df_id' => $datafield_id];
         $conn = $this->em->getConnection();
         $results = $conn->executeQuery($query, $params);
 

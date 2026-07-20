@@ -37,7 +37,7 @@ use ODR\AdminBundle\Component\Event\DatatypeLinkStatusChangedEvent;
 use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 // Symfony
-use Doctrine\DBAL\Connection as DBALConnection;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManager;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
@@ -125,12 +125,12 @@ class SearchCacheService implements EventSubscriberInterface
         $query =
            'SELECT df.id AS df_id, df.template_field_uuid AS template_field_uuid
             FROM odr_data_fields AS df
-            WHERE df.data_type_id IN (?)';
+            WHERE df.data_type_id IN (:dt_ids)';
         if (!$include_deleted)
             $query .= ' AND df.deletedAt IS NULL';
 
-        $parameters = [1 => $datatype_ids];
-        $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+        $parameters = ['dt_ids' => $datatype_ids];
+        $types = ['dt_ids' => ArrayParameterType::INTEGER];
         $results = $conn->fetchAllAssociative($query, $parameters, $types);
 
         if ( is_array($results) ) {
@@ -167,12 +167,12 @@ class SearchCacheService implements EventSubscriberInterface
            'SELECT ro.id AS ro_id, ro.radio_option_uuid AS ro_uuid
             FROM odr_radio_options AS ro
             JOIN odr_data_fields AS df ON ro.data_fields_id = df.id
-            WHERE df.data_type_id IN (?)';
+            WHERE df.data_type_id IN (:dt_ids)';
         if (!$include_deleted)
             $query .= ' AND ro.deletedAt IS NULL AND df.deletedAt IS NULL';
 
-        $parameters = [1 => $datatype_ids];
-        $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+        $parameters = ['dt_ids' => $datatype_ids];
+        $types = ['dt_ids' => ArrayParameterType::INTEGER];
         $results = $conn->fetchAllAssociative($query, $parameters, $types);
 
         if ( is_array($results) ) {
@@ -205,12 +205,12 @@ class SearchCacheService implements EventSubscriberInterface
            'SELECT t.id AS t_id, t.tag_uuid AS t_uuid
             FROM odr_tags AS t
             JOIN odr_data_fields AS df ON t.data_fields_id = df.id
-            WHERE df.data_type_id IN (?)';
+            WHERE df.data_type_id IN (:dt_ids)';
         if (!$include_deleted)
             $query .= ' AND t.deletedAt IS NULL AND df.deletedAt IS NULL';
 
-        $parameters = [1 => $datatype_ids];
-        $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+        $parameters = ['dt_ids' => $datatype_ids];
+        $types = ['dt_ids' => ArrayParameterType::INTEGER];
         $results = $conn->fetchAllAssociative($query, $parameters, $types);
 
         if ( is_array($results) ) {
@@ -242,12 +242,12 @@ class SearchCacheService implements EventSubscriberInterface
         $query =
            'SELECT ro.id AS ro_id, ro.radio_option_uuid AS ro_uuid
             FROM odr_radio_options AS ro
-            WHERE ro.data_fields_id IN (?)';
+            WHERE ro.data_fields_id IN (:df_ids)';
         if (!$include_deleted)
             $query .= ' AND ro.deletedAt IS NULL';
 
-        $parameters = [1 => $datafield_ids];
-        $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+        $parameters = ['df_ids' => $datafield_ids];
+        $types = ['df_ids' => ArrayParameterType::INTEGER];
         $results = $conn->fetchAllAssociative($query, $parameters, $types);
 
         if ( is_array($results) ) {
@@ -279,12 +279,12 @@ class SearchCacheService implements EventSubscriberInterface
         $query =
            'SELECT t.id AS t_id, t.tag_uuid AS t_uuid
             FROM odr_tags AS t
-            WHERE t.data_fields_id IN (?)';
+            WHERE t.data_fields_id IN (:df_ids)';
         if (!$include_deleted)
             $query .= ' AND t.deletedAt IS NULL';
 
-        $parameters = [1 => $datafield_ids];
-        $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+        $parameters = ['df_ids' => $datafield_ids];
+        $types = ['df_ids' => ArrayParameterType::INTEGER];
         $results = $conn->fetchAllAssociative($query, $parameters, $types);
 
         if ( is_array($results) ) {
@@ -670,7 +670,7 @@ class SearchCacheService implements EventSubscriberInterface
             //  confident it works properly when dealing with potentially async situations
             $conn = $this->em->getConnection();
             $query =
-               'SELECT ft.type_class, mdf.unique_id
+               'SELECT ft.type_class, mdf.field_uuid
                 FROM odr_data_fields df
                 LEFT JOIN odr_data_fields_meta dfm ON dfm.data_field_id = df.id
                 LEFT JOIN odr_field_type ft ON dfm.field_type_id = ft.id

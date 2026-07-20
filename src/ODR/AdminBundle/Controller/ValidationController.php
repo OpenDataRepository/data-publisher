@@ -48,7 +48,7 @@ use ODR\AdminBundle\Component\Service\CacheService;
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\UUIDService;
 // Symfony
-use Doctrine\DBAL\Connection as DBALConnection;
+use Doctrine\DBAL\ArrayParameterType;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -3228,9 +3228,9 @@ class ValidationController extends ODRCustomController
             $query =
                 'SELECT dt.id AS dt_id
                  FROM odr_data_type AS dt
-                 WHERE dt.id IN (?) AND dt.id = dt.grandparent_id';
-            $parameters = [1 => $initial_datatype_ids];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+                 WHERE dt.id IN (:dt_ids) AND dt.id = dt.grandparent_id';
+            $parameters = ['dt_ids' => $initial_datatype_ids];
+            $types = ['dt_ids' => ArrayParameterType::INTEGER];
             $results = $conn->fetchAllAssociative($query, $parameters, $types);
 
             $grandparent_datatype_ids = [];
@@ -3247,9 +3247,9 @@ class ValidationController extends ODRCustomController
                     $query =
                        'SELECT dt.id AS dt_id
                         FROM odr_data_type AS dt
-                        WHERE dt.grandparent_id IN (?) OR dt.metadata_for_id IN (?)';
-                    $parameters = [ 1 => $new_datatype_ids, 2 => $new_datatype_ids ];
-                    $types = [ 1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY ];
+                        WHERE dt.grandparent_id IN (:dt_ids_a) OR dt.metadata_for_id IN (:dt_ids_b)';
+                    $parameters = [ 'dt_ids_a' => $new_datatype_ids, 'dt_ids_b' => $new_datatype_ids ];
+                    $types = [ 'dt_ids_a' => ArrayParameterType::INTEGER, 'dt_ids_b' => ArrayParameterType::INTEGER ];
                     $results = $conn->fetchAllAssociative($query, $parameters, $types);
 
                     $new_datatype_ids = [];
@@ -3268,9 +3268,9 @@ class ValidationController extends ODRCustomController
             $query_str =
                 'SELECT dt.id AS dt_id
                  FROM odr_data_tree AS dt
-                 WHERE (dt.ancestor_id IN (?) OR dt.descendant_id IN (?))';
-            $parameters = [1 => $datatype_ids, 2 => $datatype_ids];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY];
+                 WHERE (dt.ancestor_id IN (:dt_ids_a) OR dt.descendant_id IN (:dt_ids_b))';
+            $parameters = ['dt_ids_a' => $datatype_ids, 'dt_ids_b' => $datatype_ids];
+            $types = ['dt_ids_a' => ArrayParameterType::INTEGER, 'dt_ids_b' => ArrayParameterType::INTEGER];
             $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $datatree_ids = [];
             foreach ($results as $result)
@@ -3281,9 +3281,9 @@ class ValidationController extends ODRCustomController
             $query_str =
                 'SELECT df.id AS df_id
                  FROM odr_data_fields AS df
-                 WHERE df.data_type_id IN (?)';
-            $parameters = [1 => $datatype_ids];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+                 WHERE df.data_type_id IN (:dt_ids)';
+            $parameters = ['dt_ids' => $datatype_ids];
+            $types = ['dt_ids' => ArrayParameterType::INTEGER];
             $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $datafield_ids = [];
             foreach ($results as $result)
@@ -3294,9 +3294,9 @@ class ValidationController extends ODRCustomController
             $query_str =
                'SELECT dtsf.id AS dtsf_id
                 FROM odr_data_type_special_fields AS dtsf
-                WHERE dtsf.data_type_id IN (?) OR dtsf.data_field_id IN (?)';
-            $parameters = [1 => $datatype_ids, 2 => $datafield_ids];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY];
+                WHERE dtsf.data_type_id IN (:dt_ids) OR dtsf.data_field_id IN (:df_ids)';
+            $parameters = ['dt_ids' => $datatype_ids, 'df_ids' => $datafield_ids];
+            $types = ['dt_ids' => ArrayParameterType::INTEGER, 'df_ids' => ArrayParameterType::INTEGER];
             $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $dtsf_ids = [];
             foreach ($results as $result)
@@ -3307,9 +3307,9 @@ class ValidationController extends ODRCustomController
             $query_str =
                 'SELECT t.id AS t_id
                  FROM odr_theme AS t
-                 WHERE t.data_type_id IN (?)';
-            $parameters = [1 => $datatype_ids];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+                 WHERE t.data_type_id IN (:dt_ids)';
+            $parameters = ['dt_ids' => $datatype_ids];
+            $types = ['dt_ids' => ArrayParameterType::INTEGER];
             $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $theme_ids = [];
             foreach ($results as $result)
@@ -3319,9 +3319,9 @@ class ValidationController extends ODRCustomController
             $query_str =
                 'SELECT t.id AS t_id
                  FROM odr_theme AS t
-                 WHERE t.parent_theme_id IN (?) OR t.source_theme_id IN (?)';
-            $parameters = [1 => $theme_ids, 2 => $theme_ids];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY];
+                 WHERE t.parent_theme_id IN (:t_ids_a) OR t.source_theme_id IN (:t_ids_b)';
+            $parameters = ['t_ids_a' => $theme_ids, 't_ids_b' => $theme_ids];
+            $types = ['t_ids_a' => ArrayParameterType::INTEGER, 't_ids_b' => ArrayParameterType::INTEGER];
             $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             foreach ($results as $result)
                 $theme_ids[] = $result['t_id'];
@@ -3332,9 +3332,9 @@ class ValidationController extends ODRCustomController
             $query_str =
                 'SELECT te.id AS te_id
                  FROM odr_theme_element AS te
-                 WHERE te.theme_id IN (?)';
-            $parameters = [1 => $theme_ids];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+                 WHERE te.theme_id IN (:t_ids)';
+            $parameters = ['t_ids' => $theme_ids];
+            $types = ['t_ids' => ArrayParameterType::INTEGER];
             $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $theme_element_ids = [];
             foreach ($results as $result)
@@ -3345,9 +3345,9 @@ class ValidationController extends ODRCustomController
             $query_str =
                 'SELECT rpi.id AS rpi_id
                  FROM odr_render_plugin_instance AS rpi
-                 WHERE (rpi.data_type_id IN (?) OR rpi.data_field_id IN (?))';
-            $parameters = [1 => $datatype_ids, 2 => $datafield_ids];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY];
+                 WHERE (rpi.data_type_id IN (:dt_ids) OR rpi.data_field_id IN (:df_ids))';
+            $parameters = ['dt_ids' => $datatype_ids, 'df_ids' => $datafield_ids];
+            $types = ['dt_ids' => ArrayParameterType::INTEGER, 'df_ids' => ArrayParameterType::INTEGER];
             $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $render_plugin_instance_ids = [];
             foreach ($results as $result)
@@ -3358,9 +3358,9 @@ class ValidationController extends ODRCustomController
             $query_str =
                 'SELECT sl.id AS sl_id
                  FROM odr_sidebar_layout AS sl
-                 WHERE sl.data_type_id IN (?)';
-            $parameters = [1 => $datatype_ids];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+                 WHERE sl.data_type_id IN (:dt_ids)';
+            $parameters = ['dt_ids' => $datatype_ids];
+            $types = ['dt_ids' => ArrayParameterType::INTEGER];
             $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $sidebar_layout_ids = [];
             foreach ($results as $result)
@@ -3371,9 +3371,9 @@ class ValidationController extends ODRCustomController
             $query_str =
                 'SELECT g.id AS g_id
                  FROM odr_group AS g
-                 WHERE g.data_type_id IN (?)';
-            $parameters = [1 => $datatype_ids];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+                 WHERE g.data_type_id IN (:dt_ids)';
+            $parameters = ['dt_ids' => $datatype_ids];
+            $types = ['dt_ids' => ArrayParameterType::INTEGER];
             $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $group_ids = [];
             foreach ($results as $result)
@@ -3384,9 +3384,9 @@ class ValidationController extends ODRCustomController
             $query_str =
                 'SELECT t.id AS t_id
                  FROM odr_tags AS t
-                 WHERE t.data_fields_id IN (?)';
-            $parameters = [1 => $datafield_ids];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+                 WHERE t.data_fields_id IN (:df_ids)';
+            $parameters = ['df_ids' => $datafield_ids];
+            $types = ['df_ids' => ArrayParameterType::INTEGER];
             $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $tag_ids = [];
             foreach ($results as $result)
@@ -3397,9 +3397,9 @@ class ValidationController extends ODRCustomController
             $query_str =
                 'SELECT ro.id AS ro_id
                  FROM odr_radio_options AS ro
-                 WHERE ro.data_fields_id IN (?)';
-            $parameters = [1 => $datafield_ids];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+                 WHERE ro.data_fields_id IN (:df_ids)';
+            $parameters = ['df_ids' => $datafield_ids];
+            $types = ['df_ids' => ArrayParameterType::INTEGER];
             $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $radio_option_ids = [];
             foreach ($results as $result)
@@ -3410,9 +3410,9 @@ class ValidationController extends ODRCustomController
             $query_str =
                 'SELECT i.id AS i_id
                  FROM odr_image AS i
-                 WHERE i.data_field_id IN (?)';
-            $parameters = [1 => $datafield_ids];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+                 WHERE i.data_field_id IN (:df_ids)';
+            $parameters = ['df_ids' => $datafield_ids];
+            $types = ['df_ids' => ArrayParameterType::INTEGER];
             $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $image_ids = [];
             foreach ($results as $result)
@@ -3423,9 +3423,9 @@ class ValidationController extends ODRCustomController
             $query_str =
                 'SELECT f.id AS f_id
                  FROM odr_file AS f
-                 WHERE f.data_field_id IN (?)';
-            $parameters = [1 => $datafield_ids];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+                 WHERE f.data_field_id IN (:df_ids)';
+            $parameters = ['df_ids' => $datafield_ids];
+            $types = ['df_ids' => ArrayParameterType::INTEGER];
             $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $file_ids = [];
             foreach ($results as $result)
@@ -3436,9 +3436,9 @@ class ValidationController extends ODRCustomController
             $query_str =
                 'SELECT dr.id AS dr_id
                  FROM odr_data_record AS dr
-                 WHERE dr.data_type_id IN (?)';
-            $parameters = [1 => $datatype_ids];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+                 WHERE dr.data_type_id IN (:dt_ids)';
+            $parameters = ['dt_ids' => $datatype_ids];
+            $types = ['dt_ids' => ArrayParameterType::INTEGER];
             $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $datarecord_ids = [];
             foreach ($results as $result)
@@ -3449,9 +3449,9 @@ class ValidationController extends ODRCustomController
             $query_str =
                 'SELECT ldt.id AS ldt_id
                  FROM odr_linked_data_tree AS ldt
-                 WHERE (ldt.ancestor_id IN (?) OR ldt.descendant_id IN (?))';
-            $parameters = [1 => $datarecord_ids, 2 => $datarecord_ids];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY];
+                 WHERE (ldt.ancestor_id IN (:dr_ids_a) OR ldt.descendant_id IN (:dr_ids_b))';
+            $parameters = ['dr_ids_a' => $datarecord_ids, 'dr_ids_b' => $datarecord_ids];
+            $types = ['dr_ids_a' => ArrayParameterType::INTEGER, 'dr_ids_b' => ArrayParameterType::INTEGER];
             $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $linked_datatree_ids = [];
             foreach ($results as $result)
@@ -3756,9 +3756,9 @@ class ValidationController extends ODRCustomController
             $query =
                 'SELECT dt.id AS dt_id
                  FROM odr_data_type AS dt
-                 WHERE dt.id IN (?) AND dt.id = dt.grandparent_id';
-            $parameters = [1 => $initial_datatype_ids];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+                 WHERE dt.id IN (:dt_ids) AND dt.id = dt.grandparent_id';
+            $parameters = ['dt_ids' => $initial_datatype_ids];
+            $types = ['dt_ids' => ArrayParameterType::INTEGER];
             $results = $conn->fetchAllAssociative($query, $parameters, $types);
 
             $grandparent_datatype_ids = [];
@@ -3775,9 +3775,9 @@ class ValidationController extends ODRCustomController
                     $query =
                         'SELECT dt.id AS dt_id
                         FROM odr_data_type AS dt
-                        WHERE dt.grandparent_id IN (?) OR dt.metadata_for_id IN (?)';
-                    $parameters = [ 1 => $new_datatype_ids, 2 => $new_datatype_ids ];
-                    $types = [ 1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY ];
+                        WHERE dt.grandparent_id IN (:dt_ids_a) OR dt.metadata_for_id IN (:dt_ids_b)';
+                    $parameters = [ 'dt_ids_a' => $new_datatype_ids, 'dt_ids_b' => $new_datatype_ids ];
+                    $types = [ 'dt_ids_a' => ArrayParameterType::INTEGER, 'dt_ids_b' => ArrayParameterType::INTEGER ];
                     $results = $conn->fetchAllAssociative($query, $parameters, $types);
 
                     $new_datatype_ids = [];
@@ -3805,9 +3805,9 @@ class ValidationController extends ODRCustomController
             $query_str =
                 'SELECT df.id AS df_id
                  FROM odr_data_fields AS df
-                 WHERE df.data_type_id IN (?)';
-            $parameters = [1 => $datatype_ids];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+                 WHERE df.data_type_id IN (:dt_ids)';
+            $parameters = ['dt_ids' => $datatype_ids];
+            $types = ['dt_ids' => ArrayParameterType::INTEGER];
             $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $datafield_ids = [];
             foreach ($results as $result)
@@ -3819,10 +3819,10 @@ class ValidationController extends ODRCustomController
             $query_str =
                 'SELECT dr.id AS dr_id
                  FROM odr_data_record AS dr
-                 WHERE dr.data_type_id IN (?)
+                 WHERE dr.data_type_id IN (:dt_ids)
                  AND dr.deletedAt IS NOT NULL';    // only want deleted datarecords
-            $parameters = [1 => $datatype_ids];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+            $parameters = ['dt_ids' => $datatype_ids];
+            $types = ['dt_ids' => ArrayParameterType::INTEGER];
             $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $datarecord_ids = [];
             foreach ($results as $result)
@@ -3833,9 +3833,9 @@ class ValidationController extends ODRCustomController
             $query_str =
                 'SELECT ldt.id AS ldt_id
                  FROM odr_linked_data_tree AS ldt
-                 WHERE (ldt.ancestor_id IN (?) OR ldt.descendant_id IN (?))';
-            $parameters = [1 => $datarecord_ids, 2 => $datarecord_ids];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY];
+                 WHERE (ldt.ancestor_id IN (:dr_ids_a) OR ldt.descendant_id IN (:dr_ids_b))';
+            $parameters = ['dr_ids_a' => $datarecord_ids, 'dr_ids_b' => $datarecord_ids];
+            $types = ['dr_ids_a' => ArrayParameterType::INTEGER, 'dr_ids_b' => ArrayParameterType::INTEGER];
             $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $linked_datatree_ids = [];
             foreach ($results as $result)
@@ -3845,9 +3845,9 @@ class ValidationController extends ODRCustomController
             $query_str =
                 'SELECT t.id AS t_id
                  FROM odr_tags AS t
-                 WHERE t.data_fields_id IN (?)';
-            $parameters = [1 => $datafield_ids];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+                 WHERE t.data_fields_id IN (:df_ids)';
+            $parameters = ['df_ids' => $datafield_ids];
+            $types = ['df_ids' => ArrayParameterType::INTEGER];
             $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $tag_ids = [];
             foreach ($results as $result)
@@ -3857,9 +3857,9 @@ class ValidationController extends ODRCustomController
             $query_str =
                 'SELECT ro.id AS ro_id
                  FROM odr_radio_options AS ro
-                 WHERE ro.data_fields_id IN (?)';
-            $parameters = [1 => $datafield_ids];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+                 WHERE ro.data_fields_id IN (:df_ids)';
+            $parameters = ['df_ids' => $datafield_ids];
+            $types = ['df_ids' => ArrayParameterType::INTEGER];
             $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $radio_option_ids = [];
             foreach ($results as $result)
@@ -3871,10 +3871,10 @@ class ValidationController extends ODRCustomController
             $query_str =
                 'SELECT i.id AS i_id
                  FROM odr_image AS i
-                 WHERE i.data_field_id IN (?)
-                 AND i.data_record_id IN (?)';
-            $parameters = [1 => $datafield_ids, 2 => $datarecord_ids];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY];
+                 WHERE i.data_field_id IN (:df_ids)
+                 AND i.data_record_id IN (:dr_ids)';
+            $parameters = ['df_ids' => $datafield_ids, 'dr_ids' => $datarecord_ids];
+            $types = ['df_ids' => ArrayParameterType::INTEGER, 'dr_ids' => ArrayParameterType::INTEGER];
             $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $image_ids = [];
             foreach ($results as $result)
@@ -3885,10 +3885,10 @@ class ValidationController extends ODRCustomController
             $query_str =
                 'SELECT f.id AS f_id
                  FROM odr_file AS f
-                 WHERE f.data_field_id IN (?)
-                 AND f.data_record_id IN (?)';
-            $parameters = [1 => $datafield_ids, 2 => $datarecord_ids];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY];
+                 WHERE f.data_field_id IN (:df_ids)
+                 AND f.data_record_id IN (:dr_ids)';
+            $parameters = ['df_ids' => $datafield_ids, 'dr_ids' => $datarecord_ids];
+            $types = ['df_ids' => ArrayParameterType::INTEGER, 'dr_ids' => ArrayParameterType::INTEGER];
             $results = $conn->fetchAllAssociative($query_str, $parameters, $types);
             $file_ids = [];
             foreach ($results as $result)

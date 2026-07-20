@@ -39,7 +39,7 @@ use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 // Symfony
-use Doctrine\DBAL\Connection as DBALConnection;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManager;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -1074,9 +1074,9 @@ class EntityDeletionService
             $query_str =
                'UPDATE odr_linked_data_tree AS ldt
                 SET ldt.deletedAt = NOW(), ldt.deletedBy = '.$user->getId().'
-                WHERE ldt.id IN (?)';
-            $parameters = [1 => $linked_datatrees_to_delete];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+                WHERE ldt.id IN (:ldt_ids)';
+            $parameters = ['ldt_ids' => $linked_datatrees_to_delete];
+            $types = ['ldt_ids' => ArrayParameterType::INTEGER];
             $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
 
@@ -1087,10 +1087,10 @@ class EntityDeletionService
                'UPDATE odr_data_record AS dr, odr_data_record_meta AS drm, odr_data_record_fields AS drf
                 SET dr.deletedAt = NOW(), drm.deletedAt = NOW(), drf.deletedAt = NOW(), dr.deletedBy = '.$user->getId().'
                 WHERE drm.data_record_id = dr.id AND drf.data_record_id = dr.id
-                AND dr.data_type_id IN (?)
+                AND dr.data_type_id IN (:dt_ids)
                 AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL AND drf.deletedAt IS NULL';
-            $parameters = array(1 => $datatypes_to_delete);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $parameters = array('dt_ids' => $datatypes_to_delete);
+            $types = array('dt_ids' => ArrayParameterType::INTEGER);
             $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 */
 
@@ -1100,10 +1100,10 @@ class EntityDeletionService
             $query_str =
                'UPDATE odr_data_fields AS df, odr_data_fields_meta AS dfm
                 SET df.deletedAt = NOW(), df.deletedBy = '.$user->getId().', dfm.deletedAt = NOW()
-                WHERE dfm.data_field_id = df.id AND df.data_type_id IN (?)
+                WHERE dfm.data_field_id = df.id AND df.data_type_id IN (:dt_ids)
                 AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL';
-            $parameters = array(1 => $datatypes_to_delete);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $parameters = array('dt_ids' => $datatypes_to_delete);
+            $types = array('dt_ids' => ArrayParameterType::INTEGER);
             $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 */
 
@@ -1111,10 +1111,10 @@ class EntityDeletionService
             $query_str =
                'UPDATE odr_data_type_special_fields AS dtsf
                 SET dtsf.deletedAt = NOW(), dtsf.deletedBy = '.$user->getId().'
-                WHERE dtsf.data_type_id IN (?) OR dtsf.data_field_id IN (?)
+                WHERE dtsf.data_type_id IN (:dt_ids) OR dtsf.data_field_id IN (:df_ids)
                 AND dtsf.deletedAt IS NULL';
-            $parameters = [1 => $datatypes_to_delete, 2 => $datafields_to_delete];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY];
+            $parameters = ['dt_ids' => $datatypes_to_delete, 'df_ids' => $datafields_to_delete];
+            $types = ['dt_ids' => ArrayParameterType::INTEGER, 'df_ids' => ArrayParameterType::INTEGER];
             $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
 
@@ -1123,10 +1123,10 @@ class EntityDeletionService
             $query_str =
                'UPDATE odr_stored_search_keys AS ssk
                 SET ssk.deletedAt = NOW(), ssk.deletedBy = '.$user->getId().'
-                WHERE ssk.data_type_id IN (?)
+                WHERE ssk.data_type_id IN (:dt_ids)
                 AND ssk.deletedAt IS NULL';
-            $parameters = [1 => $datatypes_to_delete];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+            $parameters = ['dt_ids' => $datatypes_to_delete];
+            $types = ['dt_ids' => ArrayParameterType::INTEGER];
             $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
 
@@ -1137,10 +1137,10 @@ class EntityDeletionService
                'UPDATE odr_theme_data_type AS tdt, odr_theme_element AS te, odr_theme AS t
                 SET tdt.deletedAt = NOW(), tdt.deletedBy = '.$user->getId().'
                 WHERE tdt.theme_element_id = te.id AND te.theme_id = t.id
-                AND t.data_type_id IN (?)
+                AND t.data_type_id IN (:dt_ids)
                 AND tdt.deletedAt IS NULL AND te.deletedAt IS NULL AND t.deletedAt IS NULL';
-            $parameters = array(1 => $datatypes_to_delete);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $parameters = array('dt_ids' => $datatypes_to_delete);
+            $types = array('dt_ids' => ArrayParameterType::INTEGER);
             $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 */
 
@@ -1149,10 +1149,10 @@ class EntityDeletionService
             $query_str =
                'UPDATE odr_theme_data_type AS tdt
                 SET tdt.deletedAt = NOW(), tdt.deletedBy = '.$user->getId().'
-                WHERE tdt.data_type_id IN (?)
+                WHERE tdt.data_type_id IN (:dt_ids)
                 AND tdt.deletedAt IS NULL';
-            $parameters = [1 => $datatypes_to_delete];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+            $parameters = ['dt_ids' => $datatypes_to_delete];
+            $types = ['dt_ids' => ArrayParameterType::INTEGER];
             $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 /*
             // Delete all ThemeDatafield entries
@@ -1160,10 +1160,10 @@ class EntityDeletionService
                'UPDATE odr_theme_data_field AS tdf, odr_theme_element AS te, odr_theme AS t
                 SET tdf.deletedAt = NOW(), tdf.deletedBy = '.$user->getId().'
                 WHERE tdf.theme_element_id = te.id AND te.theme_id = t.id
-                AND t.data_type_id IN (?)
+                AND t.data_type_id IN (:dt_ids)
                 AND tdf.deletedAt IS NULL AND te.deletedAt IS NULL AND t.deletedAt IS NULL';
-            $parameters = array(1 => $datatypes_to_delete);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $parameters = array('dt_ids' => $datatypes_to_delete);
+            $types = array('dt_ids' => ArrayParameterType::INTEGER);
             $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 */
 /*
@@ -1172,10 +1172,10 @@ class EntityDeletionService
                'UPDATE odr_theme_element AS te, odr_theme_element_meta AS tem, odr_theme AS t
                 SET te.deletedAt = NOW(), tem.deletedAt = NOW(), te.deletedBy = '.$user->getId().'
                 WHERE tem.theme_element_id = te.id AND te.theme_id = t.id
-                AND t.data_type_id IN (?)
+                AND t.data_type_id IN (:dt_ids)
                 AND te.deletedAt IS NULL AND tem.deletedAt IS NULL AND t.deletedAt IS NULL';
-            $parameters = array(1 => $datatypes_to_delete);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $parameters = array('dt_ids' => $datatypes_to_delete);
+            $types = array('dt_ids' => ArrayParameterType::INTEGER);
             $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 */
 
@@ -1183,10 +1183,10 @@ class EntityDeletionService
             $query_str =
                'UPDATE odr_theme AS t, odr_theme_meta AS tm
                 SET t.deletedAt = NOW(), tm.deletedAt = NOW(), t.deletedBy = '.$user->getId().'
-                WHERE tm.theme_id = t.id AND t.data_type_id IN (?)
+                WHERE tm.theme_id = t.id AND t.data_type_id IN (:dt_ids)
                 AND t.deletedAt IS NULL AND tm.deletedAt IS NULL';
-            $parameters = [1 => $datatypes_to_delete];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+            $parameters = ['dt_ids' => $datatypes_to_delete];
+            $types = ['dt_ids' => ArrayParameterType::INTEGER];
             $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
 
@@ -1220,10 +1220,10 @@ class EntityDeletionService
             $query_str =
                'UPDATE odr_data_tree AS dt, odr_data_tree_meta AS dtm
                 SET dt.deletedAt = NOW(), dtm.deletedAt = NOW(), dt.deletedBy = '.$user->getId().'
-                WHERE dtm.data_tree_id = dt.id AND dt.id IN (?)
+                WHERE dtm.data_tree_id = dt.id AND dt.id IN (:dt_ids)
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL';
-            $parameters = [1 => $datatree_ids];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+            $parameters = ['dt_ids' => $datatree_ids];
+            $types = ['dt_ids' => ArrayParameterType::INTEGER];
             $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
 
@@ -1233,11 +1233,11 @@ class EntityDeletionService
             $query_str =
                'UPDATE odr_group AS g, odr_group_meta AS gm, odr_group_datatype_permissions AS gdtp, odr_group_datafield_permissions AS gdfp
                 SET g.deletedAt = NOW(), gm.deletedAt = NOW(), gdtp.deletedAt = NOW(), gdfp.deletedAt = NOW(), g.deletedBy = '.$user->getId().'
-                WHERE g.data_type_id IN (?)
+                WHERE g.data_type_id IN (:dt_ids)
                 AND gm.group_id = g.id AND gdtp.data_type_id = g.id AND gdfp.data_type_id = g.id
                 AND g.deletedAt IS NULL AND gm.deletedAt IS NULL AND gdtp.deletedAt IS NULL AND gdfp.deletedAt IS NULL';
-            $parameters = array(1 => $datatypes_to_delete);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $parameters = array('dt_ids' => $datatypes_to_delete);
+            $types = array('dt_ids' => ArrayParameterType::INTEGER);
             $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 */
 
@@ -1245,10 +1245,10 @@ class EntityDeletionService
             $query_str =
                'UPDATE odr_user_group AS ug
                 SET ug.deletedAt = NOW(), ug.deletedBy = '.$user->getId().'
-                WHERE ug.group_id IN (?)
+                WHERE ug.group_id IN (:ug_ids)
                 AND ug.deletedAt IS NULL';
-            $parameters = [1 => $groups_to_delete];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+            $parameters = ['ug_ids' => $groups_to_delete];
+            $types = ['ug_ids' => ArrayParameterType::INTEGER];
             $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
 
@@ -1257,20 +1257,20 @@ class EntityDeletionService
             $query_str =
                'UPDATE odr_render_plugin_instance AS rpi
                 SET rpi.deletedAt = NOW()
-                WHERE rpi.data_type_id IN (?) OR rpi.data_field_id IN (?)
+                WHERE rpi.data_type_id IN (:dt_ids) OR rpi.data_field_id IN (:df_ids)
                 AND rpi.deletedAt IS NULL';
-            $parameters = [1 => $datatypes_to_delete, 2 => $datafields_to_delete];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY];
+            $parameters = ['dt_ids' => $datatypes_to_delete, 'df_ids' => $datafields_to_delete];
+            $types = ['dt_ids' => ArrayParameterType::INTEGER, 'df_ids' => ArrayParameterType::INTEGER];
             $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
             // Delete all RenderPluginMap entries
             $query_str =
                'UPDATE odr_render_plugin_map AS rpm
                 SET rpm.deletedAt = NOW()
-                WHERE rpm.data_type_id IN (?) OR rpm.data_field_id IN (?)
+                WHERE rpm.data_type_id IN (:dt_ids) OR rpm.data_field_id IN (:df_ids)
                 AND rpm.deletedAt IS NULL';
-            $parameters = [1 => $datatypes_to_delete, 2 => $datafields_to_delete];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY];
+            $parameters = ['dt_ids' => $datatypes_to_delete, 'df_ids' => $datafields_to_delete];
+            $types = ['dt_ids' => ArrayParameterType::INTEGER, 'df_ids' => ArrayParameterType::INTEGER];
             $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
 
@@ -1279,41 +1279,41 @@ class EntityDeletionService
             $query_str =
                'UPDATE odr_sidebar_layout_map AS slm
                 SET slm.deletedAt = NOW()
-                WHERE slm.data_type_id IN (?) OR slm.data_field_id IN (?)
+                WHERE slm.data_type_id IN (:dt_ids) OR slm.data_field_id IN (:df_ids)
                 AND slm.deletedAt IS NULL';
-            $parameters = [1 => $datatypes_to_delete, 2 => $datafields_to_delete];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY, 2 => DBALConnection::PARAM_INT_ARRAY];
+            $parameters = ['dt_ids' => $datatypes_to_delete, 'df_ids' => $datafields_to_delete];
+            $types = ['dt_ids' => ArrayParameterType::INTEGER, 'df_ids' => ArrayParameterType::INTEGER];
             $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
             // Delete all SidebarLayoutPreferences entries
             $query_str =
                'UPDATE odr_sidebar_layout_preferences AS slp, odr_sidebar_layout AS sl
                 SET slp.deletedAt = NOW()
-                WHERE sl.data_type_id IN (?)
+                WHERE sl.data_type_id IN (:dt_ids)
                 AND slp.sidebar_layout_id = sl.id
                 AND slp.deletedAt IS NULL AND sl.deletedAt IS NULL';
-            $parameters = [1 => $datatypes_to_delete];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+            $parameters = ['dt_ids' => $datatypes_to_delete];
+            $types = ['dt_ids' => ArrayParameterType::INTEGER];
             $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
             // Delete all SidebarLayout and SidebarLayoutMeta entries
             $query_str =
                'UPDATE odr_sidebar_layout AS sl, odr_sidebar_layout_meta AS slm
                 SET sl.deletedAt = NOW(), slm.deletedAt = NOW(), sl.deletedBy = '.$user->getId().'
-                WHERE slm.sidebar_layout_id = sl.id AND sl.data_type_id IN (?)
+                WHERE slm.sidebar_layout_id = sl.id AND sl.data_type_id IN (:dt_ids)
                 AND sl.deletedAt IS NULL AND slm.deletedAt IS NULL';
-            $parameters = [1 => $datatypes_to_delete];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+            $parameters = ['dt_ids' => $datatypes_to_delete];
+            $types = ['dt_ids' => ArrayParameterType::INTEGER];
             $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
             // Update all SidebarLayoutMeta entries that have this datatype as an inverse...
             $query_str =
                'UPDATE odr_sidebar_layout AS sl, odr_sidebar_layout_meta AS slm
                 SET sl.deletedAt = NOW(), slm.deletedAt = NOW(), sl.deletedBy = '.$user->getId().'
-                WHERE slm.sidebar_layout_id = sl.id AND slm.inverse_datatype_id IN (?)
+                WHERE slm.sidebar_layout_id = sl.id AND slm.inverse_datatype_id IN (:dt_ids)
                 AND sl.deletedAt IS NULL AND slm.deletedAt IS NULL';
-            $parameters = [1 => $datatypes_to_delete];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+            $parameters = ['dt_ids' => $datatypes_to_delete];
+            $types = ['dt_ids' => ArrayParameterType::INTEGER];
             $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
 
@@ -1322,10 +1322,10 @@ class EntityDeletionService
             $query_str =
                'UPDATE odr_data_type AS dt, odr_data_type_meta AS dtm
                 SET dt.deletedAt = NOW(), dtm.deletedAt = NOW(), dt.deletedBy = '.$user->getId().'
-                WHERE dtm.data_type_id = dt.id AND dt.id IN (?)
+                WHERE dtm.data_type_id = dt.id AND dt.id IN (:dt_ids)
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL';
-            $parameters = [1 => $datatypes_to_delete];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+            $parameters = ['dt_ids' => $datatypes_to_delete];
+            $types = ['dt_ids' => ArrayParameterType::INTEGER];
             $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
             // Update all Datatypes which were derived from these Datatypes
@@ -1334,10 +1334,10 @@ class EntityDeletionService
             $query_str =
                'UPDATE odr_data_type AS dt
                 SET dt.master_datatype_id = NULL
-                WHERE dt.id IN (?)
+                WHERE dt.id IN (:dt_ids)
                 AND dt.deletedAt IS NULL AND dt.deletedAt IS NULL';
-            $parameters = [1 => $derived_datatype_list];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+            $parameters = ['dt_ids' => $derived_datatype_list];
+            $types = ['dt_ids' => ArrayParameterType::INTEGER];
             $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
 

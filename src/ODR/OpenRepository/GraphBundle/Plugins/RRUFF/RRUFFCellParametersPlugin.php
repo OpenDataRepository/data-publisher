@@ -786,12 +786,10 @@ class RRUFFCellParametersPlugin implements DatatypePluginInterface, DatafieldDer
         $query =
            'SELECT e.value
             FROM odr_integer_value e
-            WHERE e.data_field_id = :datafield AND e.deletedAt IS NULL
+            WHERE e.data_field_id = :df_id AND e.deletedAt IS NULL
             ORDER BY e.value DESC
             LIMIT 0,1';
-        $params = [
-            'datafield' => $datafield_id,
-        ];
+        $params = ['df_id' => $datafield_id];
         $conn = $this->em->getConnection();
         $results = $conn->executeQuery($query, $params);
 

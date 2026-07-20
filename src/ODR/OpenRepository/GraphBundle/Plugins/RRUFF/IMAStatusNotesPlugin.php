@@ -329,13 +329,13 @@ class IMAStatusNotesPlugin implements DatatypePluginInterface
             FROM odr_integer_value e
             LEFT JOIN odr_data_record_fields drf ON e.data_record_fields_id = drf.id
             LEFT JOIN odr_data_record dr ON drf.data_record_id = dr.id
-            WHERE e.data_field_id = :datafield AND dr.parent_id = :parent_datarecord
+            WHERE e.data_field_id = :df_id AND dr.parent_id = :parent_dr_id
             AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL
             ORDER BY e.value DESC
             LIMIT 0,1';
         $params = [
-            'parent_datarecord' => $parent_datarecord->getId(),
-            'datafield' => $datafield->getId(),
+            'parent_dr_id' => $parent_datarecord->getId(),
+            'df_id' => $datafield->getId(),
         ];
         $conn = $this->em->getConnection();
         $results = $conn->executeQuery($query, $params);

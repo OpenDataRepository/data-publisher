@@ -35,9 +35,9 @@ use ODR\AdminBundle\Component\Service\SortService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
+use Doctrine\DBAL\ArrayParameterType;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Doctrine\DBAL\Connection as DBALConnection;
 
 
 class TrackingController extends ODRCustomController
@@ -656,11 +656,11 @@ class TrackingController extends ODRCustomController
             // The "|" character causes the H:i:s portion to default to 00:00:00
             $start = \DateTime::createFromFormat("Y-m-d|", $post['start_date']);
             $start_errors = \DateTime::getLastErrors();
-            if ( $start_errors['error_count'] > 0 )
+            if ( is_array($start_errors) && $start_errors['error_count'] > 0 )
                 throw new ODRBadRequestException("Invalid start date");
             $end = \DateTime::createFromFormat("Y-m-d|", $post['end_date']);
             $end_errors = \DateTime::getLastErrors();
-            if ( $end_errors['error_count'] > 0 )
+            if ( is_array($end_errors) && $end_errors['error_count'] > 0 )
                 throw new ODRBadRequestException("Invalid end date");
 
             // End date needs to be incremented by one day...because of the mysql BETWEEN condition,
@@ -1039,12 +1039,12 @@ class TrackingController extends ODRCustomController
 
         if ( !empty($datafield_ids) ) {
             $params['datafield_ids'] = $datafield_ids;
-            $types['datafield_ids'] = \Doctrine\DBAL\Connection::PARAM_INT_ARRAY;
+            $types['datafield_ids'] = ArrayParameterType::INTEGER;
         }
 
         if ( !empty($datatype_ids) ) {
             $params['datatype_ids'] = $datatype_ids;
-            $types['datatype_ids'] = \Doctrine\DBAL\Connection::PARAM_INT_ARRAY;
+            $types['datatype_ids'] = ArrayParameterType::INTEGER;
         }
 
         $conn = $em->getConnection();
@@ -1085,7 +1085,7 @@ class TrackingController extends ODRCustomController
             'datafield_ids' => $datafield_ids
         ];
         $types = [
-            'datafield_ids' => \Doctrine\DBAL\Connection::PARAM_INT_ARRAY
+            'datafield_ids' => ArrayParameterType::INTEGER
         ];
 
         $conn = $em->getConnection();
@@ -1165,7 +1165,7 @@ class TrackingController extends ODRCustomController
                 'datafield_ids' => $df_list,
             ];
             $types = [
-                'datafield_ids' => \Doctrine\DBAL\Connection::PARAM_INT_ARRAY,
+                'datafield_ids' => ArrayParameterType::INTEGER,
             ];
 
             if ( isset($criteria['start_date']) ) {
@@ -1175,12 +1175,12 @@ class TrackingController extends ODRCustomController
 
             if ( isset($criteria['target_user_ids']) ) {
                 $params['target_user_ids'] = $criteria['target_user_ids'];
-                $types['target_user_ids'] = \Doctrine\DBAL\Connection::PARAM_INT_ARRAY;
+                $types['target_user_ids'] = ArrayParameterType::INTEGER;
             }
 
             if ( isset($criteria['grandparent_datarecord_ids']) ) {
                 $params['grandparent_datarecord_ids'] = $criteria['grandparent_datarecord_ids'];
-                $types['grandparent_datarecord_ids'] = \Doctrine\DBAL\Connection::PARAM_INT_ARRAY;
+                $types['grandparent_datarecord_ids'] = ArrayParameterType::INTEGER;
             }
 
             // Don't execute this query if the previous queries have processed more than the soft
@@ -1339,7 +1339,7 @@ class TrackingController extends ODRCustomController
                 'datafield_ids' => $df_list,
             ];
             $types = [
-                'datafield_ids' => \Doctrine\DBAL\Connection::PARAM_INT_ARRAY,
+                'datafield_ids' => ArrayParameterType::INTEGER,
             ];
 
             if ( isset($criteria['start_date']) ) {
@@ -1349,12 +1349,12 @@ class TrackingController extends ODRCustomController
 
             if ( isset($criteria['target_user_ids']) ) {
                 $params['target_user_ids'] = $criteria['target_user_ids'];
-                $types['target_user_ids'] = \Doctrine\DBAL\Connection::PARAM_INT_ARRAY;
+                $types['target_user_ids'] = ArrayParameterType::INTEGER;
             }
 
             if ( isset($criteria['grandparent_datarecord_ids']) ) {
                 $params['grandparent_datarecord_ids'] = $criteria['grandparent_datarecord_ids'];
-                $types['grandparent_datarecord_ids'] = \Doctrine\DBAL\Connection::PARAM_INT_ARRAY;
+                $types['grandparent_datarecord_ids'] = ArrayParameterType::INTEGER;
             }
 
 
@@ -1517,7 +1517,7 @@ class TrackingController extends ODRCustomController
                 'datafield_ids' => $df_list,
             ];
             $types = [
-                'datafield_ids' => \Doctrine\DBAL\Connection::PARAM_INT_ARRAY,
+                'datafield_ids' => ArrayParameterType::INTEGER,
             ];
 
             if ( isset($criteria['start_date']) ) {
@@ -1527,12 +1527,12 @@ class TrackingController extends ODRCustomController
 
             if ( isset($criteria['target_user_ids']) ) {
                 $params['target_user_ids'] = $criteria['target_user_ids'];
-                $types['target_user_ids'] = \Doctrine\DBAL\Connection::PARAM_INT_ARRAY;
+                $types['target_user_ids'] = ArrayParameterType::INTEGER;
             }
 
             if ( isset($criteria['grandparent_datarecord_ids']) ) {
                 $params['grandparent_datarecord_ids'] = $criteria['grandparent_datarecord_ids'];
-                $types['grandparent_datarecord_ids'] = \Doctrine\DBAL\Connection::PARAM_INT_ARRAY;
+                $types['grandparent_datarecord_ids'] = ArrayParameterType::INTEGER;
             }
 
 
@@ -1631,7 +1631,7 @@ class TrackingController extends ODRCustomController
                 'datafield_ids' => $df_list,
             ];
             $types = [
-                'datafield_ids' => \Doctrine\DBAL\Connection::PARAM_INT_ARRAY,
+                'datafield_ids' => ArrayParameterType::INTEGER,
             ];
 
             if ( isset($criteria['start_date']) ) {
@@ -1641,12 +1641,12 @@ class TrackingController extends ODRCustomController
 
             if ( isset($criteria['target_user_ids']) ) {
                 $params['target_user_ids'] = $criteria['target_user_ids'];
-                $types['target_user_ids'] = \Doctrine\DBAL\Connection::PARAM_INT_ARRAY;
+                $types['target_user_ids'] = ArrayParameterType::INTEGER;
             }
 
             if ( isset($criteria['grandparent_datarecord_ids']) ) {
                 $params['grandparent_datarecord_ids'] = $criteria['grandparent_datarecord_ids'];
-                $types['grandparent_datarecord_ids'] = \Doctrine\DBAL\Connection::PARAM_INT_ARRAY;
+                $types['grandparent_datarecord_ids'] = ArrayParameterType::INTEGER;
             }
 
 
@@ -1762,7 +1762,7 @@ class TrackingController extends ODRCustomController
             'datatype_ids' => $criteria['datatype_ids'],
         ];
         $types = [
-            'datatype_ids' => \Doctrine\DBAL\Connection::PARAM_INT_ARRAY,
+            'datatype_ids' => ArrayParameterType::INTEGER,
         ];
 
         if ( isset($criteria['start_date']) ) {
@@ -1772,12 +1772,12 @@ class TrackingController extends ODRCustomController
 
         if ( isset($criteria['target_user_ids']) ) {
             $params['target_user_ids'] = $criteria['target_user_ids'];
-            $types['target_user_ids'] = \Doctrine\DBAL\Connection::PARAM_INT_ARRAY;
+            $types['target_user_ids'] = ArrayParameterType::INTEGER;
         }
 
         if ( isset($criteria['grandparent_datarecord_ids']) ) {
             $params['grandparent_datarecord_ids'] = $criteria['grandparent_datarecord_ids'];
-            $types['grandparent_datarecord_ids'] = \Doctrine\DBAL\Connection::PARAM_INT_ARRAY;
+            $types['grandparent_datarecord_ids'] = ArrayParameterType::INTEGER;
         }
 
 
@@ -2498,10 +2498,10 @@ class TrackingController extends ODRCustomController
         $query =
            'SELECT dr.id AS dr_id, dr.grandparent_id AS gdr_id
             FROM odr_data_record dr
-            WHERE dr.id IN (?) AND dr.id != dr.grandparent_id
+            WHERE dr.id IN (:dr_ids) AND dr.id != dr.grandparent_id
             AND dr.deletedAt IS NULL';
-        $parameters = [1 => $dr_list];
-        $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+        $parameters = ['dr_ids' => $dr_list];
+        $types = ['dr_ids' => ArrayParameterType::INTEGER];
 
         $conn = $em->getConnection();
         $results = $conn->executeQuery($query, $parameters, $types);
@@ -2608,7 +2608,7 @@ class TrackingController extends ODRCustomController
                 AND dt.deletedAt IS NULL AND dtm.deletedAt IS NULL
                 AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL';
             $params = [ 'datatype_ids' => $editable_datatypes ];
-            $types = [ 'datatype_ids' => \Doctrine\DBAL\Connection::PARAM_INT_ARRAY ];
+            $types = [ 'datatype_ids' => ArrayParameterType::INTEGER ];
 
             $conn = $em->getConnection();
             $results = $conn->executeQuery($query, $params, $types);
@@ -2749,7 +2749,7 @@ class TrackingController extends ODRCustomController
                     JOIN odr_group_datafield_permissions AS gdfp ON gdfp.group_id = g.id
                     WHERE gdfp.can_edit_datafield = 1 AND g.data_type_id IN (:datatype_ids)';
                 $params = ['datatype_ids' => $editable_datatypes];
-                $types = ['datatype_ids' => \Doctrine\DBAL\Connection::PARAM_INT_ARRAY];
+                $types = ['datatype_ids' => ArrayParameterType::INTEGER];
 
                 $conn = $em->getConnection();
                 $results = $conn->executeQuery($query, $params, $types);

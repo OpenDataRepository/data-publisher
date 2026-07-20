@@ -2025,5 +2025,9 @@ odr_system_opcache:
 
 #-----------------------------------------
 
+#odr_asdf:
+#    path:  /admin/asdf
+#    defaults: { _controller: ODR\AdminBundle\Controller\WorkerController::asdfAction }
+
 imports:
     resource: api.yml

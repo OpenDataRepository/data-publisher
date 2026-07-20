@@ -41,11 +41,13 @@ use ODR\AdminBundle\Component\Service\TagHelperService;
 use ODR\AdminBundle\Component\Service\TrackedJobService;
 use ODR\AdminBundle\Component\Service\UUIDService;
 // Symfony
-use Doctrine\DBAL\Connection as DBALConnection;
+use Doctrine\DBAL\ArrayParameterType;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+
+
 class TagsController extends ODRCustomController
 {
 
@@ -1385,28 +1387,28 @@ class TagsController extends ODRCustomController
                'UPDATE odr_tags AS t, odr_tag_meta AS tm
                 SET t.deletedAt = NOW(), tm.deletedAt = NOW(),
                     t.deletedBy = '.$user->getId().'
-                WHERE tm.tag_id = t.id AND t.id IN (?)
+                WHERE tm.tag_id = t.id AND t.id IN (:t_ids)
                 AND t.deletedAt IS NULL AND tm.deletedAt IS NULL';
-            $parameters = [1 => $tags_to_delete];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+            $parameters = ['t_ids' => $tags_to_delete];
+            $types = ['t_ids' => ArrayParameterType::INTEGER];
             $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
             // Delete the tag tree entries
             $query_str =
                'UPDATE odr_tag_tree AS tt
                 SET tt.deletedAt = NOW(), tt.deletedBy = '.$user->getId().'
-                WHERE tt.id IN (?)';
-            $parameters = [1 => $tag_trees_to_delete];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+                WHERE tt.id IN (:tt_ids)';
+            $parameters = ['tt_ids' => $tag_trees_to_delete];
+            $types = ['tt_ids' => ArrayParameterType::INTEGER];
             $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
             // Delete the tag selection entries
             $query_str =
                'UPDATE odr_tag_selection AS ts
                 SET ts.deletedAt = NOW()
-                WHERE ts.id IN (?)';
-            $parameters = [1 => $tag_selections_to_delete];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+                WHERE ts.id IN (:ts_ids)';
+            $parameters = ['ts_ids' => $tag_selections_to_delete];
+            $types = ['ts_ids' => ArrayParameterType::INTEGER];
             $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
 
             // No error encountered, commit changes

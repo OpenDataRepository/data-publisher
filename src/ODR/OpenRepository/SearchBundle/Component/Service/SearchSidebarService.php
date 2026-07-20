@@ -27,6 +27,7 @@ use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 // Other
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManager;
 use ODR\OpenRepository\UserBundle\Component\Service\ODRUserManager as UserManager;
 use Psr\Log\LoggerInterface;
@@ -524,7 +525,7 @@ class SearchSidebarService
 
         $conn = $this->em->getConnection();
         $params = array('datatype_ids' => $editable_datatypes);
-        $types = array('datatype_ids' => \Doctrine\DBAL\Connection::PARAM_INT_ARRAY);
+        $types = array('datatype_ids' => ArrayParameterType::INTEGER);
 
 
         // Two tables to check...do the GroupDatatypePermissions table first...

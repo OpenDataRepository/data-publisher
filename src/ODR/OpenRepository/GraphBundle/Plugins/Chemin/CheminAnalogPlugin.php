@@ -301,13 +301,11 @@ class CheminAnalogPlugin implements DatatypePluginInterface
         $query =
            'SELECT e.value
             FROM odr_short_varchar e
-            WHERE e.data_field_id = :datafield AND e.value REGEXP "^CA[0-9]{5,5}$"
+            WHERE e.data_field_id = :df_id AND e.value REGEXP "^CA[0-9]{5,5}$"
             AND e.deletedAt IS NULL
             ORDER BY e.value DESC
             LIMIT 0,1';
-        $params = [
-            'datafield' => $datafield_id,
-        ];
+        $params = ['df_id' => $datafield_id];
         $conn = $this->em->getConnection();
         $results = $conn->executeQuery($query, $params);
 

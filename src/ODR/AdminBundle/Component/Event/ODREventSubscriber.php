@@ -27,7 +27,7 @@ use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
-use Doctrine\DBAL\Connection as DBALConnection;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManager;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -792,9 +792,9 @@ class ODREventSubscriber implements EventSubscriberInterface
                 $query_str =
                    'UPDATE odr_data_record AS dr
                     SET dr.updated = NOW(), dr.updatedBy = '.$user->getId().'
-                    WHERE dr.id IN (?) AND dr.deletedAt IS NULL';
-                $parameters = [1 => $dr_list];
-                $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+                    WHERE dr.id IN (:dr_ids) AND dr.deletedAt IS NULL';
+                $parameters = ['dr_ids' => $dr_list];
+                $types = ['dr_ids' => ArrayParameterType::INTEGER];
 
                 $conn = $this->em->getConnection();
                 $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);
@@ -1104,9 +1104,9 @@ class ODREventSubscriber implements EventSubscriberInterface
                 $query_str =
                    'UPDATE odr_data_record AS dr
                     SET dr.updated = NOW(), dr.updatedBy = '.$user->getId().'
-                    WHERE dr.id IN (?) AND dr.deletedAt IS NULL';
-                $parameters = [1 => $records_to_clear];
-                $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+                    WHERE dr.id IN (:dr_ids) AND dr.deletedAt IS NULL';
+                $parameters = ['dr_ids' => $records_to_clear];
+                $types = ['dr_ids' => ArrayParameterType::INTEGER];
 
                 $conn = $this->em->getConnection();
                 $rowsAffected = $conn->executeStatement($query_str, $parameters, $types);

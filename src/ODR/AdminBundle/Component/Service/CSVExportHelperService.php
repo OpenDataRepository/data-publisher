@@ -29,7 +29,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Other
 use ODR\AdminBundle\Component\Utility\ODRCsvWriter as CsvWriter;
-use Doctrine\DBAL\Connection as DBALConnection;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManager;
 use ODR\OpenRepository\UserBundle\Component\Service\ODRTokenGenerator as TokenGenerator;
 use Psr\Log\LoggerInterface;
@@ -472,9 +472,9 @@ class CSVExportHelperService
         $query =
            'SELECT dr.id AS dr_id, dr.data_type_id AS dt_id
             FROM odr_data_record AS dr
-            WHERE dr.id IN (?)';
-        $parameters = [1 => $datarecord_ids];
-        $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+            WHERE dr.id IN (:dr_ids)';
+        $parameters = ['dr_ids' => $datarecord_ids];
+        $types = ['dr_ids' => ArrayParameterType::INTEGER];
 
         $conn = $this->em->getConnection();
 //        $results = $conn->fetchAll($query, $parameters, $types);  // better for debugging

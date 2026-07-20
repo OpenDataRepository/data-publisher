@@ -15,7 +15,6 @@
 
 namespace ODR\AdminBundle\Controller;
 
-use ODR\AdminBundle\Component\Service\StatisticsService;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 
@@ -43,12 +42,13 @@ use ODR\AdminBundle\Component\Service\ODRRenderService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PaginationHelperService;
 use ODR\AdminBundle\Component\Service\PermissionsManagementService;
+use ODR\AdminBundle\Component\Service\StatisticsService;
 use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchRedirectService;
 // Symfony
-use Doctrine\DBAL\Connection as DBALConnection;
+use Doctrine\DBAL\ArrayParameterType;
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\File\Exception\FileNotFoundException;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -58,6 +58,8 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Routing\Router;
+
+
 class DisplayController extends ODRCustomController
 {
 
@@ -2542,10 +2544,10 @@ class DisplayController extends ODRCustomController
                'SELECT dr.data_type_id AS dt_id, dr.grandparent_id AS g_dr_id, f.id AS file_id
                 FROM odr_file AS f
                 JOIN odr_data_record AS dr ON f.data_record_id = dr.id
-                WHERE f.id IN (?)
+                WHERE f.id IN (:file_ids)
                 AND f.deletedAt IS NULL AND dr.deletedAt IS NULL';
-            $parameters = [1 => $file_ids];
-            $types = [1 => DBALConnection::PARAM_INT_ARRAY];
+            $parameters = ['file_ids' => $file_ids];
+            $types = ['file_ids' => ArrayParameterType::INTEGER];
 
             $conn = $em->getConnection();
             $results = $conn->fetchAllAssociative($query, $parameters, $types);

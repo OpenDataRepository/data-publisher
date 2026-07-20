@@ -27,7 +27,7 @@ use ODR\AdminBundle\Component\Service\DatatreeInfoService;
 use ODR\AdminBundle\Component\Service\SortService;
 use ODR\OpenRepository\GraphBundle\Plugins\SearchOverrideInterface;
 // Symfony
-use Doctrine\DBAL\Connection as DBALConnection;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManager;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -2781,10 +2781,10 @@ class SearchAPIService
         $query =
            'SELECT dtm.data_type_id AS dt_id, dtm.public_date
             FROM odr_data_type_meta dtm
-            WHERE dtm.data_type_id IN (?)
+            WHERE dtm.data_type_id IN (:dt_ids)
             AND dtm.deletedAt IS NULL';
-        $params = array(1 => array_keys($top_level_datatype_ids));    // Need the datatype ids to be values, not keys
-        $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+        $params = ['dt_ids' => array_keys($top_level_datatype_ids)];    // Need the datatype ids to be values, not keys
+        $types = ['dt_ids' => ArrayParameterType::INTEGER];
         $results = $conn->fetchAllAssociative($query, $params, $types);
 
         $ancestor_ids = array();
@@ -2824,11 +2824,11 @@ class SearchAPIService
                 LEFT JOIN odr_data_type descendant ON dt.descendant_id = descendant.id
                 LEFT JOIN odr_data_type_meta descendant_meta ON descendant_meta.data_type_id = descendant.id
                 LEFT JOIN odr_data_type mdt ON descendant.master_datatype_id = mdt.id
-                WHERE dt.ancestor_id IN (?)
+                WHERE dt.ancestor_id IN (:ancestor_ids)
                 AND dt.deletedAt IS NULL AND mdt.deletedAt IS NULL
                 AND descendant.deletedAt IS NULL AND descendant_meta.deletedAt IS NULL';
-            $params = array(1 => $ancestor_ids);
-            $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+            $params = ['ancestor_ids' => $ancestor_ids];
+            $types = ['ancestor_ids' => ArrayParameterType::INTEGER];
             $results = $conn->fetchAllAssociative($query, $params, $types);
 
             // If the set of ancestor datatypes has no descendants, then there's nothing left to do
@@ -2873,10 +2873,10 @@ class SearchAPIService
            'SELECT dr.id AS dr_id, dr.data_type_id AS dt_id, dr.parent_id, drm.public_date
             FROM odr_data_record dr
             LEFT JOIN odr_data_record_meta drm ON drm.data_record_id = dr.id
-            WHERE dr.data_type_id IN (?)
+            WHERE dr.data_type_id IN (:dt_ids)
             AND dr.deletedAt IS NULL AND drm.deletedAt IS NULL';
-        $params = array(1 => array_keys($all_datatypes));
-        $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+        $params = ['dt_ids' => array_keys($all_datatypes)];
+        $types = ['dt_ids' => ArrayParameterType::INTEGER];
         $results = $conn->fetchAllAssociative($query, $params, $types);
 
         $all_datarecords = array();
@@ -2912,10 +2912,10 @@ class SearchAPIService
             FROM odr_data_record descendant
             LEFT JOIN odr_linked_data_tree ldt ON ldt.descendant_id = descendant.id
             LEFT JOIN odr_data_record ancestor ON ldt.ancestor_id = ancestor.id
-            WHERE descendant.id IN (?)
+            WHERE descendant.id IN (:descendant_ids)
             AND descendant.deletedAt IS NULL AND ldt.deletedAt IS NULL AND ancestor.deletedAt IS NULL';
-        $params = array(1 => array_keys($possible_linked_descendants));
-        $types = array(1 => DBALConnection::PARAM_INT_ARRAY);
+        $params = ['descendant_ids' => array_keys($possible_linked_descendants)];
+        $types = ['descendant_ids' => ArrayParameterType::INTEGER];
         $results = $conn->fetchAllAssociative($query, $params, $types);
 
         $linked_ancestors = array();
