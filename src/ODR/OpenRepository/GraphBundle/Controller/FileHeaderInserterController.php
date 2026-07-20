@@ -38,6 +38,7 @@ use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\OpenRepository\GraphBundle\Plugins\Base\FileHeaderInserterPlugin;
 // Symfony
 use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -119,8 +120,10 @@ class FileHeaderInserterController extends ODRCustomController
                 throw new ODRForbiddenException();
             // ----------------------------------------
 
+            /** @var ContainerInterface $service_container */
+            $service_container = $this->container->get('service_container');
             /** @var FileHeaderInserterPlugin $plugin_service */
-            $plugin_service = $this->container->get('odr_plugins.base.file_header_inserter');
+            $plugin_service = $service_container->get('odr_plugins.base.file_header_inserter');
 
             // ----------------------------------------
             // Permissions are going to be a pain...easiest way is to filter cached arrays
@@ -346,8 +349,10 @@ class FileHeaderInserterController extends ODRCustomController
                 throw new ODRBadRequestException('Datafield is not using the FileHeaderInserter Render Plugin');
 
             // Loading the service makes sense now that we know the datafield is using the plugin
+            /** @var ContainerInterface $service_container */
+            $service_container = $this->container->get('service_container');
             /** @var FileHeaderInserterPlugin $plugin_service */
-            $plugin_service = $this->container->get('odr_plugins.base.file_header_inserter');
+            $plugin_service = $service_container->get('odr_plugins.base.file_header_inserter');
 
 
             // ----------------------------------------
