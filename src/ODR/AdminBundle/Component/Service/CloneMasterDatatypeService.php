@@ -43,6 +43,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\OpenRepository\UserBundle\Component\Service\ODRUserManager as UserManagerInterface;
 // Other
+use Doctrine\DBAL\Exception\ConnectionLost;
 use Doctrine\ORM\EntityManager;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -188,17 +189,24 @@ class CloneMasterDatatypeService
      */
     public function createDatatypeFromMaster($datatype_id, $user_id, $template_group, $preserve_template_uuids = true)
     {
+        // This function waits a long time and tends to time out and drop its db connection
+        // https://github.com/doctrine/dbal/pull/4119
+        $conn = $this->em->getConnection();
         try {
-            // This function waits a long time and tends to time out and drop its db connection
-            // https://stackoverflow.com/questions/16233835/refresh-the-database-connection-if-connection-drops-or-times-out
-            if(FALSE == $this->em->getConnection()->ping()){
-                $this->logger->debug('----------------------------------------');
-                $this->logger->debug('MySQL connection was closed: '.$template_group.' - reconnecting.');
-                $this->em->getConnection()->close();
-                $this->em->getConnection()->connect();
-                $this->logger->debug('----------------------------------------');
-            }
+            // https://github.com/irontec/ivozprovider/commit/11b4914b14bdb9e367c6031e40f06105c32642f0
+            // executeStatement() seems to always trigger the mysql error "Cannot execute queries
+            //  while other unbuffered queries are active"...so using executeQuery() instead
+            $results = $conn->executeQuery('SELECT 1');
+        }
+        catch (ConnectionLost $e) {
+            $this->logger->debug('----------------------------------------');
+            $this->logger->debug('MySQL connection was closed: '.$template_group.' - reconnecting.');
+            $conn->close();
+            $conn->connect();
+            $this->logger->debug('----------------------------------------');
+        }
 
+        try {
             // Save which user started this creation process
             $this->user = $this->user_manager->findUserBy( ['id' => $user_id] );
             if ( is_null($this->user) )
