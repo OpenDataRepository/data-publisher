@@ -927,12 +927,13 @@ class SearchAPIService
                 $render_plugins_overrides[$plugin_classname][$rpi_id][$rpf_name] = $df_id;
 
                 // NOTE: $render_plugins_overrides could have more fields than the plugin actually
-                //  wants to override
+                //  wants to override...
             }
 
             // Now that the fields have been grouped, determine whether the render plugin wants to
             //  override the search routine for each set of fields
             foreach ($render_plugins_cache as $plugin_classname => $plugin_data) {
+                /** @var SearchOverrideInterface $plugin */
                 $plugin = $plugin_data['plugin'];
 
                 // ...I don't think it's strictly necessary to check each render plugin instance, but
@@ -948,6 +949,14 @@ class SearchAPIService
                             $render_plugins[$df_id] = array(
                                 'renderPlugin' => $plugin_data,
                             );
+                        }
+
+                        // Get rid of the references to fields the render plugin doesn't want to
+                        //  override
+                        $ret = array_flip($ret);
+                        foreach ($render_plugins_overrides[$plugin_classname][$rpi_id] as $rpf_name => $rpf_df_id) {
+                            if ( !isset($ret[$rpf_df_id]) )
+                                unset( $render_plugins_overrides[$plugin_classname][$rpi_id][$rpf_name] );
                         }
                     }
                     else {
@@ -1017,6 +1026,7 @@ class SearchAPIService
 
             // Need to map any existing render plugin options to each datafield they're related to
             foreach ($render_plugins_overrides as $plugin_classname => $rpi_list) {
+                /** @var SearchOverrideInterface $plugin */
                 $plugin = $render_plugins_cache[$plugin_classname]['plugin'];
 
                 foreach ($rpi_list as $rpi_id => $df_list) {
