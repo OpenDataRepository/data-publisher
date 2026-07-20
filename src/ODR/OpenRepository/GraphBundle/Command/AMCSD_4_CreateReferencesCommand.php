@@ -48,6 +48,9 @@ class AMCSD_4_CreateReferencesCommand extends ContainerAwareCommand
         $pheanstalk = $container->get('pheanstalk');
         $beanstalk_api_key = $container->getParameter('beanstalk_api_key');
 
+        // Startup banner so operators can confirm the daemon is running (it then blocks
+        // on the tube until a job arrives).
+        $output->writeln('[odr_amcsd_update:4_references] started '.(new \DateTime())->format('Y-m-d H:i:s').' — waiting for jobs (Ctrl+C to stop)');
         while (true) {
             // Run command until manually stopped
             $job = null;
@@ -97,7 +100,7 @@ class AMCSD_4_CreateReferencesCommand extends ContainerAwareCommand
             catch (\Exception $e) {
                 if ( $e->getMessage() == 'retry' ) {
                     $output->writeln( 'Could not resolve host, releasing job to try again' );
-                    $logger->err('AMCSD_4_CreateReferencesCommand.php: '.$e->getMessage());
+                    $logger->error('AMCSD_4_CreateReferencesCommand.php: '.$e->getMessage());
 
                     // Release the job back into the ready queue to try again
                     $pheanstalk->release($job);
@@ -108,7 +111,7 @@ class AMCSD_4_CreateReferencesCommand extends ContainerAwareCommand
                 else {
                     $output->writeln($e->getMessage());
 
-                    $logger->err('AMCSD_4_CreateReferencesCommand.php: '.$e->getMessage());
+                    $logger->error('AMCSD_4_CreateReferencesCommand.php: '.$e->getMessage());
 
                     // Delete the job so the queue doesn't hang, in theory
                     $pheanstalk->delete($job);

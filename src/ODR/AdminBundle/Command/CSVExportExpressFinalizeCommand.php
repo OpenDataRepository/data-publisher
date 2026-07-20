@@ -53,6 +53,9 @@ class CSVExportExpressFinalizeCommand extends ContainerAwareCommand
         $pheanstalk = $container->get('pheanstalk');
 
         // Run command until manually stopped
+        // Startup banner so operators can confirm the daemon is running (it then blocks
+        // on the tube until a job arrives).
+        $output->writeln('[odr_csv_export:finalize_express] started '.(new \DateTime())->format('Y-m-d H:i:s').' — waiting for jobs (Ctrl+C to stop)');
         while (true) {
             $job = null;
             try {

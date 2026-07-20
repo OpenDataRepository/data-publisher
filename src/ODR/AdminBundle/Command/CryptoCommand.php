@@ -52,6 +52,9 @@ class CryptoCommand extends ContainerAwareCommand
 //        /** @var CryptoService $crypto_service */
 //        $crypto_service = $this->getContainer()->get('odr.crypto_service');
 
+        // Startup banner so operators can confirm the daemon is running (it then blocks
+        // on the tube until a job arrives).
+        $output->writeln('[odr_crypto:worker] started '.(new \DateTime())->format('Y-m-d H:i:s').' — waiting for jobs (Ctrl+C to stop)');
         while (true) {
             // Run command until manually stopped
             $job = null;

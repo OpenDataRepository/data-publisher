@@ -367,7 +367,7 @@ class XMLImportController extends ODRCustomController
                 if (!$xml_file->schemaValidate($schema_path.$schema_filename)) {
                     // If validation failed, display errors
                     $ret .= 'Schema errors in "'.$xml_filename.'" >> '.self::libxml_display_errors()."\n";
-                    $logger->err('WorkerController:importvalidateAction()  Schema errors in "'.$xml_filename.'" >> '.self::libxml_display_errors());
+                    $logger->error('WorkerController:importvalidateAction()  Schema errors in "'.$xml_filename.'" >> '.self::libxml_display_errors());
 
                     // Ensure failed directory exists
                     if ( !file_exists($xml_path.'failed') )

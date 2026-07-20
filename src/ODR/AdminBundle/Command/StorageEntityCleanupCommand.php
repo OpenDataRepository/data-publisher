@@ -41,6 +41,9 @@ class StorageEntityCleanupCommand extends ContainerAwareCommand
         $logger = $container->get('logger');
         $pheanstalk = $container->get('pheanstalk');
 
+        // Startup banner so operators can confirm the daemon is running (it then blocks
+        // on the tube until a job arrives).
+        $output->writeln('[odr_record:storage_entity_cleanup] started '.(new \DateTime())->format('Y-m-d H:i:s').' — waiting for jobs (Ctrl+C to stop)');
         while (true) {
             // Run command until manually stopped
             $job = null;
