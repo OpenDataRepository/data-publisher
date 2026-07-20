@@ -133,6 +133,17 @@
                 <label id="ODRTriggerExternalApp" class="pure-button">
                     Send to External App...
                 </label>
+                <div id="ODRTriggerExternalApp_list" class="ODRHidden pure-u-1">
+                {% for eadtl in datatype.externalAppDatatypeLinks %}
+                    {% set ea = eadtl.externalApp %}
+                    {% set eam = ea.externalAppMeta %}
+                    <div class="ODRTriggerExternalApp Pointer" rel="{{ ea.id }}">
+                        <span class="pure-u-4-5">{{ eam.appName }}&nbsp;</span>
+                        <span class="pure-u-1-5"><i class="fa fa-external-link"></i></span>
+                    </div>
+{#                    {% if not loop.last %}<br>{% endif %}#}
+                {% endfor %}
+                </div>
             </li>
         {% endif %}
         </ul>
@@ -154,7 +165,6 @@
     {% endif %}
 #}
     </div>
-
 <script>
 
     $(function() {
@@ -271,9 +281,87 @@
 {% endif %}
 
 {% if has_external_apps %}
-        $(".ODRTriggerExternalApp").unbind('click').click(function(event) {
-            // TODO
+        $("#ODRTriggerExternalApp").unbind('click').click(function(event) {
+            // Calculate where the popup should go
+            var button_offset = $(this).offset();
+            var button_width = $(this).width;
+
+            var new_offset = {top: button_offset.top + 30, left: button_offset.left};
+            // MUST remove style attribute, THEN show popup, THEN set offset.  Thanks jquery.
+            $("#ODRTriggerExternalApp_list").removeAttr('style').toggleClass('ODRHidden').offset( new_offset ).width( button_width );
         });
+
+        $(".ODRTriggerExternalApp").unbind('click').click(function(event) {
+            var external_app_id = $(this).attr('rel');
+
+            var url = '{{ path('odr_external_app_trigger', {'external_app_id': 0, 'search_key': ''}) }}';
+            url = url.substr(0, url.length-2);
+            url += external_app_id + '/' + '{{ search_key }}';
+
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                dataType: "json",
+                success: function (data) {
+                    var external_url = data.d.url;
+                    var method = data.d.method;
+                    var post_data = data.d.post_data;
+
+                    if ( method === 'GET' ) {
+                        window.open(external_url, '_blank');
+                    }
+                    else if ( method === 'POST' ) {
+                        postExternalApp(external_url, post_data);
+                    }
+                },
+                error: function (jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
+                },
+                complete: function (jqXHR) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/' + xdebugToken);
+                    }
+                }
+            });
+        });
+
+        function postExternalApp(url, post_data) {
+            var form = document.createElement("form");
+            form.setAttribute("method", "post");
+            form.setAttribute("enctype", "x-www-form-urlencoded");
+            form.setAttribute("action", url);
+
+            function submitExternalAppToPopup(f) {
+                form.target = 'external_app';
+                var w = window.open('about:blank', form.target);
+                if (!w || w.closed || typeof w.closed=='undefined') {
+                    updateODRRemodalBody("<h4>You appear to have pop-ups blocked for this site.</h4><p>Please enable popups to allow external apps to open.<p>");
+                }
+                else {
+                    var hiddenField = document.createElement("input");
+                    hiddenField.setAttribute("type", "hidden");
+                    hiddenField.setAttribute("name", "data");
+                    hiddenField.setAttribute("value", JSON.stringify(post_data));
+                    form.appendChild(hiddenField);
+                    form.submit();
+                    form.remove();
+                    // console.log(qanalyze_data)
+                    // console.log('post fired')
+                    // closeODRRemodal();
+                }
+            }
+            document.body.appendChild(form);
+            submitExternalAppToPopup(form);
+        }
 {% endif %}
     });
 </script>

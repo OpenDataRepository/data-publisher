@@ -26,7 +26,9 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\EntityCreationService;
 use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
+use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use ODR\AdminBundle\Component\Utility\UserUtility;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -492,6 +494,84 @@ class ExternalAppController extends ODRCustomController
         }
         catch (\Exception $e) {
             $source = 0x715774d6;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Deletes the given external app.
+     *
+     * @param int $external_app_id
+     * @param string $
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function triggerAction($external_app_id, $search_key, Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->getDoctrine()->getManager();
+
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->container->get('odr.permissions_management_service');
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->container->get('odr.search_key_service');
+
+            /** @var ExternalApp $external_app */
+            $external_app = $em->getRepository('ODRAdminBundle:ExternalApp')->find($external_app_id);
+            if ($external_app == null)
+                throw new ODRNotFoundException('External App');
+
+            // Validate the given search key...
+            $search_params = $search_key_service->validateSearchKey($search_key);
+            // ...if valid, then it will have a datatype id in it
+            $datatype_id = $search_params['dt_id'];
+
+            /** @var DataType $datatype */
+            $datatype = $em->getRepository('ODRAdminBundle:DataType')->find($datatype_id);
+            if ($datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+            // ----------------------------------------
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+
+            if ( !$permissions_service->canViewDatatype($user, $datatype) )
+                throw new ODRForbiddenException();
+            // ----------------------------------------
+
+//            $return['d'] = array(
+//                'url' => $external_app->getAppUrl().'?search_key='.$search_key,
+//                'method' => 'GET',
+//                'post_data' => array(),
+//            );
+
+            // For the moment, just going to POST the search key to the target
+            // The javascript will create/submit an HTML form with this as the payload
+            $post_data = array('search_key' => $search_key);
+
+            $return['d'] = array(
+                'url' => $external_app->getAppUrl(),
+                'method' => 'POST',
+                'post_data' => $post_data,
+            );
+        }
+        catch (\Exception $e) {
+            $source = 0xb097e066;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else

@@ -2016,12 +2016,19 @@ odr_external_app_edit:
     path: /admin/app_list/edit
     defaults: { _controller: ODRAdminBundle:ExternalApp:edit }
     methods: [ POST ]
-
 odr_external_app_delete:
     path: /admin/app_list/delete/{external_app_id}
     defaults: { _controller: ODRAdminBundle:ExternalApp:delete }
     requirements:
         external_app_id: \d+
+
+
+odr_external_app_trigger:
+    path: /view/external_app_trigger/{external_app_id}/{search_key}
+    defaults: { _controller: ODRAdminBundle:ExternalApp:trigger }
+    requirements:
+        external_app_id: \d+
+        search_key: '[a-zA-Z0-9\-\_]*'
 #-----------------------------------------
 
 #odr_asdf:

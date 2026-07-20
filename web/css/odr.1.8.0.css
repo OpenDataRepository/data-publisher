@@ -5783,3 +5783,17 @@ div.ODRRenderPlugin_CSVTable_wrapper div.dataTables_scrollBody {
 .ODRExternalApp_dt_list {
     margin-bottom: 10px;
 }
+
+#ODRTriggerExternalApp_list {
+    border: 1px solid #EEEEFF;
+    border-radius: 5px;
+    background: white;
+    position: absolute;
+    padding: 5px 0 5px 5px;
+    z-index: 999;
+
+    text-wrap: wrap;
+}
+.ODRTriggerExternalApp:hover {
+    background: #eee !important;
+}
