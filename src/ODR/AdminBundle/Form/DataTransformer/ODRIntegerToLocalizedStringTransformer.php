@@ -24,9 +24,9 @@ class ODRIntegerToLocalizedStringTransformer extends IntegerToLocalizedStringTra
     /**
      * {@inheritdoc}
      */
-    public function __construct($scale = 0, $grouping = false, $roundingMode = self::ROUND_DOWN)
+    public function __construct($grouping = false, $roundingMode = \NumberFormatter::ROUND_DOWN)
     {
-        parent::__construct($scale, $grouping, $roundingMode);
+        parent::__construct($grouping, $roundingMode);
     }
 
 

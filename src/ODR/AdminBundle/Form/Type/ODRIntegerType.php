@@ -31,7 +31,6 @@ class ODRIntegerType extends IntegerType
     {
         $builder->addViewTransformer(
             new ODRIntegerToLocalizedStringTransformer(
-                $options['scale'],
                 $options['grouping'],
                 $options['rounding_mode']
             )
