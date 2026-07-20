@@ -136,7 +136,7 @@ class StorageEntityCleanupCommand extends ContainerAwareCommand
             catch (\Exception $e) {
                 if ( $e->getMessage() == 'retry' ) {
                     $output->writeln( 'Could not resolve host, releasing job to try again' );
-                    $logger->err('StorageEntityCleanupCommand.php: '.$e->getMessage());
+                    $logger->error('StorageEntityCleanupCommand.php: '.$e->getMessage());
 
                     // Release the job back into the ready queue to try again
                     $pheanstalk->release($job);
@@ -147,7 +147,7 @@ class StorageEntityCleanupCommand extends ContainerAwareCommand
                 else {
                     $output->writeln($e->getMessage());
 
-                    $logger->err('StorageEntityCleanupCommand.php: '.$e->getMessage());
+                    $logger->error('StorageEntityCleanupCommand.php: '.$e->getMessage());
 
                     // Delete the job so the queue doesn't hang, in theory
                     $pheanstalk->delete($job);

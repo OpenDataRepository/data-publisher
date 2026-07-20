@@ -122,7 +122,7 @@ $output->writeln($data->url);
             catch (\Exception $e) {
                 if ( $e->getMessage() == 'retry' ) {
                     $output->writeln( 'Could not resolve host, releasing job to try again' );
-                    $logger->err('XMLImportStartCommand.php: '.$e->getMessage());
+                    $logger->error('XMLImportStartCommand.php: '.$e->getMessage());
 
                     // Release the job back into the ready queue to try again
                     $pheanstalk->release($job);
@@ -133,7 +133,7 @@ $output->writeln($data->url);
                 else {
                     $output->writeln($e->getMessage());
 
-                    $logger->err('XMLImportStartCommand.php: '.$e->getMessage());
+                    $logger->error('XMLImportStartCommand.php: '.$e->getMessage());
 
                     // Delete the job so the queue doesn't hang, in theory
                     $pheanstalk->delete($job);
