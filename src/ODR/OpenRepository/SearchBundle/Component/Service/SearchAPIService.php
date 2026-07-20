@@ -826,7 +826,7 @@ class SearchAPIService
             //  two dql queries are used. The first determines whether the datafields being searched
             //  on belong to a plugin that (possibly) wants to override searching...
             $query = $this->em->createQuery(
-                'SELECT df.id AS df_id, rp.id AS rp_id, rpi.id AS rpi_id, rp.pluginClassName AS plugin_classname, rpf.fieldName
+               'SELECT df.id AS df_id, rp.id AS rp_id, rpi.id AS rpi_id, rp.pluginClassName AS plugin_classname, rpf.fieldName
                 FROM ODR\AdminBundle\Entity\RenderPlugin AS rp
                 JOIN ODR\AdminBundle\Entity\RenderPluginInstance AS rpi WITH rpi.renderPlugin = rp
                 JOIN ODR\AdminBundle\Entity\RenderPluginMap AS rpm WITH rpm.renderPluginInstance = rpi
@@ -864,12 +864,13 @@ class SearchAPIService
                 $render_plugins_overrides[$plugin_classname][$rpi_id][$rpf_name] = $df_id;
 
                 // NOTE: $render_plugins_overrides could have more fields than the plugin actually
-                //  wants to override
+                //  wants to override...
             }
 
             // Now that the fields have been grouped, determine whether the render plugin wants to
             //  override the search routine for each set of fields
             foreach ($render_plugins_cache as $plugin_classname => $plugin_data) {
+                /** @var SearchOverrideInterface $plugin */
                 $plugin = $plugin_data['plugin'];
 
                 // ...I don't think it's strictly necessary to check each render plugin instance, but
@@ -885,6 +886,14 @@ class SearchAPIService
                             $render_plugins[$df_id] = array(
                                 'renderPlugin' => $plugin_data,
                             );
+                        }
+
+                        // Get rid of the references to fields the render plugin doesn't want to
+                        //  override
+                        $ret = array_flip($ret);
+                        foreach ($render_plugins_overrides[$plugin_classname][$rpi_id] as $rpf_name => $rpf_df_id) {
+                            if ( !isset($ret[$rpf_df_id]) )
+                                unset( $render_plugins_overrides[$plugin_classname][$rpi_id][$rpf_name] );
                         }
                     }
                     else {
@@ -907,7 +916,7 @@ class SearchAPIService
             $render_plugin_fields = array();    // NOTE: different than $render_plugin_fields
             if ( !empty($render_plugin_instance_ids) ) {
                 $query = $this->em->createQuery(
-                    'SELECT rpi.id AS rpi_id, rpom.value AS rpom_value, rpod.name AS rpod_name
+                   'SELECT rpi.id AS rpi_id, rpom.value AS rpom_value, rpod.name AS rpod_name
                     FROM ODR\AdminBundle\Entity\RenderPluginInstance rpi
                     LEFT JOIN ODR\AdminBundle\Entity\RenderPluginOptionsMap AS rpom WITH rpom.renderPluginInstance = rpi
                     LEFT JOIN ODR\AdminBundle\Entity\RenderPluginOptionsDef AS rpod WITH rpom.renderPluginOptionsDef = rpod
@@ -930,7 +939,7 @@ class SearchAPIService
 
                 // When overriding datatype plugins, it's useful to have the renderPluginField list...
                 $query = $this->em->createQuery(
-                    'SELECT rpi.id AS rpi_id, rpm_df.id AS df_id, rpf.fieldName AS rpf_name
+                   'SELECT rpi.id AS rpi_id, rpm_df.id AS df_id, rpf.fieldName AS rpf_name
                     FROM ODR\AdminBundle\Entity\RenderPluginInstance AS rpi
                     LEFT JOIN ODR\AdminBundle\Entity\RenderPluginMap AS rpm WITH rpm.renderPluginInstance = rpi
                     LEFT JOIN ODR\AdminBundle\Entity\RenderPluginFields AS rpf WITH rpm.renderPluginFields = rpf
@@ -954,6 +963,7 @@ class SearchAPIService
 
             // Need to map any existing render plugin options to each datafield they're related to
             foreach ($render_plugins_overrides as $plugin_classname => $rpi_list) {
+                /** @var SearchOverrideInterface $plugin */
                 $plugin = $render_plugins_cache[$plugin_classname]['plugin'];
 
                 foreach ($rpi_list as $rpi_id => $df_list) {
