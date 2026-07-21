@@ -133,7 +133,7 @@ class ReportsController extends ODRCustomController
             //  from the one for locating duplicate values in child datatypes...
             if (!$is_child_datatype) {
                 // Determine which records have duplicated values in the given datafield
-                $values = self::buildDatafieldUniquenessReport($em, $sort_service, $datafield);
+                $values = self::buildDatafieldUniquenessReport($sort_service, $datafield);
 
                 // Render the report
                 $return['d'] = [
@@ -182,43 +182,29 @@ class ReportsController extends ODRCustomController
      *
      * In this version, duplicate values are not allowed in this datafield.
      *
-     * @param \Doctrine\ORM\EntityManager $em
      * @param SortService $sort_service
      * @param Datafields $datafield
      *
      * @return array
      */
-    private function buildDatafieldUniquenessReport($em, $sort_service, $datafield)
+    private function buildDatafieldUniquenessReport($sort_service, $datafield)
     {
         // Get the namefield_value for each datarecord of the given datafield's datatype
         $datarecord_names = $sort_service->getNamedDatarecordList($datafield->getDataType()->getId());
 
-        // Build a query to determine which top-level datarecords have duplicate values
-        // TODO - this doesn't find values that are empty because of a missing drf/storage entity
-        // TODO - ...is that actually a problem?
-        $query = $em->createQuery(
-           'SELECT dr.id AS dr_id, e.value AS datafield_value
-            FROM ODRAdminBundle:'.$datafield->getFieldType()->getTypeClass().' AS e
-            JOIN ODR\AdminBundle\Entity\DataRecordFields AS drf WITH e.dataRecordFields = drf
-            JOIN ODR\AdminBundle\Entity\DataRecord AS dr WITH drf.dataRecord = dr
-            WHERE e.dataField = :datafield
-            AND e.deletedAt IS NULL AND drf.deletedAt IS NULL AND dr.deletedAt IS NULL'
-        )->setParameters( ['datafield' => $datafield->getId()] );
-        $results = $query->getArrayResult();
+        // This controller action only gets called on Short/Medium/LongVarchar or Integer/DecimalValue
+        // Therefore, can use the sort service instead of a database query to get the values
+        $df_values = $sort_service->sortDatarecordsByDatafield($datafield->getId());
 
-        // Convert the query results into an array grouped by value
         $values = [];
-        foreach ($results as $num => $result) {
-            $dr_id = $result['dr_id'];
-            $value = strval($result['datafield_value']);
-
+        foreach ($df_values as $dr_id => $val) {
             // Use the datarecord's name if it exists
             $dr_name = $dr_id;
             if ( isset($datarecord_names[$dr_id]) )
                 $dr_name = $datarecord_names[$dr_id];
 
-            if ( !isset($values[$value]) ) {
-                $values[$value] = [
+            if ( !isset($values[$val]) ) {
+                $values[$val] = [
                     'count' => 1,
                     'dr_list' => [
                         $dr_id => $dr_name
@@ -226,8 +212,8 @@ class ReportsController extends ODRCustomController
                 ];
             }
             else {
-                $values[$value]['count'] += 1;
-                $values[$value]['dr_list'][$dr_id] = $dr_name;
+                $values[$val]['count'] += 1;
+                $values[$val]['dr_list'][$dr_id] = $dr_name;
             }
         }
 
@@ -258,20 +244,19 @@ class ReportsController extends ODRCustomController
         // Get the namefield_value for each datarecord of the given datafield's grandparent datatype
         $grandparent_datarecord_names = $sort_service->getNamedDatarecordList($datafield->getDataType()->getGrandparent()->getId());
 
-        // Build a query to determine which child datarecords have duplicate values
+        // This controller action only gets called on Short/Medium/LongVarchar or Integer/DecimalValue
+        // Therefore, can use the sort service instead of a database query to get the values
+        $df_values = $sort_service->sortDatarecordsByDatafield($datafield->getId());
+
+        // Still need a query to locate the child records and their ancestors
         $query = $em->createQuery(
-           'SELECT
-                dr.id AS dr_id, parent.id AS parent_id, grandparent.id AS grandparent_id,
-                e.value AS datafield_value
-            FROM ODRAdminBundle:'.$datafield->getFieldType()->getTypeClass().' AS e
-            JOIN ODR\AdminBundle\Entity\DataRecordFields AS drf WITH e.dataRecordFields = drf
-            JOIN ODR\AdminBundle\Entity\DataRecord AS dr WITH drf.dataRecord = dr
+           'SELECT dr.id AS dr_id, parent.id AS parent_id, grandparent.id AS grandparent_id
+            FROM ODR\AdminBundle\Entity\DataRecord AS dr
             JOIN ODR\AdminBundle\Entity\DataRecord AS parent WITH dr.parent = parent
             JOIN ODR\AdminBundle\Entity\DataRecord AS grandparent WITH dr.grandparent = grandparent
-            WHERE e.dataField = :datafield
-            AND e.deletedAt IS NULL AND drf.deletedAt IS NULL
+            WHERE dr.dataType = :datatype_id
             AND dr.deletedAt IS NULL AND parent.deletedAt IS NULL AND grandparent.deletedAt IS NULL'
-        )->setParameters( ['datafield' => $datafield->getId()] );
+        )->setParameters( ['datatype_id' => $datafield->getDataType()->getId()] );
         $results = $query->getArrayResult();
 
         // Convert the query results into a more useful array...
@@ -280,7 +265,7 @@ class ReportsController extends ODRCustomController
             $dr_id = $result['dr_id'];
             $parent_id = $result['parent_id'];
             $grandparent_id = $result['grandparent_id'];
-            $value = strval($result['datafield_value']);
+            $value = $df_values[$dr_id];
 
             // Use the grandparent datarecord's name if it exists
             $dr_name = $dr_id;
