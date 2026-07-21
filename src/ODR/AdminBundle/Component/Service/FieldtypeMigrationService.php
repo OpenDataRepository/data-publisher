@@ -127,7 +127,7 @@ class FieldtypeMigrationService
             }
         }
         else {
-            foreach ($results as $result) {
+            foreach ($results->iterateAssociative() as $result) {
                 $dr_id = $result['dr_id'];
                 $gdr_id = $result['gdr_id'];
                 $old_value = $result['old_value'];

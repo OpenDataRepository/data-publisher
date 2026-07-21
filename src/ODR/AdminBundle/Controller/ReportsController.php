@@ -1632,7 +1632,7 @@ class ReportsController extends ODRCustomController
         }
         else {
             // All other typeclasses can have their counts calculated by mysql
-            foreach ($results as $result) {
+            foreach ($results->iterateAssociative() as $result) {
                 $df_id = intval($result['df_id']);
                 $num_values = intval($result['num_values']);
 
