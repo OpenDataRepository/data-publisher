@@ -5584,6 +5584,10 @@ input.ODRRenderPlugin_FileRenamer_config_item_name {
     -webkit-text-fill-color: white !important;    /* edge */
 }
 
+.ODRFilterGraphPlugin_FilterField_priority {
+    width: 45px;
+}
+
 .ODRFilterGraphPlugin_blurb {
     margin-left: 30px;
     cursor: default;

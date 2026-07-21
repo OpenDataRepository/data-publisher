@@ -4,12 +4,12 @@
 {% set field_typename = datafield_meta.fieldType.typeName %}
 {% set field_typeclass = datafield_meta.fieldType.typeClass %}
 
-{% set is_hidden_field = false %}
-{% if hidden_filter_fields[ df.id ] is defined %}
-    {% set is_hidden_field = true %}
+{% set is_visible_field = false %}
+{% if filter_fields_visibility[ df.id ] is defined and filter_fields_visibility[ df.id ] == 1 %}
+    {% set is_visible_field = true %}
 {% endif %}
 
-<div id="{{ odr_chart_id }}_field_{{ df.id }}" class="ODRDataField pure-u-1-4 {% if is_hidden_field %}ODRFilterGraphPlugin_HiddenFilterField ODRHidden{% endif %}">
+<div id="{{ odr_chart_id }}_field_{{ df.id }}" class="ODRDataField pure-u-1-4 {% if not is_visible_field %}ODRFilterGraphPlugin_HiddenFilterField ODRHidden{% endif %}">
     <form autocomplete="off" class="pure-u-1">
 
         <fieldset>
