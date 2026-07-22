@@ -1,7 +1,7 @@
 {% spaceless %}
 
 <div class="pure-u-1">
-    <textarea id="plugin_option_{{ rpo_id }}" class="ODRHidden" name="plugin_options[{{ rpo_id }}]">{{ current_filter_fields|join(',') }}</textarea>
+    <textarea id="plugin_option_{{ rpo_id }}" class="ODRHidden" name="plugin_options[{{ rpo_id }}]">{{ current_filter_str }}</textarea>
 
     <div class="pure-u-1 ODRFilterGraphPlugin_header">
         This section allows you to modify which fields are displayed by default in the filter area.
@@ -13,7 +13,8 @@
         {% include 'ODROpenRepositoryGraphBundle:Base:FilterGraph/filter_config_field_list.html.twig' with {
             'dt': stacked_dt_array,
 
-            'current_filter_fields': current_filter_fields,
+            'filter_fields_visibility': filter_fields_visibility,
+            'filter_fields_display_order': filter_fields_display_order,
             'is_top_level': true,
         } %}
     </div>
@@ -83,6 +84,10 @@
             // Update the value in the hidden textarea
             ODRFilterGraphPlugin_updateFilterValue();
         });
+
+        $(".ODRFilterGraphPlugin_FilterField_priority").unbind('change paste keyup').on('keyup paste', function() {
+            ODRFilterGraphPlugin_updateFilterValue();
+        });
     }
 
 
@@ -121,14 +126,31 @@
      * Updates the hidden textarea with the current value of the block on the right side
      */
     function ODRFilterGraphPlugin_updateFilterValue() {
-        var advanced_fields = [];
+        var df_list = [];
 
         $(".ODRFilterGraphPlugin_FilterField").each(function(index,elem) {
-            if ( !$(elem).prev().hasClass('fa-check') )
-                advanced_fields.push( $(elem).val() );
+            var df_id = $(elem).val();
+
+            var is_visible = 0;
+            if ( $(elem).prev().hasClass('fa-check') )
+                is_visible = 1;
+
+            var display_order_input = $(elem).parent().next();
+            var display_order = $(display_order_input).val();
+            if ( display_order === '' )
+                display_order = 0;
+            if ( isNaN(display_order) || display_order < 0 ) {
+                display_order = 0;
+                $(display_order_input).addClass('ODRInputError');
+            }
+            else {
+                $(display_order_input).removeClass('ODRInputError');
+            }
+
+            df_list.push( df_id + ':' + is_visible + ':' + display_order );
         });
 
-        $("#plugin_option_{{ rpo_id }}").html( advanced_fields.join(',') );
+        $("#plugin_option_{{ rpo_id }}").html( df_list.join(',') );
     }
 </script>
 {% endspaceless %}
