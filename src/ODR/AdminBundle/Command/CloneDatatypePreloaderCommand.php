@@ -66,6 +66,9 @@ class CloneDatatypePreloaderCommand extends ContainerAwareCommand
             try {
                 // Watch for a job
 
+                $output->writeln('Symfony 7 upgrade broke this command, exiting');
+                exit();
+
                 $current_time = new \DateTime();
                 $output->writeln($current_time->format('Y-m-d H:i:s') . ' (UTC-5)');
 
@@ -140,6 +143,7 @@ class CloneDatatypePreloaderCommand extends ContainerAwareCommand
                     /** @var CloneMasterDatatypeService $clone_datatype_service */
                     $clone_datatype_service = $this->getContainer()->get('odr.clone_master_datatype_service');
                     $result = $clone_datatype_service->createDatatypeFromMaster(
+                        null,
                         $datatype->getId(),
                         1,
                         $datatype->getTemplateGroup()

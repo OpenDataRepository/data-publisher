@@ -2311,7 +2311,7 @@ class LinkController extends ODRCustomController
                 throw new ODRNotFoundException('DataTree');
 
             // If $search_theme_id is set...
-            if ($search_theme_id != 0) {
+            if ($search_theme_id !== '' && $search_theme_id !== 0) {
                 // ...require a search key to also be set
                 if ($search_key == '')
                     throw new ODRBadRequestException();

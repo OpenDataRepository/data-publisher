@@ -180,6 +180,7 @@ class CloneMasterDatatypeService
      * its datafields, render plugins, themes, child/linked datatypes, and permissions by cloning
      * them from its "master template".
      *
+     * @param integer|null $tracked_job_id if not null, then the job is marked as complete at the end of the function
      * @param integer $datatype_id
      * @param integer $user_id
      * @param string $template_group
@@ -187,7 +188,7 @@ class CloneMasterDatatypeService
      *
      * @return string
      */
-    public function createDatatypeFromMaster($datatype_id, $user_id, $template_group, $preserve_template_uuids = true)
+    public function createDatatypeFromMaster($tracked_job_id, $datatype_id, $user_id, $template_group, $preserve_template_uuids = true)
     {
         // This function waits a long time and tends to time out and drop its db connection
         // https://github.com/doctrine/dbal/pull/4119
@@ -552,6 +553,22 @@ class CloneMasterDatatypeService
             $this->logger->info('----------------------------------------');
             $this->logger->info('CloneMasterDatatypeService: cloning of datatype '.$datatype->getId().' is complete');
             $this->logger->info('----------------------------------------');
+
+            // If a tracked job id was provided...
+            if ( !is_null($tracked_job_id) ) {
+                /** @var TrackedJob $tracked_job */
+                $repo_tracked_job = $this->em->getRepository('ODR\AdminBundle\Entity\TrackedJob');
+                $tracked_job = $repo_tracked_job->find($tracked_job_id);
+                if ($tracked_job == null) {
+                    /* do nothing */
+                }
+                else {
+                    // ...then mark the job as complete
+                    $tracked_job->setCompleted(new \DateTime());
+                    $this->em->persist($tracked_job);
+                    $this->em->flush();
+                }
+            }
 
             return 'complete';
         }

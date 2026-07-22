@@ -249,6 +249,7 @@ class DatatypeCreateService
                 if($bypass_queue) {
                     // Directly create datatype calling clone master datatype service
                     $created_dt = $this->cdm_service->createDatatypeFromMaster(
+                        null,
                         $datatype->getId(),
                         $admin->getId(),
                         $unique_id

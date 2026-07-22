@@ -61,6 +61,10 @@ class CloneThemeCommand extends ContainerAwareCommand
             // Run command until manually stopped
             $job = null;
             try {
+
+                $output->writeln('Symfony 7 upgrade broke this command, exiting');
+                exit();
+
                 // Watch for a job
                 /** @var Job $job */
                 $job = $pheanstalk->watch('clone_theme')->ignore('default')->reserve();

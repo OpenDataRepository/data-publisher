@@ -1405,7 +1405,7 @@ function initPage() {
         }
     });
 
-    {# NOTE - this is sometimes useful #}
+    {# NOTE - these are sometimes useful #}
 {#
     $(".ODRAccordionWrapper").unbind('click').click(function(event) {
         event.preventDefault();
@@ -1420,6 +1420,13 @@ function initPage() {
         var parent_datatype_id = pieces[1];
 
         ReloadEditChild(child_datatype_id, parent_datarecord_id);
+    });
+
+    $(".ODRDataField").unbind('click').click(function() {
+        var id_data = $(this).attr('id').split(/_/);
+        var dr_id = id_data[1];
+        var df_id = id_data[2];
+        ReloadEditDatafield(dr_id, df_id);
     });
 #}
 

@@ -81,6 +81,7 @@ class CloneDatatypeCommand extends ContainerAwareCommand
                 /** @var CloneMasterDatatypeService $clone_datatype_service */
                 $clone_datatype_service = $this->getContainer()->get('odr.clone_master_datatype_service');
                 $result = $clone_datatype_service->createDatatypeFromMaster(
+                    null,
                     $data->datatype_id,
                     $data->user_id,
                     $data->template_group,
