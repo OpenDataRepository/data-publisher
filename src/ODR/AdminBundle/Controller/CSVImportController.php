@@ -638,7 +638,9 @@ class CSVImportController extends ODRCustomController
             \SplFileObject::READ_AHEAD |
             \SplFileObject::DROP_NEW_LINE
         );
-        $csv_file->setCsvControl($delimiter);    // use default settings for enclosure and escape characters
+        // https://www.php.net/manual/en/splfileobject.setcsvcontrol.php  recommends empty string
+        //  for escape character
+        $csv_file->setCsvControl($delimiter, "\"", "");
 
         // Read first row
         $header_row = $csv_file->fgetcsv(); // automatically increments file pointer
@@ -682,7 +684,7 @@ class CSVImportController extends ODRCustomController
         $line_num = 0;
         while ( $csv_file->valid() ) {
             $row = $csv_file->fgetcsv();    // automatically increments file pointer
-            if ( $row === null || count($row) == 0 )
+            if ( $row === false || count($row) == 0 )
                 continue;
 //print_r($row);
 
@@ -800,7 +802,7 @@ class CSVImportController extends ODRCustomController
         $line_num = 0;
         while ( $csv_file->valid() ) {
             $row = $csv_file->fgetcsv();    // automatically advances file pointer
-            if ( $row === null || count($row) == 0 )
+            if ( $row === false || count($row) == 0 )
                 continue;
 
             $line_num++;
