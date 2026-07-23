@@ -336,7 +336,7 @@ function doMassUpdate() {
     // Only save if there are no input errors...
     var has_errors = false;
     $("#MassEditForm .ODRInputError").each(function(index, elem) {
-        if ( !$(elem).hasClass('ODRHidden') )
+        if ( $(elem).is(':visible') )
             has_errors = true;
     });
     if ( has_errors ) {
