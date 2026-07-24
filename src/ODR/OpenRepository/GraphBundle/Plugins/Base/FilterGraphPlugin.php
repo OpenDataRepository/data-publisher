@@ -253,11 +253,11 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
             foreach ($dt['renderPluginInstances'] as $rpi_id => $rpi) {
                 if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.base.filter_graph' ) {
                     // TODO - do I also want the graph names to be arbitrary values instead of datarecord names?
-                    $plugin_config_str = $filter_config_str = '';
+                    $plugin_config_str = $plugin_filter_str  = '';
                     if ( isset($rpi['renderPluginOptionsMap']['plugin_config']) )
                         $plugin_config_str = trim( $rpi['renderPluginOptionsMap']['plugin_config'] );
                     if ( isset($rpi['renderPluginOptionsMap']['filter_config']) )
-                        $filter_config_str = trim( $rpi['renderPluginOptionsMap']['filter_config'] );
+                        $plugin_filter_str = trim( $rpi['renderPluginOptionsMap']['filter_config'] );
 
                     // The config is stored as a string...three keys separated by commas
                     $config_tmp = explode(',', $plugin_config_str);
@@ -281,16 +281,29 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
                         $prefix[] = intval($value);
 
                     // If the filter config has values in it, then convert into an array
-                    $filter_fields = [];
-                    if ( $filter_config_str !== '' ) {
-                        $tmp = explode(',', $filter_config_str);
-
-                        // If any of the datafield ids aren't numeric, then the config is invalid
-                        foreach ($tmp as $num => $df_id) {
-                            if ( !is_numeric($df_id) )
+                    $filter_fields_visibility = [];
+                    $filter_fields_display_order = [];
+                    if ( $plugin_filter_str !== '' ) {
+                        $pieces = explode(',', $plugin_filter_str);
+                        foreach ($pieces as $piece) {
+                            $df_data = explode(':', $piece);
+                            if ( count($df_data) !== 3 )
                                 return [];
-                            else
-                                $filter_fields[$df_id] = 1;
+
+                            // If any part of this config isn't numeric, then it isn't valid
+                            if ( !is_numeric($df_data[0]) || !is_numeric($df_data[1]) || !is_numeric($df_data[2]) )
+                                return [];
+
+                            // Convert the data so the rest of the plugin can use it
+                            $df_id = (int)$df_data[0];
+                            $df_visible = (int)$df_data[1];
+                            $df_display_order = (int)$df_data[2];
+                            if ( $df_display_order < 1 || $df_display_order > 999 )
+                                $df_display_order = 9999;
+
+                            $filter_fields_visibility[$df_id] = $df_visible;
+                            $filter_fields_display_order[$df_id] = $df_display_order;
+                            asort($filter_fields_display_order);
                         }
 
                         // NOTE: don't really need to check whether the datafields actually belong
@@ -298,11 +311,15 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
                     }
 
                     $config = [
-                        'str' => $plugin_config_str,
                         'prefix' => $prefix,
                         'graph_file_df_id' => intval($config_tmp[1]),
                         'secondary_graph_file_df_id' => intval($config_tmp[2]),
-                        'hidden_filter_fields' => $filter_fields,
+
+                        'config_str' => $plugin_config_str,
+                        'filter_str' => $plugin_filter_str,
+
+                        'filter_fields_visibility' => $filter_fields_visibility,
+                        'filter_fields_display_order' => $filter_fields_display_order,
                     ];
                 }
             }
@@ -718,6 +735,12 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
 
 
             // ----------------------------------------
+            // Due to allowing the filter fields to be in whatever order the user wants regardless
+            //  of datatype boundaries...need to have an array lookup system
+            $filter_fields_lookup = array();
+            self::getFilterDatafieldLookup($datatype, $filter_fields_lookup);
+
+            // ----------------------------------------
             // Pulled up here so the graph builder can access the data if needed
             $record_display_view = 'single';
             if ( isset($rendering_options['record_display_view']) )
@@ -759,7 +782,9 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
 
                 // Needed for building the filter
                 'filter_data' => $reduced_filter_values,
-                'hidden_filter_fields' => $current_plugin_config['hidden_filter_fields'],
+                'filter_fields_lookup' => $filter_fields_lookup,
+                'filter_fields_visibility' => $current_plugin_config['filter_fields_visibility'],
+                'filter_fields_display_order' => $current_plugin_config['filter_fields_display_order'],
             ];
 
 
@@ -1306,6 +1331,32 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
 
 
     /**
+     * Due to allowing the filter fields to be in whatever order the user wants regardless of
+     * datatype boundaries...need to have an array lookup system.
+     *
+     * @param array $dt_array
+     * @param array $filter_fields_lookup
+     * @return void
+     */
+    private function getFilterDatafieldLookup($dt_array, &$filter_fields_lookup)
+    {
+        if ( !empty($dt_array['dataFields']) ) {
+            foreach ($dt_array['dataFields'] as $df_id => $df) {
+                // Could care about the typeclass here, but won't.  The other arrays will cover it.
+                $filter_fields_lookup[$df_id] = $df;
+            }
+        }
+
+        if ( !empty($dt_array['descendants']) ) {
+            foreach ($dt_array['descendants'] as $child_dt_id => $child_dt_data) {
+                $child_dt_array = $child_dt_data['datatype'][$child_dt_id];
+                self::getFilterDatafieldLookup($child_dt_array, $filter_fields_lookup);
+            }
+        }
+    }
+
+
+    /**
      * Called when a user changes RenderPluginOptions or RenderPluginMaps entries for this plugin.
      *
      * @param PluginOptionsChangedEvent $event
@@ -1370,10 +1421,14 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
         $current_plugin_config = self::getCurrentPluginConfig( $dt_array[$datatype->getId()] );
 
         $current_config_str = '';
-        $current_filter_fields = [];
+        $current_filter_str = '';
+        $filter_fields_visibility = [];
+        $filter_fields_display_order = [];
         if ( !empty($current_plugin_config) ) {
-            $current_config_str = $current_plugin_config['str'];
-            $current_filter_fields = $current_plugin_config['hidden_filter_fields'];
+            $current_config_str = $current_plugin_config['config_str'];
+            $current_filter_str = $current_plugin_config['filter_str'];
+            $filter_fields_visibility = $current_plugin_config['filter_fields_visibility'];
+            $filter_fields_display_order = $current_plugin_config['filter_fields_display_order'];
         }
 
         // Easier to get rid of datafields/datatypes that can't be filtered on here, so twig/js
@@ -1402,8 +1457,12 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
 
                             'available_config' => $available_configurations,
                             'current_config' => $current_plugin_config,
+
                             'current_config_str' => $current_config_str,
-                            'current_filter_fields' => $current_filter_fields,
+                            'current_filter_str' => $current_filter_str,
+
+                            'filter_fields_visibility' => $filter_fields_visibility,
+                            'filter_fields_display_order' => $filter_fields_display_order,
                         ]
                     );
                 }

@@ -8,9 +8,10 @@
             {# NOTE: the stacked datatype array has already been filtered to get rid of fields that won't affect the filter #}
             <li>
                 <span class="ODRTristateCheckbox binary" style="margin-right: 5px;">
-                    <i class="fa {% if not current_filter_fields[df_id] is defined %}fa-check{% endif %}"></i>
+                    <i class="fa {% if filter_fields_visibility[df_id] is defined and filter_fields_visibility[df_id] == 1 %}fa-check{% endif %}"></i>
                     <input class="ODRFilterGraphPlugin_FilterField" type="hidden" value="{{ df_id }}" />
                 </span>
+                <input class="ODRFilterGraphPlugin_FilterField_priority" type="text" value="{% if filter_fields_display_order[df_id] is defined and filter_fields_display_order[df_id] > 0 and filter_fields_display_order[df_id] < 1000 %}{{ filter_fields_display_order[df_id] }}{% endif %}" />
                 {{ df['dataFieldMeta']['fieldName'] }}
             </li>
         {% endfor %}
@@ -23,7 +24,8 @@
             {% include '@ODROpenRepositoryGraph/Base/FilterGraph/filter_config_field_list.html.twig' with {
                 'dt': child_dt,
 
-                'current_filter_fields': current_filter_fields,
+                'filter_fields_visibility': filter_fields_visibility,
+                'filter_fields_display_order': filter_fields_display_order,
                 'is_top_level': false,
             } %}
         {% endfor %}

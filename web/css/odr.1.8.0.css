@@ -5528,6 +5528,10 @@ table.ODRRenderPlugin_CSVTable thead th {
     -webkit-text-fill-color: white !important;    /* edge */
 }
 
+.ODRFilterGraphPlugin_FilterField_priority {
+    width: 45px;
+}
+
 .ODRFilterGraphPlugin_blurb {
     margin-left: 30px;
     cursor: default;

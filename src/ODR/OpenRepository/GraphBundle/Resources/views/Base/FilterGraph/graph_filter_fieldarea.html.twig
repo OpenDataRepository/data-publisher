@@ -1,10 +1,11 @@
 {% apply spaceless %}
 
 {% set datatype = datatype_array[target_datatype_id] %}
-{% set theme = theme_array[target_theme_id] %}
+{#{% set theme = theme_array[target_theme_id] %}#}
 
 
-{% for df_id, df in datatype['dataFields'] %}
+{% for df_id, display_order in filter_fields_display_order %}
+    {% set df = filter_fields_lookup[df_id] %}
     {% set values = [] %}
     {% if filter_data['values'][df_id] is defined %}
         {% set values = filter_data['values'][df_id] %}
@@ -22,24 +23,24 @@
             'null_values': null_values,
 
             'odr_chart_id': odr_chart_id,
-            'hidden_filter_fields': hidden_filter_fields,
+            'filter_fields_visibility': filter_fields_visibility,
         } %}
     {% endif %}
 {% endfor %}
 
-
+{#
 {% for theme_element in theme.themeElements %}
     {% if theme_element.themeDataType is defined %}
         {% for theme_datatype in theme_element.themeDataType %}
             {% set child_datatype_id = theme_datatype.dataType.id %}
             {% set child_theme_id = theme_datatype.childTheme.id %}
 
-            {# due to filtering, this entry in the theme array isn't guaranteed to exist in the datatype array... #}
+            {# due to filtering, this entry in the theme array isn't guaranteed to exist in the datatype array...
             {% if datatype['descendants'][child_datatype_id] is defined and datatype['descendants'][child_datatype_id]['datatype']|length > 0 %}
                 {% set child_datatype = datatype['descendants'][child_datatype_id]['datatype'] %}
                 {% set child_theme = theme_element['themeDataType'][0]['childTheme']['theme'] %}
 
-                {# Don't want to display any filtering for a particular child/linked descendant datatype if the current set of records doesn't use them #}
+                {# Don't want to display any filtering for a particular child/linked descendant datatype if the current set of records doesn't use them
                 {% set has_relevant_children = false %}
                 {% for df_id, df in child_datatype[child_datatype_id]['dataFields'] %}
                     {% if (filter_data['values'][df_id] is defined and filter_data['values'][df_id]|length > 0)
@@ -66,5 +67,6 @@
         {% endfor %}
     {% endif %}
 {% endfor %}
+#}
 
 {% endapply %}
