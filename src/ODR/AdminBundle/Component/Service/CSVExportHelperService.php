@@ -24,14 +24,14 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
+use ODR\AdminBundle\Component\Utility\ODRCsvWriter;
 use ODR\OpenRepository\GraphBundle\Plugins\ExportOverrideInterface;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
+use ODR\OpenRepository\UserBundle\Component\Service\ODRTokenGenerator as TokenGenerator;
 // Other
-use ODR\AdminBundle\Component\Utility\ODRCsvWriter as CsvWriter;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManager;
-use ODR\OpenRepository\UserBundle\Component\Service\ODRTokenGenerator as TokenGenerator;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -609,11 +609,9 @@ class CSVExportHelperService
         $handle = fopen($csv_export_path.$filename, 'a');
         if ($handle !== false) {
             // Write the line given to the file
-            // https://github.com/ddeboer/data-import/blob/master/src/Ddeboer/DataImport/Writer/CsvWriter.php
             // $delimiter = "\t";
             $enclosure = "\"";
-            $writer = new CsvWriter($delimiters['base'], $enclosure);
-
+            $writer = new ODRCsvWriter($delimiters['base'], $enclosure);
             $writer->setStream($handle);
 
             foreach ($lines as $line)
@@ -1409,9 +1407,10 @@ class CSVExportHelperService
 
             if ($final_file !== false) {
                 $enclosure = "\"";
-                $writer = new CsvWriter($file_delimiter, $enclosure);
-
+                $writer = new ODRCsvWriter($file_delimiter, $enclosure);
                 $writer->setStream($final_file);
+
+                $writer->insertBOM();
                 $writer->writeItem($header_line);
             }
             else {

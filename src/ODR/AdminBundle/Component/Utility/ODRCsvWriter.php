@@ -23,8 +23,19 @@ class ODRCsvWriter
     /** @var string */
     private $enclosure;
 
-    public function __construct($delimiter = ',', $enclosure = '"', $stream = null)
-    {
+
+    /**
+     * ODRCsvWriter constructor
+     *
+     * @param string $delimiter
+     * @param string $enclosure
+     * @param resource|null $stream
+     */
+    public function __construct(
+        $delimiter = ',',
+        $enclosure = '"',
+        $stream = null
+    ) {
         $this->delimiter = $delimiter;
         $this->enclosure = $enclosure;
         $this->stream = $stream;
@@ -46,6 +57,14 @@ class ODRCsvWriter
     public function getStream()
     {
         return $this->stream;
+    }
+
+    /**
+     *
+     */
+    public function insertBOM()
+    {
+        fprintf($this->getStream(), chr(0xEF).chr(0xBB).chr(0xBF));
     }
 
     /**
