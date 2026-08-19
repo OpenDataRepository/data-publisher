@@ -1637,7 +1637,7 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             $datarecord_list = array_slice($datarecord_list, $offset, $limit);
 
             // Render the resulting list of datarecords into a single chunk of export data
-            $baseurl = $this->container->getParameter('site_baseurl');
+            $baseurl = $this->getParameter('site_baseurl');
             $data = $datarecord_export_service->getData(
                 $version,
                 $datarecord_list,

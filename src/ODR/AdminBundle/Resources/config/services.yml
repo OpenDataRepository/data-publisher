@@ -81,6 +81,7 @@ services:
                 snc_redis.default: '@snc_redis.default'
                 # odr.* service with a dotted id kept on the locator (only a few call sites)
                 odr.jupyterhub_bridge.username_service: '@odr.jupyterhub_bridge.username_service'
+                odr.static_render_service: '@odr.static_render_service'
                 # used by the direct-AbstractController controllers (SearchBundle)
                 security.authentication_utils: '@security.authentication_utils'
                 odr_custom_controller: '@odr_custom_controller'

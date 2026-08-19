@@ -6615,7 +6615,7 @@ class APIController extends ODRCustomController
                 throw new ODRBadRequestException('Datafield does not belong to this record\'s datatype');
 
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
             if (!$pm_service->canEditDatafield($user, $datafield, $datarecord))
                 throw new ODRForbiddenException();
 
@@ -6623,9 +6623,9 @@ class APIController extends ODRCustomController
             $typename = $datafield->getFieldType()->getTypeName();
 
             /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
+            $ec_service = $this->entity_creation_service;
             /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            $emm_service = $this->entity_meta_modify_service;
 
             // Ensure the drf exists.
             $drf = $ec_service->createDatarecordField($user, $datarecord, $datafield);
@@ -6765,7 +6765,7 @@ class APIController extends ODRCustomController
                 throw new ODRBadRequestException('Datafield does not belong to this record\'s datatype');
 
             /** @var PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
             if (!$pm_service->canEditDatafield($user, $datafield, $datarecord))
                 throw new ODRForbiddenException();
 
@@ -6778,9 +6778,9 @@ class APIController extends ODRCustomController
                 throw new ODRBadRequestException('Field type "' . $typeclass . '" does not support a "value" update');
 
             /** @var EntityCreationService $ec_service */
-            $ec_service = $this->container->get('odr.entity_creation_service');
+            $ec_service = $this->entity_creation_service;
             /** @var EntityMetaModifyService $emm_service */
-            $emm_service = $this->container->get('odr.entity_meta_modify_service');
+            $emm_service = $this->entity_meta_modify_service;
 
             // Ensure drf + storage entity exist, then update the value.
             $ec_service->createDatarecordField($user, $datarecord, $datafield);
@@ -6823,7 +6823,7 @@ class APIController extends ODRCustomController
         // Belt-and-suspenders: ensure this record's own cached JSON is gone
         // (the event clears the grandparent's entry).
         try {
-            $cache_service = $this->container->get('odr.cache_service');
+            $cache_service = $this->cache_service;
             $cache_service->delete('json_record_' . $datarecord->getUniqueId());
         } catch (\Exception $e) {
             // ignore
@@ -8857,7 +8857,7 @@ class APIController extends ODRCustomController
                 throw new ODRNotFoundException('Datatype');
 
             /** @var \ODR\AdminBundle\Component\Service\PermissionsManagementService $pm_service */
-            $pm_service = $this->container->get('odr.permissions_management_service');
+            $pm_service = $this->permissions_management_service;
             if (!$pm_service->isDatatypeAdmin($user, $datatype))
                 throw new ODRForbiddenException();
 
