@@ -6815,7 +6815,7 @@ class APIController extends ODRCustomController
         try {
             $dispatcher = $this->container->get('event_dispatcher');
             $event = new \ODR\AdminBundle\Component\Event\DatarecordModifiedEvent($datarecord, $user);
-            $dispatcher->dispatch(\ODR\AdminBundle\Component\Event\DatarecordModifiedEvent::NAME, $event);
+            $dispatcher->dispatch($event, \ODR\AdminBundle\Component\Event\DatarecordModifiedEvent::NAME);
         } catch (\Exception $e) {
             // event-handler failures must not break the API write
         }
