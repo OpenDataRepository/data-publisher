@@ -26,6 +26,7 @@ use ODR\AdminBundle\Entity\Image;
 use ODR\AdminBundle\Entity\ImageSizes;
 use ODR\AdminBundle\Entity\RadioSelection;
 use ODR\AdminBundle\Entity\TrackedJob;
+use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
 use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
@@ -1512,20 +1513,175 @@ $ret .= '  Set current to '.$count."\n";
         $return['d'] = '';
 
         try {
-            // --------------------
-            // Determine user privileges
-            /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()->getUser();
-            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
-                throw new ODRForbiddenException();
+//            // --------------------
+//            // Determine user privileges
+//            /** @var ODRUser $user */
+//            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+//            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+//                throw new ODRForbiddenException();
+//
+//            if ( $this->container->getParameter('kernel.environment') !== 'dev' )
+//                throw new ODRForbiddenException();
+//            // --------------------
 
-            if ( $this->container->getParameter('kernel.environment') !== 'dev' )
-                throw new ODRForbiddenException();
-            // --------------------
+//            $post = $request->request->all();
+//            if ( !isset($post['data']) )
+//                throw new ODRBadRequestException();
+//
+//            $post_data = json_decode($post['data'], true);
+//            if ( !isset($post_data['search_key']) )
+//                throw new ODRBadRequestException();
+//            $search_key = $post_data['search_key'];
+//
+//            /** @var SearchAPIService $search_api_service */
+//            $search_api_service = $this->container->get('odr.search_api_service');
+//
+//            print 'asdf<br>';
+//            $results = $search_api_service->performSearch(null, $search_key, array());
+//            print '<pre>'.print_r($results, true).'</pre>';
+
+            /** @var EngineInterface $templating */
+            $templating = $this->get('templating');
+
+            $return['d'] = array(
+                'html' => $templating->render(
+                    'ODRAdminBundle:Debug:test.html.twig',
+                    array(
+                    )
+                )
+            );
+
+        }
+        catch (\Exception $e) {
+            $source = 0xffffffff;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
+//        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    public function qwerAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+//            // --------------------
+//            // Determine user privileges
+//            /** @var ODRUser $user */
+//            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+//            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+//                throw new ODRForbiddenException();
+//
+//            if ( $this->container->getParameter('kernel.environment') !== 'dev' )
+//                throw new ODRForbiddenException();
+//            // --------------------
+
+            $post = $request->request->all();
+            if ( !isset($post['data']) )
+                throw new ODRBadRequestException();
+
+            $post_data = json_decode($post['data'], true);
+            if ( !isset($post_data['search_key']) )
+                throw new ODRBadRequestException();
+            $search_key = $post_data['search_key'];
+
+            /** @var SearchAPIService $search_api_service */
+            $search_api_service = $this->container->get('odr.search_api_service');
+
+            print 'sorting by authors asc<br>';
+            $results = $search_api_service->performSearch(null, $search_key, array(), false, array(6557), array('asc'));
+            print '<pre>'.print_r($results, true).'</pre>';
+
+        }
+        catch (\Exception $e) {
+            $source = 0xffffffff;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'text/html');
+//        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    public function zxcvAction(Request $request)
+    {
+        $return = array();
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+//            // --------------------
+//            // Determine user privileges
+//            /** @var ODRUser $user */
+//            $user = $this->container->get('security.token_storage')->getToken()->getUser();
+//            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+//                throw new ODRForbiddenException();
+//
+//            if ( $this->container->getParameter('kernel.environment') !== 'dev' )
+//                throw new ODRForbiddenException();
+//            // --------------------
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->getDoctrine()->getManager();
-            $conn = $em->getConnection();
+
+            /** @var SearchAPIService $search_api_service */
+            $search_api_service = $this->container->get('odr.search_api_service');
+
+            $search_key = 'eyJkdF9pZCI6Ijc3MSIsIjcwNjIiOiIxMTMyIn0';
+            $search_results = $search_api_service->performSearch(null, $search_key, array());
+//            print '<pre.'.print_r($search_results, true).'</pre>';  exit();
+
+            $query = $em->createQuery(
+                'SELECT f.id, f.localFileName, fm.originalFileName
+                FROM ODRAdminBundle:File f
+                JOIN ODRAdminBundle:FileMeta fm WITH fm.file = f
+                WHERE f.dataRecord IN (:datarecord_ids) AND f.dataField = :datafield_id
+                AND f.deletedAt IS NULL AND fm.deletedAt IS NULL'
+            )->setParameters(
+                array(
+                    'datarecord_ids' => $search_results,
+                    'datafield_id' => 7196
+                )
+            );
+            $results = $query->getArrayResult();
+//            print '<pre>'.print_r($results, true).'</pre>';  exit();
+
+            $web_basedir = $this->getParameter('odr_web_directory').'/';
+            $tmp_basedir = $this->getParameter('odr_tmp_directory').'/user_2/zeolite_difs/';
+            if ( !is_dir($tmp_basedir) )
+                mkdir($tmp_basedir);
+
+            foreach ($results as $result) {
+                $file_id = $result['id'];
+                $local_filename = $result['localFileName'];
+                $original_filename = $result['originalFileName'];
+
+                print '<pre>checking for "'.$web_basedir.$local_filename.'"...';
+                if ( !file_exists($web_basedir.$local_filename) ) {
+                    print 'does not exist';
+                }
+                else {
+                    print 'exists';
+                    copy($web_basedir.$local_filename, $tmp_basedir.$original_filename);
+                }
+                print '</pre>';
+            }
 
         }
         catch (\Exception $e) {

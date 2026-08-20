@@ -257,11 +257,15 @@ class CryptoService
 
         // Add the specified file to the zip archive
         $zip_archive->addFile($local_filepath, $desired_filename);
+
+        $this->logger->debug($lockpath.'...file count: '.$zip_archive->count());
+        $this->logger->debug($lockpath.'...status string: '.$zip_archive->getStatusString());
+
         $zip_archive->close();
 
         // Delete decrypted version of non-public files off the server
-        if ( !$is_public )
-            unlink($local_filepath);
+//        if ( !$is_public )
+//            unlink($local_filepath);
 
 
         // Release the previously acquired lock
@@ -325,13 +329,14 @@ class CryptoService
                 $decrypted_data = $this->crypto_adapter->decrypt($data, $key);
                 if ( $decrypted_data === false ) {
                     // Error encoutered...delete any partially decrypted data
-                    fclose($handle);
+                    if ( get_resource_type($handle) !== 'Unknown' )
+                        fclose($handle);
                     if ( file_exists($local_filepath) )
                         unlink($local_filepath);
 
                     // Ensure the lock is released too
                     $lockHandler->release();
-                    throw new ODRException('Unable to decrypt chunk: '.$crypto_chunk_dir.'/'.'enc.'.$chunk_id);
+//                    throw new ODRException('Unable to decrypt chunk: '.$crypto_chunk_dir.'/'.'enc.'.$chunk_id);
                 }
 
                 fwrite($handle, $decrypted_data);

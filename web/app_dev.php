@@ -30,6 +30,8 @@ if (
     exit('You are not allowed to access this file. Check '.basename(__FILE__).' for more information.');
 }
 
+ini_set('mbstring.substitute_character', 0xfffd);
+
 /**
  * @var Composer\Autoload\ClassLoader
  */

@@ -27,6 +27,12 @@ ODR\AdminBundle\Entity\RenderPluginEvents:
             nullable: false
             column: event_callable
 
+        # TODO - might be worthwhile to tie this to RenderPluginInstance instead, and have both a Datafield and Datatype column
+        # TODO - ...doing that would mean ODREventSubscriber doesn't have to hydrate every single plugin instance that could match an event, then require them to figure out if they want it
+        # TODO - this would also require moving the events in the plugin config files into the field part of the config
+
+        # TODO - the major trick is to enable the Datatype events like linking/unlinking...the latter is particularly nasty...
+
         deletedAt:
             type: datetime
             nullable: true

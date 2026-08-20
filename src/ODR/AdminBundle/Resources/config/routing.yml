@@ -2002,9 +2002,9 @@ odr_system_opcache:
     defaults: { _controller: ODRAdminBundle:ODRSystem:opcache }
 #-----------------------------------------
 
-#odr_asdf:
-#    path: /admin/asdf
-#    defaults: { _controller: ODRAdminBundle:Worker:asdf }
+odr_asdf:
+    path: /admin/asdf
+    defaults: { _controller: ODRAdminBundle:Worker:asdf }
 
 #odr_qwer:
 #    path: /admin/qwer/

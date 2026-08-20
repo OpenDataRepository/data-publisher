@@ -1,0 +1,36 @@
+odr_plugins.rruff.xyzdata_test:
+    name: XYZData Test Plugin
+    category: RRUFF
+    plugin_type: datatype
+    render: odr_plugins.rruff.xyzdata_test
+    version: 1.0.0
+    override_fields: false
+    override_field_reload: false
+    override_child: false
+    override_table_fields: false
+    override_export: false
+    override_search: false
+    override_sort: false
+    suppress_no_fields_note: false
+    description: TODO
+    registered_events:
+        MassEditTriggerEvent: onMassEditTrigger    # Listening to this event is only useful because of the possibility of plugin changes...generally, re-reading a file doesn't really do anything of value
+
+    required_fields:
+        file_field:
+            name: File
+            description: asdf
+            type: File
+            display_order: 0
+            properties:
+                - single_uploads_only
+
+        xyzdata_field:
+            name: XYZData Field
+            description: qwer
+            type: XYZData
+            display_order: 1
+            properties:
+                - no_user_edits
+
+    config_options:

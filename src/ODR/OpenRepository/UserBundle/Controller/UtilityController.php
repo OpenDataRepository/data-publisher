@@ -21,6 +21,7 @@ use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use ODR\OpenRepository\UserBundle\Component\Service\TrackedPathService;
 // Symfony
+use Symfony\Bridge\Monolog\Logger;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -45,6 +46,8 @@ class UtilityController extends Controller
      */
     public function saveurlAction(Request $request)
     {
+        // TODO - try to stop this from saving the "my/jobs/whatever" url?
+        
         // Going to need these...
         $session = $request->getSession();
 //        $router = $this->get('router');
@@ -78,6 +81,10 @@ class UtilityController extends Controller
         /** @var TrackedPathService $tracked_path_service */
         $tracked_path_service = $this->container->get('odr.tracked_path_service');
         $tracked_path_service->clearTargetPaths();
+
+        /** @var Logger $logger */
+        $logger = $this->container->get('logger');
+        $logger->debug('UtilityController::saveurlAction()..."_security.main.target_path" set to "'.$url.'"');
 
          // No issues, save the URL base
         $session->set('_security.main.target_path', $url);
@@ -163,6 +170,10 @@ class UtilityController extends Controller
         if ($has_appdev)
             $fragment = '/app_dev.php'.$fragment;
 
+        /** @var Logger $logger */
+        $logger = $this->container->get('logger');
+        $logger->debug('UtilityController::savefragmentAction()..."_security.url_fragment" set to "'.$fragment.'"');
+
         $session->set('_security.url_fragment', $fragment);
         return new JsonResponse();
     }
@@ -182,6 +193,9 @@ class UtilityController extends Controller
      */
     public function redirectAction(Request $request)
     {
+        /** @var Logger $logger */
+        $logger = $this->container->get('logger');
+
         // Going to attempt to figure out the correct redirect URL from the user's session...
         $session = $request->getSession();
 //        exit( '<pre>'.print_r($session, true).'</pre>' );
@@ -191,21 +205,25 @@ class UtilityController extends Controller
         if ( $session->has('_security.oauth_connect.redirect_path') ) {
             // ...redirect back to finish the linking process
             $url = $session->get('_security.oauth_connect.redirect_path');
+            $logger->debug('UtilityController::redirectAction()...found "_security.oauth_connect.redirect_path"');
         }
         // If the "oauth_authorize" firewall (apps using ODR as an OAuth provider) is active...
         else if ( $session->has('_security.oauth_authorize.target_path') ) {
             // ...then preferentially redirect to the specified target
             $url = $session->get('_security.oauth_authorize.target_path');
+            $logger->debug('UtilityController::redirectAction()...found "_security.oauth_authorize.target_path"');
         }
         // If the "main" firewall specified a redirect target...
         else if ( $session->has('_security.main.target_path') ) {
             // ...then redirect to that
             $url = $session->get('_security.main.target_path');
+            $logger->debug('UtilityController::redirectAction()...found "_security.main.target_path"');
 
             // If a URL fragment was specified, append that to the end of this url
             $fragment = '';
             if ( $session->has('_security.url_fragment') ) {
                 $fragment = $session->get('_security.url_fragment');
+                $logger->debug('UtilityController::redirectAction()...found "_security.url_fragment"');
             }
 
             if ($fragment !== '')
@@ -219,10 +237,12 @@ class UtilityController extends Controller
 
         if ($url !== '') {
             // The session specified some URL to redirect to, so send the user there
+            $logger->debug('UtilityController::redirectAction()...redirecting to "'.$url.'"');
             return new RedirectResponse($url);
         }
         else {
             // Otherwise, no desired redirect found...just redirect to the dashboard
+            $logger->debug('UtilityController::redirectAction()...redirecting to "odr_admin_homepage"');
             return new RedirectResponse($this->get('router')->generate('odr_admin_homepage'));
         }
     }

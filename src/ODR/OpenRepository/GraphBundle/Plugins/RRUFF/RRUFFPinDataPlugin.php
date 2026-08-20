@@ -787,6 +787,10 @@ class RRUFFPinDataPlugin implements DatatypePluginInterface, DatafieldDerivation
             case '1 0 1':
             case '1 1 0':
             case '1 1 1':
+            case '0 -1 -1':
+            case '-1 0 -1':
+            case '-1 -1 0':
+            case '-1 -1 -1':
                 $dir = '';
                 break;
 
