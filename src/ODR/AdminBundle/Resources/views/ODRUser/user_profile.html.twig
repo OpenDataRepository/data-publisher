@@ -8,7 +8,14 @@
             </h3>
 
             <div class="ODRBodyContent">
-                {% include '@ODRAdmin/ODRUser/user_profile_form.html.twig' with {'profile_form': profile_form, 'current_user': current_user, 'target_user': target_user} %}
+                {% include '@ODRAdmin/ODRUser/user_profile_form.html.twig' with {
+                    'profile_form': profile_form,
+                    'current_user': current_user,
+                    'target_user': target_user,
+
+                    'can_change_email': can_change_email,
+                    'can_change_password': can_change_password,
+                } %}
             </div>
         </div>
 

@@ -8,22 +8,20 @@
             </h3>
 
             <div class="ODRBodyContent">
-                {% include '@ODRAdmin/ODRUser/change_password_form.html.twig' with {'form': form} %}
+                {% include '@ODRAdmin/ODRUser/change_email_form.html.twig' with {'form': form} %}
             </div>
         </div>
     </div>
 </div>
 
-{% include '@ODRAdmin/ODRUser/password_rules.html.twig' with {'form': form} %}
-
 <script>
     $(function() {
         $("#submitButton").unbind('click').click(function() {
-            ODRChangePasswordForm_submit();
+            ODRChangeEmailForm_submit();
         });
 
-        $("#ODRAdminChangePasswordForm").submit(function(event) {
-            // Prevent default form submission...only want ODRChangePasswordForm_submit() to go through
+        $("#ODRAdminChangeEmailForm").submit(function(event) {
+            // Prevent default form submission...only want ODRChangeEmailForm_submit() to go through
             event.preventDefault();
         });
 
@@ -41,26 +39,58 @@
 {% endif %}
 
             UpdateURL(url);
-        })
+        });
+
+        var old_value = '';
+        $("#{{ form.email.vars.id }}").unbind('keyup paste').on('keyup paste', function() {
+            var current_value = $(this).val().trim();
+
+            if ( old_value != current_value ) {
+                old_value = current_value;
+                ODR_isEmailValid();
+            }
+        });
     });
 
     /**
-     * Submits ODR's password change form.
+     * Returns whether the email in the field matches the regex Symfony's email form component uses
      * @returns {boolean}
      */
-    function ODRChangePasswordForm_submit() {
-        if ( !ODR_isPasswordValid() ) {
-            alert('Password is not valid');
-            return;
+    function ODR_isEmailValid() {
+        // https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address
+        var email_regex = new RegExp(/^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/);
+
+        var error_div = $("#email_errors");
+        $(error_div).html('');
+
+        var new_email = $("#{{ form.email.vars.id }}").val();
+        if ( !email_regex.test(new_email) )
+            $(error_div).append("<label class=\"ODRInputError\">Invalid Email</label></br>");
+
+        if ( $(error_div).html().trim() != '' )
+            return false;
+        else
+            return true;
+    }
+
+    /**
+     * Submits ODR's email change form.
+     * @returns {boolean}
+     */
+    function ODRChangeEmailForm_submit() {
+
+        if ( !ODR_isEmailValid() ) {
+            alert('Email is not valid');
+            return false;
         }
 
-        var url = "{{ path('odr_admin_save_password') }}";
+        var url = "{{ path('odr_admin_save_email') }}";
 
         $.ajax({
             url: url,
             type: 'POST',
             dataType: 'json',
-            data: $("#ODRAdminChangePasswordForm").serialize(),
+            data: $("#ODRAdminChangeEmailForm").serialize(),
             success: function(data, textStatus, jqXHR) {
                 notifySaved();
             },

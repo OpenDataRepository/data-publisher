@@ -30,15 +30,23 @@ odr_self_profile_save:
 odr_admin_new_user_create:
     path:  /admin/new_user/create
     defaults: { _controller: ODR\AdminBundle\Controller\ODRUserController::createnewuserAction }
-
 odr_admin_new_user_check:
     path:  /admin/new_user/check_email
     defaults: { _controller: ODR\AdminBundle\Controller\ODRUserController::checkemailexistenceAction }
     methods: [ POST ]
-
 odr_admin_new_user_save:
     path: /admin/new_user/save
     defaults: { _controller: ODR\AdminBundle\Controller\ODRUserController::savenewuserAction }
+    methods: [ POST ]
+
+odr_admin_change_email:
+    path:  /admin/user/change_email/{user_id}
+    defaults: { _controller: ODR\AdminBundle\Controller\ODRUserController::changeemailAction }
+    requirements:
+        user_id:  \d+
+odr_admin_save_email:
+    path:  /admin/user/change_email/save
+    defaults: { _controller: ODR\AdminBundle\Controller\ODRUserController::saveemailAction }
     methods: [ POST ]
 
 odr_admin_change_password:
@@ -46,7 +54,6 @@ odr_admin_change_password:
     defaults: { _controller: ODR\AdminBundle\Controller\ODRUserController::changepasswordAction }
     requirements:
         user_id:  \d+
-
 odr_admin_save_password:
     path:  /admin/user/change_password/save
     defaults: { _controller: ODR\AdminBundle\Controller\ODRUserController::savepasswordAction }
@@ -57,7 +64,6 @@ odr_profile_edit:
     defaults: { _controller: ODR\AdminBundle\Controller\ODRUserController::editprofileAction }
     requirements:
         user_id:  \d+
-
 odr_profile_save:
     path:  /admin/user/save
     defaults: { _controller: ODR\AdminBundle\Controller\ODRUserController::saveprofileAction }
@@ -70,7 +76,6 @@ odr_user_list:
 odr_manage_user_roles:
     path:  /admin/user/manage/roles
     defaults: { _controller: ODR\AdminBundle\Controller\ODRUserController::managerolesAction }
-
 odr_set_user_role:
     path:  /admin/user/setrole/{user_id}/{role}
     defaults: { _controller: ODR\AdminBundle\Controller\ODRUserController::setroleAction }
@@ -83,7 +88,6 @@ odr_delete_user:
     defaults: { _controller: ODR\AdminBundle\Controller\ODRUserController::deleteuserAction }
     requirements:
         user_id:  \d+
-
 odr_undelete_user:
     path:  /admin/user/undelete/{user_id}
     defaults: { _controller: ODR\AdminBundle\Controller\ODRUserController::undeleteuserAction }

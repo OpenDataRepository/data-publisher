@@ -1,0 +1,38 @@
+{% apply spaceless %}
+
+{{ form_start(form, {
+    'method': 'POST',
+    'attr': {
+        'id': 'ODRAdminChangeEmailForm',
+        'class': 'ODRAdminChangeEmailForm pure-form pure-form-aligned'
+    }
+}) }}
+
+    <fieldset>
+        <div id="form_errors">
+            {{ form_errors(form) }}
+        </div>
+        <div id="email_errors"></div>
+    </fieldset>
+
+    <fieldset>
+        <div class="pure-control-group">
+            {{ form_label(form.email) }}
+            {{ form_widget(form.email) }}
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <div class="pure-control-group">
+            <button id="submitButton" class="pure-button pure-button-primary">Change Email</button>
+            <button class="pure-button ODRReturnToProfile">Return to Profile page</button>
+        </div>
+
+        <div style="display: none;">
+            {{ form_rest(form) }}
+        </div>
+    </fieldset>
+
+{{ form_end(form) }}
+
+{% endapply %}
