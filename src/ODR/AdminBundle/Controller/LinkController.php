@@ -2251,8 +2251,14 @@ class LinkController extends ODRCustomController
      *
      * @return Response
      */
-    public function getlinkabledatarecordsAction($ancestor_datatype_id, $descendant_datatype_id, $local_datarecord_id, $search_theme_id, $search_key, Request $request)
-    {
+    public function getlinkabledatarecordsAction(
+        int $ancestor_datatype_id,
+        int $descendant_datatype_id,
+        int $local_datarecord_id,
+        int $search_theme_id,
+        string $search_key,
+        Request $request
+    ) {
         $return = [];
         $return['r'] = 0;
         $return['t'] = 'html';
@@ -2311,7 +2317,7 @@ class LinkController extends ODRCustomController
                 throw new ODRNotFoundException('DataTree');
 
             // If $search_theme_id is set...
-            if ($search_theme_id !== '' && $search_theme_id !== 0) {
+            if ($search_theme_id != 0) {
                 // ...require a search key to also be set
                 if ($search_key == '')
                     throw new ODRBadRequestException();

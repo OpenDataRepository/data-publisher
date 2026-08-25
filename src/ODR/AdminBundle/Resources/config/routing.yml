@@ -1073,7 +1073,7 @@ odr_record_get_linked_datarecords:
 
 odr_record_get_linkable_datarecords:
     path:  /edit/getlinkablerecords/{ancestor_datatype_id}/{descendant_datatype_id}/{local_datarecord_id}/{search_theme_id}/{search_key}
-    defaults: { _controller: ODR\AdminBundle\Controller\LinkController::getlinkabledatarecordsAction, search_theme_id: '', search_key: '' }
+    defaults: { _controller: ODR\AdminBundle\Controller\LinkController::getlinkabledatarecordsAction, search_theme_id: 0, search_key: '' }
     requirements:
         ancestor_datatype_id:  \d+
         descendant_datatype_id:  \d+
@@ -1438,7 +1438,7 @@ odr_flow_upload:
 # MassEdit Controller
 odr_mass_edit_render:
     path: /admin/massedit/{datatype_id}/{search_theme_id}/{search_key}/{offset}
-    defaults: { _controller: ODR\AdminBundle\Controller\MassEditController::massEditAction, offset: '' }
+    defaults: { _controller: ODR\AdminBundle\Controller\MassEditController::massEditAction, search_theme_id: 0, search_key: '', offset: '' }
     requirements:
         datatype_id: \d+
         search_theme_id: \d+

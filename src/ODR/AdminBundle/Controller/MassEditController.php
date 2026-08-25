@@ -112,8 +112,13 @@ class MassEditController extends ODRCustomController
      *
      * @return Response
      */
-    public function massEditAction($datatype_id, $search_theme_id, $search_key, $offset, Request $request)
-    {
+    public function massEditAction(
+        int $datatype_id,
+        int $search_theme_id,
+        string $search_key,
+        int $offset,
+        Request $request
+    ) {
         $return = [];
         $return['r'] = 0;
         $return['t'] = '';
