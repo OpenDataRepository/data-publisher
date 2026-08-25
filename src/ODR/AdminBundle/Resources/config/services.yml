@@ -974,6 +974,7 @@ services:
             $default_search_results_limit: "%default_search_results_limit%"
             $request_stack: "@request_stack"
             $token_generator: "@fos_user.util.token_generator"
+            $logger: "@logger"
 
     odr.table_theme_helper_service:
         public: true

@@ -40,6 +40,7 @@ use ODR\AdminBundle\Component\Service\ThemeInfoService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchService;
 // Symfony
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Request;
 
 
@@ -84,11 +85,12 @@ class ODRCustomController extends AbstractController
      * @param string $search_key  Used for search header, an optional string describing which search result list $datarecord_id is a part of
      * @param integer $offset     Used for search header, an optional integer indicating which page of the search result list $datarecord_id is on
      *
+     * @param string $odr_tab_id
      * @param Request $request
      *
      * @return string
      */
-    public function renderList($datarecords, $datatype, $theme, $user, $path_str, $intent, $search_key, $offset, Request $request)
+    public function renderList($datarecords, $datatype, $theme, $user, $path_str, $intent, $search_key, $offset, $odr_tab_id, Request $request)
     {
         // -----------------------------------
         // Grab necessary objects
@@ -127,6 +129,8 @@ class ODRCustomController extends AbstractController
         $search_key_service = $this->search_key_service;
         /** @var TableThemeHelperService $table_theme_helper_service */
         $table_theme_helper_service = $this->table_theme_helper_service;
+        /** @var LoggerInterface $logger */
+        $logger = $this->container->get('logger');
 
         /** @var \Twig\Environment $templating */
         $templating = $this->container->get('twig');
@@ -181,15 +185,16 @@ class ODRCustomController extends AbstractController
 
         // ----------------------------------------
         // Grab the tab's id, if it exists
-        $params = $request->query->all();
-        $odr_tab_id = '';
-        if ( isset($params['odr_tab_id']) ) {
-            // If the tab id exists, use that
-            $odr_tab_id = $params['odr_tab_id'];
-        }
-        else {
-            // ...otherwise, generate a random key to identify this tab
-            $odr_tab_id = $odr_tab_service->createTabId();
+        if ( $odr_tab_id == '' ) {
+            $params = $request->query->all();  // TODO - this seems flakey...
+            if ( isset($params['odr_tab_id']) ) {
+                // If the tab id exists, use that
+                $odr_tab_id = $params['odr_tab_id'];
+            }
+            else {
+                // ...otherwise, generate a random key to identify this tab
+                $odr_tab_id = $odr_tab_service->createTabId();
+            }
         }
 
         // Check whether this is an "oversized" search key...need somewhat different HTML if so

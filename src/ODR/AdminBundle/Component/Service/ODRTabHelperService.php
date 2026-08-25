@@ -18,6 +18,7 @@ use ODR\AdminBundle\Exception\ODRBadRequestException;
 use ODR\AdminBundle\Exception\ODRException;
 // Other
 use ODR\OpenRepository\UserBundle\Component\Service\ODRTokenGenerator as TokenGenerator;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 
@@ -36,11 +37,13 @@ class ODRTabHelperService
      * @param string $default_search_results_limit
      * @param RequestStack $request_stack
      * @param TokenGenerator $token_generator
+     * @param LoggerInterface $logger
      */
     public function __construct(
         string $default_search_results_limit,
         private readonly RequestStack $request_stack,
-        private readonly TokenGenerator $token_generator
+        private readonly TokenGenerator $token_generator,
+        private readonly LoggerInterface $logger
     ) {
         if ( is_numeric($default_search_results_limit) )
             $this->default_page_length = intval($default_search_results_limit);
@@ -598,18 +601,18 @@ class ODRTabHelperService
      */
     public function setTabData($odr_tab_id, $tab_data)
     {
-       $request = $this->request_stack->getCurrentRequest();
-       $session = $request->getSession();
+        $request = $this->request_stack->getCurrentRequest();
+        $session = $request->getSession();
 
-       if ( !$session->has('stored_tab_data') ) {
-           // No stored tab data for this user's session...start a new one
-           $session->set('stored_tab_data', [$odr_tab_id => $tab_data]);
-       }
-       else {
-           $stored_tab_data = $session->get('stored_tab_data');
-           $stored_tab_data[$odr_tab_id] = $tab_data;
+        if ( !$session->has('stored_tab_data') ) {
+            // No stored tab data for this user's session...start a new one
+            $session->set('stored_tab_data', [$odr_tab_id => $tab_data]);
+        }
+        else {
+            $stored_tab_data = $session->get('stored_tab_data');
+            $stored_tab_data[$odr_tab_id] = $tab_data;
 
-           $session->set('stored_tab_data', $stored_tab_data);
-       }
+            $session->set('stored_tab_data', $stored_tab_data);
+        }
     }
 }

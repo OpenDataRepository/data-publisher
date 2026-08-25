@@ -44,6 +44,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchRedirectService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchSidebarService;
 use ODR\OpenRepository\UserBundle\Component\Service\TrackedPathService;
 // Symfony
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -984,6 +985,8 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
             $search_redirect_service = $this->search_redirect_service;
             /** @var ThemeInfoService $theme_info_service */
             $theme_info_service = $this->theme_info_service;
+            /** @var LoggerInterface $logger */
+            $logger = $this->container->get('logger');
 
 
             /** @var ODRCustomController $odrcc */
@@ -1115,13 +1118,14 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
                 $user,
                 $path_str,
                 $intent,
-                $search_key,
+                $merged_search_key,
                 $offset,
+                $odr_tab_id,
                 $request
             );
             $return['d'] = [
                 'html' => $html,
-                'search_key' => $search_key,
+                'search_key' => $merged_search_key,
             ];
         }
         catch (\Exception $e) {
