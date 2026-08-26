@@ -1,0 +1,41 @@
+odr_plugins.sherloc.sherloc:
+    name: SHERLOC Plugin
+    category: SHERLOC
+    plugin_type: datatype
+    render: odr_plugins.sherloc.sherloc
+    version: 1.0.0
+    override_fields: true
+    override_field_reload: true
+    override_child: false
+    override_table_fields: false
+    override_export: false
+    override_search: false
+    override_sort: false
+    suppress_no_fields_note: false
+    description: This plugin enables the use of the Chemistry Elements for SHERLOC.  The chemistry field required by this should also be using the Chemistry Plugin.
+    registered_events:
+        PostUpdateEvent: onPostUpdate
+        MassEditTriggerEvent: onMassEditTrigger
+
+    ##### IMPORTANT #####
+    # The "name" values defined for each of the required fields are critical  e.g.  name: Mineral ID
+    # SHERLOCPlugin.php and twig files for this plugin use them to match renderplugin fields to actual datafields
+    # ANY CHANGES TO THESE NAME VALUES MUST BE MADE IN THOSE FILES AS WELL
+    #####################
+
+    required_fields:
+        chemical_formula:
+            name: Chemistry Formula
+            description: The formula of the IMA mineral.
+            type: LongVarchar
+            display_order: 1
+        chemistry_elements:
+            name: Chemistry Elements
+            description: The contents of this field will be automatically generated from the "Chemical Formula" field.
+            type: LongVarchar
+            display_order: 2
+            properties:
+                - no_user_edits
+                - is_derived
+
+    config_options:
