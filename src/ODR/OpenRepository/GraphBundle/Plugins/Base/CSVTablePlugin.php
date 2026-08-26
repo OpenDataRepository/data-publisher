@@ -196,6 +196,9 @@ class CSVTablePlugin implements DatafieldPluginInterface
             if ($filesize > 5)
                 throw new \Exception('Currently not permitted to execute on files larger than 5Mb');
 
+            // Shouldn't happen, but be safe...
+            if ( !file_exists($local_filepath) )
+                return null;
 
             // Load file and parse into array
             ini_set('auto_detect_line_endings', true);
