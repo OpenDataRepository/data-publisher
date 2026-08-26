@@ -1013,7 +1013,7 @@ class IMAPlugin implements DatatypePluginInterface, DatafieldDerivationInterface
                 //  plugin's template instead of the default
                 return [
                     'token_list' => [],    // so ODRRenderService generates CSRF tokens
-                    'template_name' => '@ODROpenRepositoryGraph/RRUFF/IMA/ima_edit_datafield_reload.html.twig',
+                    'template_name' => '@ODROpenRepositoryGraph/RRUFF/IMA/ima_edit_elements_datafield_reload.html.twig',
                     'problem_fields' => $derivation_problems,
                 ];
             }
