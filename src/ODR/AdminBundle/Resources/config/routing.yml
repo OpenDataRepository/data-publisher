@@ -705,7 +705,7 @@ odr_design_check_sync_with_template:
 # Edit Controller
 odr_record_edit:
     path:  /edit/{datarecord_id}/{search_theme_id}/{search_key}/{offset}
-    defaults: { _controller: ODR\AdminBundle\Controller\EditController::editAction, search_theme_id: 0, search_key: '', offset: '' }
+    defaults: { _controller: ODR\AdminBundle\Controller\EditController::editAction, search_theme_id: 0, search_key: '', offset: 0 }
     requirements:
         datarecord_id:  \d+
         search_theme_id: \d+
@@ -1119,7 +1119,7 @@ odr_replace_links_worker:
 # Display Controller
 odr_display_view:
     path:  /view/{datarecord_id}/{search_theme_id}/{search_key}/{offset}
-    defaults: { _controller: ODR\AdminBundle\Controller\DisplayController::viewAction, search_theme_id: 0, search_key: '', offset: '' }
+    defaults: { _controller: ODR\AdminBundle\Controller\DisplayController::viewAction, search_theme_id: 0, search_key: '', offset: 0 }
     requirements:
         datarecord_id:  \d+
         search_theme_id: \d+
@@ -1143,7 +1143,7 @@ odr_view_random:
 #
 odr_legacy_results_view:
     path:  /results/view/{datarecord_id}/{search_key}/{offset}
-    defaults: { _controller: ODR\AdminBundle\Controller\DisplayController::legacy_viewAction, search_key: '', offset: '' }
+    defaults: { _controller: ODR\AdminBundle\Controller\DisplayController::legacy_viewAction, search_key: '', offset: 0 }
     requirements:
         datarecord_id:  \d+
         search_key: '[a-zA-Z0-9\-\=\|\_]*'
@@ -1151,7 +1151,7 @@ odr_legacy_results_view:
 
 odr_legacy_display_view:
     path:  /view/{datarecord_id}/{search_key}/{offset}
-    defaults: { _controller: ODR\AdminBundle\Controller\DisplayController::legacy_viewAction, search_key: '', offset: '' }
+    defaults: { _controller: ODR\AdminBundle\Controller\DisplayController::legacy_viewAction, search_key: '', offset: 0 }
     requirements:
         datarecord_id:  \d+
         search_key: '[^\/]*'
@@ -1438,7 +1438,7 @@ odr_flow_upload:
 # MassEdit Controller
 odr_mass_edit_render:
     path: /admin/massedit/{datatype_id}/{search_theme_id}/{search_key}/{offset}
-    defaults: { _controller: ODR\AdminBundle\Controller\MassEditController::massEditAction, search_theme_id: 0, search_key: '', offset: '' }
+    defaults: { _controller: ODR\AdminBundle\Controller\MassEditController::massEditAction, search_theme_id: 0, search_key: '', offset: 0 }
     requirements:
         datatype_id: \d+
         search_theme_id: \d+
@@ -1475,7 +1475,7 @@ odr_mass_delete:
 # CSVExport Controller
 odr_csv_export_render:
     path: /csvexport/{datatype_id}/{search_theme_id}/{search_key}/{offset}
-    defaults: { _controller: ODR\AdminBundle\Controller\CSVExportController::csvExportAction, offset: '' }
+    defaults: { _controller: ODR\AdminBundle\Controller\CSVExportController::csvExportAction, offset: 0 }
     requirements:
         datatype_id: \d+
         search_theme_id: \d+
