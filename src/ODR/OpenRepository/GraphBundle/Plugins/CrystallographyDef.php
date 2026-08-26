@@ -392,7 +392,7 @@ class CrystallographyDef
         // The lattice is always the first character, and should be dropped...
         $pg = substr((string) $space_group, 1);
         // ...Replace all remaining letters with 'm'
-        $pg = str_replace(['a','b','c','d','n'], 'm', $pg);
+        $pg = str_replace(['a','b','c','d','e','n'], 'm', $pg);
         // ...eliminate subscripts
         $pg = preg_replace('/_\d/', '', $pg);
 
@@ -527,6 +527,10 @@ class CrystallographyDef
         //  to have a '1' added back in
         if ( strlen($wyckoff_space_group) === 1 )
             $wyckoff_space_group = $wyckoff_space_group.'1';
+
+        // Ensure the capitalization is consistent with the Wyckoff notation before returning
+        $wyckoff_space_group = strtolower($wyckoff_space_group);
+        $wyckoff_space_group = ucfirst($wyckoff_space_group);
 
         return $wyckoff_space_group;
     }
