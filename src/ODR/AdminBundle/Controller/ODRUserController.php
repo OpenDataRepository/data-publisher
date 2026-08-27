@@ -30,6 +30,7 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Forms
+use ODR\AdminBundle\Form\ODRAdminChangeEmailForm;
 use ODR\AdminBundle\Form\ODRAdminChangePasswordForm;
 use ODR\AdminBundle\Form\ODRUserProfileForm;
 // OAuth
@@ -45,6 +46,8 @@ use Symfony\Bundle\FrameworkBundle\Routing\Router;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+
+
 class ODRUserController extends ODRCustomController
 {
 
@@ -366,6 +369,9 @@ class ODRUserController extends ODRCustomController
             // User is doing this to his own profile, by definition
             $self_edit = true;
 
+            $can_change_email = self::canChangeEmail($user, $user);
+            $can_change_password = self::canChangePassword($user, $user);
+
 
             // ----------------------------------------
             // OAuth client (HWIOAuthBundle, GitHub/Google login) removed in the Symfony 5 upgrade -- was unused
@@ -393,6 +399,8 @@ class ODRUserController extends ODRCustomController
                         'current_user' => $user,
                         'target_user' => $user,
                         'self_edit' => $self_edit,
+                        'can_change_email' => $can_change_email,
+                        'can_change_password' => $can_change_password,
 
                         'has_oauth_providers' => $has_oauth_providers,
                         'connected_oauth_resources' => $connected_oauth_resources,
@@ -469,6 +477,9 @@ class ODRUserController extends ODRCustomController
             if ($admin_user->getId() == $target_user->getId())
                 $self_edit = true;
 
+            $can_change_email = self::canChangeEmail($admin_user, $target_user);
+            $can_change_password = self::canChangePassword($admin_user, $target_user);
+
 
             // ----------------------------------------
             // OAuth client (HWIOAuthBundle, GitHub/Google login) removed in the Symfony 5 upgrade -- was unused
@@ -502,6 +513,8 @@ class ODRUserController extends ODRCustomController
                         'current_user' => $admin_user,
                         'target_user' => $target_user,
                         'self_edit' => $self_edit,
+                        'can_change_email' => $can_change_email,
+                        'can_change_password' => $can_change_password,
 
                         'has_oauth_providers' => $has_oauth_providers,
                         'connected_oauth_resources' => $connected_oauth_resources,
@@ -525,6 +538,44 @@ class ODRUserController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
+    }
+
+
+    /**
+     * Returns whether the given admin user can change the target user's email.
+     *
+     * @param ODRUser $admin_user
+     * @param ODRUser $target_user
+     * @return bool
+     */
+    private function canChangeEmail($admin_user, $target_user)
+    {
+        if ( $admin_user->hasRole('ROLE_SUPER_ADMIN') ) {
+            if ( $admin_user->getId() == $target_user->getId() || !$target_user->hasRole('ROLE_SUPER_ADMIN') ) {
+                // Super-admins can change their own email, or the email of other non-super-admin users
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+
+    /**
+     * Returns whether the given admin user can change the target user's password.
+     *
+     * @param ODRUser $admin_user
+     * @param ODRUser $target_user
+     * @return bool
+     */
+    private function canChangePassword($admin_user, $target_user)
+    {
+        if ( $admin_user->hasRole('ROLE_SUPER_ADMIN') || $admin_user->getId() == $target_user->getId() ) {
+            // A user's password can be changed by themself or by a super admin
+            return true;
+        }
+
+        return false;
     }
 
 
@@ -721,6 +772,183 @@ class ODRUserController extends ODRCustomController
 
 
     /**
+     * Returns the HTML for an admin user to change another user's email
+     *
+     * @param integer $user_id The database id of the user to edit.
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function changeemailAction($user_id, Request $request)
+    {
+        $return = [];
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Grab the specified user
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->container->get('doctrine')->getManager();
+
+            /** @var \Twig\Environment $templating */
+            $templating = $this->container->get('twig');
+
+
+            /** @var ODRUser $target_user */
+            $target_user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find($user_id);
+            if ($target_user == null || !$target_user->isEnabled())
+                throw new ODRNotFoundException('User');
+
+            // --------------------
+            // Ensure user has permissions to be doing this
+            /** @var ODRUser $admin_user */
+            $admin_user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
+
+            if ( self::canChangeEmail($admin_user, $target_user) ) {
+                // User is allowed to change this (other) user's email
+            }
+            else {
+                throw new ODRForbiddenException();
+            }
+            // --------------------
+
+            // Create a new form to edit the user
+            $form = $this->createForm(
+                ODRAdminChangeEmailForm::class,
+                $target_user,
+                [
+                    'target_user_id' => $target_user->getId()
+                ]
+            );
+
+            // Render them in a list
+            $return['d'] = [
+                'html' => $templating->render(
+                    '@ODRAdmin/ODRUser/change_email.html.twig',
+                    [
+                        'form' => $form->createView(),
+                        'current_user' => $admin_user,
+                        'target_user' => $target_user,
+                    ]
+                )
+            ];
+
+        }
+        catch (\Exception $e) {
+            $source = 0x10f2f148;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
+     * Saves changes an admin makes to another user's email
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function saveemailAction(Request $request)
+    {
+        $return = [];
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            // Need to get the user id out of the form to check permissions...
+            $post = $request->request->all();
+            if ( !isset($post['ODRAdminChangeEmailForm']['user_id']) )
+                throw new ODRBadRequestException();
+
+            $target_user_id = intval( $post['ODRAdminChangeEmailForm']['user_id'] );
+
+
+            // Grab necessary objects
+            /** @var \Doctrine\ORM\EntityManager $em */
+            $em = $this->container->get('doctrine')->getManager();
+
+            /** @var UserManager $user_manager */
+            $user_manager = $this->container->get('fos_user.user_manager');
+
+            /** @var ODRUser $target_user */
+            $target_user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User')->find($target_user_id);
+            if ($target_user == null)
+                throw new ODRNotFoundException('User');
+
+
+            // --------------------
+            // Ensure user has permissions to be doing this
+            /** @var ODRUser $admin_user */
+            $admin_user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
+
+            if ( self::canChangeEmail($admin_user, $target_user) ) {
+                // User is allowed to change this (other) user's email
+            }
+            else {
+                throw new ODRForbiddenException();
+            }
+            // --------------------
+
+            // Bind form to user
+            $submitted_data = new ODRUser();
+            $form = $this->createForm(
+                ODRAdminChangeEmailForm::class,
+                $submitted_data,
+                [
+                    'target_user_id' => $target_user->getId()
+                ]
+            );
+            $form->handleRequest($request);
+
+            if ($form->isSubmitted()) {
+                // Need to prevent duplicate email addresses...
+                $new_email = $submitted_data->getEmail();
+                $existing_user = $user_manager->findUserByEmail($new_email);
+
+                // ...so throw an error if this email address belongs to a different user
+                if ( !is_null($existing_user) && $existing_user->getId() !== $target_user->getId() )
+                    $form->addError( new FormError('duplicate email') );
+
+                // TODO - check for additional errors to throw?
+                //$form->addError( new FormError('do not save') );
+
+                // If no errors...
+                if ($form->isValid()) {
+                    // Update the user's email and save the change
+                    $target_user->setEmail($new_email);
+                    $user_manager->updateUser($target_user);
+                }
+                else {
+                    // Form validation failed
+                    $error_str = parent::ODR_getErrorMessages($form);
+                    throw new ODRException($error_str);
+                }
+            }
+        }
+        catch (\Exception $e) {
+            $source = 0xa0fa26f1;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
      * Returns the HTML for an admin user to change another user's password
      * TODO - this is seriously bad...password changing should be handled over email, not by admins
      * 
@@ -755,13 +983,10 @@ class ODRUserController extends ODRCustomController
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
-            // If the user is a super admin, or the user is doing this action to his own profile
-            //  for some reason...
-            if ( $admin_user->hasRole('ROLE_SUPER_ADMIN') || $admin_user->getId() == $target_user->getId() ) {
-                // ...then permissions aren't an issue
+            if ( self::canChangePassword($admin_user, $target_user) ) {
+                // User is allowed to change this (other) user's password
             }
             else {
-                // ...otherwise, don't allow a user to see/edit another user's profile
                 throw new ODRForbiddenException();
             }
             // --------------------
@@ -846,13 +1071,10 @@ class ODRUserController extends ODRCustomController
             /** @var ODRUser $admin_user */
             $admin_user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
 
-            // If the user is a super admin, or the user is doing this action to his own profile
-            //  for some reason...
-            if ( $admin_user->hasRole('ROLE_SUPER_ADMIN') || $admin_user->getId() == $target_user->getId() ) {
-                // ...then permissions aren't an issue
+            if ( self::canChangePassword($admin_user, $target_user) ) {
+                // User is allowed to change this (other) user's password
             }
             else {
-                // ...otherwise, don't allow a user to see/edit another user's profile
                 throw new ODRForbiddenException();
             }
             // --------------------

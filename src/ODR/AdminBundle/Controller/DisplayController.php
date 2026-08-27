@@ -155,9 +155,14 @@ class DisplayController extends ODRCustomController
      *
      * @return Response
      */
-    public function viewAction($datarecord_id, $search_theme_id, $search_key, $offset, Request $request)
-    {
-        $time = microtime(true);
+    public function viewAction(
+        int $datarecord_id,
+        int $search_theme_id,
+        string $search_key,
+        int $offset,
+        Request $request
+    ) {
+        // $time = microtime(true);
         // print "Start: " . $time . "<br />";
         $return = [];
         $return['r'] = 0;
@@ -304,7 +309,7 @@ class DisplayController extends ODRCustomController
                 $odr_tab_service->updateDatatablesOffset($odr_tab_id, $offset);
             }
 
-            $now = microtime(true);
+            // $now = microtime(true);
             // print "NOW: " . $now . "<br />";
             // print "Elapsed: " . ($now - $time) . "<br />";
 
@@ -361,7 +366,7 @@ class DisplayController extends ODRCustomController
                 ]
             );
 
-            $now = microtime(true);
+            // $now = microtime(true);
             // print "NOW: " . $now . "<br />";
             // print "Elapsed: " . ($now - $time) . "<br />";
 
@@ -370,7 +375,7 @@ class DisplayController extends ODRCustomController
             $odr_render_service = $this->render_service;
             $page_html = $odr_render_service->getDisplayHTML($user, $datarecord, $merged_search_key, $theme);
 
-            $now = microtime(true);
+            // $now = microtime(true);
             // print "NOW: " . $now . "<br />";
             // print "Elapsed: " . ($now - $time) . "<br />";
 

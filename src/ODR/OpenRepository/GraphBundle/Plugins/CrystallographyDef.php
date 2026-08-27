@@ -166,9 +166,9 @@ class CrystallographyDef
         36 => ['A2_1am', 'A2_1ma', 'A2_1cn', 'A2_1nb', 'Bb2_1m', 'Bm2_1b', 'Bn2_1a', 'Bc2_1n', 'Ccm2_1', 'Cmc2_1', 'Cbn2_1', 'Cna2_1'],
         37 => ['A2aa', 'A2nn', 'Bb2b', 'Bn2n', 'Ccc2', 'Cnn2'],
         38 => ['Amm2', 'Am2m', 'Anc2_1', 'An2_1b', 'B2mm', 'Bmm2', 'B2_1na', 'Bcn2_1', 'C2mm', 'Cm2m', 'Cb2_1n', 'C2_1an'],
-        39 => ['Abm2', 'Ac2m', 'Acc2_1', 'Ab2_1b', 'B2cm', 'Bma2', 'B2_1aa', 'Bcc2_1', 'Cm2a', 'C2mb', 'Cb2_1b', 'C2_1aa'],
+        39 => ['Abm2', 'Aem2', 'Ac2m', 'Acc2_1', 'Ab2_1b', 'B2cm', 'Bma2', 'B2_1aa', 'Bcc2_1', 'Cm2a', 'C2mb', 'Cb2_1b', 'C2_1aa'],
         40 => ['Ama2', 'Am2a', 'Ann2_1', 'An2_1n', 'B2mb', 'Bbm2', 'B2_1nn', 'Bnn2_1', 'Cc2m', 'C2cm', 'Cn2_1n', 'C2_1nn'],
-        41 => ['Aba2', 'Ac2a', 'Acn2_1', 'Ab2_1n', 'B2cb', 'Bba2', 'B2_1an', 'Bnc2_1', 'Cc2a', 'C2cb', 'Cn2_1b', 'C2_1na'],
+        41 => ['Aba2', 'Aea2', 'Ac2a', 'Acn2_1', 'Ab2_1n', 'B2cb', 'Bba2', 'B2_1an', 'Bnc2_1', 'Cc2a', 'C2cb', 'Cn2_1b', 'C2_1na'],
         42 => ['F2mm', 'Fmm2', 'Fbc2_1', 'Fca2_1', 'Fnn2', 'Fm2m', 'Fb2_1a', 'Fc2_1b', 'Fn2n'],
         43 => ['Fdd2', 'Fdd2_1', 'F2dd', 'F2_1dd', 'Fd2d', 'Fd2_1d'],
         44 => ['Imm2', 'Inn2_1', 'I2mm', 'I2_1nn', 'Im2m', 'In2_1n'],
@@ -190,12 +190,12 @@ class CrystallographyDef
         60 => ['Pbcn', 'Pnca', 'Pbna', 'Pcnb', 'Pcan', 'Pnab'],
         61 => ['Pbca', 'Pcab'],
         62 => ['Pnma', 'Pbnm', 'Pmcn', 'Pnam', 'Pmnb', 'Pcmn'],
-        63 => ['Cmcm', 'Cbnn', 'Amma', 'Ancn', 'Bbmm', 'Bnna', 'Bmmb', 'Bcnn', 'Ccmm', 'Cnan', 'Amam', 'Annb'],
-        64 => ['Cmca', 'Cbnb', 'Abma', 'Accn', 'Bbcm', 'Bnaa', 'Bmab', 'Bccn', 'Ccmb', 'Cnaa', 'Acam', 'Abnb', 'Bbam', 'Bmcb'],
-        65 => ['Cmmm', 'Cban', 'Ammm', 'Ancb', 'Bmmm', 'Bcna'],
-        66 => ['Cccm', 'Cnnn', 'Amaa', 'Annn', 'Bbmb', 'Bnnn'],
-        67 => ['Cmma', 'Cbab', 'Abmm', 'Accb', 'Bmcm', 'Bcaa', 'Bmam', 'Bcca', 'Cmmb', 'Cbaa', 'Acmm', 'Abcb'],
-        68 => ['Ccca', 'Cnnb', 'Abaa', 'Acnn', 'Bbcb', 'Anan', 'Bbab', 'Bncn', 'Cccb', 'Cnna', 'Acaa', 'Abnn'],
+        63 => ['Amam', 'Amma', 'Ancn', 'Annb', 'Bbmm', 'Bcnn', 'Bmmb', 'Bnna', 'Cbnn', 'Ccmm', 'Cmcm', 'Cnan'],
+        64 => ['Abma', 'Abnb', 'Acam', 'Accn', 'Bbam', 'Bbcm', 'Bccn', 'Bmab', 'Bmcb', 'Bnaa', 'Cbnb', 'Ccmb', 'Cmca', 'Cmce', 'Cnaa'],
+        65 => ['Ammm', 'Ancb', 'Bcna', 'Bmmm', 'Cban', 'Cmmm'],
+        66 => ['Amaa', 'Annn', 'Bbmb', 'Bnnn', 'Cccm', 'Cnnn'],
+        67 => ['Abcb', 'Abmm', 'Accb', 'Acmm', 'Bcaa', 'Bcca', 'Bmam', 'Bmcm', 'Cbaa', 'Cbab', 'Cmma', 'Cmmb', 'Cmme'],
+        68 => ['Abaa', 'Abnn', 'Acaa', 'Acnn', 'Anan', 'Bbab', 'Bbcb', 'Bncn', 'Ccca', 'Cccb', 'Ccce', 'Cnna', 'Cnnb'],
         69 => ['Fmmm', 'Fbca', 'Fcab', 'Fnnn'],
         70 => ['Fddd'],
         71 => ['Immm', 'Innn'],
@@ -392,7 +392,7 @@ class CrystallographyDef
         // The lattice is always the first character, and should be dropped...
         $pg = substr((string) $space_group, 1);
         // ...Replace all remaining letters with 'm'
-        $pg = str_replace(['a','b','c','d','n'], 'm', $pg);
+        $pg = str_replace(['a','b','c','d','e','n'], 'm', $pg);
         // ...eliminate subscripts
         $pg = preg_replace('/_\d/', '', $pg);
 
@@ -527,6 +527,10 @@ class CrystallographyDef
         //  to have a '1' added back in
         if ( strlen($wyckoff_space_group) === 1 )
             $wyckoff_space_group = $wyckoff_space_group.'1';
+
+        // Ensure the capitalization is consistent with the Wyckoff notation before returning
+        $wyckoff_space_group = strtolower($wyckoff_space_group);
+        $wyckoff_space_group = ucfirst($wyckoff_space_group);
 
         return $wyckoff_space_group;
     }

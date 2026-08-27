@@ -4,6 +4,7 @@ imports:
     - { resource: "../../Plugins/AHED/config.yml" }
     - { resource: "../../Plugins/Metadata/config.yml" }
     - { resource: "../../Plugins/RRUFF/config.yml" }    # TODO - need a more robust plugin management system...these plugins shouldn't be active/available to the entirety of ODR...
+    - { resource: "../../Plugins/SHERLOC/config.yml" }
 
 services:
     # Console commands (Symfony 4 requires explicit registration)

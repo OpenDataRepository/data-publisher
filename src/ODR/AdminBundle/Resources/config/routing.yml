@@ -30,15 +30,23 @@ odr_self_profile_save:
 odr_admin_new_user_create:
     path:  /admin/new_user/create
     defaults: { _controller: ODR\AdminBundle\Controller\ODRUserController::createnewuserAction }
-
 odr_admin_new_user_check:
     path:  /admin/new_user/check_email
     defaults: { _controller: ODR\AdminBundle\Controller\ODRUserController::checkemailexistenceAction }
     methods: [ POST ]
-
 odr_admin_new_user_save:
     path: /admin/new_user/save
     defaults: { _controller: ODR\AdminBundle\Controller\ODRUserController::savenewuserAction }
+    methods: [ POST ]
+
+odr_admin_change_email:
+    path:  /admin/user/change_email/{user_id}
+    defaults: { _controller: ODR\AdminBundle\Controller\ODRUserController::changeemailAction }
+    requirements:
+        user_id:  \d+
+odr_admin_save_email:
+    path:  /admin/user/change_email/save
+    defaults: { _controller: ODR\AdminBundle\Controller\ODRUserController::saveemailAction }
     methods: [ POST ]
 
 odr_admin_change_password:
@@ -46,7 +54,6 @@ odr_admin_change_password:
     defaults: { _controller: ODR\AdminBundle\Controller\ODRUserController::changepasswordAction }
     requirements:
         user_id:  \d+
-
 odr_admin_save_password:
     path:  /admin/user/change_password/save
     defaults: { _controller: ODR\AdminBundle\Controller\ODRUserController::savepasswordAction }
@@ -57,7 +64,6 @@ odr_profile_edit:
     defaults: { _controller: ODR\AdminBundle\Controller\ODRUserController::editprofileAction }
     requirements:
         user_id:  \d+
-
 odr_profile_save:
     path:  /admin/user/save
     defaults: { _controller: ODR\AdminBundle\Controller\ODRUserController::saveprofileAction }
@@ -70,7 +76,6 @@ odr_user_list:
 odr_manage_user_roles:
     path:  /admin/user/manage/roles
     defaults: { _controller: ODR\AdminBundle\Controller\ODRUserController::managerolesAction }
-
 odr_set_user_role:
     path:  /admin/user/setrole/{user_id}/{role}
     defaults: { _controller: ODR\AdminBundle\Controller\ODRUserController::setroleAction }
@@ -83,7 +88,6 @@ odr_delete_user:
     defaults: { _controller: ODR\AdminBundle\Controller\ODRUserController::deleteuserAction }
     requirements:
         user_id:  \d+
-
 odr_undelete_user:
     path:  /admin/user/undelete/{user_id}
     defaults: { _controller: ODR\AdminBundle\Controller\ODRUserController::undeleteuserAction }
@@ -701,7 +705,7 @@ odr_design_check_sync_with_template:
 # Edit Controller
 odr_record_edit:
     path:  /edit/{datarecord_id}/{search_theme_id}/{search_key}/{offset}
-    defaults: { _controller: ODR\AdminBundle\Controller\EditController::editAction, search_theme_id: 0, search_key: '', offset: '' }
+    defaults: { _controller: ODR\AdminBundle\Controller\EditController::editAction, search_theme_id: 0, search_key: '', offset: 0 }
     requirements:
         datarecord_id:  \d+
         search_theme_id: \d+
@@ -1069,7 +1073,7 @@ odr_record_get_linked_datarecords:
 
 odr_record_get_linkable_datarecords:
     path:  /edit/getlinkablerecords/{ancestor_datatype_id}/{descendant_datatype_id}/{local_datarecord_id}/{search_theme_id}/{search_key}
-    defaults: { _controller: ODR\AdminBundle\Controller\LinkController::getlinkabledatarecordsAction, search_theme_id: '', search_key: '' }
+    defaults: { _controller: ODR\AdminBundle\Controller\LinkController::getlinkabledatarecordsAction, search_theme_id: 0, search_key: '' }
     requirements:
         ancestor_datatype_id:  \d+
         descendant_datatype_id:  \d+
@@ -1115,7 +1119,7 @@ odr_replace_links_worker:
 # Display Controller
 odr_display_view:
     path:  /view/{datarecord_id}/{search_theme_id}/{search_key}/{offset}
-    defaults: { _controller: ODR\AdminBundle\Controller\DisplayController::viewAction, search_theme_id: 0, search_key: '', offset: '' }
+    defaults: { _controller: ODR\AdminBundle\Controller\DisplayController::viewAction, search_theme_id: 0, search_key: '', offset: 0 }
     requirements:
         datarecord_id:  \d+
         search_theme_id: \d+
@@ -1139,7 +1143,7 @@ odr_view_random:
 #
 odr_legacy_results_view:
     path:  /results/view/{datarecord_id}/{search_key}/{offset}
-    defaults: { _controller: ODR\AdminBundle\Controller\DisplayController::legacy_viewAction, search_key: '', offset: '' }
+    defaults: { _controller: ODR\AdminBundle\Controller\DisplayController::legacy_viewAction, search_key: '', offset: 0 }
     requirements:
         datarecord_id:  \d+
         search_key: '[a-zA-Z0-9\-\=\|\_]*'
@@ -1147,7 +1151,7 @@ odr_legacy_results_view:
 
 odr_legacy_display_view:
     path:  /view/{datarecord_id}/{search_key}/{offset}
-    defaults: { _controller: ODR\AdminBundle\Controller\DisplayController::legacy_viewAction, search_key: '', offset: '' }
+    defaults: { _controller: ODR\AdminBundle\Controller\DisplayController::legacy_viewAction, search_key: '', offset: 0 }
     requirements:
         datarecord_id:  \d+
         search_key: '[^\/]*'
@@ -1434,7 +1438,7 @@ odr_flow_upload:
 # MassEdit Controller
 odr_mass_edit_render:
     path: /admin/massedit/{datatype_id}/{search_theme_id}/{search_key}/{offset}
-    defaults: { _controller: ODR\AdminBundle\Controller\MassEditController::massEditAction, offset: '' }
+    defaults: { _controller: ODR\AdminBundle\Controller\MassEditController::massEditAction, search_theme_id: 0, search_key: '', offset: 0 }
     requirements:
         datatype_id: \d+
         search_theme_id: \d+
@@ -1471,7 +1475,7 @@ odr_mass_delete:
 # CSVExport Controller
 odr_csv_export_render:
     path: /csvexport/{datatype_id}/{search_theme_id}/{search_key}/{offset}
-    defaults: { _controller: ODR\AdminBundle\Controller\CSVExportController::csvExportAction, offset: '' }
+    defaults: { _controller: ODR\AdminBundle\Controller\CSVExportController::csvExportAction, offset: 0 }
     requirements:
         datatype_id: \d+
         search_theme_id: \d+
