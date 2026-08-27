@@ -21,7 +21,7 @@ async function buildGraph() {
     let selector = process.argv[4]
     console.log('Selector: ' + selector)
 
-    const browser = await puppeteer.launch({headless:'new', acceptInsecureCerts: !!process.env.ODR_CHROME_IGNORE_CERT, args: process.env.ODR_CHROME_NO_SANDBOX ? ['--no-sandbox','--disable-setuid-sandbox'] : []})
+    const browser = await require('./chromium_launcher').launch(puppeteer)
     const page = await browser.newPage();
     page.on('console', message =>
         console.log(`${message.type().substr(0, 3).toUpperCase()} ${message.text()}`)

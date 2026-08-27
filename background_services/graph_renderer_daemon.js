@@ -59,24 +59,12 @@ function findChromiumExecutable() {
 }
 
 async function app() {
-    const launchOpts = {
-        headless: 'new',
-        // Required for snap-installed chromium and for running as root;
-        // harmless on a non-sandboxed binary.
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
-        // Dev-box toggle for self-signed/invalid certs (off by default, so
-        // production is unaffected). Preserved from the SF7 branch adaptation.
-        acceptInsecureCerts: !!process.env.ODR_CHROME_IGNORE_CERT,
-    };
-    const executablePath = findChromiumExecutable();
-    if (executablePath) {
-        console.log('Using Chromium executable: ' + executablePath);
-        launchOpts.executablePath = executablePath;
-    } else {
-        console.log('Using puppeteer-bundled Chrome.');
-    }
-
-    browser = await puppeteer.launch(launchOpts);
+    // Chromium selection + sandbox/TLS flags are resolved automatically per host
+    // (see chromium_launcher.js): normal sandboxed Puppeteer on production, with
+    // arm/dev workarounds applied only where the host actually needs them.
+    // NOTE: the local findChromiumExecutable() above is now unused (superseded
+    // by chromium_launcher.detectExecutable()) and can be deleted.
+    browser = await require('./chromium_launcher').launch(puppeteer);
     client.watch(tube).onSuccess(function(data) {
         function resJob() {
             client.reserve().onSuccess(async function(job) {

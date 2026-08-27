@@ -611,36 +611,12 @@ async function reserveLoop(slotId, slotClient) {
 }
 
 async function main() {
-    const args = ['--no-sandbox', '--disable-setuid-sandbox'];
-
-    // Optional dev toggle — set STATIC_RENDER_IGNORE_HTTPS_ERRORS=1 when the
-    // target host has an invalid/self-signed cert (typical for local dev
-    // boxes like dev.odr.io). Off by default so production stays strict.
-    const ignoreHTTPSErrors = process.env.STATIC_RENDER_IGNORE_HTTPS_ERRORS === '1';
-    if (ignoreHTTPSErrors)
-        args.push('--ignore-certificate-errors');
-
-    const launchOpts = {
-        headless: 'new',
-        // --no-sandbox is required for snap-installed chromium and for
-        // running as root; harmless on a non-sandboxed binary.
-        args: args,
-        // Tells Puppeteer's network layer to ignore TLS errors too — needed
-        // alongside --ignore-certificate-errors so neither layer blocks the
-        // navigation.
-        ignoreHTTPSErrors: ignoreHTTPSErrors,
-    };
-    const executablePath = findChromiumExecutable();
-    if (executablePath) {
-        console.log(`Using Chromium executable: ${executablePath}`);
-        launchOpts.executablePath = executablePath;
-    } else {
-        console.log('Using puppeteer-bundled Chrome.');
-    }
-    if (ignoreHTTPSErrors)
-        console.log('STATIC_RENDER_IGNORE_HTTPS_ERRORS=1 — skipping HTTPS cert validation.');
-
-    browser = await puppeteer.launch(launchOpts);
+    // Chromium selection + sandbox/TLS flags are resolved automatically per host
+    // (see chromium_launcher.js). STATIC_RENDER_IGNORE_HTTPS_ERRORS is still
+    // honored there for back-compat; production stays strict + sandboxed.
+    // NOTE: the local findChromiumExecutable() above is now unused (superseded
+    // by chromium_launcher.detectExecutable()) and can be deleted.
+    browser = await require('./chromium_launcher').launch(puppeteer);
 
     // Concurrent worker slots. Default 1; bump via env var when needed.
     // Each slot has its own beanstalkd connection (nodestalker serializes

@@ -1,3 +1,4 @@
+require('./dev_env');  // load .env + relax Node TLS for self-signed dev hosts
 /*
  * https://github.com/akeyboardlife/puppeteer-save-svg/blob/master/main.js
  */
@@ -333,13 +334,15 @@ async function app() {
                             let amcsd_mineral_name = (await findValue(amcsd_map.mineral_name, record_data)).toLowerCase();
 
                             /*
-                              If we have any ima record here, it means a RRUFF
-                              record exists.
+                              If we have any ima record here, it means an AMCSD
+                              record exists.  TODO Is this true?
                              */
                             let ima_record = await findRecordByTemplateUUID(
                                 record_data['records_' + amcsd_map.database_uuid],
                                 cp_map.ima_template_uuid
                             );
+
+                            // At this point all records should have an IMA record linked
                             if(
                                 ima_record !== undefined
                                 && ima_record.record_uuid !== undefined
@@ -355,6 +358,9 @@ async function app() {
                                 let minerals_with_amcsd_content = '$amcsd_mineral_names["' + ima_record.record_uuid + '"] = "' + sanitizeMineralName((await findValue(mineral_ascii_name_uuid, record_data)).toLowerCase()) + '";\n';
                                 // Create mineral list for quick redirect
                                 await appendFile(record.base_path + record.mineral_data + '_amcsd.' + record.file_extension, minerals_with_amcsd_content);
+
+                                // Use IMA UUID 
+                                amcsd_mineral_name = ima_record.record_uuid;
                             }
 
                             content += 'if(cellparams[\'' + amcsd_mineral_name + '\'] === undefined) { cellparams[\'' + amcsd_mineral_name + '\'] = {} };';

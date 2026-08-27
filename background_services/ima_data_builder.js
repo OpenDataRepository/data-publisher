@@ -1,3 +1,4 @@
+require('./dev_env');  // load .env + relax Node TLS for self-signed dev hosts
 /* jshint esversion: 8 */
 
 const https = require('https');
@@ -51,6 +52,13 @@ async function app() {
                     };
                     let login_token = await apiCall(data.api_login_url, post_data, 'POST');
                     token = login_token.token;
+                    // Fail loudly here rather than 6 calls later with a cryptic
+                    // "Cannot read properties of undefined (reading 'length')":
+                    // if the token is missing, the login was rejected.
+                    if (!token) {
+                        throw new Error('Login failed at ' + data.api_login_url + ' for user "' +
+                            data.api_user + '": ' + JSON.stringify(login_token));
+                    }
 
                     // Create tracked Job
 
@@ -744,11 +752,19 @@ async function apiCall(api_url, post_data, method) {
                 });
 
                 res.on('end', () => {
+                    // Surface HTTP errors directly instead of resolving an error
+                    // body that downstream code then crashes on (e.g. reading
+                    // `.records` off a {code,message} error object).
+                    if (res.statusCode < 200 || res.statusCode >= 300) {
+                        return reject(new Error('API ' + res.statusCode + ' from ' + api_url +
+                            ': ' + data.slice(0, 500)));
+                    }
                     try {
                         const responseBody = JSON.parse(data);
                         resolve(responseBody);
                     } catch (e) {
-                        reject(new Error('Failed to parse JSON response: ' + e.message));
+                        reject(new Error('Failed to parse JSON response from ' + api_url +
+                            ': ' + e.message + ' — body starts: ' + data.slice(0, 200)));
                     }
                 });
             });
