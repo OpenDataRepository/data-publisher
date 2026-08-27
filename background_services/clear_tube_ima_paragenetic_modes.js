@@ -1,23 +1,8 @@
-/*
- * https://github.com/akeyboardlife/puppeteer-save-svg/blob/master/main.js
- */
-
-const puppeteer = require('puppeteer');
-const fs = require('fs');
-
 const bs = require('nodestalker');
 const client = bs.Client('127.0.0.1:11300');
 const tube = 'odr_paragenetic_modes_record_builder';
-let browser;
-
-function delay(time) {
-    return new Promise(function(resolve) {
-        setTimeout(resolve, time)
-    });
-}
 
 async function app() {
-    browser = await require('./chromium_launcher').launch(puppeteer);
     console.log('Clearing Tube IMA Paragenetic Modes...');
     client.watch(tube).onSuccess(function(data) {
         function resJob() {
