@@ -117,32 +117,50 @@ function elfArchMatches(file) {
     }
 }
 
+// A cache dir can hold several Chrome versions side by side (e.g.
+// linux-113.0.5672.63, linux-152.0.7977.42). readdirSync order is roughly
+// alphabetical, which would pick the OLDEST — and an old Chrome fails to speak
+// the current puppeteer-core's protocol (30s launch timeout). So sort each
+// source newest-first by its embedded version number.
+function versionTuple(name) {
+    const m = name.match(/\d+/g);
+    return m ? m.map(Number) : [];
+}
+function byVersionDesc(a, b) {
+    const va = versionTuple(a), vb = versionTuple(b);
+    const len = Math.max(va.length, vb.length);
+    for (let i = 0; i < len; i++) {
+        const x = va[i] || 0, y = vb[i] || 0;
+        if (x !== y) return y - x;   // descending: newest first
+    }
+    return 0;
+}
+
 // Cache-managed Chromium binaries. These are real ELF binaries, so we always
 // arch-validate them (that's what filters out the x86 / mislabeled builds that
-// otherwise crash with "Exec format error" on arm64).
+// otherwise crash with "Exec format error" on arm64). Within each source the
+// newest version is tried first.
 function cacheCandidates() {
     const home = os.homedir();
     const out = [];
 
     // Playwright — publishes genuine per-platform arm64 Linux builds.
     const pw = path.join(home, '.cache', 'ms-playwright');
-    for (const d of listDir(pw)) {
-        if (!/^chromium[-_]/.test(d)) continue;
+    for (const d of listDir(pw).filter(function (n) { return /^chromium[-_]/.test(n); }).sort(byVersionDesc)) {
         out.push(path.join(pw, d, 'chrome-linux', 'chrome'));
     }
 
     // Puppeteer's own browser cache. On arm this may hold an x86 build and/or a
     // mislabeled "linux_arm" build; arch validation drops the unusable ones.
     const pp = path.join(home, '.cache', 'puppeteer', 'chrome');
-    for (const d of listDir(pp)) {
+    for (const d of listDir(pp).sort(byVersionDesc)) {
         out.push(path.join(pp, d, 'chrome-linux64', 'chrome'));
         out.push(path.join(pp, d, 'chrome-linux', 'chrome'));
     }
 
     // Project-local download (background_services/chromium/linux*/...).
     const proj = path.join(__dirname, 'chromium');
-    for (const d of listDir(proj)) {
-        if (!/^linux/.test(d)) continue;
+    for (const d of listDir(proj).filter(function (n) { return /^linux/.test(n); }).sort(byVersionDesc)) {
         out.push(path.join(proj, d, 'chrome-linux', 'chrome'));
         out.push(path.join(proj, d, 'chrome-linux64', 'chrome'));
     }
