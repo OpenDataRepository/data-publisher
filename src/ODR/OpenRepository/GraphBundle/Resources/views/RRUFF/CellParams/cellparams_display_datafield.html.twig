@@ -1,5 +1,7 @@
 {% apply spaceless %}
 
+{# NOTE: This is only called for the "Point Group", "Space Group", or "Calculated Volume" fields...all of which are "Short Text" #}
+
 {% set datafield_meta = datafield.dataFieldMeta %}
 {% set field_typeclass = datafield_meta.fieldType.typeClass %}
 
@@ -26,7 +28,6 @@
 {% set input_id = field_typeclass ~ 'Form_' ~ unique_id %}
 
 <form class="pure-u-1" id="ViewForm_{{ unique_id }}">
-    {# This is guaranteed to only be called on "Short Text" fields #}
     <fieldset>
         <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">
             {{ datafield_meta.fieldName }}

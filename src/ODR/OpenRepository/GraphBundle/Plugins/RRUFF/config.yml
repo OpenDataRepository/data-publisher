@@ -176,6 +176,13 @@ services:
             $templating: '@twig'
             $logger: "@logger"
 
+    odr_plugins.rruff.jsmol_trigger:
+        public: true
+        class: '%odr_plugin_base_classpath%\RRUFF\JSmolTriggerPlugin'
+        arguments:
+            $templating: '@twig'
+            $logger: "@logger"
+
     # ----------------------------------------
     # Temporary datatype plugins
     odr_plugins.rruff.instruments:

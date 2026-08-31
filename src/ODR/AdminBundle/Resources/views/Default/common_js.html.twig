@@ -657,10 +657,9 @@
     function openChooseViewRemodal(datatype_id, page_type, search_key = '') {
         var page_type_title = "Choose from available layouts:";
         if ( page_type != '' ) {
-            var pieces = page_type.split(/_/);
-            for (var key in pieces)
-                pieces[key] = pieces[key][0].toUpperCase() + pieces[key].slice(1);
-            page_type_title = "Choose from available layouts for " + pieces.join(' ') + " mode:";
+            var formatted_page_type = page_type.charAt(0).toUpperCase() + page_type.slice(1);
+            formatted_page_type = formatted_page_type.replaceAll('_', ' ');
+            page_type_title = "Choose from available layouts for " + formatted_page_type + " mode:";
         }
 
         /** @type {odr_remodal_options} modal_options */

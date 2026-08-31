@@ -3575,8 +3575,15 @@ a.ui-button:active,
     margin-top: 5px;
 }
 
+.remodal-is-locked {
+    /*
+     * the default remodal-is-locked class adds an "overflow: hidden;" rule, which apparently
+     * causes wordpress to scroll to the top of the page?
+     */
+    overflow: unset !important;
+}
 .ODRRemodal {
-    max-width: 90%;
+    /*max-width: 90%;*/
     border: 1px solid #7fb9d8;
     border-radius: 4px;
     color: #3b8bba;
@@ -3623,8 +3630,13 @@ a.ui-button:active,
     margin-left: -10px;
 }
 .ODRRemodalInner {
-    overflow: scroll;
     height: 10px;
+}
+.ODRRemodalInner_scroll {
+    overflow: scroll;
+}
+.ODRRemodalInner_noscroll {
+    overflow:hidden;
 }
 .ODRRemodalInnerContent {
     /* overflow: scroll; */
@@ -3647,18 +3659,22 @@ a.ui-button:active,
 }
 
 /* Fixing bad Remodal CSS Decisions */
-.remodal {
+.ODRRemodal_fullwidth {
     /* max-width: 700px; */
     max-width: 90% !important;
     max-height: 90% !important;
 }
-@media only screen and (min-width: 641px) {
-    .remodal {
-        /* max-width: 700px; */
-        max-width: 90% !important;
-        max-height: 90% !important;
-    }
+.ODRRemodal_minwidth {
+    width: unset !important;
+    max-width: unset !important;
 }
+/*@media only screen and (min-width: 641px) {*/
+/*    .remodal {*/
+/*        !* max-width: 700px; *!*/
+/*        max-width: 90% !important;*/
+/*        max-height: 90% !important;*/
+/*    }*/
+/*}*/
 
 /* Media Queries */
 /* pure-hidden-xs */

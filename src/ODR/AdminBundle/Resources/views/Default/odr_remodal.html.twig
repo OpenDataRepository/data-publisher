@@ -103,6 +103,9 @@
      * @property {string} [loading_text] - If true, then forces the 'loading' blurb to be visible
      * @property {odr_remodal_button[]} [buttons] - An optional array of buttons to be placed at the bottom of the remodal
      * @property {boolean} [no_resize] - If true, then does not attempt to resize the modal to fit the content
+     * @property {boolean} [disable_fixed_width] - If true, then the modal does not attempt to take 90% of screen width
+     * @property {string} [background] - If provided, then the modal's background color is set to this
+     * @property {boolean} [disable_scrollbars] - If true, then the scrollbars are disabled
      */
 
     /**
@@ -142,10 +145,13 @@
         var modal = $('[data-remodal-id=ODRRemodal]');
         var inst = modal.remodal(remodal_options);
 
+        var remodal_inner_div = modal.find(".ODRRemodalInner");
         var title_div = modal.find(".ODRRemodalTitle");
         var loading_div = modal.find(".ODRRemodalLoading");
         var body_div = modal.find(".ODRRemodalBody");
         var buttons_div = modal.find(".ODRRemodalButtons");
+
+        // console.log('openODRRemodal()', options);
 
         // Set title
         $(title_div).html(options.title);
@@ -205,6 +211,24 @@
             $(buttons_div).removeClass('ODRHidden');
         }
 
+        // Full width or not
+        if ( options.disable_fixed_width !== undefined && options.disable_fixed_width === true )
+            $(modal).addClass('ODRRemodal_minwidth').removeClass('ODRRemodal_fullwidth');
+        else
+            $(modal).removeClass('ODRRemodal_minwidth').addClass('ODRRemodal_fullwidth');
+
+        // Set background
+        if ( options.background !== undefined && options.background.match(new RegExp(/^#[A-Fa-f0-9]{6}$/)) )
+            $(modal).attr('style', 'background: ' + options.background + ';');
+        else
+            $(modal).removeAttr('style');
+
+        // Set scroll
+        if ( options.disable_scrollbars !== undefined && options.disable_scrollbars === true )
+            $(remodal_inner_div).removeClass('ODRRemodalInner_scroll').addClass('ODRRemodalInner_noscroll');
+        else
+            $(remodal_inner_div).addClass('ODRRemodalInner_scroll').removeClass('ODRRemodalInner_noscroll');
+
         // Open the modal
         inst.open();
 
@@ -260,7 +284,10 @@
         // console.log('max_inner_height:', max_inner_height);
 
         // Get Scroll height of modal_inner_content, plus some extra for the scrollbars
-        var content_height = modal_inner_content.prop('scrollHeight') + 100;
+        var scrollbar_adjust = 50;
+        var content_height = modal_inner_content.prop('scrollHeight') + scrollbar_adjust;
+        if ( $(modal_inner).hasClass('ODRRemodalInner_noscroll') )
+            content_height -= (scrollbar_adjust - 10);
         // console.log('content_height:', content_height);
 
         // Most of ODR's modals are going to want to have all the height they can possibly get...

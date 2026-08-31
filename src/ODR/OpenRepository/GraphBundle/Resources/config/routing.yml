@@ -52,6 +52,15 @@ odr_plugin_file_header_inserter_rebuild:
         df_id: \d+
 
 #-----------------------------------------
+# FileHeaderInserter Controller
+odr_plugin_jsmol_trigger:
+    path:  /view/plugins/jsmol_trigger/{dr_id}/{df_id}
+    defaults: { _controller: ODR\OpenRepository\GraphBundle\Controller\JSmolTriggerController::triggerAction }
+    requirements:
+        dr_id: \d+
+        df_id: \d+
+
+#-----------------------------------------
 # RRUFFFileHeaderInserter Controller
 odr_plugin_rruff_file_header_inserter_rebuild_all:
     path:  /edit/plugins/rruff_file_header_inserter/rebuild_all/{dr_id}

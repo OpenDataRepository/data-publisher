@@ -1,0 +1,23 @@
+{% apply spaceless %}
+
+{# IMPORTANT: can't do this here, otherwise JSmol crashes on every load after the first #}
+{#<script type="text/javascript" src="{{ site_baseurl }}/js/mylibs/JSmol/JSmol.min.nojq.js"></script>#}
+
+<div id="ODRJSmolTriggerPlugin_{{ file_id }}" style="height:{{ options['height'] }}; width:{{ options['width'] }};"></div>
+<script>
+    var myJmol = 'myJmol';
+    var JmolInfo = {
+        width:'100%',
+        height:'100%',
+        color:'{{ options['background'] }}',
+        j2sPath:'{{ site_baseurl }}/js/mylibs/JSmol/j2s',
+        // serverURL:'../jmol/php/jsmol.php',
+        use:'html5'
+    }
+    $(function() {
+        $('#ODRJSmolTriggerPlugin_{{ file_id }}').html(Jmol.getAppletHtml(myJmol, JmolInfo));
+        Jmol.script(myJmol, 'load "{{ site_baseurl }}{{ local_filename }}" {{ options['jsmol_config'] }}');
+    });
+</script>
+
+{% endapply %}
