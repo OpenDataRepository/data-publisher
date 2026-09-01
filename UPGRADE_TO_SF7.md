@@ -44,6 +44,11 @@ Symfony 7.4 + ODR need these loaded in **both CLI and FPM/Apache** SAPIs:
 |-----------|-----|
 | `intl` | **Required.** UCA/`Collator` sorting (tags, radio options, file lists, search). Without it ODR silently falls back to a weaker natural sort — install it for correct prod behavior. |
 | `pdo_mysql`, `mysqli` | Database |
+| `iconv` | String conversion |
+| `memcached` | memory cache |
+| `redis` | memory cache |
+| `xml` | String handling |
+| `zip` | zip file reading/writing |
 | `mbstring` | String handling |
 | `intl`, `xml`, `xsl`, `dom` | Form/serializer/XML-export |
 | `gd` (or `imagick`) | Image thumbnails |
@@ -57,7 +62,7 @@ Confirm what's loaded:
 ```bash
 php -m | sort
 # Quick check for the critical ones (esp. intl):
-php -r 'foreach (["intl","pdo_mysql","mbstring","gd","curl","zip","xml","xsl","memcached"] as $e) printf("%-10s %s\n", $e, extension_loaded($e)?"OK":"MISSING");'
+php -r 'foreach (["intl","pdo_mysql","mysqli","iconv","memcached","redis","xml","zip","mbstring","gd","curl","zip","xml","xsl","memcached"] as $e) printf("%-10s %s\n", $e, extension_loaded($e)?"OK":"MISSING");'
 ```
 Install any that are `MISSING` (e.g. Debian/Ubuntu: `sudo apt install php8.3-intl php8.3-gd php8.3-curl php8.3-zip php8.3-xsl php8.3-mbstring php8.3-mysql php8.3-memcached`), then restart PHP-FPM/Apache.
 
