@@ -22,6 +22,4 @@ node seed_elastic_record_daemon.js >> $BASEPATH/app/logs/seed_elastic_record_dae
 node statistics_processor.js >> $BASEPATH/app/logs/statistics_processor.log 2>&1 &
 node statistics_daily_aggregator.js >> $BASEPATH/app/logs/statistics_daily_aggregator.log 2>&1 &
 
-STATIC_RENDER_IGNORE_HTTPS_ERRORS=1 node static_render_daemon.js >> $BASEPATH/app/logs/static_render_daemon.log 2>&1 &
-
 echo "END Start Jobs DEV"
