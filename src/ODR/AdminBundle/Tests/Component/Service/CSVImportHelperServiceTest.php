@@ -24,11 +24,22 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Component\Service\CSVImportHelperService;
 // Symfony
 use ODR\AdminBundle\Component\Utility\ODRCsvReader as CsvReader;
+use PHPUnit\Framework\Attributes\After;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 
 class CSVImportHelperServiceTest extends WebTestCase
 {
+
+    /**
+     * Ensures we clean up the error handler while shutdown.
+     */
+    #[After]
+    public function __internalDisableErrorHandler(): void
+    {
+        restore_exception_handler();
+    }
 
     /**
      * The functions inside CSVImportHelperService are all
@@ -42,7 +53,7 @@ class CSVImportHelperServiceTest extends WebTestCase
     {
         exec('redis-cli flushall');
         $client = static::createClient();
-        if ( $client->getContainer()->getParameter('database_name') !== 'odr_theta_2' )
+        if ( $client->getContainer()->getParameter('database_name') !== $_ENV['PHPUNIT_TESTING_DB'] )
             $this->markTestSkipped('Wrong database');
 
         /** @var CSVImportHelperService $csv_helper_service */
@@ -51,7 +62,7 @@ class CSVImportHelperServiceTest extends WebTestCase
 
         // ----------------------------------------
         // Load the csv file
-        ini_set('auto_detect_line_endings', TRUE);
+//        ini_set('auto_detect_line_endings', TRUE);
 
         $csv_filepath = $client->getContainer()->getParameter('odr_tmp_directory');
         $csv_filepath .= '/../../src/ODR/AdminBundle/TestResources/'.$csv_filename;
@@ -107,18 +118,7 @@ class CSVImportHelperServiceTest extends WebTestCase
         return $errors;
     }
 
-
-    /**
-     * @covers \ODR\AdminBundle\Component\Service\CSVImportHelperService::getUniquenessCheckData
-     * @covers \ODR\AdminBundle\Component\Service\CSVImportHelperService::getExistingUniqueValues
-     * @covers \ODR\AdminBundle\Component\Service\CSVImportHelperService::getFutureUniqueValues
-     * @covers \ODR\AdminBundle\Component\Service\CSVImportHelperService::findUniquenessErrors
-     * @dataProvider provideUniquenessCheckParams
-     *
-     * @param array $post_data POST data sent to CSVImportController::startvalidateAction()
-     * @param string $csv_filename filename of the csv file to use for testing purposes
-     * @param int $expected_error_count
-     */
+    #[DataProvider('provideUniquenessCheckParams')]
     public function testFindUniquenessErrors($post_data, $csv_filename, $expected_error_count)
     {
         $errors = self::runUniquenessChecks($post_data, $csv_filename);
@@ -133,7 +133,7 @@ class CSVImportHelperServiceTest extends WebTestCase
     /**
      * @return array
      */
-    public function provideUniquenessCheckParams()
+    public static function provideUniquenessCheckParams()
     {
         return [
             // ----------------------------------------

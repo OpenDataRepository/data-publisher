@@ -155,6 +155,7 @@
                             'default_search_params': default_search_params,
                         } %}
                     </div>
+                    {% endif %}
 
                     {% if intent != 'stored_search_keys' %}
                     <div class="ODRSearchSidebar_AdvancedOptions {% if not open_advanced_options %}ODRHidden{% endif %}">
@@ -167,7 +168,6 @@
                         </div>
                     </div>
                     {% endif %}
-                {% endif %}
                 </div>
             </fieldset>
 

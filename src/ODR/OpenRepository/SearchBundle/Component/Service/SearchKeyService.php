@@ -1368,6 +1368,15 @@ class SearchKeyService
         // It's easier to understand the searching when it works by ensuring results match everything
         //  in the sidebar, but sometimes this needs to be changed...
         $default_merge_type = 'AND';
+        if ( isset($search_params['merge']) ) {
+            // If set, then this overrides the default merge type used by the search system
+            $default_merge_type = $search_params['merge'];
+            unset( $search_params['merge'] );
+
+            // self::validateSearchKey() should've already thrown an error in this case...
+            if ( !($default_merge_type === 'AND' || $default_merge_type === 'OR') )
+                $default_merge_type = 'AND';
+        }
         $adv_facet_num = 0;
 
         // Need to keep track of whether this is active or not...if it is, then that changes the
@@ -1388,10 +1397,6 @@ class SearchKeyService
 
                 // ...the reason being that if SearchAPIService::performSearch() directly used this
                 //  entry, then any sort_criteria for this tab in the user's session would be ignored
-            }
-            else if ( $key === 'merge' ) {
-                // If set, then this overrides the default merge type used by the search system
-                $default_merge_type = $value;
             }
             else if ( $key === 'gen' || $key === 'gen_lim' ) {
                 // Don't do anything if this key is empty
