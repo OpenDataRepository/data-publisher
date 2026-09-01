@@ -579,13 +579,13 @@ class ODRTabHelperService
             return null;
 
         // Get the current user's session from the request...
-        $request = $this->request_stack->getCurrentRequest();
-        $session = $request->getSession();
-        if ( !$session->has('stored_tab_data') )
+//        $request = $this->request_stack->getCurrentRequest();
+//        $session = $request->getSession();
+        if ( !$this->request_stack->getSession()->has('stored_tab_data') )
             return null;
 
         // If there is data stored for this tab, return it
-        $stored_tab_data = $session->get('stored_tab_data');
+        $stored_tab_data = $this->request_stack->getSession()->get('stored_tab_data');
         if ( !isset($stored_tab_data[$odr_tab_id]) )
             return null;
 
@@ -601,18 +601,29 @@ class ODRTabHelperService
      */
     public function setTabData($odr_tab_id, $tab_data)
     {
-        $request = $this->request_stack->getCurrentRequest();
-        $session = $request->getSession();
+//        $request = $this->request_stack->getCurrentRequest();
+//        $session = $request->getSession();
+//
+//        if ( !$session->has('stored_tab_data') ) {
+//            // No stored tab data for this user's session...start a new one
+//            $session->set('stored_tab_data', [$odr_tab_id => $tab_data]);
+//        }
+//        else {
+//            $stored_tab_data = $session->get('stored_tab_data');
+//            $stored_tab_data[$odr_tab_id] = $tab_data;
+//
+//            $session->set('stored_tab_data', $stored_tab_data);
+//        }
 
-        if ( !$session->has('stored_tab_data') ) {
-            // No stored tab data for this user's session...start a new one
-            $session->set('stored_tab_data', [$odr_tab_id => $tab_data]);
-        }
-        else {
-            $stored_tab_data = $session->get('stored_tab_data');
-            $stored_tab_data[$odr_tab_id] = $tab_data;
+       if ( !$this->request_stack->getSession()->has('stored_tab_data') ) {
+           // No stored tab data for this user's session...start a new one
+           $this->request_stack->getSession()->set('stored_tab_data', [$odr_tab_id => $tab_data]);
+       }
+       else {
+           $stored_tab_data = $this->request_stack->getSession()->get('stored_tab_data');
+           $stored_tab_data[$odr_tab_id] = $tab_data;
 
-            $session->set('stored_tab_data', $stored_tab_data);
-        }
+           $this->request_stack->getSession()->set('stored_tab_data', $stored_tab_data);
+       }
     }
 }

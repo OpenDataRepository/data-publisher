@@ -234,6 +234,7 @@ async function app() {
                         /*
                         content = 'let cellparams_range=[];';
                         /** */
+                        content = '';
                     }
                     await writeFile(basepath + data.cell_params_range + '.' + tmp_file_extension, content);
 
@@ -242,6 +243,7 @@ async function app() {
                         /*
                         content = 'let sg_synonyms={';
                         /** */
+                        content = '';
                     }
                     await writeFile(basepath + data.cell_params_synonyms + '.' + tmp_file_extension, content);
 
@@ -252,6 +254,7 @@ async function app() {
                         /*
                         content = 'let references=[];';
                         /** */
+                        content = '';
                     }
                     let references_filename = basepath + data.references + '.' + tmp_file_extension;
                     await writeFile(references_filename, content);
@@ -260,6 +263,7 @@ async function app() {
                         /*
                         content = 'let paragenetic_modes = [];\n';
                         /** */
+                        content = '';
                     }
 
                     // console.log('WriteFile Init');
