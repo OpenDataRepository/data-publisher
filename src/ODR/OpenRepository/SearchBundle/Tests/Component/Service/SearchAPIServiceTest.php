@@ -644,6 +644,46 @@ class SearchAPIServiceTest extends WebTestCase
                 true
             ],
 
+            'RRUFF Sample: records with a wavelength and without a child rruff id' => [
+                [
+                    'dt_id' => 3,
+                    '40' => '""',
+                    '41' => '!""',
+                ],
+                [
+                    // only two of the twenty records without a child rruff id actually have a wavelength
+                    /*99,101,104,*/106,/*108,110,112,114,117,121,*/
+                    /*122,127,*/128,/*130,132,134,135,136,138,323,*/
+                ],
+                true
+            ],
+            'RRUFF Sample: records with a wavelength that is not "532" and without a child rruff id' => [
+                [
+                    'dt_id' => 3,
+                    '40' => '""',
+                    '41' => '!532',
+                ],
+                [
+                    // of the twenty records without a child rruff id, none of them have a wavelength equal to "532"
+                    99,101,104,106,108,110,112,114,117,121,
+                    122,127,128,130,132,134,135,136,138,323,
+                ],
+                true
+            ],
+            'RRUFF Sample: records with a wavelength that is not "785" and without a child rruff id' => [
+                [
+                    'dt_id' => 3,
+                    '40' => '""',
+                    '41' => '!785',
+                ],
+                [
+                    // of the twenty records without a child rruff id, two of them have a wavelength equal to "785"
+                    99,101,104,/*106,*/108,110,112,114,117,121,
+                    122,127,/*128,*/130,132,134,135,136,138,323,
+                ],
+                true
+            ],
+
             // ----------------------------------------
             // Searches involving child/linked datatypes
             'RRUFF Sample: samples where mineral_name contains "b"' => [
