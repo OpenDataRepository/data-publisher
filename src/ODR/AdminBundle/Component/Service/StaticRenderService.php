@@ -550,18 +550,19 @@ class StaticRenderService
      * Returns the public URL of a child sitemap for a datatype. Page 1
      * is `/sitemap-{uuid}.xml`; subsequent pages append `-{N}`.
      *
-     * Uses fetch_baseurl (the WP host when WP-integrated) rather than
-     * odr_baseurl, because /sitemap-*.xml is a *dynamic* Symfony
-     * route — the request has to enter through WordPress to reach
-     * Symfony in WP-integrated mode. Only the cached `/uploads/static/`
-     * file URLs use odr_baseurl; those are served by Apache
-     * directly without going through Symfony at all.
+     * Uses odr_baseurl (site_baseurl) — the sitemap routes are served by
+     * the ODR backend under its own alias (e.g. //www.rruff.net/odr_rruff),
+     * not through the WordPress host. This matches the record and schema
+     * URLs emitted in these same sitemaps.
      */
     public function getChildSitemapUrl($datatype_uuid, $page = 1)
     {
         $name = 'sitemap-' . $datatype_uuid;
         if ($page > 1)
             $name .= '-' . (int)$page;
-        return $this->fetch_baseurl . '/' . $name . '.xml';
+        // Child sitemaps are reached on the ODR backend (site_baseurl, e.g.
+        // //www.rruff.net/odr_rruff), NOT through the WordPress alias — same
+        // base as the record/schema URLs in these sitemaps.
+        return $this->odr_baseurl . '/' . $name . '.xml';
     }
 }
