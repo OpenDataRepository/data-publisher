@@ -153,12 +153,15 @@ class JSmolTriggerController extends ODRCustomController
             // Ensure defaults exist for this...
             if ( !isset($options['jsmol_config']) )
                 $options['jsmol_config'] = "packed; unitcell on; set axesUnitcell; axes on;";
-            if ( !isset($options['background']) )
-                $options['background'] = "#4F4F4F";
+            if ( !isset($options['background_color']) )
+                $options['background_color'] = "#4F4F4F";
             if ( !isset($options['height']) )
                 $options['height'] = "600px";
             if ( !isset($options['width']) )
                 $options['width'] = "600px";
+
+            // The JSmol config could have newlines in it
+            $options['jsmol_config'] = str_replace(["\r","\n"], ["", " "], $options['jsmol_config']);
 
             // Slightly easier if the (single) file uploaded to this field is hydrated
             $file = null;

@@ -5783,3 +5783,10 @@ div.ODRRenderPlugin_CSVTable_wrapper div.dataTables_scrollBody {
     cursor: pointer;
     color: rgb(75,75,75) !important;
 }
+
+.ODRRenderPlugin_JSmolTrigger_label {
+    width: unset !important;
+}
+.ODRRenderPlugin_JSmolTrigger_textarea {
+    height: 150px;
+}

@@ -17,24 +17,29 @@
 namespace ODR\OpenRepository\GraphBundle\Plugins\RRUFF;
 
 // ODR
+use ODR\AdminBundle\Entity\RenderPluginOptionsDef;
 // Events
 // Exceptions
 // Services
+use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldHeaderPluginInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\PluginSettingsDialogOverrideInterface;
 // Symfony
 use Psr\Log\LoggerInterface;
 
 
-class JSmolTriggerPlugin implements DatafieldHeaderPluginInterface
+class JSmolTriggerPlugin implements DatafieldHeaderPluginInterface, PluginSettingsDialogOverrideInterface
 {
 
     /**
      * JSmolTrigger Plugin constructor.
      *
+     * @param DatabaseInfoService $database_info_service
      * @param \Twig\Environment $templating
      * @param LoggerInterface $logger
      */
     public function __construct(
+        private readonly DatabaseInfoService $database_info_service,
         private readonly \Twig\Environment $templating,
         private readonly LoggerInterface $logger
     ) {
@@ -120,5 +125,54 @@ class JSmolTriggerPlugin implements DatafieldHeaderPluginInterface
             // Just rethrow the exception
             throw $e;
         }
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function getRenderPluginOptionsOverride($user, $is_datatype_admin, $render_plugin, $datatype, $datafield = null, $render_plugin_instance = null)
+    {
+        $custom_rpo_html = [];
+        foreach ($render_plugin->getRenderPluginOptionsDef() as $rpo) {
+            // This plugin currently has several options, but only "jsmol_config" needs to use a
+            //  custom render for the dialog...
+            /** @var RenderPluginOptionsDef $rpo */
+            if ( $rpo->getUsesCustomRender() ) {
+                // This is the "jsmol_config" option...it's using a custom renderbecause it's easier
+                //  to have a textarea instead of an <input>
+                $jsmol_config_string = '';
+
+                // Might as well use the cache entry
+                $datatype = $datafield->getDataType();
+                $datatype_array = $this->database_info_service->getDatatypeArray($datatype->getGrandparent()->getId(), false);    // don't want linked datatypes
+                $dt = $datatype_array[$datatype->getId()];
+
+                // The datafield is guaranteed to exist since this is a datafield plugin
+                $df = $dt['dataFields'][$datafield->getId()];
+                if ( !empty($df['renderPluginInstances']) ) {
+                    // The datafield could have more than one renderPluginInstance
+                    foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
+                        if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.jsmol_trigger' ) {
+                            if ( isset($rpi['renderPluginOptionsMap']['jsmol_config']) )
+                                $jsmol_config_string = trim($rpi['renderPluginOptionsMap']['jsmol_config']);
+                        }
+                    }
+                }
+
+                // ...which allows a template to be rendered
+                $custom_rpo_html[$rpo->getId()] = $this->templating->render(
+                    '@ODROpenRepositoryGraph/RRUFF/JSmolTrigger/plugin_settings_dialog_field_list_override.html.twig',
+                    [
+                        'rpo_id' => $rpo->getId(),
+                        'value' => $jsmol_config_string,
+                    ]
+                );
+            }
+        }
+
+        // As a side note, the plugin settings dialog does no logic to determine which options should
+        //  have custom rendering...it's solely determined by the contents of the array returned by
+        //  this function.  As such, there's no validation whatsoever
+        return $custom_rpo_html;
     }
 }
