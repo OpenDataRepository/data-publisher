@@ -1,3 +1,4 @@
+require('./dev_env');  // load .env + relax Node TLS for self-signed dev hosts
 const https = require('https');
 const fs = require('fs');
 const fg = require('fast-glob');

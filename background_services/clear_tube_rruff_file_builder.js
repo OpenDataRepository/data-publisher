@@ -1,23 +1,8 @@
-/*
- * https://github.com/akeyboardlife/puppeteer-save-svg/blob/master/main.js
- */
-
-const puppeteer = require('puppeteer');
-const fs = require('fs');
-
 const bs = require('nodestalker');
 const client = bs.Client('127.0.0.1:11300');
 const tube = 'odr_rruff_file_builder';
-let browser;
-
-function delay(time) {
-    return new Promise(function(resolve) {
-        setTimeout(resolve, time)
-    });
-}
 
 async function app() {
-    browser = await puppeteer.launch({headless:'new', acceptInsecureCerts: !!process.env.ODR_CHROME_IGNORE_CERT, args: process.env.ODR_CHROME_NO_SANDBOX ? ['--no-sandbox','--disable-setuid-sandbox'] : []});
     console.log('Clearing tube IMA Records...');
     client.watch(tube).onSuccess(function(data) {
         function resJob() {

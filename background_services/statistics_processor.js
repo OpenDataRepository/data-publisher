@@ -1,3 +1,4 @@
+require('./dev_env');  // load .env + relax Node TLS for self-signed dev hosts
 /**
  * Open Data Repository Data Publisher
  * Statistics Processor (Node.js Background Service)

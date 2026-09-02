@@ -41,4 +41,5 @@ node record_precache_daemon.js >> ../app/logs/record_precache_daemon_1.log 2>&1 
 node record_precache_daemon.js >> ../app/logs/record_precache_daemon_2.log 2>&1 &
 node statistics_processor.js >> ../app/logs/statistics_processor.log 2>&1 &
 node statistics_daily_aggregator.js >> ../app/logs/statistics_daily_aggregator.log 2>&1 &
+node static_render_daemon.js >> ../app/logs/static_render_daemon.log 2>&1 &
 

@@ -1,3 +1,4 @@
+require('./dev_env');  // load .env + relax Node TLS for self-signed dev hosts
 /*
  * https://github.com/akeyboardlife/puppeteer-save-svg/blob/master/main.js
  */

@@ -88,6 +88,9 @@
         "platform": {
             "php": "8.2.0",
             "ext-redis": "6.1"
+        },
+        "allow-plugins": {
+            "php-http/discovery": true
         }
     },
     "minimum-stability": "stable",
