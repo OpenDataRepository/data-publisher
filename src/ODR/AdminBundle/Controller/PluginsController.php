@@ -809,6 +809,7 @@ class PluginsController extends ODRCustomController
 
             // Get all render plugins on the server
             $available_plugins = self::getAvailablePlugins($fieldtype_data);
+            ksort($available_plugins);
 
             // Determine whether any of the installed render plugins differ from their config files
             $updates = self::getPluginDiff($fieldtype_data, $installed_plugins, $available_plugins);

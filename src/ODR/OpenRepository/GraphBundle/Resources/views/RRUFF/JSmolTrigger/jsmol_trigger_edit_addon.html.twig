@@ -1,0 +1,45 @@
+{% apply spaceless %}
+
+<i id="ODRJSmolTriggerPlugin_{{ datarecord.id }}_{{ datafield.id }}" class="Pointer fa fa-cubes fa-lg" title="Run JSmol on this CIF"></i>&nbsp;
+<script>
+    $(function() {
+        $("#ODRJSmolTriggerPlugin_{{ datarecord.id }}_{{ datafield.id }}").unbind('click').click(function() {
+            /** @type {odr_remodal_options} modal_options */
+            var modal_options = {
+                title: "{{ filename }}",
+                {#background: "{{ background }}",#}  {# JSmol loading icon has white background... #}
+                disable_fixed_width: true,
+                disable_scrollbars: true,
+            };
+            openODRRemodal(modal_options);
+
+            var url = '{{ path('odr_plugin_jsmol_trigger', {dr_id: datarecord.id, df_id: datafield.id}) }}';
+            $.ajax({
+                cache: false,
+                type: 'GET',
+                url: url,
+                success: function(data, textStatus, jqXHR) {
+                    updateODRRemodalBody(data.d);
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    // Don't need to do anything specific on an error
+                },
+                complete: function(jqXHR, textStatus) {
+                    // Get the xdebugToken from response headers
+                    var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                    // If the Sfjs object exists
+                    if (typeof Sfjs !== "undefined") {
+                        // Grab the toolbar element
+                        var currentElement = $('.sf-toolbar')[0];
+
+                        // Load the data of the given xdebug token into the current toolbar wrapper
+                        Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                    }
+                }
+            });
+        });
+    });
+</script>
+
+{% endapply %}

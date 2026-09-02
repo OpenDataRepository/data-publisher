@@ -18,6 +18,9 @@ namespace ODR\OpenRepository\SearchBundle\Tests\Component\Service;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 // Symfony
+use PHPUnit\Framework\Attributes\After;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\WithoutErrorHandler;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 
@@ -25,14 +28,20 @@ class SearchAPIServiceTest extends WebTestCase
 {
 
     /**
-     * @covers \ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService::performSearch
-     * @dataProvider provideSearchParams
+     * Ensures we clean up the error handler while shutdown.
      */
+    #[After]
+    public function __internalDisableErrorHandler(): void
+    {
+        restore_exception_handler();
+    }
+
+    #[DataProvider('provideSearchParams')]
     public function testPerformSearch($search_params, $expected_grandparent_ids, $search_as_super_admin)
     {
         exec('redis-cli flushall');
         $client = static::createClient();
-        if ( $client->getContainer()->getParameter('database_name') !== 'odr_theta_2' )
+        if ( $client->getContainer()->getParameter('database_name') !== $_ENV['PHPUNIT_TESTING_DB'] )
             $this->markTestSkipped('Wrong database');
 
         /** @var SearchAPIService $search_api_service */
@@ -56,15 +65,12 @@ class SearchAPIServiceTest extends WebTestCase
         $this->assertEqualsCanonicalizing( $expected_grandparent_ids, $grandparent_datarecord_list );
     }
 
-    /**
-     * @covers \ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService::performSearch
-     * @dataProvider provideSearchParamsCompleteDatarecordList
-     */
+    #[DataProvider('provideSearchParamsCompleteDatarecordList')]
     public function testPerformSearchCompleteDatarecordList($search_params, $expected_datarecord_ids, $search_as_super_admin)
     {
         exec('redis-cli flushall');
         $client = static::createClient();
-        if ( $client->getContainer()->getParameter('database_name') !== 'odr_theta_2' )
+        if ( $client->getContainer()->getParameter('database_name') !== $_ENV['PHPUNIT_TESTING_DB'] )
             $this->markTestSkipped('Wrong database');
 
         /** @var SearchAPIService $search_api_service */
@@ -88,15 +94,12 @@ class SearchAPIServiceTest extends WebTestCase
         $this->assertEqualsCanonicalizing( $expected_datarecord_ids, $complete_datarecord_list );
     }
 
-    /**
-     * @covers \ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService::performSearch
-     * @dataProvider provideInverseSearchParams
-     */
+    #[DataProvider('provideInverseSearchParams')]
     public function testInverseSearch($search_params, $expected_grandparent_ids, $search_as_super_admin)
     {
         exec('redis-cli flushall');
         $client = static::createClient();
-        if ( $client->getContainer()->getParameter('database_name') !== 'odr_theta_2' )
+        if ( $client->getContainer()->getParameter('database_name') !== $_ENV['PHPUNIT_TESTING_DB'] )
             $this->markTestSkipped('Wrong database');
 
         /** @var SearchAPIService $search_api_service */
@@ -120,15 +123,12 @@ class SearchAPIServiceTest extends WebTestCase
         $this->assertEqualsCanonicalizing( $expected_grandparent_ids, $grandparent_datarecord_list );
     }
 
-    /**
-     * @covers \ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService::performSearch
-     * @dataProvider provideIgnoreDescendantsSearchParams
-     */
+    #[DataProvider('provideIgnoreDescendantsSearchParams')]
     public function testIgnoreDescendants($search_params, $expected_grandparent_ids, $search_as_super_admin)
     {
         exec('redis-cli flushall');
         $client = static::createClient();
-        if ( $client->getContainer()->getParameter('database_name') !== 'odr_theta_2' )
+        if ( $client->getContainer()->getParameter('database_name') !== $_ENV['PHPUNIT_TESTING_DB'] )
             $this->markTestSkipped('Wrong database');
 
         /** @var SearchAPIService $search_api_service */
@@ -152,15 +152,12 @@ class SearchAPIServiceTest extends WebTestCase
         $this->assertEqualsCanonicalizing( $expected_grandparent_ids, $grandparent_datarecord_list );
     }
 
-    /**
-     * @covers \ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService::performSearch
-     * @dataProvider provideORSearchParams
-     */
+    #[DataProvider('provideORSearchParams')]
     public function testORSearch($search_params, $expected_grandparent_ids, $search_as_super_admin)
     {
         exec('redis-cli flushall');
         $client = static::createClient();
-        if ( $client->getContainer()->getParameter('database_name') !== 'odr_theta_2' )
+        if ( $client->getContainer()->getParameter('database_name') !== $_ENV['PHPUNIT_TESTING_DB'] )
             $this->markTestSkipped('Wrong database');
 
         /** @var SearchAPIService $search_api_service */
@@ -184,15 +181,12 @@ class SearchAPIServiceTest extends WebTestCase
         $this->assertEqualsCanonicalizing( $expected_grandparent_ids, $grandparent_datarecord_list );
     }
 
-    /**
-     * @covers \ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService::performSearch
-     * @dataProvider provideSortSearchParams
-     */
+    #[DataProvider('provideSortSearchParams')]
     public function testSort($search_params, $expected_grandparent_ids, $search_as_super_admin)
     {
         exec('redis-cli flushall');
         $client = static::createClient();
-        if ( $client->getContainer()->getParameter('database_name') !== 'odr_theta_2' )
+        if ( $client->getContainer()->getParameter('database_name') !== $_ENV['PHPUNIT_TESTING_DB'] )
             $this->markTestSkipped('Wrong database');
 
         /** @var SearchAPIService $search_api_service */
@@ -229,15 +223,12 @@ class SearchAPIServiceTest extends WebTestCase
         $this->assertEquals( $expected_grandparent_ids, $grandparent_datarecord_list );
     }
 
-    /**
-     * @covers \ODR\OpenRepository\SearchBundle\Component\Service\SearchAPIService::filterSearchKeyForUser
-     * @dataProvider provideFilterSearchParams
-     */
+    #[DataProvider('provideFilterSearchParams')]
     public function testFilter($search_params, $expected_search_params, $search_as_super_admin)
     {
         exec('redis-cli flushall');
         $client = static::createClient();
-        if ( $client->getContainer()->getParameter('database_name') !== 'odr_theta_2' )
+        if ( $client->getContainer()->getParameter('database_name') !== $_ENV['PHPUNIT_TESTING_DB'] )
             $this->markTestSkipped('Wrong database');
 
         /** @var SearchAPIService $search_api_service */
@@ -257,7 +248,7 @@ class SearchAPIServiceTest extends WebTestCase
     /**
      * @return array
      */
-    public function provideSearchParams()
+    public static function provideSearchParams()
     {
         return [
             // ----------------------------------------
@@ -282,51 +273,6 @@ class SearchAPIServiceTest extends WebTestCase
                 ],
                 [92,93,94,95,96,97],
                 false
-            ],
-
-            'RRUFF Reference: general search of "downs"' => [
-                [
-                    'dt_id' => 1,
-                    'gen' => 'downs',
-                ],
-                [35,36,49,66,68],
-                false
-            ],
-            'IMA List: general search of "downs" not including descendants' => [
-                [
-                    'dt_id' => 2,
-                    'gen_lim' => 'downs',
-                ],
-                [],    // None of the fields directly belonging to IMA have "downs" in them, so there will be no results
-                false
-            ],
-            'IMA List: general search of "downs" including descendants, without non-public records' => [
-                [
-                    'dt_id' => 2,
-                    'gen' => 'downs',
-                ],
-                [94,97],
-                false
-            ],
-            'IMA List: general search of "downs"' => [
-                [
-                    'dt_id' => 2,
-                    'gen' => 'downs',
-                ],
-                [91,94,97],    // Abelsonite, Aegirine, Anorthite are linked to references containing "downs"
-                true
-            ],
-            'RRUFF Sample: general search of "downs"' => [
-                [
-                    'dt_id' => 3,
-                    'gen' => 'downs',
-                ],
-                [
-                    98,    // samples linked to Abelsonite
-                    101,111,113,114,117,119,120,123,127,129,130,136,139,    // samples linked to Aegirine
-                    99,100,103,105,106,107,109,110,112,116,118,125,128,131,134,135,138    // samples linked to Anorthite
-                ],
-                true
             ],
 
             // ----------------------------------------
@@ -496,15 +442,31 @@ class SearchAPIServiceTest extends WebTestCase
                     'dt_id' => 9,
                     '59' => '!""',
                 ],
-                [305,306,307,308,309,310,311,312,313,315,317,320,321],
+                [
+                    305,306,308,317,  // records with public csv files
+                    307,310,311,312,313,315,  // records with public txt files
+                    309,  // records with dat files
+//                    318,  // public record, no file
+//                    319,  // non-public record, no file
+                    320,  // public record, non-public txt file
+                    321,  // public record, non-public csv file, public txt file
+                ],
                 true
             ],
-            'Graph Test: records with files, without non-public records' => [
+            'Graph Test: records with files, ignoring non-public stuff' => [
                 [
                     'dt_id' => 9,
                     '59' => '!""',
                 ],
-                [305,306,307,308,309,310,311,312,313,315,317,321],  // 320 has a non-public file they shouldn't know about
+                [
+                    305,306,308,317,  // records with public csv files
+                    307,310,311,312,313,315,  // records with public txt files
+                    309,  // records with dat files
+//                    318,  // public record, no file
+//                    319,  // non-public record, no file
+//                    320,  // public record, non-public txt file
+                    321,  // public record, non-public csv file, public txt file
+                ],
                 false
             ],
             'Graph Test: records without files' => [
@@ -512,15 +474,31 @@ class SearchAPIServiceTest extends WebTestCase
                     'dt_id' => 9,
                     '59' => '""',
                 ],
-                [318,319],
+                [
+//                    305,306,308,317,  // records with public csv files
+//                    307,310,311,312,313,315,  // records with public txt files
+//                    309,  // records with dat files
+                    318,  // public record, no file
+                    319,  // non-public record, no file
+//                    320,  // public record, non-public txt file
+//                    321,  // public record, non-public csv file, public txt file
+                ],
                 true
             ],
-            'Graph Test: records without files, without non-public records' => [
+            'Graph Test: records without files, ignoring non-public stuff' => [
                 [
                     'dt_id' => 9,
                     '59' => '""',
                 ],
-                [318,320],  // 319 is non-public, and 320 has a non-public file they shouldn't know about
+                [
+//                    305,306,308,317,  // records with public csv files
+//                    307,310,311,312,313,315,  // records with public txt files
+//                    309,  // records with dat files
+                    318,  // public record, no file
+//                    319,  // non-public record, no file
+                    320,  // public record, non-public txt file...but they shouldn't know about this
+//                    321,  // public record, non-public csv file, public txt file
+                ],
                 false
             ],
 
@@ -529,7 +507,15 @@ class SearchAPIServiceTest extends WebTestCase
                     'dt_id' => 9,
                     '59' => 'csv',
                 ],
-                [305,306,308,317,321],
+                [
+                    305,306,308,317,  // records with public csv files
+//                    307,310,311,312,313,315,  // records with public txt files
+//                    309,  // records with dat files
+//                    318,  // public record, no file
+//                    319,  // non-public record, no file
+//                    320,  // public record, non-public txt file
+                    321,  // public record, non-public csv file, public txt file
+                ],
                 true
             ],
             'Graph Test: no files AND "csv"' => [
@@ -545,24 +531,73 @@ class SearchAPIServiceTest extends WebTestCase
                     'dt_id' => 9,
                     '59' => '"" OR csv',
                 ],
-                [305,306,308,317,318,319,321],
+                [
+                    305,306,308,317,  // records with public csv files
+//                    307,310,311,312,313,315,  // records with public txt files
+//                    309,  // records with dat files
+                    318,  // public record, no file
+                    319,  // non-public record, no file
+//                    320,  // public record, non-public txt file
+                    321,  // public record, non-public csv file, public txt file
+                ],
                 true
             ],
-            'Graph Test: no files OR csv, without non-public records' => [
+            'Graph Test: no files OR csv, ignoring non-public stuff' => [
                 [
                     'dt_id' => 9,
                     '59' => '"" OR csv',
                 ],
-                [305,306,308,317,318,320],  // 319 is non-public, but does include 320 or 321 because they don't know about the file
+                [
+                    305,306,308,317,  // records with public csv files
+//                    307,310,311,312,313,315,  // records with public txt files
+//                    309,  // records with dat files
+                    318,  // public record, no file
+//                    319,  // non-public record, no file...doesn't match because they can't see the record
+                    320,  // public record, non-public txt file...does match because they can't see the file
+//                    321,  // public record, non-public csv file, public txt file...doesn't match because of the public file
+                ],
                 false
             ],
-            'Graph Test: no files OR txt, without non-public records' => [
+            'Graph Test: no files OR txt, ignoring non-public stuff' => [
                 [
                     'dt_id' => 9,
                     '59' => '"" OR txt',
                 ],
-                [307,310,311,312,313,315,318,320,321],
+                [
+//                    305,306,308,317,  // records with public csv files
+                    307,310,311,312,313,315,  // records with public txt files
+//                    309,  // records with dat files
+                    318,  // public record, no file
+//                    319,  // non-public record, no file...doesn't match because they can't see the record
+                    320,  // public record, non-public txt file...does match because they can't see the file
+                    321,  // public record, non-public csv file, public txt file...does match
+                ],
                 false
+            ],
+
+            'Graph Test: public files' => [
+                [
+                    'dt_id' => 9,
+                    '59_pub' => '1',
+                ],
+                [305,306,307,308,309,310,311,312,313,315,317,321],
+                true
+            ],
+            'Graph Test: public files, ignoring non-public stuff' => [
+                [
+                    'dt_id' => 9,
+                    '59_pub' => '1',
+                ],
+                [305,306,307,308,309,310,311,312,313,315,317,321],
+                false
+            ],
+            'Graph Test: non-public files' => [
+                [
+                    'dt_id' => 9,
+                    '59_pub' => '0',
+                ],
+                [320,321],
+                true
             ],
 
             'IMA List: records with dates' => [
@@ -596,7 +631,7 @@ class SearchAPIServiceTest extends WebTestCase
                     '64_e' => '2017-10-01'
                 ],
                 [91,92/*,95*/],    // 95 is excluded because 'ending before 2017-10-01' excludes the date
-                                        // NOTE: this is only due to an adjustment by SearchKeyService::convertSearchKeyToCriteria()...ODR currently only stores the date, not the time
+                // NOTE: this is only due to an adjustment by SearchKeyService::convertSearchKeyToCriteria()...ODR currently only stores the date, not the time
                 true
             ],
             'IMA List: records with date between 1805-06-30 and 2017-10-01' => [
@@ -609,6 +644,46 @@ class SearchAPIServiceTest extends WebTestCase
                 true
             ],
 
+            'RRUFF Sample: records with a wavelength and without a child rruff id' => [
+                [
+                    'dt_id' => 3,
+                    '40' => '""',
+                    '41' => '!""',
+                ],
+                [
+                    // only two of the twenty records without a child rruff id actually have a wavelength
+                    /*99,101,104,*/106,/*108,110,112,114,117,121,*/
+                    /*122,127,*/128,/*130,132,134,135,136,138,323,*/
+                ],
+                true
+            ],
+            'RRUFF Sample: records with a wavelength that is not "532" and without a child rruff id' => [
+                [
+                    'dt_id' => 3,
+                    '40' => '""',
+                    '41' => '!532',
+                ],
+                [
+                    // of the twenty records without a child rruff id, none of them have a wavelength equal to "532"
+                    99,101,104,106,108,110,112,114,117,121,
+                    122,127,128,130,132,134,135,136,138,323,
+                ],
+                true
+            ],
+            'RRUFF Sample: records with a wavelength that is not "785" and without a child rruff id' => [
+                [
+                    'dt_id' => 3,
+                    '40' => '""',
+                    '41' => '!785',
+                ],
+                [
+                    // of the twenty records without a child rruff id, two of them have a wavelength equal to "785"
+                    99,101,104,/*106,*/108,110,112,114,117,121,
+                    122,127,/*128,*/130,132,134,135,136,138,323,
+                ],
+                true
+            ],
+
             // ----------------------------------------
             // Searches involving child/linked datatypes
             'RRUFF Sample: samples where mineral_name contains "b"' => [
@@ -616,7 +691,11 @@ class SearchAPIServiceTest extends WebTestCase
                     'dt_id' => 3,
                     '17' => "b",
                 ],
-                [98,124,126,122,121,108],
+                [
+                    98,          // R070007 (abelsonite)
+                    124,126,     // R050111, R050364 (bournonite)
+                    122,121,108  // R170033, R160067, unconfirmed (abellaite)
+                ],
                 true
             ],
             'RRUFF Sample: samples where mineral_name contains "b", without non-public records' => [
@@ -648,7 +727,12 @@ class SearchAPIServiceTest extends WebTestCase
                     'dt_id' => 3,
                     '1' => "downs",
                 ],
-                [98,127,114,139,101,111,130,113,136,120,117,123,119,129,125,110,107,134,128,100,118,131,116,105,138,109,99,135,103,106,112],
+                [
+                    98,127,114,139,101,111,130,113,136,120,
+                    117,123,119,129,125,110,107,134,128,100,
+                    118,131,116,105,138,109,99,135,103,106,
+                    112
+                ],
                 true
             ],
             'RRUFF Sample: samples where RRUFF Reference::Authors contains "downs", without non-public records' => [
@@ -656,7 +740,11 @@ class SearchAPIServiceTest extends WebTestCase
                     'dt_id' => 3,
                     '1' => "downs",
                 ],
-                [127,114,139,101,111,130,113,136,120,117,123,119,129,125,110,107,134,128,100,118,131,116,105,138,109,99,135,103,106,112],
+                [
+                    /*98,*/127,114,139,101,111,130,113,136,120,
+                    117,123,119,129,125,110,107,134,128,100,
+                    118,131,116,105,138,109,99,135,103,106,112
+                ],
                 false
             ],
 
@@ -666,7 +754,9 @@ class SearchAPIServiceTest extends WebTestCase
                     '17' => "b",
                     '1' => "downs"
                 ],
-                [91],
+                [
+                    91  // abelsonite
+                ],
                 true
             ],
             'IMA List: mineral_name contains "b" and RRUFF Reference::Authors contains "downs", without non-public records' => [
@@ -685,7 +775,9 @@ class SearchAPIServiceTest extends WebTestCase
                     '17' => "b",
                     '1' => "downs"
                 ],
-                [98],
+                [
+                    98  // R070007 (abeslonite)
+                ],
                 true
             ],
             'RRUFF Sample: IMA Mineral::mineral_name contains "b" and RRUFF Reference::Authors contains "downs", without non-public records' => [
@@ -708,7 +800,7 @@ class SearchAPIServiceTest extends WebTestCase
                 [4, 37, 86],    // term is an exact match for 4 and 37, but only a subset of 86
                 false
             ],
-            'RRUFF Sample: contains the phrase "sample description", without non-public records' => [
+            'RRUFF Sample: sample description contains the phrase "sample description", without non-public records' => [
                 [
                     'dt_id' => 3,
                     '36' => "\"sample description\""
@@ -716,12 +808,17 @@ class SearchAPIServiceTest extends WebTestCase
                 [134,110,135],
                 false
             ],
-            'RRUFF Sample: does not contain the phrase "associated with", without non-public records' => [
+            'RRUFF Sample: sample description does not contain the phrase "associated with", without non-public records' => [
                 [
                     'dt_id' => 3,
                     '36' => "!\"associated with\""
                 ],
-                [98,100,101,103,105,106,107,108,109,111,114,116,117,118,120,121,122,123,124,125,126,127,128,130,131,132,133,136,137,138,139,134,110,99,135,104],
+                [
+                    98,100,101,103,105,106,107,108,109,111,
+                    114,116,117,118,120,121,122,123,124,125,
+                    126,127,128,130,131,132,133,136,137,138,
+                    139,134,110,99,135,104
+                ],
                 false
             ],
             'RRUFF Sample: does not contain the phrase "associated with" and does not contain "variety", without non-public records' => [
@@ -729,8 +826,549 @@ class SearchAPIServiceTest extends WebTestCase
                     'dt_id' => 3,
                     '36' => "!\"associated with\" !variety"
                 ],
-                [98,101,103,105,106,107,108,109,111,114,117,118,120,121,122,123,124,126,127,128,130,131,132,133,136,137,138,139,134,110,99,135,104],
+                [
+                    98,101,103,105,106,107,108,109,111,114,
+                    117,118,120,121,122,123,124,126,127,128,
+                    130,131,132,133,136,137,138,139,134,110,
+                    99,135,104
+                ],
                 false
+            ],
+
+            // ----------------------------------------
+            // simple general searches
+            'RRUFF Reference: general search of "downs"' => [
+                [
+                    'dt_id' => 1,
+                    'gen' => 'downs',
+                ],
+                [35,36,49,66,68],
+                false
+            ],
+            'IMA List: general search of "downs"' => [
+                [
+                    'dt_id' => 2,
+                    'gen' => 'downs',
+                ],
+                [91,94,97],    // Abelsonite, Aegirine, Anorthite are linked to references containing "downs"
+                true
+            ],
+            'RRUFF Sample: general search of "downs"' => [
+                [
+                    'dt_id' => 3,
+                    'gen' => 'downs',
+                ],
+                [
+                    // samples linked to Abelsonite
+                    98,
+                    // samples linked to Aegirine
+                    101,111,113,114,117,119,120,123,127,129,
+                    130,136,139,
+                    // samples linked to Anorthite
+                    99,100,103,105,106,107,109,110,112,116,
+                    118,125,128,131,134,135,138
+                ],
+                true
+            ],
+
+            'RRUFF Reference: general search of "532"' => [
+                [
+                    'dt_id' => 1,
+                    'gen' => '532',
+                ],
+                [24],    // '532' matches the page numbers for this reference
+                true
+            ],
+            'IMA List: general search of "532"' => [
+                [
+                    'dt_id' => 2,
+                    'gen' => '532',
+                ],
+                [94],    // ...the previously matched reference is linked to Aegirine
+                true
+            ],
+            'RRUFF Sample: general search of "532"' => [
+                [
+                    'dt_id' => 3,
+                    'gen' => '532',
+                ],
+                [
+                    // ...Samples which are linked to by Aegirine
+                    101,114,117,127,130,136,
+                    // Samples just with 532 spectra
+                    98,100,102,103,105,107,109,115,116,118,
+                    124,125,126,131,133,137,
+                    // Samples of Aegirine with 532 spectra
+                    111,113,119,120,123,129,139,
+                ],
+                true
+            ],
+
+            'RRUFF Reference: general search of "the"' => [
+                [
+                    'dt_id' => 1,
+                    'gen' => 'the',
+                ],
+                [
+                    1,2,3,4,/*5,*/6,7,/*8,9,10,*/
+                    /*11,*/12,/*13,*/14,15,16,/*17,*/18,19,20,
+                    21,22,23,24,25,/*26,*/27,28,/*29,*/30,
+                    /*31,32,33,*/34,35,/*36,*/37,38,39,/*40,*/
+                    /*41,*/42,43,44,45,46,/*47,*/48,/*49,*/50,
+                    51,52,/*53,54,*/55,/*56,*/57,/*58,*/59,/*60,*/
+                    61,/*62,*/63,64,65,66,67,68,/*69,70,*/
+                    71,72,/*73,74,75,*/76,/*77,78,79,*/80,
+                    /*81,*/82,83,84,85,86,87,/*88,*/89,/*90,*/
+                ],
+                true
+            ],
+            'RRUFF Reference: general search of "!the"' => [
+                [
+                    'dt_id' => 1,
+                    'gen' => '!the',    // NOTE: naively searching for "!the" in every field returns all records, because every reference has at least field that lacks "the"
+                ],
+                [    // ...the correct answer is the difference of "all references" minus "those that match 'the'"
+                    /*1,2,3,4,*/5,/*6,7,*/8,9,10,
+                    11,/*12,*/13,/*14,15,16,*/17,/*18,19,20,*/
+                    /*21,22,23,24,25,*/26,/*27,28,*/29,/*30,*/
+                    31,32,33,/*34,35,*/36,/*37,38,39,*/40,
+                    41,/*42,43,44,45,46,*/47,/*48,*/49,/*50,*/
+                    /*51,52,*/53,54,/*55,*/56,/*57,*/58,/*59,*/60,
+                    /*61,*/62,/*63,64,65,66,67,68,*/69,70,
+                    /*71,72,*/73,74,75,/*76,*/77,78,79,/*80,*/
+                    81,/*82,83,84,85,86,87,*/88,/*89,*/90,
+                ],
+                true
+            ],
+
+            'RRUFF Sample: general search of "downs OR 532"' => [
+                [
+                    'dt_id' => 3,
+                    'gen' => 'downs OR 532',
+                ],
+                [
+                    // Abelsonite
+                    98,
+                    // Aegirine
+                    101,111,113,114,117,119,120,123,127,129,
+                    130,136,139,
+                    // Anorthite
+                    99,100,103,105,106,107,109,110,112,116,
+                    118,125,128,131,134,135,138,
+                    // Adelite
+                    102,115,
+                    // Bournonite
+                    124,126,
+                    // Amesite
+                    133,137,
+                ],
+                true
+            ],
+            'RRUFF Sample: general search of "downs AND 532"' => [
+                [
+                    'dt_id' => 3,
+                    'gen' => 'downs 532',
+                ],
+                [
+                    // Samples need to have "downs" somewhere, and have "532" somewhere
+
+                    // Samples of Abelsonite, with 532 wavelength
+                    98,
+                    // Samples of Aegirine, with 532 wavelength
+                    111,113,119,120,123,129,139,
+                    // Samples of Anorthite, with 532 wavelength
+                    100,103,105,107,109,116,118,125,131,
+
+                    // (The remaining) Samples of Aegirine, with 532 from pages in rruff reference
+                    101,114,117,127,130,136,
+                ],
+                true
+            ],
+
+            'RRUFF Reference: general search of "the AND downs"' => [
+                [
+                    'dt_id' => 1,
+                    'gen' => 'the downs',
+                ],
+                [35,/*36,49,*/66,68],    // 36 and 49 don't have "the"
+                true
+            ],
+            'RRUFF Reference: general search of "the OR downs"' => [
+                [
+                    'dt_id' => 1,
+                    'gen' => 'the OR downs',
+                ],
+                [    // including 36 and 49 because of "downs"
+                    1,2,3,4,/*5,*/6,7,/*8,9,10,*/
+                    /*11,*/12,/*13,*/14,15,16,/*17,*/18,19,20,
+                    21,22,23,24,25,/*26,*/27,28,/*29,*/30,
+                    /*31,32,33,*/34,35,36,37,38,39,/*40,*/
+                    /*41,*/42,43,44,45,46,/*47,*/48,49,50,
+                    51,52,/*53,54,*/55,/*56,*/57,/*58,*/59,/*60,*/
+                    61,/*62,*/63,64,65,66,67,68,/*69,70,*/
+                    71,72,/*73,74,75,*/76,/*77,78,79,*/80,
+                    /*81,*/82,83,84,85,86,87,/*88,*/89,/*90,*/
+                ],
+                true
+            ],
+            'RRUFF Reference: general search of "!the AND downs"' => [
+                [
+                    'dt_id' => 1,
+                    'gen' => '!the downs',
+                ],
+                [/*35,*/36,49,/*66,68*/],  // coincidentally the inverse of "the AND downs"
+                true
+            ],
+            'RRUFF Reference: general search of "!the OR downs"' => [
+                [
+                    'dt_id' => 1,
+                    'gen' => '!the OR downs',
+                ],
+                [
+                    /*1,2,3,4,*/5,/*6,7,*/8,9,10,
+                    11,/*12,*/13,/*14,15,16,*/17,/*18,19,20,*/
+                    /*21,22,23,24,25,*/26,/*27,28,*/29,/*30,*/
+                    31,32,33,/*34,*/35,36,/*37,38,39,*/40,
+                    41,/*42,43,44,45,46,*/47,/*48,*/49,/*50,*/
+                    /*51,52,*/53,54,/*55,*/56,/*57,*/58,/*59,*/60,
+                    /*61,*/62,/*63,64,65,*/66,/*67,*/68,69,70,
+                    /*71,72,*/73,74,75,/*76,*/77,78,79,/*80,*/
+                    81,/*82,83,84,85,86,87,*/88,/*89,*/90,
+                ],
+                true
+            ],
+
+
+            'IMA List: general search of "downs" not including descendants' => [
+                [
+                    'dt_id' => 2,
+                    'gen_lim' => 'downs',
+                ],
+                [],    // None of the fields directly belonging to IMA have "downs" in them, so there will be no results
+                false
+            ],
+            'IMA List: general search of "downs" including descendants, without non-public records' => [
+                [
+                    'dt_id' => 2,
+                    'gen' => 'downs',
+                ],
+                [94,97],
+                false
+            ],
+
+            // ----------------------------------------
+            // more complicated general searches
+            'RRUFF Reference: general search of "\"downs mineral\""' => [
+                [
+                    'dt_id' => 1,
+                    'gen' => '"downs mineral"',
+                ],
+                [],    // no field has "downs mineral" in it at the same time
+                true
+            ],
+            'RRUFF Reference: general search of "\"downs hazen\""' => [
+                [
+                    'dt_id' => 1,
+                    'gen' => '"downs hazen"',
+                ],
+                [],    // authors have "downs" and "hazen" individually, but not the string "downs hazen"
+                true
+            ],
+
+            // negation also needs to work for tags and radio options, and across descendants
+            'IMA List: records with the string "grandfathered"' => [
+                [
+                    'dt_id' => 2,
+                    'gen' => "grandfathered",
+                ],
+                [/*91,*/92,93,/*94,95,*/96,97,/*322*/],   // should be equivalent to earlier, but this runs a different method to get results
+                true
+            ],
+            'IMA List: records without the string "grandfathered", ignoring descendants' => [
+                [
+                    'dt_id' => 2,
+                    'gen_lim' => "!grandfathered",
+                ],
+                [91,/*92,93,*/94,95,/*96,97,*/322],
+                true
+            ],
+            'IMA List: records without the string "grandfathered", including descendants' => [
+                [
+                    'dt_id' => 2,
+                    'gen' => "!grandfathered",
+                ],
+                [91,/*92,93,*/94,95,/*96,97,*/322],    //  same as before...these minerals don't have "grandfathered", and none of the references do either
+                true
+            ],
+
+            // General search where one term can only be found in a top-level, and the other in a descendant
+            // ...seems simple, but hits a particularly nasty part of the merge logic
+            'IMA List: general search of "grandfathered OR downs"' => [
+                [
+                    'dt_id' => 2,
+                    'gen' => "grandfathered OR downs",
+                ],
+                [91,92,93,94,/*95,*/96,97,/*322*/],
+                true
+            ],
+            'IMA List: general search of "grandfathered AND downs"' => [
+                [
+                    'dt_id' => 2,
+                    'gen' => "grandfathered downs",
+                ],
+                [/*91,92,93,94,95,96,*/97,/*322*/],
+                true
+            ],
+            'IMA List: general search of "!grandfathered OR downs"' => [
+                [
+                    'dt_id' => 2,
+                    'gen' => "!grandfathered OR downs",
+                ],
+                [91,/*92,93,*/94,95,/*96,*/97,322],
+                true
+            ],
+            'IMA List: general search of "!grandfathered AND downs"' => [
+                [
+                    'dt_id' => 2,
+                    'gen' => "!grandfathered downs",
+                ],
+                [91,/*92,93,*/94,/*95,96,97,322*/],
+                true
+            ],
+
+            /* This next test is also nasty...it initially is tokenized into:
+             *   "American" AND "Mineralologist" AND "103" OR "600-609"
+             * ...but throwing an exception because of mixing OR/AND is less than ideal.  As such,
+             * the final OR gets swapped by SearchKeyService::tokenizeGeneralSearch() into an AND:
+             *   "American" AND "Mineralologist" AND "103" AND "600-609"
+             * ...which returns the expected results
+             */
+            'RRUFF Reference: general search of "American Mineralogist 103, 600-609"' => [
+                [
+                    'dt_id' => 1,
+                    'gen' => 'American Mineralogist 103, 600-609',
+                ],
+                [27],
+                true,
+            ],
+
+            // ----------------------------------------
+            // mixing general and advanced searches
+            'RRUFF Reference: general search of "downs" and authors contains "d"' => [
+                [
+                    'dt_id' => 1,
+                    'gen' => 'downs',
+                    '1' => 'd',
+                ],
+                [35,36,49,66,68],    // should be same as "gen" = "downs", obviously
+                true
+            ],
+            'RRUFF Reference: general search of "downs" and authors contains "f"' => [
+                [
+                    'dt_id' => 1,
+                    'gen' => 'downs',
+                    '1' => 'f',
+                ],
+                [36,49,66],
+                true
+            ],
+            'RRUFF Reference: general search of "downs" and journal contains "mineral"' => [
+                [
+                    'dt_id' => 1,
+                    'gen' => 'downs',
+                    '3' => 'mineral',
+                ],
+                [35,49,66,68],
+                true
+            ],
+
+            'IMA List: general search of "downs" and mineral_name contains "t"' => [
+                [
+                    'dt_id' => 2,
+                    'gen' => 'downs',
+                    '17' => "t",
+                ],
+                [91,97],
+                true
+            ],
+
+            'RRUFF Sample: general search of "downs" and authors contains "f"' => [
+                [
+                    'dt_id' => 3,
+                    'gen' => 'downs',
+                    '1' => 'f',
+                ],
+                [
+                    98,    // Abelsonite...record 1 fulfills authors: "f", while record 35 fulfills gen: "downs"
+                    101,111,113,114,117,119,120,123,127,129,130,136,139,    // Aegirine
+                    99,100,103,105,106,107,109,110,112,116,118,125,128,131,134,135,138    // Anorthite
+                ],
+                true
+            ],
+            'RRUFF Sample: general search of "downs" and mineral_name contains "t"' => [
+                [
+                    'dt_id' => 3,
+                    'gen' => 'downs',
+                    '17' => 't',
+                ],
+                [
+                    98,                                         // Abelsonite
+//                    101,111,113,114,117,119,120,123,127,129,  // Aegirine
+//                    130,136,139,                              // Aegirine
+                    99,100,103,105,106,107,109,110,112,116,     // Anorthite
+                    118,125,128,131,134,135,138                 // Anorthite
+                ],
+                true
+            ],
+
+            // ----------------------------------------
+            // Searches to catch issues caused by a situation where C links to B, B links to A, and C also links to A
+            'RRUFF Sample: authors contains "ross"' => [
+                [
+                    'dt_id' => 3,
+                    '1' => 'ross',    // results in 73 and 77
+                ],
+                [
+                    // Aegirine
+                    101,111,113,114,117,119,120,123,127,129,
+                    130,136,139,
+                    // Anorthite
+                    99,100,103,105,106,107,109,110,112,116,
+                    118,125,128,131,134,135,138,
+
+                    // 107 also links to 77
+                ],
+                false
+            ],
+            'RRUFF Sample: general search of "ross"' => [
+                [
+                    'dt_id' => 3,
+                    'gen' => 'ross',    // results in 73 and 77 from references, and 99, 106, 128 from rruff sample
+                ],
+                [
+                    // Aegirine
+                    101,111,113,114,117,119,120,123,127,129,
+                    130,136,139,
+                    // Anorthite
+                    99,100,103,105,106,107,109,110,112,116,
+                    118,125,128,131,134,135,138,
+
+                    // 107 also links to 77
+                ],
+                false
+            ],
+
+            'RRUFF Sample: authors contains "asdf"' => [
+                [
+                    'dt_id' => 3,
+                    '1' => 'asdf',
+                ],
+                [],
+                false
+            ],
+            'RRUFF Sample: general search of "asdf"' => [
+                [
+                    'dt_id' => 3,
+                    'gen' => 'asdf',
+                ],
+                [],
+                false
+            ],
+
+            // ----------------------------------------
+            // Searches where a descendant returns no results
+            'RRUFF Reference: search for non-public records' => [
+                [
+                    'dt_id' => 1,
+                    'dt_1_pub' => 0,
+                ],
+                [],    // should return no results
+                true
+            ],
+
+            'IMA List: search for minerals where a reference returns no results' => [
+                [
+                    'dt_id' => 2,
+                    '1' => 'asdf'
+                ],
+                [],
+                true
+            ],
+            'IMA List: search for minerals without a reference' => [
+                [
+                    'dt_id' => 2,
+                    '1' => '""',
+                ],
+                [322],    // should return the only IMA mineral without a linked reference
+                true
+            ],
+            'IMA List: search for minerals with author == "downs" OR minerals without a reference' => [
+                [
+                    'dt_id' => 2,
+                    '1' => 'downs OR ""',
+                ],
+                [91,94,97,322],    // should return the three minerals referred to by "downs" and the only IMA mineral without a linked reference
+                true
+            ],
+            'IMA List: search for minerals with author == "downs" AND minerals without a reference' => [
+                [
+                    'dt_id' => 2,
+                    '1' => 'downs AND ""',
+                ],
+                [],    // should return nothing because it's impossible to match
+                true
+            ],
+            'IMA List: search for minerals with non-public references' => [
+                [
+                    'dt_id' => 2,
+                    'dt_1_pub' => 0,
+                ],
+                [],    // should return no results, because all references are public
+                true
+            ],
+            'IMA List: search for minerals with non-public references and mineral_display_name !== ""' => [
+                [
+                    'dt_id' => 2,
+                    'dt_1_pub' => 0,
+                    '18' => '!""',
+                ],
+                [],    // should also return no results, despite the other part of the search matching all minerals
+                true
+            ],
+
+            'RRUFF Sample: search for samples without a reference' => [
+                [
+                    'dt_id' => 3,
+                    '1' => '""'
+                ],
+                [323],  // the sample linked to the "unknown" mineral lacks any references
+                true
+            ],
+            'RRUFF Sample: search for samples without a mineral' => [
+                [
+                    'dt_id' => 3,
+                    '17' => '""'
+                ],
+                [],  // all samples are linked to minerals
+                true
+            ],
+            'RRUFF Sample: search for minerals with non-public references and mineral_display_name !== ""' => [
+                [
+                    'dt_id' => 3,
+                    'dt_1_pub' => 0,
+                    '18' => '!""',
+                ],
+                [],    // should also return no results, despite the other part of the search returning results
+                true
+            ],
+            'RRUFF Sample: search for minerals with non-public references and rruff_id !== ""' => [
+                [
+                    'dt_id' => 3,
+                    'dt_1_pub' => 0,
+                    '30' => '!""',
+                ],
+                [],    // should also return no results, despite the other part of the search returning results
+                true
             ],
 
             // ----------------------------------------
@@ -748,7 +1386,12 @@ class SearchAPIServiceTest extends WebTestCase
                     'dt_id' => 3,
                     '36' => "!\""
                 ],
-                [98,100,101,102,103,105,106,107,108,109,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,136,137,138,139],
+                [
+                    98,100,101,102,103,105,106,107,108,109,
+                    111,112,113,114,115,116,117,118,119,120,
+                    121,122,123,124,125,126,127,128,129,130,
+                    131,132,133,136,137,138,139
+                ],
                 false
             ],
 
@@ -851,10 +1494,10 @@ class SearchAPIServiceTest extends WebTestCase
 
             // a sequence of unmatched operators should get ignored
             'IMA List: mineral_id contains "<will be autogenerated>", without non-public records' => [
-                // gets initially processed to...array("<", "&&", "will", "&&", "be", "&&", "autogenerated", "&&", ">")
-                // then the non-numeric parts get dropped...array("<", "&&", "&&", ">")
-                // then the unmatched logical operators get dropped...array("<", ">")
-                // then the trailing operators get dropped...array()
+                // gets initially processed to...["<", "&&", "will", "&&", "be", "&&", "autogenerated", "&&", ">")
+                // then the non-numeric parts get dropped...["<", "&&", "&&", ">")
+                // then the unmatched logical operators get dropped...["<", ">")
+                // then the trailing operators get dropped...[)
                 [
                     'dt_id' => 2,
                     '16' => '<will be autogenerated>'
@@ -903,7 +1546,7 @@ class SearchAPIServiceTest extends WebTestCase
                     40,52,80,                       // starts with 'd'
                     44,48,77,                       // starts with 'e'
                     14,15,20,27,45,                 // starts with 'f'
-                                                    // starts with 'g'
+                    // starts with 'g'
                     8,11,                           // starts with 'h'
                     78,                             // starts with '['
                 ],
@@ -1094,534 +1737,6 @@ class SearchAPIServiceTest extends WebTestCase
             // Not doing anything for the string "!!", as that's ambiguous at the best of times
 
             // ----------------------------------------
-            // more complicated general searches
-            'RRUFF Reference: general search of "\"downs mineral\""' => [
-                [
-                    'dt_id' => 1,
-                    'gen' => '"downs mineral"',
-                ],
-                [],    // no field has "downs mineral" in it at the same time
-                true
-            ],
-            'RRUFF Reference: general search of "\"downs hazen\""' => [
-                [
-                    'dt_id' => 1,
-                    'gen' => '"downs hazen"',
-                ],
-                [],    // authors have "downs" and "hazen" individually, but not the string "downs hazen"
-                true
-            ],
-
-            'RRUFF Reference: general search of "the"' => [
-                [
-                    'dt_id' => 1,
-                    'gen' => 'the',
-                ],
-                [
-                    1,2,3,4,/*5,*/6,7,/*8,9,10,*/
-                    /*11,*/12,/*13,*/14,15,16,/*17,*/18,19,20,
-                    21,22,23,24,25,/*26,*/27,28,/*29,*/30,
-                    /*31,32,33,*/34,35,/*36,*/37,38,39,/*40,*/
-                    /*41,*/42,43,44,45,46,/*47,*/48,/*49,*/50,
-                    51,52,/*53,54,*/55,/*56,*/57,/*58,*/59,/*60,*/
-                    61,/*62,*/63,64,65,66,67,68,/*69,70,*/
-                    71,72,/*73,74,75,*/76,/*77,78,79,*/80,
-                    /*81,*/82,83,84,85,86,87,/*88,*/89,/*90,*/
-                    ],
-                true
-            ],
-            'RRUFF Reference: general search of "!the"' => [
-                [
-                    'dt_id' => 1,
-                    'gen' => '!the',    // NOTE: naively searching for "!the" in every field returns all records, because every reference has at least field that matches
-                ],
-                [    // ...the correct answer is the difference of "all references" minus "those that match 'the'"
-                    /*1,2,3,4,*/5,/*6,7,*/8,9,10,
-                    11,/*12,*/13,/*14,15,16,*/17,/*18,19,20,*/
-                    /*21,22,23,24,25,*/26,/*27,28,*/29,/*30,*/
-                    31,32,33,/*34,35,*/36,/*37,38,39,*/40,
-                    41,/*42,43,44,45,46,*/47,/*48,*/49,/*50,*/
-                    /*51,52,*/53,54,/*55,*/56,/*57,*/58,/*59,*/60,
-                    /*61,*/62,/*63,64,65,66,67,68,*/69,70,
-                    /*71,72,*/73,74,75,/*76,*/77,78,79,/*80,*/
-                    81,/*82,83,84,85,86,87,*/88,/*89,*/90,
-                ],
-                true
-            ],
-
-/*
-            'RRUFF Reference: general search of "downs"' => [
-                array(
-                    'dt_id' => 1,
-                    'gen' => 'downs',
-                ),
-                array(35,36,49,66,68),
-                true
-            ],
-*/
-
-            'RRUFF Reference: general search of "the AND downs"' => [
-                [
-                    'dt_id' => 1,
-                    'gen' => 'the downs',
-                ],
-                [35,/*36,49,*/66,68],    // 36 and 49 don't have "the"
-                true
-            ],
-            'RRUFF Reference: general search of "the OR downs"' => [
-                [
-                    'dt_id' => 1,
-                    'gen' => 'the OR downs',
-                ],
-                [    // including 36 and 49 because of "downs"
-                    1,2,3,4,/*5,*/6,7,/*8,9,10,*/
-                    /*11,*/12,/*13,*/14,15,16,/*17,*/18,19,20,
-                    21,22,23,24,25,/*26,*/27,28,/*29,*/30,
-                    /*31,32,33,*/34,35,36,37,38,39,/*40,*/
-                    /*41,*/42,43,44,45,46,/*47,*/48,49,50,
-                    51,52,/*53,54,*/55,/*56,*/57,/*58,*/59,/*60,*/
-                    61,/*62,*/63,64,65,66,67,68,/*69,70,*/
-                    71,72,/*73,74,75,*/76,/*77,78,79,*/80,
-                    /*81,*/82,83,84,85,86,87,/*88,*/89,/*90,*/
-                ],
-                true
-            ],
-            'RRUFF Reference: general search of "!the AND downs"' => [
-                [
-                    'dt_id' => 1,
-                    'gen' => '!the downs',
-                ],
-                [/*35,*/36,49,/*66,68*/],  // coincidentally the inverse of "the AND downs"
-                true
-            ],
-            'RRUFF Reference: general search of "!the OR downs"' => [
-                [
-                    'dt_id' => 1,
-                    'gen' => '!the OR downs',
-                ],
-                [
-                    /*1,2,3,4,*/5,/*6,7,*/8,9,10,
-                    11,/*12,*/13,/*14,15,16,*/17,/*18,19,20,*/
-                    /*21,22,23,24,25,*/26,/*27,28,*/29,/*30,*/
-                    31,32,33,/*34,*/35,36,/*37,38,39,*/40,
-                    41,/*42,43,44,45,46,*/47,/*48,*/49,/*50,*/
-                    /*51,52,*/53,54,/*55,*/56,/*57,*/58,/*59,*/60,
-                    /*61,*/62,/*63,64,65,*/66,/*67,*/68,69,70,
-                    /*71,72,*/73,74,75,/*76,*/77,78,79,/*80,*/
-                    81,/*82,83,84,85,86,87,*/88,/*89,*/90,
-                ],
-                true
-            ],
-
-/*
-            'IMA List: general search of "downs"' => [
-                array(
-                    'dt_id' => 2,
-                    'gen' => 'downs',
-                ),
-                array(91,94,97),
-                true
-            ],
-            'RRUFF Sample: general search of "downs"' => [
-                array(
-                    'dt_id' => 3,
-                    'gen' => 'downs',
-                ),
-                array(
-                    98,    // samples of Abelsonite
-                    101,111,113,114,117,119,120,123,127,129,130,136,139,    // samples of Aegirine
-                    99,100,103,105,106,107,109,110,112,116,118,125,128,131,134,135,138    // samples of Anorthite
-                ),
-                true
-            ],
-*/
-
-            'RRUFF Reference: general search of "532"' => [
-                [
-                    'dt_id' => 1,
-                    'gen' => '532',
-                ],
-                [24],    // '532' matches the page numbers for this reference
-                true
-            ],
-            'IMA List: general search of "532"' => [
-                [
-                    'dt_id' => 2,
-                    'gen' => '532',
-                ],
-                [94],    // ...the previously matched reference is linked to Aegirine
-                true
-            ],
-            'RRUFF Sample: general search of "532"' => [
-                [
-                    'dt_id' => 3,
-                    'gen' => '532',
-                ],
-                [
-                    // ...Samples which are linked to by Aegirine
-                    101,114,117,127,130,136,
-                    // Samples just with 532 spectra
-                    98,100,102,103,105,107,109,115,116,118,
-                    124,125,126,131,133,137,
-                    // Samples of Aegirine with 532 spectra
-                    111,113,119,120,123,129,139,
-                ],
-                true
-            ],
-
-            'RRUFF Sample: general search of "downs OR 532"' => [
-                [
-                    'dt_id' => 3,
-                    'gen' => 'downs OR 532',
-                ],
-                [
-                    // Abelsonite
-                    98,
-                    // Aegirine
-                    101,111,113,114,117,119,120,123,127,129,
-                    130,136,139,
-                    // Anorthite
-                    99,100,103,105,106,107,109,110,112,116,
-                    118,125,128,131,134,135,138,
-                    // Adelite
-                    102,115,
-                    // Bournonite
-                    124,126,
-                    // Amesite
-                    133,137,
-                ],
-                true
-            ],
-            'RRUFF Sample: general search of "downs AND 532"' => [
-                [
-                    'dt_id' => 3,
-                    'gen' => 'downs 532',
-                ],
-                [
-                    // Samples need to have "downs" somewhere, and have "532" somewhere
-
-                    // Samples of Abelsonite, with 532 wavelength
-                    98,
-                    // Samples of Aegirine, with 532 wavelength
-                    111,113,119,120,123,129,139,
-                    // Samples of Anorthite, with 532 wavelength
-                    100,103,105,107,109,116,118,125,131,
-
-                    // (The remaining) Samples of Aegirine, with 532 from pages in rruff reference
-                    101,114,117,127,130,136,
-                ],
-                true
-            ],
-
-            // negation also needs to work for tags and radio options, and across descendants
-            'IMA List: records with the string "grandfathered"' => [
-                [
-                    'dt_id' => 2,
-                    'gen' => "grandfathered",
-                ],
-                [/*91,*/92,93,/*94,95,*/96,97,/*322*/],   // should be equivalent to earlier, but this runs a different method to get results
-                true
-            ],
-            'IMA List: records without the string "grandfathered", ignoring descendants' => [
-                [
-                    'dt_id' => 2,
-                    'gen_lim' => "!grandfathered",
-                ],
-                [91,/*92,93,*/94,95,/*96,97,*/322],
-                true
-            ],
-            'IMA List: records without the string "grandfathered", including descendants' => [
-                [
-                    'dt_id' => 2,
-                    'gen' => "!grandfathered",
-                ],
-                [91,/*92,93,*/94,95,/*96,97,*/322],    //  same as before...these minerals don't have "grandfathered", and none of the references do either
-                true
-            ],
-
-            // General search where one term can only be found in a top-level, and the other in a descendant
-            // ...seems simple, but hits a particularly nasty part of the merge logic
-            'IMA List: general search of "grandfathered OR downs"' => [
-                [
-                    'dt_id' => 2,
-                    'gen' => "grandfathered OR downs",
-                ],
-                [91,92,93,94,/*95,*/96,97,/*322*/],
-                true
-            ],
-            'IMA List: general search of "grandfathered AND downs"' => [
-                [
-                    'dt_id' => 2,
-                    'gen' => "grandfathered downs",
-                ],
-                [/*91,92,93,94,95,96,*/97,/*322*/],
-                true
-            ],
-            'IMA List: general search of "!grandfathered OR downs"' => [
-                [
-                    'dt_id' => 2,
-                    'gen' => "!grandfathered OR downs",
-                ],
-                [91,/*92,93,*/94,95,/*96,*/97,322],
-                true
-            ],
-            'IMA List: general search of "!grandfathered AND downs"' => [
-                [
-                    'dt_id' => 2,
-                    'gen' => "!grandfathered downs",
-                ],
-                [91,/*92,93,*/94,/*95,96,97,322*/],
-                true
-            ],
-
-            /* This next test is also nasty...it initially is tokenized into:
-             *   "American" AND "Mineralologist" AND "103" OR "600-609"
-             * ...but throwing an exception because of mixing OR/AND is less than ideal.  As such,
-             * the final OR gets swapped by SearchKeyService::tokenizeGeneralSearch() into an AND:
-             *   "American" AND "Mineralologist" AND "103" AND "600-609"
-             * ...which returns the expected results
-             */
-            'RRUFF Reference: general search of "American Mineralogist 103, 600-609"' => [
-                [
-                    'dt_id' => 1,
-                    'gen' => 'American Mineralogist 103, 600-609',
-                ],
-                [27],
-                true,
-            ],
-
-            // ----------------------------------------
-            // mixing general and advanced searches
-            'RRUFF Reference: general search of "downs" and authors contains "d"' => [
-                [
-                    'dt_id' => 1,
-                    'gen' => 'downs',
-                    '1' => 'd',
-                ],
-                [35,36,49,66,68],    // should be same as "gen" = "downs", obviously
-                true
-            ],
-            'RRUFF Reference: general search of "downs" and authors contains "f"' => [
-                [
-                    'dt_id' => 1,
-                    'gen' => 'downs',
-                    '1' => 'f',
-                ],
-                [36,49,66],
-                true
-            ],
-            'RRUFF Reference: general search of "downs" and journal contains "mineral"' => [
-                [
-                    'dt_id' => 1,
-                    'gen' => 'downs',
-                    '3' => 'mineral',
-                ],
-                [35,49,66,68],
-                true
-            ],
-
-            'IMA List: general search of "downs" and mineral_name contains "t"' => [
-                [
-                    'dt_id' => 2,
-                    'gen' => 'downs',
-                    '17' => "t",
-                ],
-                [91,97],
-                true
-            ],
-
-            'RRUFF Sample: general search of "downs" and authors contains "f"' => [
-                [
-                    'dt_id' => 3,
-                    'gen' => 'downs',
-                    '1' => 'f',
-                ],
-                [
-                    98,    // Abelsonite...record 1 fulfills authors: "f", while record 35 fulfills gen: "downs"
-                    101,111,113,114,117,119,120,123,127,129,130,136,139,    // Aegirine
-                    99,100,103,105,106,107,109,110,112,116,118,125,128,131,134,135,138    // Anorthite
-                ],
-                true
-            ],
-            'RRUFF Sample: general search of "downs" and mineral_name contains "t"' => [
-                [
-                    'dt_id' => 3,
-                    'gen' => 'downs',
-                    '17' => 't',
-                ],
-                [
-                    98,    // Abelsonite
-//                    101,111,113,114,117,119,120,123,127,129,130,136,139,    // Aegirine
-                    99,100,103,105,106,107,109,110,112,116,118,125,128,131,134,135,138    // Anorthite
-                ],
-                true
-            ],
-
-            // ----------------------------------------
-            // Searches to catch issues caused by a situation where C links to B, B links to A, and C also links to A
-            'RRUFF Sample: authors contains "ross"' => [
-                [
-                    'dt_id' => 3,
-                    '1' => 'ross',    // results in 73 and 77
-                ],
-                [
-                    // Aegirine
-                    101,111,113,114,117,119,120,123,127,129,
-                    130,136,139,
-                    // Anorthite
-                    99,100,103,105,106,107,109,110,112,116,
-                    118,125,128,131,134,135,138,
-
-                    // 107 also links to 77
-                ],
-                false
-            ],
-            'RRUFF Sample: general search of "ross"' => [
-                [
-                    'dt_id' => 3,
-                    'gen' => 'ross',    // results in 73 and 77 from references, and 99, 106, 128 from rruff sample
-                ],
-                [
-                    // Aegirine
-                    101,111,113,114,117,119,120,123,127,129,
-                    130,136,139,
-                    // Anorthite
-                    99,100,103,105,106,107,109,110,112,116,
-                    118,125,128,131,134,135,138,
-
-                    // 107 also links to 77
-                ],
-                false
-            ],
-            'RRUFF Sample: general search of "asdf"' => [
-                [
-                    'dt_id' => 3,
-                    '1' => 'asdf',
-                ],
-                [],
-                false
-            ],
-
-            // ----------------------------------------
-            // Searches where a descendant returns no results
-            'RRUFF Reference: search for non-public records' => [
-                [
-                    'dt_id' => 1,
-                    'dt_1_pub' => 0,
-                ],
-                [],    // should return no results
-                true
-            ],
-
-            'IMA List: search for minerals without a reference' => [
-                [
-                    'dt_id' => 2,
-                    '1' => '""',
-                ],
-                [322],    // should return one result, the only IMA mineral without a linked reference
-                true
-            ],
-            'IMA List: search for minerals with author == "downs" OR minerals without a reference' => [
-                [
-                    'dt_id' => 2,
-                    '1' => 'downs OR ""',
-                ],
-                [91,94,97,322],    // should return the three minerals referred to by "downs" and the only IMA mineral without a linked reference
-                true
-            ],
-            'IMA List: search for minerals with author == "downs" AND minerals without a reference' => [
-                [
-                    'dt_id' => 2,
-                    '1' => 'downs AND ""',
-                ],
-                [],    // should return nothing because it's impossible to match
-                true
-            ],
-            'IMA List: search for minerals with non-public references' => [
-                [
-                    'dt_id' => 2,
-                    'dt_1_pub' => 0,
-                ],
-                [],    // should return no results, because all references are public
-                true
-            ],
-            'IMA List: search for minerals with non-public references and mineral_display_name !== ""' => [
-                [
-                    'dt_id' => 2,
-                    'dt_1_pub' => 0,
-                    '18' => '!""',
-                ],
-                [],    // should also return no results, despite the other part of the search matching all minerals
-                true
-            ],
-
-            'RRUFF Sample: search for minerals with non-public references and mineral_display_name !== ""' => [
-                [
-                    'dt_id' => 3,
-                    'dt_1_pub' => 0,
-                    '18' => '!""',
-                ],
-                [],    // should also return no results, despite the other part of the search returning results
-                true
-            ],
-            'RRUFF Sample: search for minerals with non-public references and rruff_id !== ""' => [
-                [
-                    'dt_id' => 3,
-                    'dt_1_pub' => 0,
-                    '30' => '!""',
-                ],
-                [],    // should also return no results, despite the other part of the search returning results
-                true
-            ],
-
-            // ----------------------------------------
-            // IMPORTANT: while you might expect these next two tests to behave similarly to
-            //  the two that are were run on the IMA List, you would be sorely mistaken.
-
-            // ODR quasi-intentionally obsfucates searching in situations in which there are multiple
-            // "paths" to reach a descendant...
-            // e.g. "Samples" links to "Mineral", "Mineral" links to "References", "Samples" also links to "References"
-            // ...the search sidebar UI would need to be modified to display a hierarchy and inform
-            //  the user why it's different, and SearchAPIService::getSearchArrays() would have to
-            //  create/store two copies of the "Reference" records, SearchAPIService::mergeSearchResults()
-            //  would have to differentiate which copy of the records matched the search query, and
-            //  the merging would also have to differentiate between the different sets of records
-            //  ...that's obviously a serious pain in the ass to code, and that's before you have to
-            //  explain to a user who isn't *expecting* such a drastic distinction why they have to
-            //  jump through hoops instead of having it just work.
-            'RRUFF Sample: reference author == ""' => [
-                // Without the ability to differentiate between which "path" you want, this is
-                //  actually asking for the rruff samples which aren't linked to a reference, or
-                //  for the rruff samples linked to a mineral that aren't linked to a reference
-
-                // This clearly isn't something that's terribly useful to know, but this is the price
-                //  paid for allowing queries like '"RRUFF Sample: reference author == "downs"' to
-                //  return results from both "paths" so the query works as *expected*.  Whee.
-                [
-                    'dt_id' => 3,
-                    '1' => '""',
-                ],
-                array_merge(
-                    array_diff(
-                        range(98,139),  // the rruff samples range from 98 to 139...
-                        [107,126]  // ...but 107 and 126 won't match the query since they're the only ones with references of their own
-                                        // NOTE: 126 is a Bournonite sample, but has a ref from Abelsonite specifically to make an inverse search test work
-                    ),
-                    [323]         // ...also need the rruff sample 323, since it links to the mineral 322 which has no references
-                ),
-                true
-            ],
-            'RRUFF Sample: search for samples where minerals with author == "downs" AND minerals without a reference' => [
-                [
-                    'dt_id' => 3,
-                    '1' => 'downs AND ""',
-                ],
-                [],    // should return nothing because it's impossible to match
-                true
-            ],
-
-
-            // ----------------------------------------
             // "Advanced" versions of XYZData searches...
             'XYZData test, advanced: silly precision search' => [
                 [
@@ -1649,11 +1764,11 @@ class SearchAPIServiceTest extends WebTestCase
                 true
             ],
 //            'XYZData test, advanced: OR search with two ranges' => [    // TODO - implement this
-//                array(
+//                [
 //                    'dt_id' => 16,
 //                    '66' => '(>2.81 < 2.83,)|(>5.63 <5.65,)',    // want records with 1) an x between 2.81 and 2.83 OR 2) an x between 5.63 and 5.65
-//                ),
-//                array(326),
+//                ],
+//                [326],
 //                true
 //            ],
 
@@ -1756,11 +1871,11 @@ class SearchAPIServiceTest extends WebTestCase
             ],
             // NOTE: the "simple" version can't perform this search
 //            'XYZData test, simple: search with separate x/y' => [
-//                array(
+//                [
 //                    'dt_id' => 16,
 //                    '66' => '(>5.6 <5.65,)|(,>50)',
-//                ),
-//                array(325,326,327),    // all three have a different point with a y value of 100, so they should all match again
+//                ],
+//                [325,326,327],    // all three have a different point with a y value of 100, so they should all match again
 //                true
 //            ],
             'XYZData test, simple: multirange x/y with single y' => [
@@ -1818,12 +1933,12 @@ class SearchAPIServiceTest extends WebTestCase
                 true
             ],
 //            'XYZData test, simple: multirange x/y with multiple y' => [    // TODO - find something that makes sense here?  nothing will really match in this database
-//                array(
+//                [
 //                    'dt_id' => 16,
 //                    '66_x' => '>=1.4 <=1.5 && >=2.4 <=2.5',
 //                    '66_y' => '>=7 && ',
-//                ),
-//                array(325,327),  // this should get converted into "(>=1.4 <=1.5,>=7,)|(>=2.4 <=2.5,>=7,)"
+//                ],
+//                [325,327],  // this should get converted into "(>=1.4 <=1.5,>=7,)|(>=2.4 <=2.5,>=7,)"
 //                true
 //            ],
         ];
@@ -1832,7 +1947,7 @@ class SearchAPIServiceTest extends WebTestCase
     /**
      * @return array
      */
-    public function provideSearchParamsCompleteDatarecordList()
+    public static function provideSearchParamsCompleteDatarecordList()
     {
         return [
             // ----------------------------------------
@@ -1918,17 +2033,17 @@ class SearchAPIServiceTest extends WebTestCase
                 true
             ],
 
-/*
-            'RRUFF Reference: general search of "downs"' => [
-                array(
-                    'dt_id' => 1,
-                    'gen' => 'downs',
-                ),
-                array(35,36,49,66,68),
-                false
-            ],
-*/
-            'IMA List: general search of "downs" for complete datarecord list' => [
+            /*
+                        'RRUFF Reference: general search of "downs"' => [
+                            [
+                                'dt_id' => 1,
+                                'gen' => 'downs',
+                            ],
+                            [35,36,49,66,68],
+                            false
+                        ],
+            */
+            'IMA List: general search of "downs" for complete datarecord list, without non-public records' => [
                 [
                     'dt_id' => 2,
                     'gen' => 'downs',
@@ -1946,7 +2061,7 @@ class SearchAPIServiceTest extends WebTestCase
                 ],
                 false
             ],
-            'RRUFF Sample: general search of "downs" for complete datarecord list' => [
+            'RRUFF Sample: general search of "downs" for complete datarecord list, without non-public records' => [
                 [
                     'dt_id' => 3,
                     'gen' => 'downs',
@@ -1983,7 +2098,7 @@ class SearchAPIServiceTest extends WebTestCase
                 false
             ],
 
-            'RRUFF Sample: general search of "downs" and wavelength = "532" for complete datarecord list' => [
+            'RRUFF Sample: general search of "downs" and wavelength = "532" for complete datarecord list, without non-public records' => [
                 [
                     'dt_id' => 3,
                     'gen' => 'downs',
@@ -2031,21 +2146,13 @@ class SearchAPIServiceTest extends WebTestCase
                 true
             ],
 
-
             'RRUFF Reference: inverse default search for complete datarecord list' => [
                 [
                     'dt_id' => 1,
                     'inverse' => 3,
                 ],
-                range(1, 90),
-                true
-            ],
-            'IMA List: inverse default search for complete datarecord list' => [
-                [
-                    'dt_id' => 2,
-                    'inverse' => 3,
-                ],
-                array_merge( range(1, 97), [322] ),    // all RRUFF Reference records, plus the 8 IMA List records
+//                array_merge( range(1, 295), [322,323] ),  // 323 is the RRUFF Sample linked to by 322, and 322 is the IMA "unknown" mineral, which isn't linked to...
+                range(1, 295),  // all RRUFF Reference records, plus the IMA List records that they link to, plus the RRUFF Sample records they link to, plus the Raman Spectra records of those RRUFF Samples
                 true
             ],
             'RRUFF Reference: inverse search of authors containing "downs" for complete datarecord list' => [
@@ -2054,18 +2161,246 @@ class SearchAPIServiceTest extends WebTestCase
                     'inverse' => 3,
                     '1' => "downs"
                 ],
-                [35,36,49,66,68],
+                [
+                    35,36,49,66,68,  // RRUFF Reference with "downs"
+                    91,94,97,        // abelsonite, aegirine, anorthite
+
+                    // abelsonite samples
+                    98,
+                    // aegirine samples
+                    127,114,139,101,111,130,113,136,120,117,
+                    123,119,129,
+                    // anorthite samples
+                    125,110,107,134,128,100,118,131,116,105,
+                    138,109,99,135,103,106,112,
+
+                    // all spectra of the above samples
+                    140,141,143,146,147,148,149,151,152,153,
+                    154,156,157,158,159,160,161,163,164,166,
+                    169,170,171,172,173,174,175,176,177,178,
+                    180,181,182,183,184,185,187,192,193,194,
+                    195,196,197,199,200,201,203,204,205,206,
+                    207,208,209,210,211,213,215,216,218,219,
+                    220,221,223,224,225,226,227,228,230,231,
+                    232,233,234,235,236,237,238,239,240,241,
+                    243,245,247,248,249,250,252,256,258,260,
+                    261,262,263,264,265,266,267,268,269,270,
+                    271,272,275,276,278,279,280,282,283,284,
+                    285,286,287,288,289,290,291,293,294,295,
+                ],
                 true
             ],
-            'IMA List: inverse search of authors containing "downs" for complete datarecord list' => [
+            'RRUFF Reference: inverse search of wavelength = "532" for complete datarecord list' => [
+                [
+                    'dt_id' => 1,
+                    'inverse' => 3,
+                    '41' => "532"
+                ],
+                [
+                    // all 532 raman spectra
+                    140,150,155,156,165,167,175,176,179,204,
+                    218,222,234,236,243,249,263,273,276,281,
+                    282,283,290,291,294,
+
+                    // all samples with those raman spectra
+                    98,100,102,103,105,107,109,111,113,115,
+                    116,118,119,120,123,124,125,126,129,131,
+                    133,137,139,
+                    // all references with those samples
+                    1,77,
+
+                    // all minerals with those samples
+                    91,92,93,94,96,97,
+                    // all references with those minerals
+                    /*1,*/2,3,4,5,6,7,8,9,10,
+                    12,13,14,15,16,18,19,20,21,22,
+                    23,24,25,26,27,28,29,30,31,32,
+                    33,34,35,36,37,38,39,40,41,42,
+                    43,44,45,46,47,48,49,50,51,52,
+                    53,54,55,56,57,58,59,60,61,62,
+                    63,64,65,66,67,68,69,70,71,72,
+                    73,75,76,/*77,*/78,79,80,81,82,83,
+                    85,86,88,89,90
+                ],
+                true
+            ],
+            'RRUFF Reference: inverse general search of "downs" and wavelength = "532" for complete datarecord list' => [
+                [
+                    'dt_id' => 1,
+                    'inverse' => 3,
+                    'gen' => 'downs',
+                    '41' => '532',
+                ],
+                [
+                    // this one matches all references with minerals with samples with 532 raman that also have "downs" on the page
+                    // ...this means the general search is matched by RRUFF References with "downs"...
+                    35,36,49,66,68,
+                    // ...the minerals of those 5 references (abelsonite, aegirine, anorthite)
+                    91,94,97,
+
+                    // abelsonite samples...
+                    98,
+                    // ...with 532 raman
+                    140,
+
+                    // aegirine samples...
+                    /*101,*/111,113,/*114,117,*/119,120,123,/*127,*/129,/*130,136,*/139,
+                    // ...with 532 raman
+                    176,291,294,263,234,175,236,
+
+                    // anorthite samples...
+                    /*99,*/100,103,105,/*106,*/107,109,/*110,112,*/116,118,125,/*128,*/131,/*134,135,138*/
+                    // ...with 532 raman
+                    283,156,282,249,243,290,276,204,218,
+
+                    // the catch is that 139 (R040054) also has "downs" in addition to 532 raman
+                    /*139,*/
+                    // ...which means that all references of its mineral (aegirine) also match the general search
+                    3,8,10,16,21,24,29,32,/*36,*/38,39,42,43,50,55,61,65,/*68,*/70,72,73,78,88,
+                ],
+                true
+            ],
+            'RRUFF Reference: inverse general search of "532" and authors = "downs" for complete datarecord list' => [
+                [
+                    'dt_id' => 1,
+                    'inverse' => 3,
+                    '1' => 'downs',
+                    'gen' => '532',
+                ],
+                [
+                    // this one matches all references with downs that also have "532" somewhere on the page
+                    // So the 5 references with downs...the reference with "532" in its pages does not have downs as an author, so it doesn't match
+                    35,36,49,66,68,
+                    // ...the minerals of those 5 references (abelsonite, aegirine, anorthite) because they all have 532 spectra
+                    91,94,97,
+
+                    // abelsonite samples...
+                    98,
+                    // aegirine samples...
+                    101,111,113,114,117,119,120,123,127,129,
+                    130,136,139,
+                    // anorthite samples...
+                    99,100,103,105,106,107,109,110,112,116,
+                    118,125,128,131,134,135,138,
+
+                    // ...and ALL abelsonite raman
+                    140,250,
+                    // ...and ALL aegirine raman
+                    149,154,157,158,159,163,175,176,180,192,
+                    194,195,201,206,207,208,210,215,216,220,
+                    221,224,225,226,227,231,234,235,236,241,
+                    245,247,256,258,262,263,264,268,270,275,
+                    278,280,285,288,291,293,294,295,
+                    // ...and ALL anorthite raman
+                    141,143,146,147,148,151,152,153,156,160,
+                    161,164,166,169,170,171,172,173,174,177,
+                    178,181,182,183,184,185,187,193,196,197,
+                    199,200,203,204,205,209,211,213,218,219,
+                    223,228,230,232,233,237,238,239,240,243,
+                    248,249,252,260,261,265,266,267,269,271,
+                    272,276,279,282,283,284,286,287,289,290
+
+                    // the reason this gets ALL raman spectra and not just 532 is because of the
+                    //  rules of general search...if at least one part of the record tree matches a
+                    //  general search, then the entire tree gets included for complete record lists
+                ],
+                true
+            ],
+
+            'IMA List: inverse default search for complete datarecord list' => [
+                [
+                    'dt_id' => 2,
+                    'inverse' => 3,
+                ],
+                array_merge( range(1, 295), [322,323] ),  // unlike previous, 322/323 are available when "starting from" the IMA list
+                true
+            ],
+            'IMA List: inverse search of authors containing "downs" for complete datarecord list, naive' => [
                 [
                     'dt_id' => 2,
                     'inverse' => 3,
                     '1' => "downs"
                 ],
                 [
-                    35,36,49,66,68,    // from RRUFF Reference
-                    91,94,97           // from IMA List
+                    35,36,49,66,68,  // RRUFF Reference with "downs"
+                    91,94,97,        // abelsonite, aegirine, anorthite
+
+                    // NOTE: the reason this is 'naive' is because the inverter ends up creating:
+                    //  ima
+                    //  |- references
+                    //  |- samples
+                    //     |- references
+                    //     |- raman spectra
+                    // ...at which point it makes sense that samples is marked as "MUST MATCH"
+                    // Unfortunately, this also means that zero samples (or spectra) will ever match
+                    // TODO - is there a way around this?  it feels as if the two ancestors of references MUST be handled fundamentally differently...but that's almost impossible to determine generically
+//                    // abelsonite samples
+//                    98,
+//                    // aegirine samples
+//                    127,114,139,101,111,130,113,136,120,117,
+//                    123,119,129,
+//                    // anorthite samples
+//                    125,110,107,134,128,100,118,131,116,105,
+//                    138,109,99,135,103,106,112,
+//
+//                    // all spectra of the above samples
+//                    140,141,143,146,147,148,149,151,152,153,
+//                    154,156,157,158,159,160,161,163,164,166,
+//                    169,170,171,172,173,174,175,176,177,178,
+//                    180,181,182,183,184,185,187,192,193,194,
+//                    195,196,197,199,200,201,203,204,205,206,
+//                    207,208,209,210,211,213,215,216,218,219,
+//                    220,221,223,224,225,226,227,228,230,231,
+//                    232,233,234,235,236,237,238,239,240,241,
+//                    243,245,247,248,249,250,252,256,258,260,
+//                    261,262,263,264,265,266,267,268,269,270,
+//                    271,272,275,276,278,279,280,282,283,284,
+//                    285,286,287,288,289,290,291,293,294,295,
+                ],
+                true
+            ],
+            'IMA List: inverse search of authors containing "downs" for complete datarecord list, unambiguous' => [
+                [
+                    'dt_id' => 2,
+                    'inverse' => 3,
+                    '1' => "downs",
+                    'ignore' => '3_1',  // NOTE: not 1_3
+                ],
+                [
+                    35,36,49,66,68,  // RRUFF Reference with "downs"
+                    91,94,97,        // abelsonite, aegirine, anorthite
+
+                    // NOTE: the reason this is 'unambiguous' is because the inverter ends up creating:
+                    //  ima
+                    //  |- references
+                    //  |- samples
+                    //     |- raman spectra
+                    // ...at which point the samples "DON"T MATTER" from the perspective of ima, so
+                    //  all the relevant samples and raman spectra will match
+                    // TODO - see 'naive' version of this test
+
+                    // abelsonite samples
+                    98,
+                    // aegirine samples
+                    127,114,139,101,111,130,113,136,120,117,
+                    123,119,129,
+                    // anorthite samples
+                    125,110,107,134,128,100,118,131,116,105,
+                    138,109,99,135,103,106,112,
+
+                    // all spectra of the above samples
+                    140,141,143,146,147,148,149,151,152,153,
+                    154,156,157,158,159,160,161,163,164,166,
+                    169,170,171,172,173,174,175,176,177,178,
+                    180,181,182,183,184,185,187,192,193,194,
+                    195,196,197,199,200,201,203,204,205,206,
+                    207,208,209,210,211,213,215,216,218,219,
+                    220,221,223,224,225,226,227,228,230,231,
+                    232,233,234,235,236,237,238,239,240,241,
+                    243,245,247,248,249,250,252,256,258,260,
+                    261,262,263,264,265,266,267,268,269,270,
+                    271,272,275,276,278,279,280,282,283,284,
+                    285,286,287,288,289,290,291,293,294,295,
                 ],
                 true
             ],
@@ -2075,7 +2410,7 @@ class SearchAPIServiceTest extends WebTestCase
     /**
      * @return array
      */
-    public function provideInverseSearchParams()
+    public static function provideInverseSearchParams()
     {
         /*
          * The underlying database has these relations:
@@ -2105,6 +2440,8 @@ class SearchAPIServiceTest extends WebTestCase
          * investigation to figure out why they actually match.
          */
 
+        // TODO - recheck/redo these
+
         return [
             // ----------------------------------------
             'RRUFF Reference: invalid inverse search' => [
@@ -2124,6 +2461,15 @@ class SearchAPIServiceTest extends WebTestCase
                 true
             ],
 
+            'RRUFF References: mineral name of "b" but no inverse set' => [
+                [
+                    'dt_id' => 1,
+                    '17' => 'b',
+                ],
+                range(1, 90),
+                true
+            ],
+
 
             // ----------------------------------------
             'RRUFF Reference: inverse search towards RRUFF Reference' => [
@@ -2131,15 +2477,15 @@ class SearchAPIServiceTest extends WebTestCase
                     'dt_id' => 1,
                     'inverse' => 1,    // targetting RRUFF Reference should work
                 ],
-                range(1, 90),
+                range(1, 90),  // should have no effect
                 true
             ],
             'RRUFF Reference: inverse search towards IMA List' => [
                 [
                     'dt_id' => 1,
-                    'inverse' => 2,    // targetting IMA List should still return all references
+                    'inverse' => 2,
                 ],
-                range(1, 90),
+                range(1, 90),    // targetting IMA List without any criteria should still return all references
                 true
             ],
             'RRUFF Sample: inverse search to itself with wavelength "514"' => [
@@ -2148,10 +2494,82 @@ class SearchAPIServiceTest extends WebTestCase
                     'inverse' => 3,  // This setup shouldn't happen technically
                     '41' => "514",
                 ],
-                [103,107,111,124,133,139],
+                [103,107,111,124,133,139],  // it should not change the result regardless
                 true
             ],
 
+            'RRUFF Reference: inverse search, mineral_aliases is blank' => [
+                [
+                    'dt_id' => 1,
+                    'inverse' => 2,
+                    '19' => '""',
+                ],
+                [
+                    // references of abelsonite (91)
+                    1,9,35,63,83,
+                    // references of amesite (93)
+                    12,14,19,25,56,57,62,75,89,
+                    // references of abellaite (95)
+                    11,17,74,84,87,
+                    // references of adelite (96)
+                    2,4,6,18,23,37,54,59,67,86,
+                    // references of anorthite (97)
+                    7,15,20,27,28,29,30,31,33,40,  // 29 is both aegirine (94) and anorthite (97)
+                    44,45,46,47,48,49,51,52,53,58,
+                    60,64,66,69,71,76,77,79,81,82,
+                    85,90,
+                    // references of unknown (322)
+                ],
+                true
+
+                // due to not using set subtraction, this query is "references with minerals that
+                //  don't have an alias...and therefore, 29 does match because anorthite does not
+                //  have an alias
+            ],
+            'RRUFF Reference: inverse search, mineral_aliases is blank, using set logic' => [
+                [
+                    'dt_id' => 1,
+                    'inverse' => 2,
+                    '19' => '""',
+                    'set' => 1,
+                ],
+                [
+                    // references of abelsonite (91)
+                    1,9,35,63,83,
+                    // references of amesite (93)
+                    12,14,19,25,56,57,62,75,89,
+                    // references of abellaite (95)
+                    11,17,74,84,87,
+                    // references of adelite (96)
+                    2,4,6,18,23,37,54,59,67,86,
+                    // references of anorthite (97)
+                    7,15,20,27,28,/*29,*/30,31,33,40,  // 29 is both aegirine (94) and anorthite (97)
+                    44,45,46,47,48,49,51,52,53,58,
+                    60,64,66,69,71,76,77,79,81,82,
+                    85,90,
+                    // references of unknown (322)
+                ],
+                true
+
+                // due to the use of set subtraction, this query is "references without a mineral
+                //  that has an alias"...and therefore, 29 does not match because aegirine has an alias
+            ],
+            'RRUFF Reference: inverse search, mineral_aliases is not blank' => [
+                [
+                    'dt_id' => 1,
+                    'inverse' => 2,
+                    '19' => '!""',
+                ],
+                [
+                    // references of bournonite (92)
+                    5,13,22,26,34,41,80,
+                    // references of aegirine (94)
+                    3,8,10,16,21,24,29,32,36,38,
+                    39,42,43,50,55,61,65,68,70,72,
+                    73,78,88,
+                ],
+                true
+            ],
             'RRUFF Reference: inverse search, references with the mineral_name "Bournonite"' => [
                 [
                     'dt_id' => 1,
@@ -2177,7 +2595,7 @@ class SearchAPIServiceTest extends WebTestCase
                     '30' => "R050364",
                 ],
                 [5,13,22,26,34,41,80, 1],  // should have the Bournonite references, plus the one linked to directly by this sample
-                                                // NOTE: 126 is a Bournonite sample, but has a ref from Abelsonite specifically to make this inverse search test work
+                // NOTE: 126 is a Bournonite sample, but has a ref from Abelsonite specifically to make this inverse search test work
                 true
             ],
 
@@ -2203,7 +2621,7 @@ class SearchAPIServiceTest extends WebTestCase
                     '41' => "532",
                 ],
                 [1,9,35,63,83],    // the five Abelsonite references, since the Abelsonite sample has 532 spectra
-                                        // 77 shouldn't match due to the mineral_name
+                // 77 shouldn't match due to the mineral_name
                 true
             ],
             'RRUFF Reference: inverse search, references with a article_title of "Abelsonite" and a wavelength "532"' => [
@@ -2214,7 +2632,7 @@ class SearchAPIServiceTest extends WebTestCase
                     '41' => "532",
                 ],
                 [1,35,63,83],  // should only have the four references that directly mention "abelsonite", despite "532" matching pretty much every RRUFF Sample...
-                                    // ...9 shouldn't match due to the article_title
+                // ...9 shouldn't match due to the article_title
                 true
             ],
 
@@ -2256,13 +2674,65 @@ class SearchAPIServiceTest extends WebTestCase
                 [94,97],  // only Aegirine and Anorthite match both conditions
                 true
             ],
+
+
+            'RRUFF Reference: inverse general search of "downs" and wavelength = "532"' => [
+                [
+                    'dt_id' => 1,
+                    'inverse' => 3,
+                    'gen' => 'downs',
+                    '41' => '532',
+                ],
+                [
+                    // this one matches all references with minerals with samples with 532 raman that also have "downs" on the page
+                    // ...this means the general search is matched by RRUFF References with "downs"...
+                    35,36,49,66,68,
+//                    // ...the minerals of those 5 references (abelsonite, aegirine, anorthite)
+//                    91,94,97,
+//
+//                    // abelsonite samples...
+//                    98,
+//                    // ...with 532 raman
+//                    140,
+//
+//                    // aegirine samples...
+//                    /*101,*/111,113,/*114,117,*/119,120,123,/*127,*/129,/*130,136,*/139,
+//                    // ...with 532 raman
+//                    176,291,294,263,234,175,236,
+//
+//                    // anorthite samples...
+//                    /*99,*/100,103,105,/*106,*/107,109,/*110,112,*/116,118,125,/*128,*/131,/*134,135,138*/
+//                    // ...with 532 raman
+//                    283,156,282,249,243,290,276,204,218,
+//
+//                    // the catch is that 139 (R040054) also has "downs" in addition to 532 raman
+//                    139,
+                    // ...which means that all references of its mineral (aegirine) also match the general search
+                    3,8,10,16,21,24,29,32,/*36,*/38,39,42,43,50,55,61,65,/*68,*/70,72,73,78,88,
+                ],
+                true
+            ],
+            'RRUFF Reference: inverse general search of "532" and authors = "downs"' => [
+                [
+                    'dt_id' => 1,
+                    'inverse' => 3,
+                    '1' => 'downs',
+                    'gen' => '532',
+                ],
+                [
+                    // this one matches all references with "downs" that also have 532 on the page
+                    // ...with the current set of data, the general search of 532 is superfluous
+                    35,36,49,66,68,
+                ],
+                true
+            ],
         ];
     }
 
     /**
      * @return array
      */
-    public function provideIgnoreDescendantsSearchParams()
+    public static function provideIgnoreDescendantsSearchParams()
     {
         /*
          * These tests are for a "ignoring descendants"...the underlying database has these relations:
@@ -2319,7 +2789,7 @@ class SearchAPIServiceTest extends WebTestCase
     /**
      * @return array
      */
-    public function provideORSearchParams()
+    public static function provideORSearchParams()
     {
         /*
          * ODR generally requires the results to match all given criteria due to merging by AND, but
@@ -2348,7 +2818,7 @@ class SearchAPIServiceTest extends WebTestCase
                 [
                     35,49,66, // downs
                     36,68, // both
-                    3,10,31,32,38,43,65,70,72,73,  // pyroxine
+                    3,10,31,32,38,43,65,70,72,73,  // pyroxene
                 ],
                 true
             ],
@@ -2379,8 +2849,8 @@ class SearchAPIServiceTest extends WebTestCase
                     'merge' => 'OR',
                 ],
                 [
-                    // no mineral name contains "downs"
-                    91,94,97  // authors contains "downs"
+                    // no mineral with name containing "downs"
+                    91,94,97  // minerals with references where authors contains "downs"
                 ],
                 true
             ],
@@ -2392,8 +2862,8 @@ class SearchAPIServiceTest extends WebTestCase
                     'merge' => 'OR',
                 ],
                 [
-                    93, // one mineral contains "amesite"
-                    // no author is named "amesite"
+                    93, // one mineral with name containing "amesite"
+                    // no references where author is named "amesite"
                 ],
                 true
             ],
@@ -2407,9 +2877,9 @@ class SearchAPIServiceTest extends WebTestCase
                     'merge' => 'OR',
                 ],
                 [
-                    92,95,  // name contains "b"
+                    92,95,  // minerals with name containing "b"
                     91,  // both
-                    94,97  // authors contains "downs"
+                    94,97  // minerals with references where authors contains "downs"
                 ],
                 true
             ],
@@ -2421,9 +2891,9 @@ class SearchAPIServiceTest extends WebTestCase
                     'merge' => 'OR',
                 ],
                 [
-                    124,126,122,121,108,  // mineral name contains "b"
+                    124,126,122,121,108,  // samples of minerals with name containing "b"
                     98,  // both
-                    127,114,139,101,111,130,113,136,120,117,123,119,129,125,110,107,134,128,100,118,131,116,105,138,109,99,135,103,106,112  // references with "downs"
+                    127,114,139,101,111,130,113,136,120,117,123,119,129,125,110,107,134,128,100,118,131,116,105,138,109,99,135,103,106,112  // samples of minerals with references where author contains "downs"
                 ],
                 true
             ],
@@ -2433,7 +2903,7 @@ class SearchAPIServiceTest extends WebTestCase
     /**
      * @return array
      */
-    public function provideSortSearchParams()
+    public static function provideSortSearchParams()
     {
         // 91: 777, Abelsonite, USA
         // 92: 1193, Bournonite, United Kingdom
@@ -2510,7 +2980,7 @@ class SearchAPIServiceTest extends WebTestCase
     /**
      * @return array
      */
-    public function provideFilterSearchParams()
+    public static function provideFilterSearchParams()
     {
         return [
             // ----------------------------------------
@@ -2575,11 +3045,919 @@ class SearchAPIServiceTest extends WebTestCase
                 [
                     'dt_id' => 2,
                     'sort_by' => [
-//                        array("sort_df_id" => "64", "sort_dir" => "asc"),
+//                        ["sort_df_id" => "64", "sort_dir" => "asc"],
                         ["sort_df_id" => "17", "sort_dir" => "asc"],
                     ],
                 ],
                 false
+            ],
+
+            'IMA List: non-public records, without permissions' => [
+                [
+                    'dt_id' => 2,
+                    'dt_2_pub' => 0,
+                ],
+                [
+                    'dt_id' => 2,
+//                    'dt_2_pub' => 0,
+                ],
+                false
+            ],
+        ];
+    }
+
+    /**
+     * @return array
+     */
+    public static function provideDefaultSearchParams()
+    {
+        return [
+            // General search
+            'RRUFF Reference: default general search' => [
+                [  // given
+                    'dt_id' => 1
+                ],
+                [  // default
+                    'dt_id' => 1,
+                    'gen' => 'downs',
+                ],
+                [35,36,49,66,68],
+                false
+            ],
+            'RRUFF Reference: journal + default general search' => [
+                [  // given
+                    'dt_id' => 1,
+                    '3' => 'American',
+                ],
+                [  // default
+                    'dt_id' => 1,
+                    'gen' => 'downs',
+                ],
+                [35,/*36,*/49,66,68],
+                false
+            ],
+            'RRUFF Reference: override general default v1' => [
+                [  // given
+                    'dt_id' => 1,
+                    'gen' => ''
+                ],
+                [  // default
+                    'dt_id' => 1,
+                    'gen' => 'downs',
+                ],
+                range(1,90),
+                false
+            ],
+            'RRUFF Reference: override general default v2' => [
+                [  // given
+                    'dt_id' => 1,
+                    'gen' => 'the'
+                ],
+                [  // default
+                    'dt_id' => 1,
+                    'gen' => 'downs',
+                ],
+                [
+                    1,2,3,4,/*5,*/6,7,/*8,9,10,*/
+                    /*11,*/12,/*13,*/14,15,16,/*17,*/18,19,20,
+                    21,22,23,24,25,/*26,*/27,28,/*29,*/30,
+                    /*31,32,33,*/34,35,/*36,*/37,38,39,/*40,*/
+                    /*41,*/42,43,44,45,46,/*47,*/48,/*49,*/50,
+                    51,52,/*53,54,*/55,/*56,*/57,/*58,*/59,/*60,*/
+                    61,/*62,*/63,64,65,66,67,68,/*69,70,*/
+                    71,72,/*73,74,75,*/76,/*77,78,79,*/80,
+                    /*81,*/82,83,84,85,86,87,/*88,*/89,/*90,*/
+                ],
+                false
+            ],
+            'RRUFF Reference: override general default v3' => [
+                [  // given
+                    'dt_id' => 1,
+                    'gen_lim' => 'the'  // won't really have an effect due to no descendants
+                ],
+                [  // default
+                    'dt_id' => 1,
+                    'gen' => 'downs',
+                ],
+                [
+                    1,2,3,4,/*5,*/6,7,/*8,9,10,*/
+                    /*11,*/12,/*13,*/14,15,16,/*17,*/18,19,20,
+                    21,22,23,24,25,/*26,*/27,28,/*29,*/30,
+                    /*31,32,33,*/34,35,/*36,*/37,38,39,/*40,*/
+                    /*41,*/42,43,44,45,46,/*47,*/48,/*49,*/50,
+                    51,52,/*53,54,*/55,/*56,*/57,/*58,*/59,/*60,*/
+                    61,/*62,*/63,64,65,66,67,68,/*69,70,*/
+                    71,72,/*73,74,75,*/76,/*77,78,79,*/80,
+                    /*81,*/82,83,84,85,86,87,/*88,*/89,/*90,*/
+                ],
+                false
+            ],
+
+            // Inverse search
+            'RRUFF Reference: inverse search' => [
+                [  // given
+                    'dt_id' => 1,
+                    'gen' => 'Abelsonite'
+                ],
+                [  // default
+                    'dt_id' => 1,
+                    'inverse' => '3',
+                ],
+                [
+                    1,35,63,83,  // the references with 'Abelsonite' should match
+                    9,           // ...plus the rest of the references from the mineral 'Abelsonite'
+                ],  // ...nothing else has 'Abelsonite' in it
+                true,
+            ],
+            'RRUFF Reference: disable inverse search v1' => [
+                [  // given
+                    'dt_id' => 1,
+                    'inverse' => '0',
+                    'gen' => 'Abelsonite'
+                ],
+                [  // default
+                    'dt_id' => 1,
+                    'inverse' => '3',
+                ],
+                [1,35,63,83],  // because inverse search got disabled, the string should only locate the references with 'Abelsonite'
+                true,
+            ],
+            'RRUFF Reference: disable inverse search v2' => [
+                [  // given
+                    'dt_id' => 1,
+                    'inverse' => '',
+                    'gen' => 'Abelsonite'
+                ],
+                [  // default
+                    'dt_id' => 1,
+                    'inverse' => '3',
+                ],
+                [1,35,63,83],  // because inverse search got disabled, the string should only locate the references with 'Abelsonite'
+                true,
+            ],
+            // TODO - other stuff here?
+
+            // Boolean
+            'RRUFF Sample: default boolean search' => [
+                [  // given
+                    'dt_id' => 3
+                ],
+                [  // default
+                    'dt_id' => 3,
+                    '35' => '1'  // rruff_owned == true
+                ],
+                [99,101,104,110,114,117,127,130,132,134,135,136],
+                true,
+            ],
+            'RRUFF Sample: locality + default boolean search' => [
+                [  // given
+                    'dt_id' => 3,
+                    '37' => 'USA'  // locality
+                ],
+                [  // default
+                    'dt_id' => 3,
+                    '35' => '1'  // rruff_owned == true
+                ],
+                [/*99,*/101,/*104,*/110,/*114,117,127,*/130,/*132,134,*/135,/*136*/],
+                true,
+            ],
+            'RRUFF Sample: override boolean default v1' => [
+                [  // given
+                    'dt_id' => 3,
+                    '35' => '0'  // rruff_owned == false
+                ],
+                [  // default
+                    'dt_id' => 3,
+                    '35' => '1'  // rruff_owned == true
+                ],
+                [
+                    98,/*99,*/
+                    100,/*101,*/102,103,/*104,*/105,106,107,108,109,
+                    /*110,*/111,112,113,/*114,*/115,116,/*117,*/118,119,
+                    120,121,122,123,124,125,126,/*127,*/128,129,
+                    /*130,*/131,/*132,*/133,/*134,135,136,*/137,138,139,
+                    323,
+                ],
+                true,
+            ],
+            'RRUFF Sample: override boolean default v2' => [
+                [  // given
+                    'dt_id' => 3,
+                    '35' => ''  // rruff_owned has any value
+                ],
+                [  // default
+                    'dt_id' => 3,
+                    '35' => '1'  // rruff_owned == true
+                ],
+                array_merge( range(98,139), [323] ),  // all 43 rruff sample ids
+                true,
+            ],
+
+            // File/Image
+            'RRUFF Sample: default filename' => [
+                [  // given
+                    'dt_id' => 3
+                ],
+                [  // default
+                    'dt_id' => 3,
+                    '45' => '78'  // raman spectra processed filename
+                ],
+                [98,100,102,103,105,106,107,109,111,113,115,116,118,119,120,123,124,125,126,128,129,131,133,137,139],
+                true,
+            ],
+            'RRUFF Sample: default filename + mineral name' => [
+                [  // given
+                    'dt_id' => 3,
+                    '17' => 'a'  // mineral name has 'a'
+                ],
+                [  // default
+                    'dt_id' => 3,
+                    '45' => '78'  // raman spectra processed filename
+                ],
+                [98,100,102,103,105,106,107,109,111,113,115,116,118,119,120,123,/*124,*/125,/*126,*/128,129,131,133,137,139],  // don't match the two 'Bournonite' samples
+                true,
+            ],
+            'RRUFF Sample: default filename + quality' => [
+                [  // given
+                    'dt_id' => 3,
+                    '45_qual' => '3'  // unlike most other tests, filename should co-exist with file quality (and public status)
+                ],
+                [  // default
+                    'dt_id' => 3,
+                    '45' => '78'  // raman spectra processed filename
+                ],
+//                [/*98,*/100,102,103,105,/*106,*/107,109,111,113,115,116,118,119,120,123,124,125,126,/*128,*/129,131,133,137,139],  // these three do not have 'excellent' quality
+                [
+                    /*98,*/  // this one has both 785 and excellent quality, though not in the same raman record...
+                    100,102,103,105,/*106,*/107,109,111,113,115,  // the other two do not have 'excellent' quality
+                    116,118,119,120,123,124,125,126,/*128,*/129,
+                    131,133,137,139
+                ],
+                true,
+            ],
+            'RRUFF Sample: default filename + quality, with set logic' => [
+                [  // given
+                    'dt_id' => 3,
+                    '45_qual' => '3',  // unlike most other tests, filename should co-exist with file quality (and public status)
+                    'set' => 1,
+                ],
+                [  // default
+                    'dt_id' => 3,
+                    '45' => '78'  // raman spectra processed filename
+                ],
+//                [/*98,*/100,102,103,105,/*106,*/107,109,111,113,115,116,118,119,120,123,124,125,126,/*128,*/129,131,133,137,139],  // these three do not have 'excellent' quality
+                [
+                    98,  // this one has both 785 and excellent quality, though not in the same raman record...
+                    100,102,103,105,/*106,*/107,109,111,113,115,  // the other two do not have 'excellent' quality
+                    116,118,119,120,123,124,125,126,/*128,*/129,
+                    131,133,137,139
+                ],
+                true,
+            ],
+            'RRUFF Sample: filename override default v1' => [
+                [  // given
+                    'dt_id' => 3,
+                    '45' => '532'  // raman spectra processed filename
+                ],
+                [  // default
+                    'dt_id' => 3,
+                    '45' => '78'  // raman spectra processed filename
+                ],
+                [98,100,102,103,105,/*106,*/107,109,111,113,115,116,118,119,120,123,124,125,126,/*128,*/129,131,133,137,139],  // those two don't have 532 raman
+                true,
+            ],
+            'RRUFF Sample: filename override default v2' => [
+                [  // given
+                    'dt_id' => 3,
+                    '45' => '',
+                ],
+                [  // default
+                    'dt_id' => 3,
+                    '45' => '532'  // raman spectra processed filename
+                ],
+                array_merge( range(98,139), [323] ),  // all 43 rruff sample ids
+                true,
+            ],
+
+            'RRUFF Sample: override default quality' => [
+                [  // given
+                    'dt_id' => 3,
+                    '45_qual' => '',
+                ],
+                [  // default
+                    'dt_id' => 3,
+                    '45_qual' => '3'  // raman spectra processed quality
+                ],
+                array_merge( range(98,139), [323] ),  // all 43 rruff sample ids
+                true,
+            ],
+
+            'RRUFF Sample: override default public status' => [
+                [  // given
+                    'dt_id' => 3,
+                    '45_pub' => '0'
+                ],
+                [  // default
+                    'dt_id' => 3,
+                    '45_pub' => '1'  // raman spectra processed public status
+                ],
+                [],  // no samples have non-public raman spectra files
+                true,
+            ],
+            'RRUFF Sample: override default public status, not super-admin' => [
+                [  // given
+                    'dt_id' => 3,
+                    '45_pub' => '0'
+                ],
+                [  // default
+                    'dt_id' => 3,
+                    '45_pub' => '1'  // raman spectra processed public status
+                ],
+                /*array_merge(*/ range(98,139), /*[323] ),*/  // the search criteria gets completely ignored due to not being logged in...323 is not public, so it's not shown
+                false,
+            ],
+
+            // Text/Number
+            'IMA List: default text search' => [
+                [  // given
+                    'dt_id' => 2
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '17' => 'n'  // mineral name contains 'n'
+                ],
+                [91,92,94,97,322],
+                true,
+            ],
+            'IMA List: mineral id + text default' => [
+                [  // given
+                    'dt_id' => 2,
+                    '16' => '7'  // mineral id contains '7'
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '17' => 'n'  // mineral name contains 'n'
+                ],
+                [91,/*92,*/94,/*97,322*/],  // only abelsonite and aegirine have a '7' in the mineral id
+                true,
+            ],
+            'IMA List: mineral name override default v1' => [
+                [  // given
+                    'dt_id' => 2,
+                    '17' => 'a'  // mineral name contains 'a'
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '17' => 'n'  // mineral name contains 'n'
+                ],
+                [91,/*92,*/93,94,95,96,97,/*322*/],  // 'Bournonite' and 'unknown' do not match
+                true,
+            ],
+            'IMA List: mineral name override default v2' => [
+                [  // given
+                    'dt_id' => 2,
+                    '17' => ''  // any value acceptable for mineral name
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '17' => 'n'  // mineral name contains 'n'
+                ],
+                [91,92,93,94,95,96,97,322],  // all minerals match
+                true,
+            ],
+
+            // Radio
+            'RRUFF Sample: default radio search' => [
+                [  // given
+                    'dt_id' => 3
+                ],
+                [  // default
+                    'dt_id' => 3,
+                    '31' => '2'  // sample status == 'unconfirmed'
+                ],
+                [99,101,104,108,110,112,114,117,121,122,127,130,132,134,135,136,138],
+                true,
+            ],
+            'RRUFF Sample: rruff id + default radio search' => [
+                [  // given
+                    'dt_id' => 3,
+                    '30' => 'R'  // rruff id
+                ],
+                [  // default
+                    'dt_id' => 3,
+                    '31' => '2'  // sample status == 'unconfirmed'
+                ],
+                [/*99,101,104,108,110,*/112,/*114,117,*/121,122,/*127,130,132,134,135,136,*/138],
+                true,
+            ],
+            'RRUFF Sample: different radio option + radio default' => [
+                [  // given
+                    'dt_id' => 3,
+                    '31' => '3'  // sample status == 'confirmed by chemical analysis"
+                ],
+                [  // default
+                    'dt_id' => 3,
+                    '31' => '2'  // sample status == 'unconfirmed'
+                ],
+                [
+                    99,101,104,108,110,112,114,117,121,122,127,130,132,134,135,136,138,
+                    100
+                ],
+                true,
+            ],
+            'RRUFF Sample: override radio default v1' => [
+                [  // given
+                    'dt_id' => 3,
+                    '31' => '-2'  // sample status !== 'unconfirmed'
+                ],
+                [  // default
+                    'dt_id' => 3,
+                    '31' => '2'  // sample status == 'unconfirmed'
+                ],
+                [
+                    98,/*99,*/
+                    100,/*101,*/102,103,/*104,*/105,106,107,/*108,*/109,
+                    /*110,*/111,/*112,*/113,/*114,*/115,116,/*117,*/118,119,
+                    120,/*121,122,*/123,124,125,126,/*127,*/128,129,
+                    /*130,*/131,/*132,*/133,/*134,135,136,*/137,/*138,*/139,
+                    323,
+                ],
+                true,
+            ],
+            'RRUFF Sample: override radio default v2' => [
+                [  // given
+                    'dt_id' => 3,
+                    '31' => '*2'  // sample status 'unconfirmed' has any value
+                ],
+                [  // default
+                    'dt_id' => 3,
+                    '31' => '2'  // sample status == 'unconfirmed'
+                ],
+                array_merge( range(98,139), [323] ),  // all 43 rruff sample ids
+                true,
+            ],
+
+            // Tags
+            'IMA List: tag default search' => [
+                [  // given
+                    'dt_id' => 2
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '28' => '-66'  // 'not a mineral' is deselected
+                ],
+                [91,92,93,94,95,96,97/*,322*/],  // the "unknown" mineral does not match the default
+                true,
+            ],
+            'IMA List: mineral name + tag default' => [
+                [  // given
+                    'dt_id' => 2,
+                    '17' => 'n'
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '28' => '-66'  // 'not a mineral' is deselected
+                ],
+                [91,92,94,97/*,322*/],  // the five minerals with 'n' in their name, minus the "unknown" mineral due to not matching the tag
+                true,
+            ],
+            'IMA List: different tag + tag default' => [
+                [  // given
+                    'dt_id' => 2,
+                    '28' => '25'  // desireability = 0 is selected
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '28' => '-66'  // 'not a mineral' is deselected
+                ],
+                [92,93,94,97/*,322*/],  // the five minerals with the requested tag, minus the "unknown" mineral due to not matching 'not a mineral'
+                true,
+            ],
+            'IMA List: override tag default v1' => [
+                [  // given
+                    'dt_id' => 2,
+                    '28' => '66'  // 'not a mineral' is selected
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '28' => '-66'  // 'not a mineral' is deselected
+                ],
+                [322],  // the given search key overrides the default search key here
+                true,
+            ],
+            'IMA List: override tag default v2' => [
+                [
+                    'dt_id' => 2,
+                    '28' => '*66'  // 'not a mineral' has any value
+                ],
+                [
+                    'dt_id' => 2,
+                    '28' => '-66'  // 'not a mineral' is deselected
+                ],
+                [91,92,93,94,95,96,97,322],  // the given search key overrides the default search key here, but doesn't require the tag to be selected
+                true,
+            ],
+
+            // Datetime
+            'IMA List: default datetime search "exists"' => [
+                [  // given
+                    'dt_id' => 2
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '64' => '!""'  // date first published exists
+                ],
+                [91,92,95],
+                true,
+            ],
+            'IMA List: mineral name + datetime default "exists"' => [
+                [  // given
+                    'dt_id' => 2,
+                    '17' => 'n'  // mineral name contains 'n'
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '64' => '!""'  // date first published exists
+                ],
+                [91,92/*,95*/],  // excludes 'Abellaite'
+                true,
+            ],
+            'IMA List: datetime override default "exists" v1' => [
+                [  // given
+                    'dt_id' => 2,
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '64' => '!""'  // date first published exists
+                ],
+                [91,92,/*95*/],  // 'Abellaite' published in 2017
+                true,
+            ],
+            'IMA List: datetime override default "exists" v2' => [
+                [  // given
+                    'dt_id' => 2,
+                    '64' => ''  // any value acceptable for date first published
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '64' => '!""'  // date first published exists
+                ],
+                [91,92,93,94,95,96,97,322],  // all minerals match
+                true,
+            ],
+            'IMA List: datetime override default "exists" v3' => [
+                [  // given
+                    'dt_id' => 2,
+                    '64' => '""'  // date first published does not exist
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '64' => '!""'  // date first published exists
+                ],
+                [/*91,92,*/93,94,/*95,*/96,97,322],  // complete override to get minerals without published dates
+                true,
+            ],
+
+            'IMA List: default datetime search "does not exist"' => [
+                [  // given
+                    'dt_id' => 2
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '64' => '""'  // date first published does not exist
+                ],
+                [93,94,96,97,322],
+                true,
+            ],
+            'IMA List: mineral name + datetime default "does not exist"' => [
+                [  // given
+                    'dt_id' => 2,
+                    '17' => 'n'  // mineral name contains 'n'
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '64' => '""'  // date first published does not exist
+                ],
+                [/*93,*/94,/*96,*/97,322],  // excludes 'Amesite' and 'Adelite'
+                true,
+            ],
+            'IMA List: datetime override default "does not exist" v1' => [
+                [  // given
+                    'dt_id' => 2,
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '64' => '""'  // date first published does not exist
+                ],
+                [91,92],  // complete override of default parameters to get minerals published before 1 jan 2000
+                true,
+            ],
+            'IMA List: datetime override default "does not exist" v2' => [
+                [  // given
+                    'dt_id' => 2,
+                    '64' => ''  // any value acceptable for date first published
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '64' => '""'  // date first published does not exist
+                ],
+                [91,92,93,94,95,96,97,322],  // all minerals match
+                true,
+            ],
+            'IMA List: datetime override default "does not exist" v3' => [
+                [  // given
+                    'dt_id' => 2,
+                    '64' => '!""'  // date first published exists
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '64' => '""'  // date first published does not exist
+                ],
+                [91,92,95],  // complete override of default parameters to get minerals with published dates
+                true,
+            ],
+
+            'IMA List: default datetime search "before"' => [
+                [  // given
+                    'dt_id' => 2
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ],
+                [91,92],
+                true,
+            ],
+            'IMA List: mineral name + datetime default "before"' => [
+                [  // given
+                    'dt_id' => 2,
+                    '17' => 's'  // mineral name contains 's'
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ],
+                [91,/*92,*/],  // excludes 'Bournonite'
+                true,
+            ],
+            'IMA List: datetime override default "before" v1' => [
+                [  // given
+                    'dt_id' => 2,
+                    '64_e' => '2020-01-01'  // date first published before 1 jan 2020
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ],
+                [91,92,95],  // 'Abellaite' published in 2017
+                true,
+            ],
+            'IMA List: datetime override default "before" v2' => [
+                [  // given
+                    'dt_id' => 2,
+                    '64_s' => '1900-01-01'  // date first published after 1 jan 1900
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ],
+                [91,/*92,*/95],  // the before part is ignored...'Bournonite' does not match since it was published in 1805
+                true,
+            ],
+            'IMA List: datetime override default "before" v3' => [
+                [  // given
+                    'dt_id' => 2,
+                    '64' => ''  // any value acceptable for date first published
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ],
+                [91,92,93,94,95,96,97,322],  // all minerals match
+                true,
+            ],
+            'IMA List: datetime override default "before" v4' => [
+                [  // given
+                    'dt_id' => 2,
+                    '64' => '""'  // date first published does not exist
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ],
+                [93,94,96,97,322],  // complete override to get minerals without date first published
+                true,
+            ],
+            'IMA List: datetime override default "before" v5' => [
+                [  // given
+                    'dt_id' => 2,
+                    '64' => '!""'  // date first published does exist
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ],
+                [91,92,95],  // complete override to get minerals with date first published
+                true,
+            ],
+
+            'IMA List: default datetime search "before/after"' => [
+                [  // given
+                    'dt_id' => 2
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '64_s' => '1900-01-01', // date first published after 1 jan 1900
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ],
+                [91],
+                true,
+            ],
+            'IMA List: mineral name + datetime default "before/after" v1' => [
+                [  // given
+                    'dt_id' => 2,
+                    '17' => 's'  // mineral name contains 's'
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '64_s' => '1900-01-01', // date first published after 1 jan 1900
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ],
+                [91],  // no change
+                true,
+            ],
+            'IMA List: mineral name + datetime default "before/after" v2' => [
+                [  // given
+                    'dt_id' => 2,
+                    '17' => 'z'  // mineral name contains 'z'
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '64_s' => '1900-01-01', // date first published after 1 jan 1900
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ],
+                [/*91*/],
+                true,
+            ],
+            'IMA List: datetime override default "before/after" v1' => [
+                [  // given
+                    'dt_id' => 2,
+                    '64_e' => '2020-01-01'  // date first published before 1 jan 2020
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '64_s' => '1900-01-01', // date first published after 1 jan 1900
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ],
+                [91,92,95],  // should completely override
+                true,
+            ],
+            'IMA List: datetime override default "before/after" v2' => [
+                [  // given
+                    'dt_id' => 2,
+                    '64_s' => '1900-01-01'  // date first published after 1 jan 1900
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '64_s' => '1900-01-01', // date first published after 1 jan 1900
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ],
+                [91,/*92,*/95],  // should completely override...'Bournonite' does not match since it was published in 1805
+                true,
+            ],
+            'IMA List: datetime override default "before/after" v3' => [
+                [  // given
+                    'dt_id' => 2,
+                    '64' => ''  // any value acceptable for date first published
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '64_s' => '1900-01-01', // date first published after 1 jan 1900
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ],
+                [91,92,93,94,95,96,97,322],  // should completely override...all minerals match
+                true,
+            ],
+            'IMA List: datetime override default "before/after" v4' => [
+                [  // given
+                    'dt_id' => 2,
+                    '64' => '""'  // date first published does not exist
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '64_s' => '1900-01-01', // date first published after 1 jan 1900
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ],
+                [93,94,96,97,322],  // should completely override to get minerals without date first published
+                true,
+            ],
+            'IMA List: datetime override default "before/after" v5' => [
+                [  // given
+                    'dt_id' => 2,
+                    '64' => '!""'  // date first published does exist
+                ],
+                [  // default
+                    'dt_id' => 2,
+                    '64_s' => '1900-01-01', // date first published after 1 jan 1900
+                    '64_e' => '2000-01-01'  // date first published before 1 jan 2000
+                ],
+                [91,92,95],  // should completely override to get minerals with date first published
+                true,
+            ],
+
+            // XYZData
+            'XYZData test: advanced version default' => [
+                [  // given
+                    'dt_id' => 16,
+                ],
+                [  // default
+                    'dt_id' => 16,
+                    '66' => '(>2.81 < 2.83,)',    // want records with an x between 2.81 and 2.83, no constraint on y
+                ],
+                [325,326,328],
+                true
+            ],
+            'XYZData test: advanced version default + other value' => [
+                [  // given
+                    'dt_id' => 16,
+                    '65' => '2',  // id field
+                ],
+                [  // default
+                    'dt_id' => 16,
+                    '66' => '(>2.81 < 2.83,)',    // want records with an x between 2.81 and 2.83, no constraint on y
+                ],
+                [325/*,326,328*/],
+                true
+            ],
+            'XYZData test: advanced version overridden by simple' => [
+                [  // given
+                    'dt_id' => 16,
+                    '66_x' => '>=1.4 <=1.5 && >=2.4 <=2.5',
+                    '66_y' => '>=7',
+                ],
+                [  // default
+                    'dt_id' => 16,
+                    '66' => '(>2.81 < 2.83,)',    // want records with an x between 2.81 and 2.83, no constraint on y
+                ],
+                [325,327],
+                true
+            ],
+
+            'XYZData test, simple version default' => [
+                [  // given
+                    'dt_id' => 16,
+                ],
+                [  // default
+                    'dt_id' => 16,
+                    '66_x' => '>2.81 < 2.83',    // want records with an x between 2.81 and 2.83, no constraint on y
+                ],
+                [325,326,328],
+                true
+            ],
+            'XYZData test, simple version default + other value' => [
+                [  // given
+                    'dt_id' => 16,
+                    '65' => '2',  // id field
+                ],
+                [  // default
+                    'dt_id' => 16,
+                    '66_x' => '>2.81 < 2.83',    // want records with an x between 2.81 and 2.83, no constraint on y
+                ],
+                [325/*,326,328*/],
+                true
+            ],
+            'XYZData test, simple version overridden by advanced' => [
+                [  // given
+                    'dt_id' => 16,
+                    '66' => '(>5.6 <5.65,>30)',
+                ],
+                [  // default
+                    'dt_id' => 16,
+                    '66_x' => '>2.81 < 2.83',    // want records with an x between 2.81 and 2.83, no constraint on y
+                ],
+                [325,326,327],
+                true
+            ],
+        ];
+    }
+
+    /**
+     * @return array
+     */
+    public static function provideSpecificSearchKeys()
+    {
+        return [
+            'RRUFF Reference: general search of "abelsonite" and blank URL value' => [
+                'eyJkdF9pZCI6IjEiLCIxNCI6IiIsIjIiOiJhYmVsc29uaXRlIn0',  // {"dt_id":"1","14":"","2":"abelsonite"}
+                [1,35,63,83],
+                true
+            ],
+            'RRUFF Reference: article title of "abelsonite" and blank URL value' => [
+                'eyJkdF9pZCI6IjEiLCIxNCI6IiIsImdlbiI6ImFiZWxzb25pdGUifQ',  // {"dt_id":"1","14":"","gen":"abelsonite"}
+                [1,35,63,83],
+                true
             ],
         ];
     }

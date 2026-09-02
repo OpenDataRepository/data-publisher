@@ -1,0 +1,10 @@
+{% apply spaceless %}
+
+<div class="pure-u-1">
+    <label class="ODRRenderPlugin_JSmolTrigger_label pure-u-1-5" for="plugin_option_{{ rpo_id }}">
+        JSmol Config:
+    </label>
+    <textarea id="plugin_option_{{ rpo_id }}" class="ODRRenderPlugin_JSmolTrigger_textarea pure-u-4-5" name="plugin_options[{{ rpo_id }}]">{{ value| raw }}</textarea>
+</div>
+
+{% endapply %}

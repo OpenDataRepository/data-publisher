@@ -1,0 +1,52 @@
+odr_plugins.rruff.jsmol_trigger:
+    name: JSmol Trigger Addon
+    category: RRUFF
+    plugin_type: datafield_header
+    render: odr_plugins.rruff.jsmol_trigger
+    version: 1.0.0
+    override_fields: false
+    override_field_reload: false
+    override_child: false
+    override_table_fields: false
+    override_export: false
+    override_search: false
+    override_sort: false
+    suppress_no_fields_note: false
+    description: This plugin creates an icon in a file datafield header that triggers an instance of JSmol on the file in the datafield.  Will fail unless the files are CIFs.
+    registered_events:
+
+    required_fields:
+        file_field:
+            name: File Field
+            description: The field with CIF files in it.
+            type: File
+            properties:
+                - single_uploads_only
+
+    config_options:
+        height:
+            name: Applet Height
+            type: string
+            default: 600px
+            display_order: 1
+            description: A CSS height value
+        width:
+            name: Applet Width
+            type: string
+            default: 600px
+            display_order: 2
+            description: A CSS width value
+
+        background_color:
+            name: Background Color
+            type: string
+            default: "#4F4F4F"
+            display_order: 3
+            description: A hexadecimal color code
+
+        jsmol_config:
+            name: Config String
+            type: string
+            default: "packed; unitcell on; set axesUnitcell; axes on;"
+            description: A JSmol configuration string
+            uses_custom_render: true

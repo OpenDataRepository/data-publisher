@@ -1,0 +1,26 @@
+{% apply spaceless %}
+
+{# IMPORTANT: can't do this here, otherwise JSmol crashes on every load after the first #}
+{#<script type="text/javascript" src="{{ site_baseurl }}/js/mylibs/JSmol/JSmol.min.nojq.js"></script>#}
+
+<div id="ODRJSmolTriggerPlugin_{{ file_id }}" style="height:{{ options['height'] }}; width:{{ options['width'] }};"></div>
+<script>
+    var myJmol_{{ file_id }} = 'myJmol_{{ file_id }}';
+    var JmolInfo = {
+        width:'100%',
+        height:'100%',
+        color:'{{ options['background_color'] }}',
+        j2sPath:'{{ site_baseurl }}/js/mylibs/JSmol/j2s',
+        // serverURL:'../jmol/php/jsmol.php',
+        use:'html5'
+    }
+    $(function() {
+        $(".jmolConsole").remove();   {# if any of these divs exist on the page, then the console functionality will fail #}
+        $(".jmolPopupMenu").remove(); {# this functionality doesn't fail, but the app leaves them behind...delete them too #}
+
+        $('#ODRJSmolTriggerPlugin_{{ file_id }}').html(Jmol.getAppletHtml(myJmol_{{ file_id }}, JmolInfo));
+        Jmol.script(myJmol_{{ file_id }}, 'load "{{ site_baseurl }}{{ local_filename }}" {{ options['jsmol_config'] }}');
+    });
+</script>
+
+{% endapply %}

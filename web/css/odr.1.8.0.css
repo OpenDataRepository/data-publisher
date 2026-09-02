@@ -3528,7 +3528,7 @@ a.ui-button:active,
 }
 
 .ODRRemodal {
-    max-width: 90%;
+    /*max-width: 90%;*/
     border: 1px solid #7fb9d8;
     border-radius: 4px;
     color: #3b8bba;
@@ -3575,8 +3575,13 @@ a.ui-button:active,
     margin-left: -10px;
 }
 .ODRRemodalInner {
-    overflow: scroll;
     height: 10px;
+}
+.ODRRemodalInner_scroll {
+    overflow: scroll;
+}
+.ODRRemodalInner_noscroll {
+    overflow:hidden;
 }
 .ODRRemodalInnerContent {
     /* overflow: scroll; */
@@ -3599,18 +3604,22 @@ a.ui-button:active,
 }
 
 /* Fixing bad Remodal CSS Decisions */
-.remodal {
+.ODRRemodal_fullwidth {
     /* max-width: 700px; */
     max-width: 90% !important;
     max-height: 90% !important;
 }
-@media only screen and (min-width: 641px) {
-    .remodal {
-        /* max-width: 700px; */
-        max-width: 90% !important;
-        max-height: 90% !important;
-    }
+.ODRRemodal_minwidth {
+    width: unset !important;
+    max-width: unset !important;
 }
+/*@media only screen and (min-width: 641px) {*/
+/*    .remodal {*/
+/*        !* max-width: 700px; *!*/
+/*        max-width: 90% !important;*/
+/*        max-height: 90% !important;*/
+/*    }*/
+/*}*/
 
 /* Media Queries */
 /* pure-hidden-xs */
@@ -5773,4 +5782,11 @@ div.ODRRenderPlugin_CSVTable_wrapper div.dataTables_scrollBody {
 .ODRMigration_acknowledge {
     cursor: pointer;
     color: rgb(75,75,75) !important;
+}
+
+.ODRRenderPlugin_JSmolTrigger_label {
+    width: unset !important;
+}
+.ODRRenderPlugin_JSmolTrigger_textarea {
+    height: 150px;
 }

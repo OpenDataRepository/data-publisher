@@ -1757,9 +1757,19 @@ class SearchAPIService
                     else {
                         // Advanced search requires each individial facet get checked
                         if ( !empty($facet) ) {
+                            // Merging needs to know if a query was "modified", because it has to
+                            //  do extra work to locate ancestors without descendants...
                             foreach ($facet['search_terms'] as $df_id => $df_data) {
                                 if ( isset($df_data['modify']) )
                                     $modified_facets['advanced'][$facet_num] = $df_data['modify'];
+                            }
+                            // ...but in the event a datatype has multiple queries and they weren't
+                            //  all "modified"...then the merging needs to ignore the "modified"
+                            //  status, because "ancestors without descendants" can't match the
+                            //  "unmodified" queries
+                            foreach ($facet['search_terms'] as $df_id => $df_data) {
+                                if ( !isset($df_data['modify']) )
+                                    unset( $modified_facets['advanced'][$facet_num] );
                             }
                         }
                     }
