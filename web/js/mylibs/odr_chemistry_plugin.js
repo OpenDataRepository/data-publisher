@@ -15,8 +15,9 @@ function ODR_parseChemicalFormula(input, subscript_delimiter = '_', superscript_
 
     // If the input has '<sub>' or '<sup>' HTML tags already, then suggest replacing them with the
     //  provided sub/superscript delimiters
-    input = input.replaceAll('<sub>', subscript_delimiter).replaceAll('</sub>', subscript_delimiter)
-        .replaceAll('<sup>', superscript_delimiter).replaceAll('</sup>', superscript_delimiter)
+    input = input.replaceAll(/<\/?sub>/ig, subscript_delimiter)
+        .replaceAll(/<\/?sup>/ig, superscript_delimiter)
+        .replaceAll('&lt;', '<').replaceAll('&gt;', '>')
         .replaceAll('&nbsp;', ' ');
 
     let len = input.length;
