@@ -149,6 +149,7 @@
         values['Authors'] = '';
         if ( Object.hasOwn(crossref_data, 'author') ) {
             let authors = [];
+            // FIrst letter, followed by rest of given name, followed by an optional second/middle/hyphenated name piece
             let given_regexp = new RegExp(/^(.)([^\s\-]+)([\s\-].)?.*$/);
             for (const author of crossref_data['author']) {
                 if ( Object.hasOwn(author, 'given') && Object.hasOwn(author, 'family') ) {
