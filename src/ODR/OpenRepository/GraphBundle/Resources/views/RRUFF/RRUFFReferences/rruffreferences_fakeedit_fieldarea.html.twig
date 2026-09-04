@@ -25,6 +25,227 @@
     'display_type': display_type,
 } %}
 
+<div rel="" class="ODRThemeElement pure-u-1 pure-u-md-1-1 pure-u-xl-1-1">
+    <div class="ODRInnerBox">
+        <span class="ODRRRUFFReferencePlugin_lookupLabel">Attempt to look up a DOI via Crossref (<a target="_blank" href="https://www.crossref.org"><i class="fa fa-external-link"></i></a>):</span>
+        <input id="ODRRRUFFReferencePlugin_DOIInput_{{ datarecord.id }}" class="ODRRRUFFReferencePlugin_lookupInput" type="text" size="32" />
+        <button id="ODRRRUFFReferencePlugin_trigger_{{ datarecord.id }}" class="ODRRRUFFReferencePlugin_lookupButton pure-button pure-button-primary">Search</button>
+    </div>
+</div>
+<script>
+    let id_lookup_{{ datarecord.id }} = {};
+    {% for rpf_name,html_id in doi_fields %}id_lookup_{{ datarecord.id }}['{{ rpf_name }}'] = '{{ html_id }}';{% endfor %}
+    {#console.log(id_lookup_{{ datarecord.id }});#}
+
+    $(function() {
+        $("#ODRRRUFFReferencePlugin_trigger_{{ datarecord.id }}").unbind('click').click(function() {
+            ODRRRUFFReferencePlugin_{{ datarecord.id }}_queryCrossref();
+        });
+    });
+
+    /**
+     * Attempts to query the Crossref DOI store for a given DOI, and then attempts to fill in the
+     * fields on ODR's FakeEdit page if it actually works.
+     * @private
+     */
+    function ODRRRUFFReferencePlugin_{{ datarecord.id }}_queryCrossref() {
+        let doi_str = $("#ODRRRUFFReferencePlugin_DOIInput_{{ datarecord.id }}").val().trim();
+        if (doi_str == '')
+            return;
+
+        // Because people are lazy, probably need to modify the value to just have a DOI
+        if ( doi_str.match(/https?:/) ) {
+            let pieces = doi_str.split('/');
+            let doi_pieces = pieces.slice(3);
+            doi_str = doi_pieces.join('/');
+        }
+        else if ( doi_str.match(/(dx.)?doi.org/) ) {
+            let pieces = doi_str.split('/');
+            let doi_pieces = pieces.slice(1);
+            doi_str = doi_pieces.join('/');
+        }
+        else if ( doi_str.match(/doi:/i) ) {
+            doi_str = doi_str.slice(4).trim();
+        }
+
+        // Crossreff apparently tries to keep DOIs following this schema...slightly modified to add
+        //  lowercase letters
+        // https://www.crossref.org/blog/dois-and-matching-regular-expressions/
+        if ( !doi_str.match(/^10.\d{4,9}\/[-._;()/:a-zA-Z0-9]+$/i) ) {
+            alert('"' + doi_str + '" is an illegal DOI, aborting');
+            return;
+        }
+
+        // Final step is to make the DOI url-safe
+        // alert(doi_str);  return;
+        doi_str = doi_str.replaceAll('/', '%2F');
+
+        // Ensure none of the fields have a value
+        $.each(id_lookup_{{ datarecord.id }}, function(plugin_key, field_id) {
+            let id = '#' + field_id;
+            if ( $(id).is('input') )
+                $(id).val('');
+            else
+                $(id).text('');
+        });
+
+        $.ajax({
+            // cache: false,
+            type: 'GET',
+            url: "https://api.crossref.org/works/" + doi_str,
+            dataType: 'json',
+            success: function(data, textStatus, jqXHR) {
+                // console.log(data);
+                if ( Object.hasOwn(data, 'message-type') && data['message-type'] == 'work' ) {
+                    let values = ODRRRUFFReferencePlugin_parseCrossref(data.message);
+                    // console.log(values);
+
+                    $.each(values, function(plugin_key, doi_value) {
+                        let id = '#' + id_lookup_{{ datarecord.id }}[plugin_key];
+                        if ( $(id).is('input') )
+                            $(id).val(doi_value);
+                        else
+                            $(id).text(doi_value);
+                    });
+                }
+                else
+                    alert('DOI does not refer to a single item, aborting');
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // ODR's default error handler is going to eat the error by default, need to give
+                //  some form of notification
+                if (jqXHR.status > 400)
+                    alert('DOI lookup returned "' + jqXHR.status + ' ' + jqXHR.responseText.replaceAll('.', '') + '", unable to continue');
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    /**
+     * Attempts to parse the DOI data acquired from a Crossref API call, returning just the parts
+     * that ODR cares about if successful.
+     *
+     * Authors (and two specific journals) are modified to match naming schema already in ODR...
+     *
+     * @param {array} crossref_data
+     * @returns {array}
+     */
+    function ODRRRUFFReferencePlugin_parseCrossref(crossref_data) {
+        let values = {};
+
+        // authors...
+        values['Authors'] = '';
+        if ( Object.hasOwn(crossref_data, 'author') ) {
+            let authors = [];
+            let given_regexp = new RegExp(/^(.)([^\s\-]+)([\s\-].)?.*$/);
+            for (const author of crossref_data['author']) {
+                if ( Object.hasOwn(author, 'given') && Object.hasOwn(author, 'family') ) {
+                    let given = author['given'];
+                    // for (i = 0; i < given.length; i++)
+                    //     console.log( given.charAt(i) );
+                    let bob_given = given.replace(given_regexp, "$1$3");
+                    // console.log('"' + given + '"', ' => ', '"' + bob_given + '"');
+                    let family = author['family'];
+                    let bob_author = family + ' ' + bob_given;
+                    authors.push( bob_author.replaceAll(' ,', ',').replaceAll('.', '').replaceAll('-', ' ') );
+                }
+            }
+            values['Authors'] = authors.join(', ');
+        }
+
+        // Acta Crystallographica spams up Crossref a bit...
+        let acta_cryst_letter = '';
+
+        // article/book title, journal, and publisher...
+        values['Article Title'] = '';
+        values['Journal'] = '';
+        values['Book Title'] = '';
+        values['Publisher'] = '';
+        if ( Object.hasOwn(crossref_data, 'title') ) {
+            let title = crossref_data['title'][0];
+            title = title.replaceAll(/\s+/g, ' ').replaceAll('&lt;', '<').replaceAll('&gt;', '>');
+            values['Article Title'] = title;
+
+            let long_title = '';
+            if ( Object.hasOwn(crossref_data, 'container-title') )
+                long_title = crossref_data['container-title'][0];
+            else if ( Object.hasOwn(crossref_data, 'short-container-title') )
+                long_title = crossref_data['short-container-title'][0];
+
+            if ( long_title.indexOf('Acta Crystallographica Section') == 0 ) {
+                let pieces = long_title.split(' ');
+                acta_cryst_letter = pieces[3];
+                long_title = 'Acta Crystallographica';
+            }
+            else if ( long_title.indexOf('Zapiski RMO') == 0 ) {
+                // ...bob has been using a different name for this journal
+                long_title = 'Zapiski Vserossijskogo Mineralogicheskogo Obshchestva';
+            }
+
+            if ( !Object.hasOwn(crossref_data, 'type') || crossref_data['type'] != 'book-chapter' ) {
+                // ODR is going to be storing journals most of the time...
+                values['Journal'] = long_title;
+            }
+            else {
+                // ...but stuff could be listed as a book
+                values['Book Title'] = long_title;
+                // ...in which case it has a publisher as well
+                if ( Object.hasOwn(crossref_data, 'publisher') )
+                    values['Publisher'] = crossref_data['publisher'];
+            }
+        }
+
+        // volume...
+        values['Volume'] = '';
+        if ( Object.hasOwn(crossref_data, 'volume') ) {
+            values['Volume'] = crossref_data['volume'];
+
+            if ( acta_cryst_letter !== '' )
+                values['Volume'] = acta_cryst_letter + values['Volume'];
+        }
+
+        // issue...
+        values['Issue'] = '';
+        if ( Object.hasOwn(crossref_data, 'issue') )
+            values['Issue'] = crossref_data['issue'];
+
+        // year...
+        values['Year'] = '';
+        if ( Object.hasOwn(crossref_data, 'published-online') )
+            values['Year'] = crossref_data['published-online']['date-parts'][0][0];
+        else if ( Object.hasOwn(crossref_data, 'published-print') )
+            values['Year'] = crossref_data['published-print']['date-parts'][0][0];
+
+        // ...not going to do month
+
+        // pages...
+        values['Pages'] = '';
+        if ( Object.hasOwn(crossref_data, 'page') )
+            values['Pages'] = crossref_data['page'];
+        else if ( Object.hasOwn(crossref_data, 'article-number') )
+            values['Pages'] = crossref_data['article-number'];
+
+        // url...
+        values['URL'] = '';
+        if ( Object.hasOwn(crossref_data, 'URL') )
+            values['URL'] = crossref_data['URL'];
+
+        return values;
+    }
+</script>
+
 {% for theme_element in theme.themeElements %}
     <div rel="{{ theme_element.id }}" class="ODRThemeElement pure-u-1 pure-u-md-{{ theme_element.themeElementMeta.cssWidthMed }} pure-u-xl-{{ theme_element.themeElementMeta.cssWidthXL }}">
         <div class="ODRInnerBox">
