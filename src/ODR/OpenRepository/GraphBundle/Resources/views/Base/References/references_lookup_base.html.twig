@@ -1,0 +1,31 @@
+{% apply spaceless %}
+
+<div rel="" class="ODRThemeElement pure-u-1 pure-u-md-1-1 pure-u-xl-1-1">
+    <div class="ODRInnerBox">
+        <span class="ODRReferencePlugin_lookupLabel">Attempt to look up a DOI via Crossref (<a target="_blank" href="https://www.crossref.org"><i class="fa fa-external-link"></i></a>):</span>
+        <input id="ODRReferencePlugin_DOIInput_{{ datarecord_id }}" class="ODRReferencePlugin_lookupInput" type="text" size="32" />
+        <button id="ODRReferencePlugin_trigger_{{ datarecord_id }}" class="ODRReferencePlugin_lookupButton pure-button pure-button-primary">Search</button>
+    </div>
+</div>
+
+<script>
+    if ( ODRReferencePlugin_id_lookup === undefined || ODRReferencePlugin_id_lookup === null )
+        var ODRReferencePlugin_id_lookup = new Map();
+
+    if ( !ODRReferencePlugin_id_lookup.has('{{ datarecord_id }}') )
+        ODRReferencePlugin_id_lookup.set('{{ datarecord_id }}', new Map());
+    var ODRReferencePlugin_ids = ODRReferencePlugin_id_lookup.get('{{ datarecord_id }}');
+
+{% for rpf_name,html_id in doi_fields %}
+    ODRReferencePlugin_ids.set('{{ rpf_name }}', '{{ html_id }}');
+{% endfor %}
+    {#console.log( 'current_datarecord', '{{ datarecord_id }}', ODRReferencePlugin_id_lookup );#}
+
+    $(function() {
+        $("#ODRReferencePlugin_trigger_{{ datarecord_id }}").unbind('click').click(function() {
+            ODRReferencePlugin_queryCrossref('{{ datarecord_id }}');
+        });
+    });
+</script>
+
+{% endapply %}

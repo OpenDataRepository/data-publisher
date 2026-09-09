@@ -1148,6 +1148,9 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     // The authors should only get cleared when the DIF file doesn't exist
                     if ( !$dif_uploaded )
                         $file_values['Authors'] = '';
+                    // The locality should only get cleared when the CIF file doesn't exist
+                    if ( !$minimal_cif_uploaded )
+                        $file_values['Locality'] = '';
 
                     // The cell parameter values should only get cleared when no other file exists
                     if ( !$minimal_cif_uploaded && !$original_cif_uploaded && !$dif_uploaded ) {
@@ -1171,14 +1174,17 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     }
                 }
                 else if ( $relevant_rpf_name === 'CIF File' ) {
-                    // These fields should always get cleared when an AMC File is deleted
+                    // These fields should always get cleared when a Minimal CIF File is deleted
                     $file_values['CIF File Contents'] = '';
+
+                    // This field should get cleared when the AMC file doesn't exist
+                    if ( !$amc_uploaded )
+                        $file_values['Locality'] = '';
 
                     // These fields should get cleared when the other CIF file doesn't exist
                     if ( !$original_cif_uploaded ) {
                         $file_values['Chemistry'] = '';
                         $file_values['Chemistry Elements'] = '';
-                        $file_values['Locality'] = '';
                         $file_values['Crystal Density'] = '';
                     }
 
@@ -1204,7 +1210,8 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     }
                 }
                 else if ( $relevant_rpf_name === 'Original CIF File' ) {
-                    // These fields should always get cleared when an AMC File is deleted
+                    // Unlike the other three files which all are created via the same process, the
+                    //  Original CIF can be vastly different
                     $file_values = [
                         // These values will always get cleared
                         'Original CIF File Contents' => '',
@@ -1234,8 +1241,6 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         'Temperature' => '',
                     ];
 
-                    // Unlike the other three files which all are created via the same process, the
-                    //  Original CIF can be vastly different
                     // This mostly manifests itself in the temperature/pressure...but if there are
                     //  any values only from the Original CIF, then we want to clear them when the
                     //  Original CIF is deleted
@@ -1890,7 +1895,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         if ( $relevant_rpf_name === 'AMC File' ) {
             if ( !$minimal_cif_uploaded ) {
                 // If the Minimal CIF isn't uploaded, then don't filter anything so the values from
-                //  the AMC File replace anything that was read from the Original CIF and DIF files
+                //  the AMC File replace anything that was read from the Original CIF or DIF files
             }
             else {
                 // If the Minimal CIF is uploaded...
@@ -2412,7 +2417,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 if ( ValidUtility::isValidMediumVarchar($line) )
                     $file_values['Mineral'] = ucfirst($line);
             }
-            elseif ($line_num == 2) {
+            else if ($line_num == 2) {
                 // Authors can be broken up into multiple lines, unfortunately...second line of the
                 //  AMC File is guaranteed to be authors...
                 $file_values['Authors'] = $line;
@@ -2430,11 +2435,14 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     $file_values['Authors'] = str_replace('  ', ' ', $file_values['Authors']);
                 }
             }
+            else if ( str_starts_with($line, 'Locality: ') ) {
+                // While not necessarily authoritative, the AMC file could have this as well
+                $amc_locality = trim( substr($line, 10) );
 
-            // Next there's usually two (sometimes three) lines of stuff the plugin doesn't care about
-
-            // The line starting with "_database_code_amcsd" is the next important one...
-            elseif ( str_starts_with($line, '_database_code_amcsd') ) {
+                if ( ValidUtility::isValidLongVarchar($amc_locality) )
+                    $file_values['Locality'] = $amc_locality;
+            }
+            else if ( str_starts_with($line, '_database_code_amcsd') ) {
                 $pieces = explode(' ', $line);
 
                 // Need to have 2 values in this line
@@ -2447,7 +2455,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 }
             }
             // The line after that contains the a/b/c/alpha/beta/gamma/space group values
-            elseif ( ($database_code_line+1) === $line_num ) {
+            else if ( ($database_code_line+1) === $line_num ) {
                 $line = trim( (string) preg_replace('/\s\s+/', ' ', $line) );
                 // The replacement could end up stripping the newline from the end, which is bad
                 if ( !str_contains($line, "\n") )
@@ -2880,7 +2888,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 if ( ValidUtility::isValidMediumVarchar($mineral) )
                     $file_values['Mineral'] = ucfirst($mineral);
             }
-            elseif ($line_num == 2) {
+            else if ($line_num == 2) {
                 // Authors can be broken up into multiple lines, unfortunately...second line of the
                 //  DIF File is guaranteed to be authors...
                 $authors = trim($line);
@@ -2899,7 +2907,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     $file_values['Authors'] = preg_replace('/\s+/', ' ', $file_values['Authors']);
                 }
             }
-            elseif ( str_contains($line, '_database_code_amcsd') ) {
+            else if ( str_contains($line, '_database_code_amcsd') ) {
                 $pieces = explode(' ', $line);
 
                 // Need to have 2 values in this line
@@ -2911,7 +2919,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     $database_code_line = $line_num;
                 }
             }
-            elseif ( str_contains($line, 'X-RAY WAVELENGTH') ) {
+            else if ( str_contains($line, 'X-RAY WAVELENGTH') ) {
                 $matches = [];
                 if ( preg_match('/\s+X-RAY WAVELENGTH:\s+([^\s]+)/', $line, $matches) === 1 ) {
                     $file_values['Wavelength'] = $matches[1];
@@ -2927,7 +2935,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     }
                 }
             }
-            elseif ( str_contains($line, 'CELL PARAMETERS:') ) {
+            else if ( str_contains($line, 'CELL PARAMETERS:') ) {
                 $matches = [];
                 if ( preg_match('/\s+CELL PARAMETERS:\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)/', $line, $matches) === 1 ) {
                     if (ValidUtility::isValidShortVarchar($matches[1]))
@@ -2944,7 +2952,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         $file_values['gamma'] = $matches[6];
                 }
             }
-            elseif ( str_contains($line, 'SPACE GROUP:') ) {
+            else if ( str_contains($line, 'SPACE GROUP:') ) {
                 // Space Group are usually 5-12ish characters long, so they fit inside a ShortVarchar
                 $matches = [];
                 if ( preg_match('/\s+SPACE GROUP:\s+([^\s]+)/', $line, $matches) === 1 ) {

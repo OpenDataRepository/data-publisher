@@ -90,7 +90,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
                 || $context === 'fake_edit' || $context === 'mass_edit'
             ) {
                 // Needs to be executed in display, edit (for journal selection and previews),
-                //  fake_edit (for autogeneration), and mass_edit (for switching to a specific journal)
+                //  fake_edit (for dois/autogeneration), and mass_edit (for switching to a specific journal)
                 return true;
             }
 
@@ -353,6 +353,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
                 foreach ($sort_data as $dr_id => $sort_value)
                     $journal_list[$sort_value] = 1;
 
+                $doi_fields = self::getDOIFields($datatype, $datarecord, $plugin_fields);
 
                 $output = $this->templating->render(
                     '@ODROpenRepositoryGraph/RRUFF/RRUFFReferences/rruffreferences_fakeedit_fieldarea.html.twig',
@@ -377,6 +378,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
                         'special_tokens' => $special_tokens,
 
                         'plugin_fields' => $plugin_fields,
+                        'doi_fields' => $doi_fields,
 
                         'journal_df_id' => $journal_df_id,
                         'journal_list' => $journal_list,
@@ -510,6 +512,43 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
         }
     }
 
+
+    /**
+     * The DOI info loaded when in FakeEdit mode needs to know where on the page the data goes...
+     *
+     * @param array $dt_array
+     * @param array $dr_array
+     * @param array $plugin_fields
+     * @return array
+     */
+    private function getDOIFields($dt_array, $dr_array, $plugin_fields)
+    {
+        $doi_fields = [];
+        $dr_id = $dr_array['id'];
+
+        foreach ($plugin_fields as $df_id => $rpf_df) {
+            $typeclass = $dt_array['dataFields'][$df_id]['dataFieldMeta']['fieldType']['typeClass'];
+            $rpf_df_name = $rpf_df['rpf_name'];
+            switch ($rpf_df_name) {
+                case 'Authors':
+                case 'Article Title':
+                case 'Book Title':
+                case 'Journal':
+                case 'Publisher':
+//                case 'Publisher Location':
+                case 'Year':
+//                case 'Month':
+                case 'Volume':
+                case 'Issue':
+                case 'Pages':
+                case 'URL':
+                    $doi_fields[$rpf_df_name] = $typeclass.'Form_'.$dr_id.'_'.$df_id;
+                    break;
+            }
+        }
+
+        return $doi_fields;
+    }
 
     /**
      * @inheritDoc

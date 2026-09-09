@@ -5790,3 +5790,14 @@ div.ODRRenderPlugin_CSVTable_wrapper div.dataTables_scrollBody {
 .ODRRenderPlugin_JSmolTrigger_textarea {
     height: 150px;
 }
+
+.ODRReferencePlugin_lookupLabel {
+    margin-left: 15px;
+}
+.ODRReferencePlugin_lookupInput {
+    margin-left: 5px !important;
+    width: 400px !important;
+}
+.ODRReferencePlugin_lookupButton {
+    margin-left: 5px !important;
+}
