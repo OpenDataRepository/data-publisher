@@ -5856,13 +5856,13 @@ div.ODRRenderPlugin_CSVTable_wrapper div.dataTables_scrollBody {
     height: 150px;
 }
 
-.ODRRRUFFReferencePlugin_lookupLabel {
+.ODRReferencePlugin_lookupLabel {
     margin-left: 15px;
 }
-.ODRRRUFFReferencePlugin_lookupInput {
+.ODRReferencePlugin_lookupInput {
     margin-left: 5px !important;
     width: 400px !important;
 }
-.ODRRRUFFReferencePlugin_lookupButton {
+.ODRReferencePlugin_lookupButton {
     margin-left: 5px !important;
 }
