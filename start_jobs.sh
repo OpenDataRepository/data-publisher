@@ -27,6 +27,7 @@ php app/console odr_datatype:clone_and_link_monitor >> app/logs/clone_and_link_m
 php app/console odr_datatype:sync_template >> app/logs/sync_template.log 2>&1 &
 
 # Improved CSV Exports
+php app/console odr_csv_export:monitor >> app/logs/export_monitor.log 2>&1 &
 php app/console odr_csv_export:worker_express >> app/logs/export_worker_express_1.log 2>&1 &
 php app/console odr_csv_export:worker_express >> app/logs/export_worker_express_2.log 2>&1 &
 php app/console odr_csv_export:worker_express >> app/logs/export_worker_express_3.log 2>&1 &
