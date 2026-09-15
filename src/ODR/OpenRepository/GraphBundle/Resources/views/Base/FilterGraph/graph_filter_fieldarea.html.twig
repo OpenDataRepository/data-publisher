@@ -5,26 +5,28 @@
 
 
 {% for df_id, display_order in filter_fields_display_order %}
-    {% set df = filter_fields_lookup[df_id] %}
-    {% set values = [] %}
-    {% if filter_data['values'][df_id] is defined %}
-        {% set values = filter_data['values'][df_id] %}
-    {% endif %}
-    {% set null_values = [] %}
-    {% if filter_data['null_values'][df_id] is defined %}
-        {% set null_values = filter_data['null_values'][df_id] %}
-    {% endif %}
+    {% if filter_fields_lookup[df_id] is defined %}
+        {% set df = filter_fields_lookup[df_id] %}
+        {% set values = [] %}
+        {% if filter_data['values'][df_id] is defined %}
+            {% set values = filter_data['values'][df_id] %}
+        {% endif %}
+        {% set null_values = [] %}
+        {% if filter_data['null_values'][df_id] is defined %}
+            {% set null_values = filter_data['null_values'][df_id] %}
+        {% endif %}
 
-    {% if values|length > 0 or null_values|length > 0 %}
-        {% include "@ODROpenRepositoryGraph/Base/FilterGraph/graph_filter_datafield.html.twig" with {
-            'datafield': df,
+        {% if values|length > 0 or null_values|length > 0 %}
+            {% include "@ODROpenRepositoryGraph/Base/FilterGraph/graph_filter_datafield.html.twig" with {
+                'datafield': df,
 
-            'values': values,
-            'null_values': null_values,
+                'values': values,
+                'null_values': null_values,
 
-            'odr_chart_id': odr_chart_id,
-            'filter_fields_visibility': filter_fields_visibility,
-        } %}
+                'odr_chart_id': odr_chart_id,
+                'filter_fields_visibility': filter_fields_visibility,
+            } %}
+        {% endif %}
     {% endif %}
 {% endfor %}
 
