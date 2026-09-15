@@ -25,6 +25,7 @@ use ODR\AdminBundle\Controller\ODRCustomController;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\File;
+use ODR\AdminBundle\Entity\RenderPlugin;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
 // Exceptions
@@ -130,59 +131,68 @@ class JSmolTriggerController extends ODRCustomController
             if ( $datafield->getAllowMultipleUploads() == true )
                 throw new ODRNotFoundException('Datafield');
 
-            // Only activate if the datafield has the correct render plugin
+            // Only activate if the JSmol plugin will be able to run
             $dt_array = $database_info_service->getDatatypeArray($datatype->getId(), false);  // don't want links
             $dt = $dt_array[$datatype->getId()];
             $dr_array = $datarecord_info_service->getDatarecordArray($datarecord->getId(), false);  // don't want links
             $dr = $dr_array[$datarecord->getId()];
 
+            /** @var RenderPlugin $render_plugin */
+            $render_plugin = null;
+            $file_id = null;
             $options = null;
             if ( isset($dt['dataFields'][$datafield->getId()]) ) {
                 $df = $dt['dataFields'][$datafield->getId()];
+                // Ensure the datafield has a file uploaded
+                if ( isset($dr['dataRecordFields'][$datafield->getId()]['file'][0]['id']) )
+                    $file_id = $dr['dataRecordFields'][$datafield->getId()]['file'][0]['id'];
+
+                // Ensure the datafield is using the correct render plugin
                 foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
                     if ( $rpi['renderPlugin']['pluginClassName'] === 'odr_plugins.rruff.jsmol_trigger' ) {
-                        if ( isset($rpi['renderPluginOptionsMap']) )
+                        $render_plugin = $em->getRepository('ODR\AdminBundle\Entity\RenderPlugin')->find($rpi['renderPlugin']['id']);
+                        if (isset($rpi['renderPluginOptionsMap']))
                             $options = $rpi['renderPluginOptionsMap'];
                         break;
                     }
                 }
             }
             if ( is_null($options) )
-                throw new ODRBadRequestException('Datafield is not using JSmol Trigger Plugin');
+                throw new ODRBadRequestException('Datafield is not using the JSmol Trigger Plugin');
+            if ( is_null($file_id) )
+                throw new ODRBadRequestException('Datafield does not have an uploaded File');
+            if ($render_plugin == null)
+                throw new ODRException('Unable to load the JSmol Trigger Plugin???');
 
-            // Ensure defaults exist for this...
-            if ( !isset($options['jsmol_config']) )
-                $options['jsmol_config'] = "packed; unitcell on; set axesUnitcell; axes on;";
-            if ( !isset($options['background_color']) )
-                $options['background_color'] = "#4F4F4F";
-            if ( !isset($options['height']) )
-                $options['height'] = "600px";
-            if ( !isset($options['width']) )
-                $options['width'] = "600px";
+
+            // ----------------------------------------
+            // Ensure defaults exist for the values...
+            foreach ($render_plugin->getRenderPluginOptionsDef() as $rpod) {
+                $rpod_name = $rpod->getDisplayName();
+                if ( !isset($options[$rpod_name]) )
+                    $options[$rpod_name] = $rpod->getDefaultValue();
+            }
 
             // The JSmol config could have newlines in it
             $options['jsmol_config'] = str_replace(["\r","\n"], ["", " "], $options['jsmol_config']);
 
-            // Slightly easier if the (single) file uploaded to this field is hydrated
-            $file = null;
-            if ( isset($dr['dataRecordFields'][$datafield->getId()]['file'][0]['id']) ) {
-                $file_id = $dr['dataRecordFields'][$datafield->getId()]['file'][0]['id'];
 
-                /** @var File $file */
-                $file = $em->getRepository('ODR\AdminBundle\Entity\File')->find($file_id);
-                if ($file == null)
-                    throw new ODRNotFoundException('File');
+            // ----------------------------------------
+            /** @var File $file */
+            $file = $em->getRepository('ODR\AdminBundle\Entity\File')->find($file_id);
+            if ($file == null)
+                throw new ODRNotFoundException('File');
 
-                // Files that aren't done encrypting shouldn't be downloaded
-                if ($file->getEncryptKey() === '')
-                    throw new ODRNotFoundException('File');
+            // Files that aren't done encrypting shouldn't be downloaded
+            if ($file->getEncryptKey() === '')
+                throw new ODRNotFoundException('File');
 
-                // For this action specifically, ensure the file is public
-                if ( !$file->isPublic() )
-                    throw new ODRBadRequestException('File must be public');
-            }
+            // For this action specifically, ensure the file is public
+            if ( !$file->isPublic() )
+                throw new ODRBadRequestException('File must be public');
 
 
+            // ----------------------------------------
             // Don't actually need to instantiate the plugin
 //            /** @var ContainerInterface $service_container */
 //            $service_container = $this->container->get('service_container');
@@ -220,6 +230,8 @@ class JSmolTriggerController extends ODRCustomController
             );
         }
         catch (\Exception $e) {
+            $request->setRequestFormat('json');
+
             $source = 0x38e0118c;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
