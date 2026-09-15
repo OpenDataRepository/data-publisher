@@ -138,9 +138,17 @@ class JSmolTriggerPlugin implements DatafieldHeaderPluginInterface, PluginSettin
             //  custom render for the dialog...
             /** @var RenderPluginOptionsDef $rpo */
             if ( $rpo->getUsesCustomRender() ) {
-                // This is the "jsmol_config" option...it's using a custom renderbecause it's easier
-                //  to have a textarea instead of an <input>
+                // This is the "jsmol_config" option...it's using a custom render because there's a
+                //  possibility of quite a few lines of input, and that's considerably easier with
+                //  a <textarea> instead of an <input>
                 $jsmol_config_string = '';
+                foreach ($render_plugin->getRenderPluginOptionsDef() as $rpod) {
+                    /** @var RenderPluginOptionsDef $rpod */
+                    if ( $rpod->getDisplayName() == 'Config String' ) {
+                        // ...it does mean that the default value needs to be manually located, though
+                        $jsmol_config_string = $rpod->getDefaultValue();
+                    }
+                }
 
                 // Might as well use the cache entry
                 $datatype = $datafield->getDataType();
