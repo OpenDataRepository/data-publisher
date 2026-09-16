@@ -36,16 +36,16 @@ function ODRReferencePlugin_queryCrossref(datarecord_id) {
     // Because people are lazy, probably need to modify the value to just have a DOI
     if ( doi_str.match(/https?:/) ) {
         let pieces = doi_str.split('/');
-        let doi_pieces = pieces.slice(3);
+        let doi_pieces = pieces.slice(-2);
         doi_str = doi_pieces.join('/');
     }
     else if ( doi_str.match(/(dx.)?doi.org/) ) {
         let pieces = doi_str.split('/');
-        let doi_pieces = pieces.slice(1);
+        let doi_pieces = pieces.slice(-2);
         doi_str = doi_pieces.join('/');
     }
     else if ( doi_str.match(/doi:/i) ) {
-        doi_str = doi_str.slice(4).trim();
+        doi_str = doi_str.replace(/doi:/i, '').trim();
     }
 
     // Crossreff apparently tries to keep DOIs following this schema...slightly modified to add
@@ -57,7 +57,7 @@ function ODRReferencePlugin_queryCrossref(datarecord_id) {
     }
 
     // Final step is to make the DOI url-safe
-    // console.log('fixed doi_str:', doi_str);
+    // console.log('fixed doi_str:', doi_str);  return;
     doi_str = doi_str.replaceAll('/', '%2F');
 
     // Ensure none of the fields on the page have a value, in case this is looking up a second
