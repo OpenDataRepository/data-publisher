@@ -43,6 +43,7 @@ class Image
     private $localFileName;
 
     /**
+     * @deprecated
      * @var string
      */
     private $encrypt_key;
@@ -223,6 +224,7 @@ class Image
     }
 
     /**
+     * @deprecated
      * Set encrypt_key
      *
      * @param string $encryptKey
@@ -236,6 +238,7 @@ class Image
     }
 
     /**
+     * @deprecated
      * Get encrypt_key
      *
      * @return string 
@@ -687,16 +690,19 @@ class Image
      */
 
     /**
+     * @deprecated
      * @Assert\File(maxSize="6000000")
      */
     private $file;
 
     /**
+     * @deprecated
      * @var mixed
      */
     private $temp;
 
     /**
+     * @deprecated
      * Sets file.
      *
      * @param UploadedFile $file
@@ -714,6 +720,7 @@ class Image
     }
 
     /**
+     * @deprecated
      * Get file.
      *
      * @return UploadedFile
@@ -724,6 +731,7 @@ class Image
     }
 
     /**
+     * @deprecated
      * @ORM\PrePersist
      */
     public function preUpload()
@@ -736,6 +744,7 @@ class Image
     }
 
     /**
+     * @deprecated
      * @ORM\PostPersist
      */
     public function upload()
@@ -765,6 +774,7 @@ class Image
     }
 
     /**
+     * @deprecated
      * @ORM\PreRemove
      */
     public function storeFilenameForRemove()
@@ -773,6 +783,7 @@ class Image
     }
 
     /**
+     * @deprecated
      * @ORM\PostRemove
      */
     public function removeUpload()
@@ -786,11 +797,13 @@ class Image
     }
 
     /**
+     * @deprecated
      * @var mixed
      */
     public $path;
 
     /**
+     * @deprecated
      * @return mixed
      */
     public function getAbsolutePath()
@@ -801,6 +814,7 @@ class Image
     }
 
     /**
+     * @deprecated
      * @return mixed
      */
     public function getWebPath()
@@ -811,6 +825,7 @@ class Image
     }
 
     /**
+     * @deprecated
      * @return string
      */
     public function getUploadRootDir()
@@ -821,6 +836,7 @@ class Image
     }
 
     /**
+     * @deprecated
      * @return string
      */
     public function getUploadDir()

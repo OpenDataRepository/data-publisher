@@ -489,161 +489,171 @@ class DisplayController extends ODRCustomController
     }
 
 
+//    /**
+//     * Starts the process of downloading a file from the server.
+//     *
+//     * @param integer $file_id The database id of the file to download.
+//     * @param Request $request
+//     *
+//     * @return Response
+//     */
+//    public function filedownloadstartAction($file_id, Request $request)
+//    {
+//        $return = [];
+//        $return['r'] = 0;
+//        $return['t'] = 'html';
+//        $return['d'] = '';
+//
+//        try {
+//            // ----------------------------------------
+//            // Grab necessary objects
+//            /** @var \Doctrine\ORM\EntityManager $em */
+//            $em = $this->container->get('doctrine')->getManager();
+//            $redis_prefix = $this->getParameter('memcached_key_prefix');     // debug purposes only
+//
+//            /** @var PermissionsManagementService $permissions_service */
+//            $permissions_service = $this->permissions_management_service;
+//
+//
+//            // Locate the file in the database
+//            /** @var File $file */
+//            $file = $em->getRepository('ODR\AdminBundle\Entity\File')->find($file_id);
+//            if ($file == null)
+//                throw new ODRNotFoundException('File');
+//
+//            $datafield = $file->getDataField();
+//            if ($datafield->getDeletedAt() != null)
+//                throw new ODRNotFoundException('Datafield');
+//            $datarecord = $file->getDataRecord();
+//            if ($datarecord->getDeletedAt() != null)
+//                throw new ODRNotFoundException('Datarecord');
+//            $datatype = $datarecord->getDataType();
+//            if ($datatype->getDeletedAt() != null)
+//                throw new ODRNotFoundException('Datatype');
+//
+//            // Files that aren't done encrypting shouldn't be downloaded
+//            if ($file->getEncryptKey() === '')
+//                throw new ODRNotFoundException('File');
+//
+//
+//            // ----------------------------------------
+//            // First, ensure user is permitted to download
+//            /** @var ODRUser $user */
+//            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
+//
+//            if ( !$permissions_service->canViewFile($user, $file) )
+//                throw new ODRForbiddenException();
+//            // ----------------------------------------
+//
+//
+//            // ----------------------------------------
+//            // Determine the decrypted filename
+//            $filename = 'File_'.$file_id.'.'.$file->getExt();
+//            if ( !$file->isPublic() )
+//                $filename = md5($file->getOriginalChecksum().'_'.$file_id.'_'.$user->getId()).'.'.$file->getExt();
+//
+//            // Ensure file exists before attempting to download it
+//            $local_filepath = realpath( $this->getParameter('odr_web_directory').'/'.$file->getUploadDir().'/'.$filename );
+//            if ( !file_exists($local_filepath) ) {
+//                // Need to decrypt the file...generate the url for cURL to use
+//                $url = $this->generateUrl('odr_crypto_request', [], UrlGeneratorInterface::ABSOLUTE_URL);
+//                $pheanstalk = $this->container->get('pheanstalk');
+//                $api_key = $this->getParameter('beanstalk_api_key');
+//
+//                // Schedule a beanstalk job to start decrypting the file
+//                $priority = 1024;   // should be roughly default priority
+//                $payload = json_encode(
+//                    [
+//                        "object_type" => 'File',
+//                        "object_id" => $file_id,
+//                        "crypto_type" => 'decrypt',
+//
+//                        "local_filename" => $filename,
+//                        "archive_filepath" => '',
+//                        "desired_filename" => '',
+//
+//                        "redis_prefix" => $redis_prefix,    // debug purposes only
+//                        "url" => $url,
+//                        "api_key" => $api_key,
+//                    ]
+//                );
+//
+//                $delay = 0;
+//                $pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
+//
+//                // Return a URL to monitor decryption progress
+//                $monitor_url = $this->generateUrl('odr_get_file_decrypt_progress', ['file_id' => $file_id]);
+//
+//                $response = new JsonResponse([]);
+//                $response->setStatusCode(202);
+//                $response->headers->set('Location', $monitor_url);
+//
+//                return $response;
+//            }
+//            else {
+//                // File already exists, determine whether it's done decrypting yet
+//                clearstatcache(true, $local_filepath);
+//                $current_filesize = filesize($local_filepath);
+//
+//                if ( $file->getFilesize() == $current_filesize ) {
+//                    // File exists and is fully decrypted, determine path to download it
+//                    $download_url = $this->generateUrl('odr_file_download', ['file_id' => $file_id]);
+//
+//                    // Return a link to the download URL
+//                    $response = new JsonResponse([]);
+//                    $response->setStatusCode(200);
+//                    $response->headers->set('Location', $download_url);
+//
+//                    return $response;
+//                }
+//                else if ( $file->getFilesize() < $current_filesize ) {
+//                    // Return a URL to monitor decryption progress
+//                    $monitor_url = $this->generateUrl('odr_get_file_decrypt_progress', ['file_id' => $file_id]);
+//
+//                    $response = new JsonResponse([]);
+//                    $response->setStatusCode(202);
+//                    $response->headers->set('Location', $monitor_url);
+//
+//                    return $response;
+//                }
+//                else {
+//                    // ...this seems to only happen when the encrypted files in the crypto dir have
+//                    //  been manually replaced, but...
+//                    if ( file_exists($local_filepath) )
+//                        unlink( $local_filepath );
+//                    else
+//                        throw new ODRException('file does not exist, but too much of it is decrypted??');
+//
+//                    // Return a URL to monitor decryption progress
+//                    $monitor_url = $this->generateUrl('odr_get_file_decrypt_progress', ['file_id' => $file_id]);
+//
+//                    $response = new JsonResponse([]);
+//                    $response->setStatusCode(202);
+//                    $response->headers->set('Location', $monitor_url);
+//
+//                    return $response;
+//                }
+//            }
+//        }
+//        catch (\Exception $e) {
+//            $source = 0xcc3f073c;
+//            if ($e instanceof ODRException)
+//                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+//            else
+//                throw new ODRException($e->getMessage(), 500, $source, $e);
+//        }
+//    }
+
+
     /**
-     * Starts the process of downloading a file from the server.
+     * TODO
      *
-     * @param integer $file_id The database id of the file to download.
+     * @param string $file_name
+     * @param int $datatype_id
      * @param Request $request
      *
-     * @return Response
+     * @return StreamedResponse
      */
-    public function filedownloadstartAction($file_id, Request $request)
-    {
-        $return = [];
-        $return['r'] = 0;
-        $return['t'] = 'html';
-        $return['d'] = '';
-
-        try {
-            // ----------------------------------------
-            // Grab necessary objects
-            /** @var \Doctrine\ORM\EntityManager $em */
-            $em = $this->container->get('doctrine')->getManager();
-            $redis_prefix = $this->getParameter('memcached_key_prefix');     // debug purposes only
-
-            /** @var PermissionsManagementService $permissions_service */
-            $permissions_service = $this->permissions_management_service;
-
-
-            // Locate the file in the database
-            /** @var File $file */
-            $file = $em->getRepository('ODR\AdminBundle\Entity\File')->find($file_id);
-            if ($file == null)
-                throw new ODRNotFoundException('File');
-
-            $datafield = $file->getDataField();
-            if ($datafield->getDeletedAt() != null)
-                throw new ODRNotFoundException('Datafield');
-            $datarecord = $file->getDataRecord();
-            if ($datarecord->getDeletedAt() != null)
-                throw new ODRNotFoundException('Datarecord');
-            $datatype = $datarecord->getDataType();
-            if ($datatype->getDeletedAt() != null)
-                throw new ODRNotFoundException('Datatype');
-
-            // Files that aren't done encrypting shouldn't be downloaded
-            if ($file->getEncryptKey() === '')
-                throw new ODRNotFoundException('File');
-
-
-            // ----------------------------------------
-            // First, ensure user is permitted to download
-            /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
-
-            if ( !$permissions_service->canViewFile($user, $file) )
-                throw new ODRForbiddenException();
-            // ----------------------------------------
-
-
-            // ----------------------------------------
-            // Determine the decrypted filename
-            $filename = 'File_'.$file_id.'.'.$file->getExt();
-            if ( !$file->isPublic() )
-                $filename = md5($file->getOriginalChecksum().'_'.$file_id.'_'.$user->getId()).'.'.$file->getExt();
-
-            // Ensure file exists before attempting to download it
-            $local_filepath = realpath( $this->getParameter('odr_web_directory').'/'.$file->getUploadDir().'/'.$filename );
-            if ( !file_exists($local_filepath) ) {
-                // Need to decrypt the file...generate the url for cURL to use
-                $url = $this->generateUrl('odr_crypto_request', [], UrlGeneratorInterface::ABSOLUTE_URL);
-                $pheanstalk = $this->container->get('pheanstalk');
-                $api_key = $this->getParameter('beanstalk_api_key');
-
-                // Schedule a beanstalk job to start decrypting the file
-                $priority = 1024;   // should be roughly default priority
-                $payload = json_encode(
-                    [
-                        "object_type" => 'File',
-                        "object_id" => $file_id,
-                        "crypto_type" => 'decrypt',
-
-                        "local_filename" => $filename,
-                        "archive_filepath" => '',
-                        "desired_filename" => '',
-
-                        "redis_prefix" => $redis_prefix,    // debug purposes only
-                        "url" => $url,
-                        "api_key" => $api_key,
-                    ]
-                );
-
-                $delay = 0;
-                $pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
-
-                // Return a URL to monitor decryption progress
-                $monitor_url = $this->generateUrl('odr_get_file_decrypt_progress', ['file_id' => $file_id]);
-
-                $response = new JsonResponse([]);
-                $response->setStatusCode(202);
-                $response->headers->set('Location', $monitor_url);
-
-                return $response;
-            }
-            else {
-                // File already exists, determine whether it's done decrypting yet
-                clearstatcache(true, $local_filepath);
-                $current_filesize = filesize($local_filepath);
-
-                if ( $file->getFilesize() == $current_filesize ) {
-                    // File exists and is fully decrypted, determine path to download it
-                    $download_url = $this->generateUrl('odr_file_download', ['file_id' => $file_id]);
-
-                    // Return a link to the download URL
-                    $response = new JsonResponse([]);
-                    $response->setStatusCode(200);
-                    $response->headers->set('Location', $download_url);
-
-                    return $response;
-                }
-                else if ( $file->getFilesize() < $current_filesize ) {
-                    // Return a URL to monitor decryption progress
-                    $monitor_url = $this->generateUrl('odr_get_file_decrypt_progress', ['file_id' => $file_id]);
-
-                    $response = new JsonResponse([]);
-                    $response->setStatusCode(202);
-                    $response->headers->set('Location', $monitor_url);
-
-                    return $response;
-                }
-                else {
-                    // ...this seems to only happen when the encrypted files in the crypto dir have
-                    //  been manually replaced, but...
-                    if ( file_exists($local_filepath) )
-                        unlink( $local_filepath );
-                    else
-                        throw new ODRException('file does not exist, but too much of it is decrypted??');
-
-                    // Return a URL to monitor decryption progress
-                    $monitor_url = $this->generateUrl('odr_get_file_decrypt_progress', ['file_id' => $file_id]);
-
-                    $response = new JsonResponse([]);
-                    $response->setStatusCode(202);
-                    $response->headers->set('Location', $monitor_url);
-
-                    return $response;
-                }
-            }
-        }
-        catch (\Exception $e) {
-            $source = 0xcc3f073c;
-            if ($e instanceof ODRException)
-                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
-            else
-                throw new ODRException($e->getMessage(), 500, $source, $e);
-        }
-    }
-
     public function fileDownloadByNameAction($file_name, $datatype_id, Request $request) {
         $return = [];
         $return['r'] = 0;
@@ -663,22 +673,21 @@ class DisplayController extends ODRCustomController
             /** @var StatisticsService $statistics_service */
             $statistics_service = $this->statistics_service;
 
-
             // Locate the file in the database
             /** @var File $file */
             $em->getFilters()->disable('softdeleteable');
             $query = $em->createQuery(
-                'SELECT f
+               'SELECT f
                 FROM ODR\AdminBundle\Entity\File f
                 JOIN f.fileMeta AS fm
                 JOIN f.dataField AS df
                 WHERE df.dataType = :data_type_id 
-                AND fm.originalFileName LIKE :file_name
-                '
+                AND fm.originalFileName LIKE :file_name AND fm.publicDate != :nonpublic_date'
             )->setParameters(
                 [
                     'data_type_id' => $datatype_id,
                     'file_name' => $file_name,
+                    'nonpublic_date' => '2200-01-01 00:00:00',
                 ]
             );
             // 'non_public_date' => '2200-01-01 00:00:00'
@@ -689,35 +698,39 @@ class DisplayController extends ODRCustomController
             $files = $query->getArrayResult();
             $em->getFilters()->enable('softdeleteable');
             $output_file = null;
-            foreach ($files as $file) {
-                // var_dump($file);
-                /** @var File $file */
-                $fileMeta = $em->getRepository('ODR\AdminBundle\Entity\FileMeta')
-                    ->findBy(['file' => $file['id']]);
-                // var_dump($fileMeta);
-                // if(is_null($fileMeta)) { // what was this doing
-                if(is_array($fileMeta)) {
-                    for($i = 0; $i < count($fileMeta); $i++) {
-                        // if($fileMeta[$i]->deletedAt == null
-                            // && $fileMeta[$i]->publicDate != '2200-01-01 00:00:00'                ) {
-                        if($fileMeta[$i]->getDeletedAt() == null
-                            && $fileMeta[$i]->getPublicDate() != '2200-01-01 00:00:00'                ) {
-                            $output_file = $file;
-                            break;
-                        }
-                    }
-                }
-                else if(is_object($fileMeta)) {
-                    // if($fileMeta->deletedAt == null
-                        // && $fileMeta->publicDate != '2200-01-01 00:00:00'                ) {
-                    if($fileMeta->getDeletedAt() == null
-                        && $fileMeta->getPublicDate() != '2200-01-01 00:00:00'                ) {
-                        $output_file = $file;
-                        break;
-                    }
-                }
-            }
+//            foreach ($files as $file) {
+//                // var_dump($file);
+//                /** @var File $file */
+//                $fileMeta = $em->getRepository('ODR\AdminBundle\Entity\FileMeta')
+//                    ->findBy(['file' => $file['id']]);
+//                // var_dump($fileMeta);
+//                // if(is_null($fileMeta)) { // what was this doing
+//                if(is_array($fileMeta)) {
+//                    for($i = 0; $i < count($fileMeta); $i++) {
+//                        // if($fileMeta[$i]->deletedAt == null
+//                            // && $fileMeta[$i]->publicDate != '2200-01-01 00:00:00'                ) {
+//                        if($fileMeta[$i]->getDeletedAt() == null
+//                            && $fileMeta[$i]->getPublicDate() != '2200-01-01 00:00:00'                ) {
+//                            $output_file = $file;
+//                            break;
+//                        }
+//                    }
+//                }
+//                else if(is_object($fileMeta)) {
+//                    // if($fileMeta->deletedAt == null
+//                        // && $fileMeta->publicDate != '2200-01-01 00:00:00'                ) {
+//                    if($fileMeta->getDeletedAt() == null
+//                        && $fileMeta->getPublicDate() != '2200-01-01 00:00:00'                ) {
+//                        $output_file = $file;
+//                        break;
+//                    }
+//                }
+//            }
 
+            foreach ($files as $file) {
+                $output_file = $file;
+                break;
+            }
             if ($output_file == null)
                 throw new ODRNotFoundException('File');
 
@@ -752,20 +765,43 @@ class DisplayController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Ensure file exists before attempting to download it
-            $filename = 'File_'.$output_file['id'].'.'.$file->getExt();
-            if ( !$file->isPublic() )
-                $filename = md5($file->getOriginalChecksum().'_'.$output_file['id'].'_'.$user->getId()).'.'.$file->getExt();
+//            // Ensure file exists before attempting to download it
+//            $filename = 'File_'.$output_file['id'].'.'.$file->getExt();
+//            if ( !$file->isPublic() )
+//                $filename = md5($file->getOriginalChecksum().'_'.$output_file['id'].'_'.$user->getId()).'.'.$file->getExt();
+//
+////            $local_filepath = realpath( $this->getParameter('odr_web_directory').'/'.$this->getParameter('odr_files_directory').'/'.$filename );
+////            if (!$local_filepath) {
+////                // If file doesn't exist, and user has permissions...just decrypt it directly?
+////                // TODO - don't really like this, but downloading a file via table theme or interactive graph feature can't get at non-public files otherwise...
+//                $local_filepath = $crypto_service->decryptFile($file->getId(), $filename);
+////            }
+//
+//            if (!$local_filepath)
+//                throw new FileNotFoundException($local_filepath);
 
-            $local_filepath = realpath( $this->getParameter('odr_web_directory').'/'.$file->getUploadDir().'/'.$filename );
-            if (!$local_filepath) {
-                // If file doesn't exist, and user has permissions...just decrypt it directly?
-                // TODO - don't really like this, but downloading a file via table theme or interactive graph feature can't get at non-public files otherwise...
-                $local_filepath = $crypto_service->decryptFile($file->getId(), $filename);
+            // How to download the file depends on whether it's public or not...
+            $filename = 'File_'.$file->getId().'.'.$file->getExt();
+            $protected_filepath = $this->getParameter('odr.crypto.temp_folder').'/'.$filename;
+
+            // If the file still only exists in encrypted format, then fix that
+            if ( !file_exists($protected_filepath) )
+                $crypto_service->decryptFile($file->getId(), $filename);
+
+            // Where the file is downloaded from depends on its public status...
+            if ( !$file->isPublic() ) {
+                // If the file isn't public, then stream a download from the non-web-accessible directory
+                $response = self::createDownloadResponse($file, $protected_filepath);
             }
+            else {
+                // If the file is public, then might as well ensure the symlink exists
+                $accessible_filepath = $this->getParameter('odr_web_directory').$this->getParameter('odr_files_directory').'/'.$filename;
+                if ( !file_exists($accessible_filepath) )
+                    symlink($protected_filepath, $accessible_filepath);
 
-            if (!$local_filepath)
-                throw new FileNotFoundException($local_filepath);
+                // Afterwards, stream a download from the web-accessible directory
+                $response = self::createDownloadResponse($file, $accessible_filepath);
+            }
 
             // Log the download for statistics
             $ip_address = $request->getClientIp();
@@ -779,11 +815,11 @@ class DisplayController extends ODRCustomController
                 $datarecord->getId()
             );
 
-            $response = self::createDownloadResponse($file, $local_filepath);
-
-            // If the file is non-public, then delete it off the server...despite technically being deleted prior to serving the download, it still works
-            if ( !$file->isPublic() && file_exists($local_filepath) )
-                unlink($local_filepath);
+//            $response = self::createDownloadResponse($file, $local_filepath);
+//
+//            // If the file is non-public, then delete it off the server...despite technically being deleted prior to serving the download, it still works
+//            if ( !$file->isPublic() && file_exists($local_filepath) )
+//                unlink($local_filepath);
 
             return $response;
         }
@@ -862,20 +898,43 @@ class DisplayController extends ODRCustomController
 
 
             // ----------------------------------------
-            // Ensure file exists before attempting to download it
-            $filename = 'File_'.$file_id.'.'.$file->getExt();
-            if ( !$file->isPublic() )
-                $filename = md5($file->getOriginalChecksum().'_'.$file_id.'_'.$user->getId()).'.'.$file->getExt();
+//            // Ensure file exists before attempting to download it
+//            $filename = 'File_'.$file_id.'.'.$file->getExt();
+//            if ( !$file->isPublic() )
+//                $filename = md5($file->getOriginalChecksum().'_'.$file_id.'_'.$user->getId()).'.'.$file->getExt();
+//
+//            $local_filepath = realpath( $this->getParameter('odr_web_directory').'/'.$this->getParameter('odr_files_directory').'/'.$filename );
+//            if (!$local_filepath) {
+//                // If file doesn't exist, and user has permissions...just decrypt it directly?
+//                // TODO - don't really like this, but downloading a file via table theme or interactive graph feature can't get at non-public files otherwise...
+//                $local_filepath = $crypto_service->decryptFile($file->getId(), $filename);
+//            }
 
-            $local_filepath = realpath( $this->getParameter('odr_web_directory').'/'.$file->getUploadDir().'/'.$filename );
-            if (!$local_filepath) {
-                // If file doesn't exist, and user has permissions...just decrypt it directly?
-                // TODO - don't really like this, but downloading a file via table theme or interactive graph feature can't get at non-public files otherwise...
-                $local_filepath = $crypto_service->decryptFile($file->getId(), $filename);
+//            if ( !$local_filepath)
+//                throw new FileNotFoundException($local_filepath);
+
+            // How to download the file depends on whether it's public or not...
+            $filename = 'File_'.$file->getId().'.'.$file->getExt();
+            $protected_filepath = $this->getParameter('odr.crypto.temp_folder').'/'.$filename;
+
+            // If the file still only exists in encrypted format, then fix that
+            if ( !file_exists($protected_filepath) )
+                $crypto_service->decryptFile($file->getId(), $filename);
+
+            // Where the file is downloaded from depends on its public status...
+            if ( !$file->isPublic() ) {
+                // If the file isn't public, then stream a download from the non-web-accessible directory
+                $response = self::createDownloadResponse($file, $protected_filepath);
             }
+            else {
+                // If the file is public, then might as well ensure the symlink exists
+                $accessible_filepath = $this->getParameter('odr_web_directory').$this->getParameter('odr_files_directory').'/'.$filename;
+                if ( !file_exists($accessible_filepath) )
+                    symlink($protected_filepath, $accessible_filepath);
 
-            if (!$local_filepath)
-                throw new FileNotFoundException($local_filepath);
+                // Afterwards, stream a download from the web-accessible directory
+                $response = self::createDownloadResponse($file, $accessible_filepath);
+            }
 
             // Log the download for statistics
             $ip_address = $request->getClientIp();
@@ -889,11 +948,11 @@ class DisplayController extends ODRCustomController
                 $datarecord->getId()
             );
 
-            $response = self::createDownloadResponse($file, $local_filepath);
+//            $response = self::createDownloadResponse($file, $local_filepath);
 
             // If the file is non-public, then delete it off the server...despite technically being deleted prior to serving the download, it still works
-            if ( !$file->isPublic() && file_exists($local_filepath) )
-                unlink($local_filepath);
+//            if ( !$file->isPublic() && file_exists($local_filepath) )
+//                unlink($local_filepath);
 
             return $response;
         }
@@ -915,7 +974,7 @@ class DisplayController extends ODRCustomController
     /**
      * Creates (but does not start) a Symfony StreamedResponse to permit downloading of any size of file.
      *
-     * @param File $file
+     * @param File|Image $file
      * @param string $absolute_filepath
      *
      * @throws \Exception
@@ -926,36 +985,43 @@ class DisplayController extends ODRCustomController
     {
         $response = new StreamedResponse();
 
+        // If the File/Image doesn't exist, then this function can't continue
+        if ( !file_exists($absolute_filepath) )
+            throw new ODRNotFoundException('"'.$absolute_filepath.'" does not exist', true);
+
         $handle = fopen($absolute_filepath, 'r');
         if ($handle === false)
-            throw new \Exception('Unable to open existing file at "'.$absolute_filepath.'"');
+            throw new ODRException('Unable to open existing file at "'.$absolute_filepath.'"', true);
 
         // Attach the original filename to the download
         $display_filename = $file->getOriginalFileName();
-        if ($display_filename == null)
-            $display_filename = 'File_'.$file->getId().'.'.$file->getExt();
+        if ($display_filename == null) {
+            $default_filename = 'File_'.$file->getId().'.'.$file->getExt();
+            if ( $file instanceof Image )
+                $default_filename = 'Image_'.$file->getId().'.'.$file->getExt();
 
-        // Set up a response to send the file back
+            $display_filename = $default_filename;
+        }
+
+        // Set up a response to send the file/image back
         $response->setPrivate();
         $response->headers->set('Content-Type', mime_content_type($absolute_filepath));
         $response->headers->set('Content-Length', filesize($absolute_filepath));
-        $response->headers->set('Content-Disposition', 'attachment; filename="'.$display_filename.'";');
+//        $response->headers->set('Content-Disposition', 'attachment; filename="'.$display_filename.'";');
+        $type = 'attachment;';
+        if ( $file instanceof Image )
+            $type = 'inline;';
+        $response->headers->set('Content-Disposition', $type.' filename="'.$display_filename.'";');
 
         // Have to specify all these properties just so that the last one can be false...otherwise Flow.js can't keep track of the progress
         $response->headers->setCookie(
             \Symfony\Component\HttpFoundation\Cookie::create(
-                'fileDownload',
-                // name
-                'true',
-                // value
-                0,
-                // duration set to 'session'
-                '/',
-                // default path
-                null,
-                // default domain
-                false,
-                // don't require HTTPS
+                'fileDownload',  // name
+                'true',          // value
+                0,               // duration set to 'session'
+                '/',             // default path
+                null,            // default domain
+                false,           // don't require HTTPS
                 false
             )
         );
@@ -1000,6 +1066,8 @@ class DisplayController extends ODRCustomController
             // print microtime(true) - $start . "<br />";
             /** @var CryptoService $crypto_service */
             $crypto_service = $this->crypto_service;
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->permissions_management_service;
             /** @var StatisticsService $statistics_service */
             $statistics_service = $this->statistics_service;
             // print microtime(true) - $start . "<br />";
@@ -1020,130 +1088,170 @@ class DisplayController extends ODRCustomController
             if ($datatype->getDeletedAt() != null)
                 throw new ODRNotFoundException('Datatype');
 
-            // Get user for statistics logging
-            /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
-
             // Images that aren't done encrypting shouldn't be downloaded
             if ($image->getEncryptKey() == '')
                 throw new ODRNotFoundException('Image');
 
+
+            // ----------------------------------------
+            // First, ensure user is permitted to download
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
+
+            if ( !$permissions_service->canViewImage($user, $image) )
+                throw new ODRForbiddenException();
+            // ----------------------------------------
+
+
             // print microtime(true) - $start . "<br />";
 
             // Ensure file exists before attempting to download it
+//            $filename = 'Image_'.$image->getId().'.'.$image->getExt();
+//            if ( !$image->isPublic() ) {
+//                // If image isn't public, then it needs to have this filename instead...
+//                $filename = md5($image->getOriginalChecksum().'_'.$image->getId().'_'.$user->getId()).'.'.$image->getExt();
+//
+////                // Ensure the image exists in decrypted format
+////                $image_path = realpath( $this->getParameter('odr_web_directory').'/'.$filename );     // realpath() returns false if file does not exist
+////                if ( !$image->isPublic() || !$image_path )
+//                    $image_path = $crypto_service->decryptImage($image->getId(), $filename);
+//
+//                $handle = fopen($image_path, 'r');
+//                if ($handle === false)
+//                    throw new FileNotFoundException($image_path);
+//
+//                // Log the download for statistics
+//                $ip_address = $request->getClientIp();
+//                $user_agent = $request->headers->get('User-Agent');
+//                $statistics_service->logFileDownload(
+//                    $image->getId(),
+//                    $datatype->getId(),
+//                    $user,
+//                    $ip_address,
+//                    $user_agent,
+//                    $datarecord->getId()
+//                );
+//
+//                // Have to send image headers first...
+//                $response = new Response();
+//                $response->setPrivate();
+//                switch ( strtolower($image->getExt()) ) {
+//                    case 'gif':
+//                        $response->headers->set('Content-Type', 'image/gif');
+//                        break;
+//                    case 'png':
+//                        $response->headers->set('Content-Type', 'image/png');
+//                        break;
+//                    case 'jpg':
+//                    case 'jpeg':
+//                        $response->headers->set('Content-Type', 'image/jpeg');
+//                        break;
+//                }
+//
+//                // Attach the image's original name to the headers...
+//                $display_filename = $image->getOriginalFileName();
+//                if ($display_filename == null)
+//                    $display_filename = 'Image_'.$image->getId().'.'.$image->getExt();
+//                $response->headers->set('Content-Disposition', 'inline; filename="'.$display_filename.'";');
+//
+//                $response->sendHeaders();
+//
+//                // After headers are sent, send the image itself
+//                $im = null;
+//                switch ( strtolower($image->getExt()) ) {
+//                    case 'gif':
+//                        $im = imagecreatefromgif($image_path);
+//                        imagegif($im);
+//                        break;
+//                    case 'png':
+//                        $im = imagecreatefrompng($image_path);
+//                        imagepng($im);
+//                        break;
+//                    case 'jpg':
+//                    case 'jpeg':
+//                        $im = imagecreatefromjpeg($image_path);
+//                        imagejpeg($im);
+//                        break;
+//                }
+//                imagedestroy($im);
+//
+//                fclose($handle);
+//
+//                // If the image isn't public, delete the decrypted version so it can't be accessed without going through symfony
+//                if ( !$image->isPublic() )
+//                    unlink($image_path);
+//
+//                // Return the previously created response
+//                return $response;
+//            }
+//            else {
+////                // If image is public but doesn't exist, decrypt now
+////                $image_path = realpath( $this->getParameter('odr_web_directory').'/'.$filename );     // realpath() returns false if file does not exist
+////                if ( !$image_path )
+//                    $image_path = $crypto_service->decryptImage($image->getId(), $filename);
+//
+//                // Log the download for statistics
+//                $ip_address = $request->getClientIp();
+//                $user_agent = $request->headers->get('User-Agent');
+//                $statistics_service->logFileDownload(
+//                    $image->getId(),
+//                    $datatype->getId(),
+//                    $user,
+//                    $ip_address,
+//                    $user_agent,
+//                    $datarecord->getId()
+//                );
+//
+//                // print microtime(true) - $start . "<br />";
+//                $url = $this->getParameter('site_baseurl').'/'.$this->getParameter('odr_images_directory').'/'.$filename;
+//                // print microtime(true) - $start . "<br />";exit();
+//
+//                // $response = new Response($url);
+//                // $response->headers->set('Content-Type', 'text/html');
+//                //return $response;
+//                return $this->redirect($url, 301);
+//            }
+
+            // How to download the image depends on whether it's public or not...
             $filename = 'Image_'.$image->getId().'.'.$image->getExt();
+            $protected_filepath = $this->getParameter('odr.crypto.temp_folder').'/'.$filename;
+
+            // If the image still only exists in encrypted format, then fix that
+            if ( !file_exists($protected_filepath) )
+                $crypto_service->decryptImage($image->getId(), $filename);
+
+            // Where the image is downloaded from depends on its public status...
             if ( !$image->isPublic() ) {
-
-                /** @var PermissionsManagementService $permissions_service */
-                $permissions_service = $this->permissions_management_service;
-                // ----------------------------------------
-                // Non-Public images are more work because they always need decryption...but first, ensure user is permitted to download
-                if ( !$permissions_service->canViewImage($user, $image) )
-                    throw new ODRForbiddenException();
-                // ----------------------------------------
-
-                // If image isn't public, then it needs to have this filename instead...
-                $filename = md5($image->getOriginalChecksum().'_'.$image->getId().'_'.$user->getId()).'.'.$image->getExt();
-
-                // Ensure the image exists in decrypted format
-                $image_path = realpath( $this->getParameter('odr_web_directory').'/'.$filename );     // realpath() returns false if file does not exist
-                if ( !$image->isPublic() || !$image_path )
-                    $image_path = $crypto_service->decryptImage($image->getId(), $filename);
-
-                $handle = fopen($image_path, 'r');
-                if ($handle === false)
-                    throw new FileNotFoundException($image_path);
-
-                // Log the download for statistics
-                $ip_address = $request->getClientIp();
-                $user_agent = $request->headers->get('User-Agent');
-                $statistics_service->logFileDownload(
-                    $image->getId(),
-                    $datatype->getId(),
-                    $user,
-                    $ip_address,
-                    $user_agent,
-                    $datarecord->getId()
-                );
-
-                // Have to send image headers first...
-                $response = new Response();
-                $response->setPrivate();
-                switch ( strtolower($image->getExt()) ) {
-                    case 'gif':
-                        $response->headers->set('Content-Type', 'image/gif');
-                        break;
-                    case 'png':
-                        $response->headers->set('Content-Type', 'image/png');
-                        break;
-                    case 'jpg':
-                    case 'jpeg':
-                        $response->headers->set('Content-Type', 'image/jpeg');
-                        break;
-                }
-
-                // Attach the image's original name to the headers...
-                $display_filename = $image->getOriginalFileName();
-                if ($display_filename == null)
-                    $display_filename = 'Image_'.$image->getId().'.'.$image->getExt();
-                $response->headers->set('Content-Disposition', 'inline; filename="'.$display_filename.'";');
-
-                $response->sendHeaders();
-
-                // After headers are sent, send the image itself
-                $im = null;
-                switch ( strtolower($image->getExt()) ) {
-                    case 'gif':
-                        $im = imagecreatefromgif($image_path);
-                        imagegif($im);
-                        break;
-                    case 'png':
-                        $im = imagecreatefrompng($image_path);
-                        imagepng($im);
-                        break;
-                    case 'jpg':
-                    case 'jpeg':
-                        $im = imagecreatefromjpeg($image_path);
-                        imagejpeg($im);
-                        break;
-                }
-                imagedestroy($im);
-
-                fclose($handle);
-
-                // If the image isn't public, delete the decrypted version so it can't be accessed without going through symfony
-                if ( !$image->isPublic() )
-                    unlink($image_path);
-
-                // Return the previously created response
-                return $response;
+                // If the image isn't public, then stream a download from the non-web-accessible directory
+                $response = self::createDownloadResponse($image, $protected_filepath);
             }
             else {
-                // If image is public but doesn't exist, decrypt now
-                $image_path = realpath( $this->getParameter('odr_web_directory').'/'.$filename );     // realpath() returns false if file does not exist
-                if ( !$image_path )
-                    $image_path = $crypto_service->decryptImage($image->getId(), $filename);
+                // If the image is public, then might as well ensure the symlink exists
+                $accessible_filepath = $this->getParameter('odr_web_directory').$this->getParameter('odr_images_directory').'/'.$filename;
+                if ( !file_exists($accessible_filepath) )
+                    symlink($protected_filepath, $accessible_filepath);
 
-                // Log the download for statistics
-                $ip_address = $request->getClientIp();
-                $user_agent = $request->headers->get('User-Agent');
-                $statistics_service->logFileDownload(
-                    $image->getId(),
-                    $datatype->getId(),
-                    $user,
-                    $ip_address,
-                    $user_agent,
-                    $datarecord->getId()
-                );
+                // ...do not redirect to the image in the web-accessible directory
+//                $filepath = $this->getParameter('odr_images_directory').'/'.$filename;
+//                return $this->redirect($filepath, 301);
 
-                // print microtime(true) - $start . "<br />";
-                $url = $this->getParameter('site_baseurl') . '/uploads/images/' . $filename;
-                // print microtime(true) - $start . "<br />";exit();
-                // $response = new Response($url);
-                // $response->headers->set('Content-Type', 'text/html');
-                //return $response;
-                return $this->redirect($url, 301);
+                // ...instead, display the image in the browser
+                $response = self::createDownloadResponse($image, $accessible_filepath);
             }
+
+            // Log the download for statistics
+            $ip_address = $request->getClientIp();
+            $user_agent = $request->headers->get('User-Agent');
+            $statistics_service->logFileDownload(
+                $image->getId(),
+                $datatype->getId(),
+                $user,
+                $ip_address,
+                $user_agent,
+                $datarecord->getId()
+            );
+
+            return $response;
         }
         catch (\Exception $e) {
             $source = 0xc2fbf062;

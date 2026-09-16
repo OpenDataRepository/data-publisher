@@ -43,6 +43,9 @@ use ODR\AdminBundle\Entity\Image;
 use Symfony\Component\EventDispatcher\Event;
 
 
+/**
+ * @deprecated
+ */
 class FilePostEncryptEvent extends \Symfony\Contracts\EventDispatcher\Event implements ODREventInterface
 {
     // Best practice is apparently to have the Event class define the event name

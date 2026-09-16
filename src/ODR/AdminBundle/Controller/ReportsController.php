@@ -2044,37 +2044,19 @@ class ReportsController extends ODRCustomController
             // ----------------------------------------
             $progress = ['current_value' => 0, 'max_value' => 100, 'filename' => $file->getOriginalFileName()];
 
-            // Shouldn't really be necessary if the file is public, but including anyways for completeness/later use
-            if ( $file->isPublic() ) {
-                $absolute_path = realpath( $this->getParameter('odr_web_directory').'/'.$file->getLocalFileName() );
+            // Only need to check the non-web-accessible directory
+            $filename = 'File_'.$file->getId().'.'.$file->getExt();
+            $protected_filepath = $this->getParameter('odr.crypto.temp_folder').'/'.$filename;
 
-                if (!$absolute_path) {
-                    // File doesn't exist, so no progress yet
-                }
-                else {
-                    // Grab current filesize of file
-                    clearstatcache(true, $absolute_path);
-                    $current_filesize = filesize($absolute_path);
-
-                    $progress['current_value'] = intval( (floatval($current_filesize) / floatval($file->getFilesize()) ) * 100);
-                }
+            if ( !file_exists($protected_filepath) ) {
+                // File doesn't exist, so no progress yet
             }
             else {
-                // Determine temporary filename
-                $temp_filename = md5($file->getOriginalChecksum().'_'.$file_id.'_'.$user->getId());
-                $temp_filename .= '.'.$file->getExt();
-                $absolute_path = realpath( $this->getParameter('odr_web_directory').'/uploads/files/'.$temp_filename );
+                // Grab current filesize of file
+                clearstatcache(true, $protected_filepath);
+                $current_filesize = filesize($protected_filepath);
 
-                if (!$absolute_path) {
-                    // File doesn't exist, so no progress yet
-                }
-                else {
-                    // Grab current filesize of file
-                    clearstatcache(true, $absolute_path);
-                    $current_filesize = filesize($absolute_path);
-
-                    $progress['current_value'] = intval( (floatval($current_filesize) / floatval($file->getFilesize()) ) * 100);
-                }
+                $progress['current_value'] = intval( (floatval($current_filesize) / floatval($file->getFilesize()) ) * 100);
             }
 
             $return['d'] = $progress;
@@ -2094,6 +2076,7 @@ class ReportsController extends ODRCustomController
 
 
     /**
+     * @deprecated
      * Returns a simple JSON array of progress made towards encrypting a given file.
      * TODO - allow for images as well?
      *
@@ -2233,6 +2216,7 @@ class ReportsController extends ODRCustomController
 
 
     /**
+     * @deprecated
      * Restarts a file encryption attempt.
      *
      * @param integer $file_id

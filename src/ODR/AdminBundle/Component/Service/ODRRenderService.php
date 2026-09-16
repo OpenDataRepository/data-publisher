@@ -52,10 +52,11 @@ class ODRRenderService
      *
      * @param string $site_baseurl
      * @param bool $odr_wordpress_integrated
-     * @param string $odr_web_dir
-     * @param string $api_key
-     * @param string $redis_prefix
+//     * @param string $odr_web_dir
+//     * @param string $api_key
+//     * @param string $redis_prefix
      * @param EntityManager $em
+     * @param CryptoService $crypto_service
      * @param DatabaseInfoService $database_info_service
      * @param DatafieldInfoService $datafield_info_service
      * @param DatarecordInfoService $datarecord_info_service
@@ -70,12 +71,39 @@ class ODRRenderService
      * @param SearchSidebarService $search_sidebar_service
      * @param FormFactory $form_factory
      * @param \Twig\Environment $templating
-     * @param Pheanstalk $pheanstalk
-     * @param Router $router
+//     * @param Pheanstalk $pheanstalk
+//     * @param Router $router
      * @param LoggerInterface $logger
      */
-    public function __construct(private readonly string $site_baseurl, private readonly bool $odr_wordpress_integrated, private readonly string $odr_web_dir, private readonly string $api_key, private readonly string $redis_prefix, private readonly EntityManager $em, private readonly DatabaseInfoService $database_info_service, private readonly DatafieldInfoService $datafield_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly DatatreeInfoService $datatree_info_service, private readonly PermissionsManagementService $permissions_service, private readonly ThemeInfoService $theme_info_service, private readonly CloneThemeService $clone_theme_service, private readonly CloneTemplateService $clone_template_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly ODRNameFieldHelperService $namefield_helper_service, private readonly SearchKeyService $search_key_service, private readonly SearchSidebarService $search_sidebar_service, private readonly FormFactory $form_factory, private readonly \Twig\Environment $templating, private readonly Pheanstalk $pheanstalk, private readonly Router $router, private readonly LoggerInterface $logger)
-    {
+    public function __construct(
+        private readonly string $site_baseurl,
+        private readonly bool $odr_wordpress_integrated,
+        private readonly string $odr_web_dir,
+//        private readonly string $api_key,
+//        private readonly string $redis_prefix,
+
+        private readonly EntityManager $em,
+        private readonly CryptoService $crypto_service,
+        private readonly DatabaseInfoService $database_info_service,
+        private readonly DatafieldInfoService $datafield_info_service,
+        private readonly DatarecordInfoService $datarecord_info_service,
+        private readonly DatatreeInfoService $datatree_info_service,
+        private readonly PermissionsManagementService $permissions_service,
+        private readonly ThemeInfoService $theme_info_service,
+        private readonly CloneThemeService $clone_theme_service,
+        private readonly CloneTemplateService $clone_template_service,
+        private readonly EntityMetaModifyService $entity_modify_service,
+        private readonly ODRNameFieldHelperService $namefield_helper_service,
+        private readonly SearchKeyService $search_key_service,
+        private readonly SearchSidebarService $search_sidebar_service,
+
+        private readonly FormFactory $form_factory,
+        private readonly \Twig\Environment $templating,
+//        private readonly Pheanstalk $pheanstalk,
+//        private readonly Router $router,
+        private readonly LoggerInterface $logger
+    ) {
+
     }
 
 
@@ -741,6 +769,41 @@ class ODRRenderService
                     // The image entry should theoretically always exist...
                     if ( !empty($drf['image']) ) {
                         foreach ($drf['image'] as $num => $image) {
+//                            // $image is currently the thumbnail...
+//                            $filepath = $this->odr_web_dir.'/'.$image['localFileName'];
+//
+//                            // Ensure the image is public before attempting to decrypt it...
+//                            $public_date = ($image['parent']['imageMeta']['publicDate'])->format('Y-m-d H:i:s');
+//                            $is_public = false;
+//                            if ( $public_date !== '2200-01-01 00:00:00' )
+//                                $is_public = true;
+//
+//                            if ( !file_exists($filepath) && $is_public ) {
+//                                // Need to decrypt the file...generate the url for cURL to use
+//                                $url = $this->router->generate('odr_crypto_request', [], UrlGeneratorInterface::ABSOLUTE_URL);
+//
+//                                // Schedule a beanstalk job to start decrypting the file
+//                                $priority = 1024;   // should be roughly default priority
+//                                $payload = json_encode(
+//                                    [
+//                                        "object_type" => 'image',
+//                                        "object_id" => $image['id'],    // Decrypt the original image, not the thumbnail
+//                                        "crypto_type" => 'decrypt',
+//
+//                                        "local_filename" => '',    // Use the default filename
+//                                        "archive_filepath" => '',
+//                                        "desired_filename" => '',
+//
+//                                        "redis_prefix" => $this->redis_prefix,    // debug purposes only
+//                                        "url" => $url,
+//                                        "api_key" => $this->api_key,
+//                                    ]
+//                                );
+//
+//                                $delay = 0;
+//                                $this->pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
+//                            }
+
                             // $image is currently the thumbnail...
                             $filepath = $this->odr_web_dir.'/'.$image['localFileName'];
 
@@ -751,29 +814,8 @@ class ODRRenderService
                                 $is_public = true;
 
                             if ( !file_exists($filepath) && $is_public ) {
-                                // Need to decrypt the file...generate the url for cURL to use
-                                $url = $this->router->generate('odr_crypto_request', [], UrlGeneratorInterface::ABSOLUTE_URL);
-
-                                // Schedule a beanstalk job to start decrypting the file
-                                $priority = 1024;   // should be roughly default priority
-                                $payload = json_encode(
-                                    [
-                                        "object_type" => 'image',
-                                        "object_id" => $image['id'],    // Decrypt the original image, not the thumbnail
-                                        "crypto_type" => 'decrypt',
-
-                                        "local_filename" => '',    // Use the default filename
-                                        "archive_filepath" => '',
-                                        "desired_filename" => '',
-
-                                        "redis_prefix" => $this->redis_prefix,    // debug purposes only
-                                        "url" => $url,
-                                        "api_key" => $this->api_key,
-                                    ]
-                                );
-
-                                $delay = 0;
-                                $this->pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
+                                // Need to decrypt the image...
+                                $this->crypto_service->decryptImage($image['id']);
                             }
                         }
                     }

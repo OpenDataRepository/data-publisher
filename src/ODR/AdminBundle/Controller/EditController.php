@@ -1182,6 +1182,8 @@ class EditController extends ODRCustomController
             /** @var EventDispatcherInterface $event_dispatcher */
             $dispatcher = $this->container->get('event_dispatcher');
 
+            /** @var CryptoService $crypto_service */
+            $crypto_service = $this->crypto_service;
             /** @var EntityMetaModifyService $entity_modify_service */
             $entity_modify_service = $this->entity_meta_modify_service;
             /** @var PermissionsManagementService $permissions_service */
@@ -1231,6 +1233,9 @@ class EditController extends ODRCustomController
                 throw new ODRForbiddenException("The Database's administrator has blocked changes to this Record.");
             // --------------------
 
+            // Save the location of the symlink in the web-accessible directory
+            $filename = 'File_'.$file->getId().'.'.$file->getExt();
+            $accessible_filepath = $this->getParameter('odr_web_directory').$this->getParameter('odr_files_directory').'/'.$filename;
 
             // Toggle public status of specified file...
             $public_date = null;
@@ -1241,13 +1246,17 @@ class EditController extends ODRCustomController
                 $properties = ['publicDate' => $public_date];
                 $entity_modify_service->updateFileMeta($user, $file, $properties);
 
-                // Delete the decrypted version of the file, if it exists
-                $file_upload_path = $this->getParameter('odr_web_directory').'/uploads/files/';
-                $filename = 'File_'.$file_id.'.'.$file->getExt();
-                $absolute_path = realpath($file_upload_path).'/'.$filename;
+//                // Delete the decrypted version of the file, if it exists
+//                $file_upload_path = $this->getParameter('odr_web_directory').'/uploads/files/';
+//                $filename = 'File_'.$file_id.'.'.$file->getExt();
+//                $absolute_path = realpath($file_upload_path).'/'.$filename;
 
-                if ( file_exists($absolute_path) )
-                    unlink($absolute_path);
+//                if ( file_exists($absolute_path) )
+//                    unlink($absolute_path);
+
+                // Delete the symlink in the web-accessible directory, if it exists
+                if ( file_exists($accessible_filepath) )
+                    unlink($accessible_filepath);
             }
             else {
                 // Make the file public
@@ -1257,37 +1266,46 @@ class EditController extends ODRCustomController
                 $entity_modify_service->updateFileMeta($user, $file, $properties);
 
 
-                // ----------------------------------------
-                // Need to decrypt the file...generate the url for cURL to use
-                $url = $this->generateUrl('odr_crypto_request', [], UrlGeneratorInterface::ABSOLUTE_URL);
+//                // ----------------------------------------
+//                // Need to decrypt the file...generate the url for cURL to use
+//                $url = $this->generateUrl('odr_crypto_request', [], UrlGeneratorInterface::ABSOLUTE_URL);
+//
+//                $redis_prefix = $this->getParameter('memcached_key_prefix');    // debug purposes only
+//                $pheanstalk = $this->container->get('pheanstalk');
+//                $api_key = $this->getParameter('beanstalk_api_key');
+//
+//                // Determine the filename after decryption
+//                $target_filename = 'File_'.$file_id.'.'.$file->getExt();
+//
+//                // Schedule a beanstalk job to start decrypting the file
+//                $priority = 1024;   // should be roughly default priority
+//                $payload = json_encode(
+//                    [
+//                        "object_type" => 'File',
+//                        "object_id" => $file_id,
+//                        "crypto_type" => 'decrypt',
+//
+//                        "local_filename" => $target_filename,
+//                        "archive_filepath" => '',
+//                        "desired_filename" => '',
+//
+//                        "redis_prefix" => $redis_prefix,    // debug purposes only
+//                        "url" => $url,
+//                        "api_key" => $api_key,
+//                    ]
+//                );
+//
+//                $delay = 0;
+//                $pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
 
-                $redis_prefix = $this->getParameter('memcached_key_prefix');    // debug purposes only
-                $pheanstalk = $this->container->get('pheanstalk');
-                $api_key = $this->getParameter('beanstalk_api_key');
+                // Ensure the decrypted version of the file exists
+                $protected_filepath = $this->getParameter('odr.crypto.temp_folder').'/'.$filename;
+                if ( !file_exists($protected_filepath) )
+                    $crypto_service->decryptFile($file->getId());
 
-                // Determine the filename after decryption
-                $target_filename = 'File_'.$file_id.'.'.$file->getExt();
-
-                // Schedule a beanstalk job to start decrypting the file
-                $priority = 1024;   // should be roughly default priority
-                $payload = json_encode(
-                    [
-                        "object_type" => 'File',
-                        "object_id" => $file_id,
-                        "crypto_type" => 'decrypt',
-
-                        "local_filename" => $target_filename,
-                        "archive_filepath" => '',
-                        "desired_filename" => '',
-
-                        "redis_prefix" => $redis_prefix,    // debug purposes only
-                        "url" => $url,
-                        "api_key" => $api_key,
-                    ]
-                );
-
-                $delay = 0;
-                $pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
+                // Create a symlink in the web-accessible directory
+                if ( !file_exists($accessible_filepath) )
+                    symlink($protected_filepath, $accessible_filepath);
             }
 
             // Reload the file entity so its associated meta entry gets updated in the EntityManager
@@ -1432,51 +1450,85 @@ class EditController extends ODRCustomController
                 throw new ODRForbiddenException("The Database's administrator has blocked changes to this Record.");
             // --------------------
 
+            // Since public status changes involve multiple images, we're going to need directory
+            //  paths...
+            $accessible_basepath = $this->getParameter('odr_web_directory').$this->getParameter('odr_images_directory').'/';
+            $protected_basepath = $this->getParameter('odr.crypto.temp_folder').'/';
 
-            // Grab all children of the original image (resizes, i believe)
+            // Hydrate the original image and all of its resized children
             /** @var Image[] $all_images */
             $all_images = $repo_image->findBy( ['parent' => $image->getId()] );
             $all_images[] = $image;
 
-            // Toggle public status of specified image...
-            $public_date = null;
+//            // Toggle public status of specified image...
+//            $public_date = null;
+//
+//            if ( $image->isPublic() ) {
+//                // Make the original image non-public
+//                $public_date = new \DateTime('2200-01-01 00:00:00');
+//
+//                $properties = ['publicDate' => $public_date ];
+//                $entity_modify_service->updateImageMeta($user, $image, $properties);
+//
+//                // Delete the decrypted version of the image and all of its children, if any of them exist
+//                foreach ($all_images as $img) {
+//                    $image_upload_path = $this->getParameter('odr_web_directory').'/uploads/images/';
+//                    $filename = 'Image_'.$img->getId().'.'.$img->getExt();
+//                    $absolute_path = realpath($image_upload_path).'/'.$filename;
+//
+//                    if ( file_exists($absolute_path) )
+//                        unlink($absolute_path);
+//                }
+//            }
+//            else {
+//                // Make the original image public
+//                $public_date = new \DateTime();
+//
+//                $properties = ['publicDate' => $public_date];
+//                $entity_modify_service->updateImageMeta($user, $image, $properties);
+//
+//                // Immediately decrypt the image and all of its children...don't need to specify
+//                //  a filename because the images are guaranteed to be public
+//                foreach ($all_images as $img)
+//                    $crypto_service->decryptImage($img->getId());
+//            }
 
+            $new_is_public = true;
+            $new_public_date = new \DateTime();
             if ( $image->isPublic() ) {
-                // Make the original image non-public
-                $public_date = new \DateTime('2200-01-01 00:00:00');
-
-                $properties = ['publicDate' => $public_date ];
-                $entity_modify_service->updateImageMeta($user, $image, $properties);
-
-                // Delete the decrypted version of the image and all of its children, if any of them exist
-                foreach ($all_images as $img) {
-                    $image_upload_path = $this->getParameter('odr_web_directory').'/uploads/images/';
-                    $filename = 'Image_'.$img->getId().'.'.$img->getExt();
-                    $absolute_path = realpath($image_upload_path).'/'.$filename;
-
-                    if ( file_exists($absolute_path) )
-                        unlink($absolute_path);
-                }
+                $new_is_public = false;
+                $new_public_date = new \DateTime('2200-01-01 00:00:00');
             }
-            else {
-                // Make the original image public
-                $public_date = new \DateTime();
 
-                $properties = ['publicDate' => $public_date];
-                $entity_modify_service->updateImageMeta($user, $image, $properties);
+            // Update the original image...thumbnails do not have their own publicDate property
+            $properties = ['publicDate' => $new_public_date];
+            $entity_modify_service->updateImageMeta($user, $image, $properties);
 
-                // Immediately decrypt the image and all of its children...don't need to specify
-                //  a filename because the images are guaranteed to be public
-                foreach ($all_images as $img)
-                    $crypto_service->decryptImage($img->getId());
+            // Need to manage symlinks...
+            foreach ($all_images as $img) {
+                $filename = 'Image_'.$img->getId().'.'.$img->getExt();
+
+                if ( $new_is_public ) {
+                    // Image is now public...create symlinks
+                    if ( !file_exists($protected_basepath.$filename) )
+                        $crypto_service->decryptImage($image->getId());
+
+                    if ( !file_exists($accessible_basepath.$filename) )
+                        symlink($protected_basepath.$filename, $accessible_basepath.$filename);
+                }
+                else {
+                    // Image is now non-public...delete symlinks
+                    if ( file_exists($accessible_basepath.$filename) )
+                        unlink($accessible_basepath.$filename);
+                }
             }
 
 
             // Need to rebuild this particular datafield's html to reflect the changes...
             $return['t'] = 'html';
             $return['d'] = [
-                'is_public' => $image->isPublic(),
-                'public_date' => $public_date->format('Y-m-d'),
+                'is_public' => $new_is_public,
+                'public_date' => $new_public_date->format('Y-m-d'),
             ];
 
 
@@ -1601,7 +1653,7 @@ class EditController extends ODRCustomController
             // Delete the file
             $entity_deletion_service->deleteFile($file, $user);
 
-            // Don't need to fire off any events
+            // The service will fire off any needed events
 
 
             // -----------------------------------
@@ -1701,7 +1753,7 @@ class EditController extends ODRCustomController
             // Delete the image
             $entity_deletion_service->deleteImage($image, $user);
 
-            // Don't need to fire off any events
+            // The service will fire off any needed events
 
 
             // -----------------------------------

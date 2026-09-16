@@ -56,6 +56,16 @@ class EntityDeletionService
      */
     private $odr_web_dir;
 
+    /**
+     * @var string
+     */
+    private $odr_files_directory;
+
+    /**
+     * @var string
+     */
+    private $odr_images_directory;
+
 
     /**
      * EntityDeletionService constructor.
@@ -71,6 +81,8 @@ class EntityDeletionService
      * @param ThemeInfoService $theme_info_service
      * @param EventDispatcherInterface $event_dispatcher
      * @param string $odr_web_dir
+     * @param string $odr_files_directory
+     * @param string $odr_images_directory
      * @param LoggerInterface $logger
      */
     public function __construct(
@@ -85,9 +97,14 @@ class EntityDeletionService
         private readonly ThemeInfoService $theme_info_service,
         private readonly EventDispatcherInterface $event_dispatcher,
         string $odr_web_dir,
+        string $odr_files_directory,
+        string $odr_images_directory,
         private readonly LoggerInterface $logger
     ) {
+        // TODO - needed?
         $this->odr_web_dir = realpath($odr_web_dir);
+        $this->odr_files_directory = $this->odr_web_dir.$odr_files_directory;
+        $this->odr_images_directory = $this->odr_web_dir.$odr_images_directory;
     }
 
 
@@ -1461,14 +1478,21 @@ class EntityDeletionService
 
             // -----------------------------------
             // Delete the decrypted version of this file from the server, if it exists
-            $file_upload_path = $this->odr_web_dir.'/uploads/files/';
+//            $file_upload_path = $this->odr_web_dir.'/uploads/files/';  // TODO
+//            $filename = 'File_'.$file->getId().'.'.$file->getExt();
+//            $absolute_path = realpath($file_upload_path).'/'.$filename;
+//
+//            if ( file_exists($absolute_path) )
+//                unlink($absolute_path);
+
             $filename = 'File_'.$file->getId().'.'.$file->getExt();
-            $absolute_path = realpath($file_upload_path).'/'.$filename;
+            $accessible_filepath = $this->odr_web_dir.$this->odr_files_directory.'/'.$filename;
 
-            if ( file_exists($absolute_path) )
-                unlink($absolute_path);
+            if ( file_exists($accessible_filepath) )
+                unlink($accessible_filepath);
 
-            // Delete the file and its current metadata entry
+
+            // Mark the file as deleted in the database
             $file_meta = $file->getFileMeta();
             $file_meta->setDeletedAt(new \DateTime());
             $this->em->persist($file_meta);
@@ -1549,43 +1573,64 @@ class EntityDeletionService
             // -----------------------------------
             // Load all alternate sizes of the original image (currently just a thumbnail) and delete
             //  them
-            /** @var Image[] $images */
-            $images = $this->em->getRepository('ODR\AdminBundle\Entity\Image')->findBy(
+            /** @var Image[] $all_images */
+            $all_images = $this->em->getRepository('ODR\AdminBundle\Entity\Image')->findBy(
                 ['parent' => $image->getId()]
             );
-            foreach ($images as $img) {
-                // Ensure no decrypted version of any of the thumbnails exist on the server
-                $image_upload_path = $this->odr_web_dir.'/uploads/images/';
+            $all_images[] = $image;
+            $image_meta = $image->getImageMeta();
+
+//            foreach ($images as $img) {
+//                // Ensure no decrypted version of any of the thumbnails exist on the server
+//                $image_upload_path = $this->odr_web_dir.'/uploads/images/';
+//                $filename = 'Image_'.$img->getId().'.'.$img->getExt();
+//                $absolute_path = realpath($image_upload_path).'/'.$filename;
+//
+//                if ( file_exists($absolute_path) )
+//                    unlink($absolute_path);
+//
+//                // Delete the alternate sized image from the database
+//                $img->setDeletedBy($user);
+//                $img->setDeletedAt(new \DateTime());
+//                $this->em->persist($img);
+//            }
+//
+//            // Ensure no decrypted version of the original image exists on the server
+//            $image_upload_path = $this->odr_web_dir.'/uploads/images/';
+//            $filename = 'Image_'.$image->getId().'.'.$image->getExt();
+//            $absolute_path = realpath($image_upload_path).'/'.$filename;
+//
+//            if ( file_exists($absolute_path) )
+//                unlink($absolute_path);
+
+
+//            // Delete the image's meta entry
+//            $image_meta = $image->getImageMeta();
+//            $image_meta->setDeletedAt(new \DateTime());
+//            $this->em->persist($image_meta);
+//
+//            // Delete the image
+//            $image->setDeletedBy($user);
+//            $image->setDeletedAt(new \DateTime());
+//            $this->em->persist($image);
+
+
+            foreach ($all_images as $img) {
                 $filename = 'Image_'.$img->getId().'.'.$img->getExt();
-                $absolute_path = realpath($image_upload_path).'/'.$filename;
+                $accessible_filepath = $this->odr_web_dir.$this->odr_images_directory.'/'.$filename;
 
-                if ( file_exists($absolute_path) )
-                    unlink($absolute_path);
+                if ( file_exists($accessible_filepath) )
+                    unlink($accessible_filepath);
 
-                // Delete the alternate sized image from the database
+                // Mark the image as deleted in the database
                 $img->setDeletedBy($user);
                 $img->setDeletedAt(new \DateTime());
                 $this->em->persist($img);
             }
 
-            // Ensure no decrypted version of the original image exists on the server
-            $image_upload_path = $this->odr_web_dir.'/uploads/images/';
-            $filename = 'Image_'.$image->getId().'.'.$image->getExt();
-            $absolute_path = realpath($image_upload_path).'/'.$filename;
-
-            if ( file_exists($absolute_path) )
-                unlink($absolute_path);
-
-
-            // Delete the image's meta entry
-            $image_meta = $image->getImageMeta();
+            // Also mark the original image's meta entry as deleted
             $image_meta->setDeletedAt(new \DateTime());
             $this->em->persist($image_meta);
-
-            // Delete the image
-            $image->setDeletedBy($user);
-            $image->setDeletedAt(new \DateTime());
-            $this->em->persist($image);
 
             $this->em->flush();
 

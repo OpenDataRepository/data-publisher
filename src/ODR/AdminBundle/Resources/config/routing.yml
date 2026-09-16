@@ -1160,11 +1160,11 @@ odr_legacy_display_view:
 # END Support for old routes and GET routes
 #
 
-odr_file_download_start:
-    path:  /view/downloadfilestart/{file_id}
-    defaults: { _controller: ODR\AdminBundle\Controller\DisplayController::filedownloadstartAction }
-    requirements:
-        file_id:  \d+
+#odr_file_download_start:
+#    path:  /view/downloadfilestart/{file_id}
+#    defaults: { _controller: ODR\AdminBundle\Controller\DisplayController::filedownloadstartAction }
+#    requirements:
+#        file_id:  \d+
 
 odr_file_download:
     path:  /view/downloadfile/{file_id}

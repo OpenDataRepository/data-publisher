@@ -7,7 +7,16 @@
  * (C) 2015 by Alex Pires (ajpires@email.arizona.edu)
  * Released under the GPLv2
  *
- * Contains the functions to encrypt/decrypt files and images.
+ * File encryption was originally implemented in ODR such that the encrypted pieces were stored in
+ * a not-web-accessible directory at %odr_tmp_directory%/crypto_dir/File_#/*
+ * If the file was public, then ODR would eventually create a decrypted version of the file in the
+ * web-accessible directory at %odr_web_directory%/uploads/files/File_#.txt
+ * If the file wasn't public, then requests would also temporarily decrypt the file (with a
+ * randomized filename) to the web-accessible directory...and then delete the file afterwards
+ *
+ * In Sept/Oct 2026, this got modified so the not-web-accessible directory instead stored the
+ * decrypted version of the file...if the file was public, then ODR creates a symlink in the
+ * web-accessible directory pointing to the file in the not-web-accessible directory.
  */
 
 namespace ODR\AdminBundle\Component\Service;
@@ -38,50 +47,69 @@ class CryptoService
     /**
      * @var string
      */
-    private $crypto_dir;
+    private $odr_crypto_dir;
 
     /**
      * @var string
      */
     private $odr_web_dir;
 
+    /**
+     * @var string
+     */
+    private $odr_files_directory;
+
+    /**
+     * @var string
+     */
+    private $odr_images_directory;
+
 
     /**
      * CryptoService constructor
      *
+     * @param string $env
      * @param EntityManager $em
      * @param LockService $lock_service
      * @param EventDispatcherInterface $event_dispatcher
      * @param CryptoAdapter $crypto_adapter
-     * @param string $crypto_dir
+     * @param string $odr_crypto_dir
      * @param string $odr_web_dir
+     * @param string $odr_files_directory
+     * @param string $odr_images_directory
      * @param LoggerInterface $logger
      */
     public function __construct(
+        private readonly string $env,
         private readonly EntityManager $em,
         private readonly LockService $lock_service,
         private readonly EventDispatcherInterface $event_dispatcher,
         private readonly CryptoAdapter $crypto_adapter,
-        string $crypto_dir,
+        string $odr_crypto_dir,
         string $odr_web_dir,
+        string $odr_files_directory,
+        string $odr_images_directory,
         private readonly LoggerInterface $logger
     ) {
-        $this->crypto_dir = realpath($crypto_dir);
+        // TODO - needed?
+        $this->odr_crypto_dir = realpath($odr_crypto_dir);
         $this->odr_web_dir = realpath($odr_web_dir);
+        $this->odr_files_directory = $this->odr_web_dir.$odr_files_directory;
+        $this->odr_images_directory = $this->odr_web_dir.$odr_images_directory;
     }
 
 
     /**
-     * Wrapper function to set up decryption of a specific File.  This function can't determine if
-     * the File is public or not, so the caller needs to delete the decrypted version of non-public
-     * Files off the server afterwards.
+     * Wrapper function to set up decryption of a specific File.  The caller is responsible for
+     * deleting decrypted versions of non-public Files off the server afterwards.
      *
      * @param int $file_id
-     * @param string $target_filename
+     * @param string $target_filename If provided, then the filename in the web-accessible space is
+     *                                set to this
      *
      * @throws ODRNotFoundException
      *
-     * @return string The path to the decrypted File
+     * @return string The path to the web-accessible File
      */
     public function decryptFile($file_id, $target_filename = '')
     {
@@ -90,40 +118,72 @@ class CryptoService
         $file = $this->em->getRepository('ODR\AdminBundle\Entity\File')->find($file_id);
         if ($file == null)
             throw new ODRNotFoundException('File');
-        if ($file->getEncryptKey() === '')
+        if ($file->getEncryptKey() === '')  // NOTE: now that encryption isn't used, this won't actually do anything
             throw new ODRNotFoundException('File');
 
         if ($target_filename == '')
             $target_filename = 'File_'.$file->getId().'.'.$file->getExt();
 
-        // Determine where the encrypted file is stored
-        $crypto_chunk_dir = $this->crypto_dir.'/File_'.$file_id;
 
-        // Determine where the decrypted file is supposed to go
-        $base_filepath = $this->odr_web_dir.'/'.$file->getUploadDir();
+//        // Determine where the encrypted file is stored
+//        $crypto_chunk_dir = $this->odr_crypto_dir.'/File_'.$file_id;
+//
+//        // Determine where the decrypted file is supposed to go
+//        $base_filepath = $this->odr_web_dir.'/'.$file->getUploadDir();
+//
+//        // NOTE - this will put non-public files in the web-accessible directory...in theory, it
+//        //  could put the file into ODR's tmp directory to guarantee nobody without permissions can
+//        //  download it, but then phantomJS wouldn't be able to access non-public files used for
+//        //  building graphs...
+//
+//        // Decrypt the file
+////        $this->logger->debug('CryptoService.php: Attempting to decrypt file '.$file_id.' to "'.$base_filepath.'/'.$target_filename.'"');
+//        return self::decryptworker($crypto_chunk_dir, $file->getEncryptKey(), $base_filepath, $target_filename);
 
-        // NOTE - this will put non-public files in the web-accessible directory...in theory, it
-        //  could put the file into ODR's tmp directory to guarantee nobody without permissions can
-        //  download it, but then phantomJS wouldn't be able to access non-public files used for
-        //  building graphs...
 
-        // Decrypt the file
-//        $this->logger->debug('CryptoService.php: Attempting to decrypt file '.$file_id.' to "'.$base_filepath.'/'.$target_filename.'"');
-        return self::decryptworker($crypto_chunk_dir, $file->getEncryptKey(), $base_filepath, $target_filename);
+        // The decrypted file in the not-web-accessible directory should always be named with the file id
+        $protected_filename = 'File_'.$file->getId().'.'.$file->getExt();
+        $protected_filepath = $this->odr_crypto_dir.'/'.$protected_filename;
+        // The symlink in the web-accessible directory might need a different filename
+        $accessible_filepath = $this->odr_files_directory.'/'.$target_filename;
+
+        // If the file in the web-accessible directory is not a symlink, then delete it
+        if ( file_exists($accessible_filepath) && !is_link($accessible_filepath) )
+            unlink($accessible_filepath);
+
+        // If the file does not exist in the web-accessible directory...
+        if ( !file_exists($accessible_filepath) ) {
+            if ( !file_exists($protected_filepath) ) {
+                // Eventually, this should no longer be needed
+                $crypto_chunk_dir = $this->odr_crypto_dir.'/File_'.$file_id;
+                self::decryptworker($crypto_chunk_dir, $file->getEncryptKey(), $this->odr_crypto_dir, $protected_filename);
+            }
+
+            if ( file_exists($protected_filepath) ) {
+                // ...create a symlink in the web-accessible directory to the image in the not-web-accessible directory
+                symlink($protected_filepath, $accessible_filepath);
+            }
+            else if ( $this->env !== 'dev' ) {
+                throw new ODRException('Unable to decrypt file '.$file_id);
+            }
+        }
+
+        // At this point, a path to the web-accessible directory is guarateed to exist
+        return $accessible_filepath;
     }
 
 
     /**
-     * Wrapper function to set up decryption of a specific Image.  This function can't determine if
-     * the Image is public or not, so the caller needs to delete the decrypted version of non-public
-     * Images off the server afterwards.
+     * Wrapper function to set up decryption of a specific Image.  The caller is responsible for
+     * deleting decrypted versions of non-public Images off the server afterwards.
      *
      * @param int $image_id
-     * @param string $target_filename
+     * @param string $target_filename If provided, then the filename in the web-accessible space is
+     *                                 set to this
      *
      * @throws ODRNotFoundException
      *
-     * @return string The path to the decrypted Image
+     * @return string The path to the web-accessible Image
      */
     public function decryptImage($image_id, $target_filename = '')
     {
@@ -138,19 +198,50 @@ class CryptoService
         if ($target_filename == '')
             $target_filename = 'Image_'.$image->getId().'.'.$image->getExt();
 
-        // Determine where the encrypted file is stored
-        $crypto_chunk_dir = $this->crypto_dir.'/Image_'.$image_id;
+//        // Determine where the encrypted file is stored
+//        $crypto_chunk_dir = $this->odr_crypto_dir.'/Image_'.$image_id;
+//
+//        // Determine where the decrypted file is supposed to go
+//        $base_filepath = $this->odr_web_dir.'/'.$image->getUploadDir();
+//
+//        // NOTE - this will put non-public images in the web-accessible directory...in theory, it
+//        //  could put the image into ODR's tmp directory to guarantee nobody without permissions can
+//        //  download it...but doing it this way to match file decryption
+//
+//        // Decrypt the image
+////        $this->logger->debug('CryptoService.php: Attempting to decrypt image '.$image_id.' to "'.$base_filepath.'/'.$target_filename.'"');
+//        return self::decryptworker($crypto_chunk_dir, $image->getEncryptKey(), $base_filepath, $target_filename);
 
-        // Determine where the decrypted file is supposed to go
-        $base_filepath = $this->odr_web_dir.'/'.$image->getUploadDir();
 
-        // NOTE - this will put non-public images in the web-accessible directory...in theory, it
-        //  could put the image into ODR's tmp directory to guarantee nobody without permissions can
-        //  download it...but doing it this way to match file decryption
+        // The decrypted image in the not-web-accessible directory should always be named with the image id
+        $protected_filename = 'Image_'.$image->getId().'.'.$image->getExt();
+        $protected_filepath = $this->odr_crypto_dir.'/'.$protected_filename;
+        // The symlink in the web-accessible directory might need a different filename
+        $accessible_filepath = $this->odr_images_directory.'/'.$target_filename;
 
-        // Decrypt the image
-//        $this->logger->debug('CryptoService.php: Attempting to decrypt image '.$image_id.' to "'.$base_filepath.'/'.$target_filename.'"');
-        return self::decryptworker($crypto_chunk_dir, $image->getEncryptKey(), $base_filepath, $target_filename);
+        // If the image in the web-accessible directory is not a symlink, then delete it
+        if ( file_exists($accessible_filepath) && !is_link($accessible_filepath) )
+            unlink($accessible_filepath);
+
+        // If the image does not exist in the web-accessible directory...
+        if ( !file_exists($accessible_filepath) ) {
+            if ( !file_exists($protected_filepath) ) {
+                // Eventually, this should no longer be needed
+                $crypto_chunk_dir = $this->odr_crypto_dir.'/Image_'.$image_id;
+                self::decryptworker($crypto_chunk_dir, $image->getEncryptKey(), $this->odr_crypto_dir, $protected_filename);
+            }
+
+            if ( file_exists($protected_filepath) ) {
+                // ...create a symlink in the web-accessible directory to the image in the not-web-accessible directory
+                symlink($protected_filepath, $accessible_filepath);
+            }
+            else if ( $this->env !== 'dev' ) {
+                throw new ODRException('Unable to decrypt image '.$image_id);
+            }
+        }
+
+        // At this point, a path to the web-accessible directory is guarateed to exist
+        return $accessible_filepath;
     }
 
 
@@ -218,8 +309,8 @@ class CryptoService
         $zip_archive->close();
 
         // Delete decrypted version of non-public files off the server
-        if ( !$is_public )
-            unlink($local_filepath);
+//        if ( !$is_public )
+//            unlink($local_filepath);
 
 
         // Release the previously acquired lock
@@ -260,43 +351,51 @@ class CryptoService
             // Convert the hex string representation of the file's encryption key into binary
             $key = hex2bin($key);
 
-            // Open the target file
-            $handle = fopen($local_filepath, "wb");
-            if (!$handle)
-                throw new ODRException('Unable to open "'.$local_filepath.'" for writing');
+            $handle = null;
 
             // Decrypt each chunk and write to target file
             $chunk_id = 0;
-            while (file_exists($crypto_chunk_dir.'/'.'enc.'.$chunk_id)) {
+            while ( file_exists($crypto_chunk_dir.'/'.'enc.'.$chunk_id) ) {
                 if ( !file_exists($crypto_chunk_dir.'/'.'enc.'.$chunk_id) ) {
-                    // Error encoutered...delete any partially decrypted data
-                    fclose($handle);
+                    // Chunk does not exist...the file can't get decrypted
+                    // Delete any partially decrypted data
+                    if ( !is_null($handle) && get_resource_type($handle) !== 'Unknown' )
+                        fclose($handle);
                     if ( file_exists($local_filepath) )
                         unlink($local_filepath);
 
                     // Ensure the lock is released too
                     $lockHandler->release();
-                    throw new ODRException('Encrypted chunk not found: '.$crypto_chunk_dir.'/'.'enc.'.$chunk_id);
+//                    throw new ODRException('Encrypted chunk not found: '.$crypto_chunk_dir.'/'.'enc.'.$chunk_id);
                 }
 
                 $data = file_get_contents($crypto_chunk_dir.'/'.'enc.'.$chunk_id);
                 $decrypted_data = $this->crypto_adapter->decrypt($data, $key);
                 if ( $decrypted_data === false ) {
-                    // Error encoutered...delete any partially decrypted data
+                    // Error encoutered while decrypting...delete any partially decrypted data
                     fclose($handle);
                     if ( file_exists($local_filepath) )
                         unlink($local_filepath);
 
                     // Ensure the lock is released too
                     $lockHandler->release();
-                    throw new ODRException('Unable to decrypt chunk: '.$crypto_chunk_dir.'/'.'enc.'.$chunk_id);
+//                    throw new ODRException('Unable to decrypt chunk: '.$crypto_chunk_dir.'/'.'enc.'.$chunk_id);
+                }
+
+                if ( is_null($handle) ) {
+                    // Open the target file
+                    $handle = fopen($local_filepath, "wb");
+                    if (!$handle)
+                        throw new ODRException('Unable to open "'.$local_filepath.'" for writing');
                 }
 
                 fwrite($handle, (string) $decrypted_data);
                 $chunk_id++;
             }
 
-            // Now that the file is decrypted, release the lock on it
+            // Now that the file is decrypted, stop writing and release the lock on it
+            if ( !is_null($handle) )
+                fclose($handle);
             $lockHandler->release();
         }
 
@@ -305,6 +404,7 @@ class CryptoService
 
 
     /**
+     * @deprecated
      * Wrapper function to set up the encryption of a specific File.
      *
      * IMPORTANT: Unlike images, this function marks the datarecord as updated...this typically gets
@@ -403,6 +503,7 @@ class CryptoService
 
 
     /**
+     * @deprecated
      * Wrapper function to set up the encryption of a specific Image.
      *
      * IMPORTANT: unlike files, this function does not mark the datarecord as updated when done.
@@ -461,6 +562,7 @@ class CryptoService
 
 
     /**
+     * @deprecated
      * Does the work of encrypting the given File/Image.
      *
      * @param File|Image $obj The database object for the File/Image that's being encrypted
@@ -476,7 +578,7 @@ class CryptoService
         $obj->setEncryptKey($hexEncoded_num);
 
         // Locate the directory where the encrypted files exist
-        $encrypted_basedir = $this->crypto_dir;
+        $encrypted_basedir = $this->odr_crypto_dir;
         if ($obj instanceof File)
             $encrypted_basedir .= '/File_'.$obj->getId().'/';
         else if ($obj instanceof Image)
@@ -551,6 +653,7 @@ class CryptoService
 
 
     /**
+     * @deprecated
      * Since calling mkdir() when a directory already exists apparently causes a warning, and
      * because the dterranova Crypto bundle doesn't automatically handle it...this function deletes
      * the specified directory and all its contents off the server.

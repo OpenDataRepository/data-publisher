@@ -1302,8 +1302,8 @@ class EntityCreationService
 
         // The local_filename property will get changed to the web-accessible directory later
         $file->setLocalFileName($dirname);
-        // The encrypt_key property is left blank, because the encryption process will set it later
-        $file->setEncryptKey('');
+        // Because files are no longer encrypted...the encrypt_key property is set to this, pending future removal
+        $file->setEncryptKey('no longer used');
         // The original_checksum property is also left blank...it'll be set after encryption, to let
         //  the rest of ODR know it can start using the file
         $file->setOriginalChecksum('');
@@ -1427,8 +1427,8 @@ class EntityCreationService
 
         // The local_filename property will get changed to the web-accessible directory later
         $image->setLocalFileName($dirname);
-        // The encrypt_key property is left blank, because the encryption process will set it later
-        $image->setEncryptKey('');
+        // Because images are no longer encrypted...the encrypt_key property is set to this, pending future removal
+        $image->setEncryptKey('no longer used');
         // The original_checksum property is also left blank...it'll be set after encryption, to let
         //  the rest of ODR know it can start using the image
         $image->setOriginalChecksum('');

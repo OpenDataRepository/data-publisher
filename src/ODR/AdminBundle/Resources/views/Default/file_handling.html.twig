@@ -17,6 +17,9 @@
         // Prevent a normal file download
         event.preventDefault();
 
+        downloadFile(file_id);
+        return;
+{#
         // Don't start a new download if one is already in progress
         if ( pending_file_decryptions[file_id] != null
             || pending_file_decryptions[file_id] != undefined
@@ -80,6 +83,7 @@
                 }
             }
         });
+#}
     }
 
     /**
@@ -122,7 +126,8 @@
 #}
             },
             successCallback: function (url) {
-//console.log('success for file ' + file_id);
+                // console.log('successCallback for file ' + file_id, url);
+
                 // File is finished downloading
                 pending_file_decryptions[ file_id ] = null;
                 file_decrypt_timeouts[ file_id ] = null;
@@ -136,13 +141,16 @@
                 $(decrypt_progress).css('width', '0');
             },
             failCallback: function (responseHtml, url, error) {
-//console.log('fail for file ' + file_id);
+                console.log('failCallback for file ' + file_id);  console.log(responseHtml);
+
                 // Something went wrong...
                 pending_file_decryptions[ file_id ] = null;
                 file_decrypt_timeouts[ file_id ] = null;
                 file_decrypt_progress[ file_id ] = null;
 
                 // Convert response to json, and display error message
+                if ( responseHtml.startsWith('<pre>') )
+                    responseHtml = responseHtml.replaceAll(/<\/?pre>/g, '');  console.log(responseHtml);
                 var response = $.parseJSON(responseHtml);
                 createJGrowlError(response);
 {#
@@ -296,6 +304,7 @@
     var file_encrypt_progress = {};
 
     /**
+     * @deprecated
      * Ensure that at most a single progress request is active for a file encryption at any given
      * time.
      *
@@ -311,6 +320,7 @@
     }
 
     /**
+     * @deprecated
      * Queries the server for the encryption progress on the given file
      *
      * @param {number} file_id

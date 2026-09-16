@@ -17,6 +17,7 @@
 namespace ODR\AdminBundle\Component\Service;
 
 // Entities
+use ODR\AdminBundle\Component\Event\FilePostUploadEvent;
 use ODR\AdminBundle\Entity\DataRecordFields;
 use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\Image;
@@ -24,17 +25,17 @@ use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
 use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
-use ODR\AdminBundle\Component\Event\FilePostEncryptEvent;
-use ODR\AdminBundle\Component\Event\FilePreEncryptEvent;
+//use ODR\AdminBundle\Component\Event\FilePostEncryptEvent;
+//use ODR\AdminBundle\Component\Event\FilePreEncryptEvent;
 // Exceptions
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Other
 use Doctrine\ORM\EntityManager;
-use Pheanstalk\Pheanstalk;
+//use Pheanstalk\Pheanstalk;
 use Psr\Log\LoggerInterface;
-use Symfony\Bundle\FrameworkBundle\Routing\Router;
+//use Symfony\Bundle\FrameworkBundle\Routing\Router;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
-use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+//use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 
 class ODRUploadService
@@ -43,18 +44,35 @@ class ODRUploadService
     /**
      * ODRUploadService constructor
      *
+     * @param string $odr_crypto_dir
+     * @param string $odr_web_dir
+     * @param string $odr_files_directory
+     * @param string $odr_images_directory
      * @param EntityManager $em
-     * @param CryptoService $crypto_service
+* //     * @param CryptoService $crypto_service
      * @param EntityCreationService $entity_creation_service
      * @param EventDispatcherInterface $event_dispatcher
-     * @param Pheanstalk $pheanstalk
-     * @param Router $router
-     * @param string $redis_prefix
-     * @param string $api_key
+* //     * @param Pheanstalk $pheanstalk
+* //     * @param Router $router
+* //     * @param string $redis_prefix
+* //     * @param string $api_key
      * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly CryptoService $crypto_service, private readonly EntityCreationService $entity_creation_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly Pheanstalk $pheanstalk, private readonly Router $router, private readonly string $redis_prefix, private readonly string $api_key, private readonly LoggerInterface $logger)
-    {
+    public function __construct(
+        private readonly string $odr_crypto_dir,
+        private readonly string $odr_web_dir,
+        private readonly string $odr_files_directory,
+        private readonly string $odr_images_directory,
+        private readonly EntityManager $em,
+//        private readonly CryptoService $crypto_service,
+        private readonly EntityCreationService $entity_creation_service,
+        private readonly EventDispatcherInterface $event_dispatcher,
+//        private readonly Pheanstalk $pheanstalk,
+//        private readonly Router $router,
+//        private readonly string $redis_prefix,
+//        private readonly string $api_key,
+        private readonly LoggerInterface $logger
+    ) {
     }
 
 
@@ -88,84 +106,121 @@ class ODRUploadService
         // The user uploaded a File...create a database entry with as much info as possible
         $file = $this->entity_creation_service->createFile($user, $drf, $filepath, $created, $public_date, $quality);
 
+//        // ----------------------------------------
+//        // Now that the File (mostly) exists, should fire off the FilePreEncrypt event
+//        // Since the File isn't encrypted, several properties don't exactly work the same as they
+//        //  do after encryption.  @see FilePreEncryptEvent::getFile() for specifics.
+//
+//        // This is wrapped in a try/catch block because any uncaught exceptions thrown by the
+//        //  event subscribers will prevent file encryption otherwise...
+//        try {
+//            $event = new FilePreEncryptEvent($file, $drf->getDataField());
+//            $this->event_dispatcher->dispatch($event, FilePreEncryptEvent::NAME);
+//        }
+//        catch (\Exception) {
+//            // ...don't particularly want to rethrow the error since it'll interrupt
+//            //  everything downstream of the event...having file encryption interrupted is not
+//            //  acceptable though, so any errors need to disappear
+////                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+////                    throw $e;
+//        }
+//
+//        // NOTE - the event is dispatched prior to the file encryption so that file encryption
+//        //  doesn't have to become a TrackedJob...which would also require the page to check for and
+//        //  handle the event dispatching completion...
+//
+//        // See ODR\AdminBundle\Component\Event\FilePreEncryptEvent.php for more details
+//
+//        // Additionally, CryptoService handles firing all other events for files
+//
+//        // ----------------------------------------
+//        // Reload the file incase the FilePreEncryptEvent screwed with the filepath or the filesize
+//        $this->em->refresh($file);
+//        $file_meta = $file->getFileMeta();
+//        $this->em->refresh($file_meta);
+//
+//        $filepath = $file->getLocalFileName().'/'.$file_meta->getOriginalFileName();
+//
+//        // ----------------------------------------
+//
+//        if ( !$use_beanstalk ) {
+//            // In specific situations, directly encrypting the file is preferable
+//            $this->crypto_service->encryptFile($file->getId(), $filepath);
+//
+//            // Returning because the other branch does, though I believe this return is considerably
+//            //  more safe than the other.  STILL, USE WITH CAUTION.
+//            return $file;
+//        }
+//        else {
+//            // Need to use beanstalk to encrypt the file so the UI doesn't block on huge files
+//
+//            // Generate the url for cURL to use
+//            $url = $this->router->generate('odr_crypto_request', [], UrlGeneratorInterface::ABSOLUTE_URL);
+//
+//            // Insert the new job into the queue
+//            $priority = 1024;   // should be roughly default priority
+//            $payload = json_encode(
+//                [
+//                    "object_type" => 'file',
+//                    "object_id" => $file->getId(),
+//                    "crypto_type" => 'encrypt',
+//
+//                    "local_filename" => $filepath,
+//                    "archive_filepath" => '',
+//                    "desired_filename" => '',
+//
+//                    "redis_prefix" => $this->redis_prefix,    // debug purposes only
+//                    "url" => $url,
+//                    "api_key" => $this->api_key,
+//                ]
+//            );
+//
+//            $delay = 1;
+//            $this->pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
+//
+//            // Returning the file despite it still being unencrypted, and also despite that beanstalk
+//            //  will eventually encrypt it (deleting the file at $filepath) at some unknown time in the
+//            //  future.  USE WITH CAUTION.
+//            return $file;
+//        }
+
 
         // ----------------------------------------
-        // Now that the File (mostly) exists, should fire off the FilePreEncrypt event
-        // Since the File isn't encrypted, several properties don't exactly work the same as they
-        //  do after encryption.  @see FilePreEncryptEvent::getFile() for specifics.
+        // Before Sept/Oct 2026, ODR encrypted the uploaded files into %odr_tmp_directory%/crypto_dir/*
+        //  using the CryptoService...nowadays, it just moves the uploaded file into that directory
 
-        // This is wrapped in a try/catch block because any uncaught exceptions thrown by the
-        //  event subscribers will prevent file encryption otherwise...
-        try {
-            $event = new FilePreEncryptEvent($file, $drf->getDataField());
-            $this->event_dispatcher->dispatch($event, FilePreEncryptEvent::NAME);
+        // Rename the file into "File_<id>.<ext>"
+        $new_filename = 'File_'.$file->getId().'.'.$file->getExt();
+        $file->setLocalFileName( $this->odr_files_directory.'/'.$new_filename );
+
+        $dirname = pathinfo($filepath, PATHINFO_DIRNAME);
+        rename($filepath, $dirname.'/'.$new_filename);
+
+        // Might as well set the correct filesize/checksum here before moving it
+        $upload_filepath = realpath($dirname.'/'.$new_filename);
+        $file->setFilesize( filesize($upload_filepath) );
+        $file->setOriginalChecksum( md5_file($upload_filepath) );
+
+        $this->em->persist($file);
+        $this->em->flush();
+
+        // Move the uploaded file into the not-web-accessible directory
+        $protected_filepath = $this->odr_crypto_dir.'/'.$new_filename;
+        rename($upload_filepath, $protected_filepath);
+
+        // If the file is supposed to be public, then might as well create the symlink immediately
+        if ( $file->isPublic() ) {
+            $accessible_filepath = $this->odr_web_dir.$this->odr_files_directory.'/'.$new_filename;
+            if ( !file_exists($accessible_filepath) )
+                symlink($protected_filepath, $accessible_filepath);
         }
-        catch (\Exception) {
-            // ...don't particularly want to rethrow the error since it'll interrupt
-            //  everything downstream of the event...having file encryption interrupted is not
-            //  acceptable though, so any errors need to disappear
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
-//                    throw $e;
-        }
 
-        // NOTE - the event is dispatched prior to the file encryption so that file encryption
-        //  doesn't have to become a TrackedJob...which would also require the page to check for and
-        //  handle the event dispatching completion...
-
-        // See ODR\AdminBundle\Component\Event\FilePreEncryptEvent.php for more details
-
-        // Additionally, CryptoService handles firing all other events for files
 
         // ----------------------------------------
-        // Reload the file incase the FilePreEncryptEvent screwed with the filepath or the filesize
-        $this->em->refresh($file);
-        $file_meta = $file->getFileMeta();
-        $this->em->refresh($file_meta);
+        // Fire off the required events before returning the newly created file
+        self::fireEvents($file, $user);
 
-        $filepath = $file->getLocalFileName().'/'.$file_meta->getOriginalFileName();
-
-        // ----------------------------------------
-
-        if ( !$use_beanstalk ) {
-            // In specific situations, directly encrypting the file is preferable
-            $this->crypto_service->encryptFile($file->getId(), $filepath);
-
-            // Returning because the other branch does, though I believe this return is considerably
-            //  more safe than the other.  STILL, USE WITH CAUTION.
-            return $file;
-        }
-        else {
-            // Need to use beanstalk to encrypt the file so the UI doesn't block on huge files
-
-            // Generate the url for cURL to use
-            $url = $this->router->generate('odr_crypto_request', [], UrlGeneratorInterface::ABSOLUTE_URL);
-
-            // Insert the new job into the queue
-            $priority = 1024;   // should be roughly default priority
-            $payload = json_encode(
-                [
-                    "object_type" => 'file',
-                    "object_id" => $file->getId(),
-                    "crypto_type" => 'encrypt',
-
-                    "local_filename" => $filepath,
-                    "archive_filepath" => '',
-                    "desired_filename" => '',
-
-                    "redis_prefix" => $this->redis_prefix,    // debug purposes only
-                    "url" => $url,
-                    "api_key" => $this->api_key,
-                ]
-            );
-
-            $delay = 1;
-            $this->pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
-
-            // Returning the file despite it still being unencrypted, and also despite that beanstalk
-            //  will eventually encrypt it (deleting the file at $filepath) at some unknown time in the
-            //  future.  USE WITH CAUTION.
-            return $file;
-        }
+        return $file;
     }
 
 
@@ -196,97 +251,135 @@ class ODRUploadService
         $image = $this->entity_creation_service->createImage($user, $drf, $filepath, $created, $public_date, $display_order, $quality);
 
 
+//        // ----------------------------------------
+//        // Now that the Image (mostly) exists, should fire off the FilePreEncrypt event
+//        // Since the Image isn't encrypted, several properties don't exactly work the same as they
+//        //  do after encryption.  @see FilePreEncryptEvent::getFile() for specifics.
+//
+//        // This is wrapped in a try/catch block because any uncaught exceptions thrown by the
+//        //  event subscribers will prevent file encryption otherwise...
+//        try {
+//            $event = new FilePreEncryptEvent($image, $drf->getDataField());
+//            $this->event_dispatcher->dispatch($event, FilePreEncryptEvent::NAME);
+//        }
+//        catch (\Exception $e) {
+//            // ...don't particularly want to rethrow the error since it'll interrupt
+//            //  everything downstream of the event...having file encryption interrupted is not
+//            //  acceptable though, so any errors need to disappear
+////                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+////                    throw $e;
+//        }
+//
+//        // NOTE - the event is dispatched prior to the image encryption so that image encryption
+//        //  doesn't have to become a TrackedJob...which would also require the page would to
+//        //  check for and handle the event dispatching completion...
+//
+//        // See ODR\AdminBundle\Component\Event\FilePreEncryptEvent.php for more details
+//
+//        // ----------------------------------------
+//        // Reload the image incase the FilePreEncryptEvent screwed with the filepath
+//        $this->em->refresh($image);
+//        $image_meta = $image->getImageMeta();
+//        $this->em->refresh($image_meta);
+//
+//        $filepath = $image->getLocalFileName().'/'.$image_meta->getOriginalFileName();
+//
+//        // Create thumbnails (and any other reiszed versions) of the original image before it gets
+//        //  encrypted
+//        $resized_images = $this->entity_creation_service->createResizedImages($image, $filepath);
+//
+//        // Encrypt the resized image...this will also set the localFilename, encryptKey, and
+//        //  originalChecksum properties
+//        $dirname = pathinfo($filepath, PATHINFO_DIRNAME);
+//        foreach ($resized_images as $resized_image) {
+//            $resized_image_filename = 'Image_'.$resized_image->getId().'.'.$resized_image->getExt();
+//            $this->crypto_service->encryptImage($resized_image->getId(), $dirname.'/'.$resized_image_filename);
+//        }
+//
+//        // Encrypt the original image...this will also set the localFilename, encryptKey, and
+//        //  originalChecksum properties
+//        // TODO - should encryption be deferred through beanstalk instead?
+//        $this->crypto_service->encryptImage($image->getId(), $filepath);
+//
+//
+//        // ----------------------------------------
+//        // Mark this datafield and datarecord as updated...unlike files, we don't want images to
+//        //  fire off events inside CryptoService...it would end up firing off one event for the
+//        //  original image, then another for each thumbnail created
+//        $datarecord = $image->getDataRecord();
+//        $datafield = $image->getDataField();
+//
+//        try {
+//            $event = new DatafieldModifiedEvent($datafield, $user);
+//            $this->event_dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
+//        }
+//        catch (\Exception $e) {
+//            // ...don't want to rethrow the error since it'll interrupt everything after this
+//            //  event
+////            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+////                throw $e;
+//        }
+//
+//        try {
+//            $event = new DatarecordModifiedEvent($datarecord, $user, false);    // Do NOT mark the record as updated in the database
+//            $this->event_dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
+//        }
+//        catch (\Exception $e) {
+//            // ...don't want to rethrow the error since it'll interrupt everything after this
+//            //  event
+////            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+////                throw $e;
+//        }
+//
+//        // Need this event to be after DatarecordModified, to ensure that cache entries aren't stale...
+//        try {
+//            $event = new FilePostEncryptEvent($image, $datafield);
+//            $this->event_dispatcher->dispatch($event, FilePostEncryptEvent::NAME);
+//        }
+//        catch (\Exception) {
+//            // ...don't want to rethrow the error since it'll interrupt everything after this
+//            //  event
+////            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+////                throw $e;
+//        }
+
         // ----------------------------------------
-        // Now that the Image (mostly) exists, should fire off the FilePreEncrypt event
-        // Since the Image isn't encrypted, several properties don't exactly work the same as they
-        //  do after encryption.  @see FilePreEncryptEvent::getFile() for specifics.
+        // Create thumbnails (and any other reiszed versions) of the original image before anything
+        //  happens
+        $all_images = $this->entity_creation_service->createResizedImages($image, $filepath);
+        // The thumbnails and the original image all need the same steps performed...
+        $all_images[] = $image;
 
-        // This is wrapped in a try/catch block because any uncaught exceptions thrown by the
-        //  event subscribers will prevent file encryption otherwise...
-        try {
-            $event = new FilePreEncryptEvent($image, $drf->getDataField());
-            $this->event_dispatcher->dispatch($event, FilePreEncryptEvent::NAME);
-        }
-        catch (\Exception $e) {
-            // ...don't particularly want to rethrow the error since it'll interrupt
-            //  everything downstream of the event...having file encryption interrupted is not
-            //  acceptable though, so any errors need to disappear
-//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
-//                    throw $e;
-        }
-
-        // NOTE - the event is dispatched prior to the image encryption so that image encryption
-        //  doesn't have to become a TrackedJob...which would also require the page would to
-        //  check for and handle the event dispatching completion...
-
-        // See ODR\AdminBundle\Component\Event\FilePreEncryptEvent.php for more details
-
-        // ----------------------------------------
-        // Reload the image incase the FilePreEncryptEvent screwed with the filepath
-        $this->em->refresh($image);
-        $image_meta = $image->getImageMeta();
-        $this->em->refresh($image_meta);
-
-        $filepath = $image->getLocalFileName().'/'.$image_meta->getOriginalFileName();
-
-        // Create thumbnails (and any other reiszed versions) of the original image before it gets
-        //  encrypted
-        $resized_images = $this->entity_creation_service->createResizedImages($image, $filepath);
-
-        // Encrypt the resized image...this will also set the localFilename, encryptKey, and
-        //  originalChecksum properties
         $dirname = pathinfo($filepath, PATHINFO_DIRNAME);
-        foreach ($resized_images as $resized_image) {
-            $resized_image_filename = 'Image_'.$resized_image->getId().'.'.$resized_image->getExt();
-            $this->crypto_service->encryptImage($resized_image->getId(), $dirname.'/'.$resized_image_filename);
+        foreach ($all_images as $i) {
+            // Rename the image while it's in the upload directory
+            $new_image_filename = 'Image_'.$i->getId().'.'.$i->getExt();
+            $i->setLocalFileName( $this->odr_images_directory.'/'.$new_image_filename );
+            rename($filepath, $dirname.'/'.$new_image_filename);
+
+            // Set the correct checksum here
+            $upload_filepath = realpath($dirname.'/'.$new_image_filename);
+            $i->setOriginalChecksum( md5_file($upload_filepath) );
+
+            $this->em->persist($i);
+
+            // Move the uploaded image into the not-web-accessible directory
+            $protected_filepath = $this->odr_crypto_dir.'/'.$new_image_filename;
+            rename($upload_filepath, $protected_filepath);
+
+            // If the image is supposed to be public, then might as well create the symlink immediately
+            if ( $i->isPublic() ) {
+                $accessible_filepath = $this->odr_web_dir.'/'.$new_image_filename;
+                if ( !file_exists($accessible_filepath) )
+                    symlink($protected_filepath, $accessible_filepath);
+            }
         }
 
-        // Encrypt the original image...this will also set the localFilename, encryptKey, and
-        //  originalChecksum properties
-        // TODO - should encryption be deferred through beanstalk instead?
-        $this->crypto_service->encryptImage($image->getId(), $filepath);
-
+        $this->em->flush();
 
         // ----------------------------------------
-        // Mark this datafield and datarecord as updated...unlike files, we don't want images to
-        //  fire off events inside CryptoService...it would end up firing off one event for the
-        //  original image, then another for each thumbnail created
-        $datarecord = $image->getDataRecord();
-        $datafield = $image->getDataField();
-
-        try {
-            $event = new DatafieldModifiedEvent($datafield, $user);
-            $this->event_dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
-        }
-        catch (\Exception $e) {
-            // ...don't want to rethrow the error since it'll interrupt everything after this
-            //  event
-//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
-//                throw $e;
-        }
-
-        try {
-            $event = new DatarecordModifiedEvent($datarecord, $user, false);    // Do NOT mark the record as updated in the database
-            $this->event_dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
-        }
-        catch (\Exception $e) {
-            // ...don't want to rethrow the error since it'll interrupt everything after this
-            //  event
-//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
-//                throw $e;
-        }
-
-        // Need this event to be after DatarecordModified, to ensure that cache entries aren't stale...
-        try {
-            $event = new FilePostEncryptEvent($image, $datafield);
-            $this->event_dispatcher->dispatch($event, FilePostEncryptEvent::NAME);
-        }
-        catch (\Exception) {
-            // ...don't want to rethrow the error since it'll interrupt everything after this
-            //  event
-//            if ( $this->container->getParameter('kernel.environment') === 'dev' )
-//                throw $e;
-        }
+        // Fire off the required events before returning the newly created file
+        self::fireEvents($image, $user);
 
         return $image;
     }
@@ -307,9 +400,57 @@ class ODRUploadService
             throw new ODRNotFoundException('The file at "'.$filepath.'" does not exist on the server', true, 0x77ac3ca5);
 
         // In order to overwrite this File, several of its properties need to be reset
-        $existing_file->setEncryptKey('');
-        $existing_file->setOriginalChecksum('');
-        $existing_file->setFilesize( filesize($filepath) );
+//        $existing_file->setEncryptKey('');
+//        $existing_file->setOriginalChecksum('');
+//        $existing_file->setFilesize( filesize($filepath) );
+//
+//        $existing_file_meta = $existing_file->getFileMeta();
+//        $existing_file_meta->setUpdatedBy($user);
+//        $existing_file_meta->setUpdated(new \DateTime());
+//
+//        $this->em->persist($existing_file);
+//        $this->em->persist($existing_file_meta);
+
+
+//        // ----------------------------------------
+//        if ( !$use_beanstalk ) {
+//            // Encrypt the given file, storing its relevant information back in $existing_file
+//            $this->crypto_service->encryptFile($existing_file->getId(), $filepath);
+//        }
+//        else {
+//            // Need to use beanstalk to encrypt the file so the UI doesn't block on huge files
+//
+//            // Generate the url for cURL to use
+//            $url = $this->router->generate('odr_crypto_request', [], UrlGeneratorInterface::ABSOLUTE_URL);
+//
+//            // Insert the new job into the queue
+//            $priority = 1024;   // should be roughly default priority
+//            $payload = json_encode(
+//                [
+//                    "object_type" => 'file',
+//                    "object_id" => $existing_file->getId(),
+//                    "crypto_type" => 'encrypt',
+//
+//                    "local_filename" => $filepath,
+//                    "archive_filepath" => '',
+//                    "desired_filename" => '',
+//
+//                    "redis_prefix" => $this->redis_prefix,    // debug purposes only
+//                    "url" => $url,
+//                    "api_key" => $this->api_key,
+//                ]
+//            );
+//
+//            $delay = 1;
+//            $this->pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
+//
+//            // CryptoService handles firing events for files
+//        }
+
+        // Need to update several properties here
+        $new_filepath = realpath($filepath);
+        $existing_file->setFilesize( filesize($new_filepath) );
+        $existing_file->setOriginalChecksum( md5_file($new_filepath) );
 
         $existing_file_meta = $existing_file->getFileMeta();
         $existing_file_meta->setUpdatedBy($user);
@@ -317,42 +458,19 @@ class ODRUploadService
 
         $this->em->persist($existing_file);
         $this->em->persist($existing_file_meta);
+        $this->em->flush();
+
+        // Move the uploaded file into the not-web-accessible directory
+        $new_filename = 'File_'.$existing_file->getId().'.'.$existing_file->getExt();
+        $protected_filepath = $this->odr_crypto_dir.'/'.$new_filename;
+        rename($new_filepath, $protected_filepath);
+
+        // Don't need to deal with the public symlink
 
 
         // ----------------------------------------
-        if ( !$use_beanstalk ) {
-            // Encrypt the given file, storing its relevant information back in $existing_file
-            $this->crypto_service->encryptFile($existing_file->getId(), $filepath);
-        }
-        else {
-            // Need to use beanstalk to encrypt the file so the UI doesn't block on huge files
-
-            // Generate the url for cURL to use
-            $url = $this->router->generate('odr_crypto_request', [], UrlGeneratorInterface::ABSOLUTE_URL);
-
-            // Insert the new job into the queue
-            $priority = 1024;   // should be roughly default priority
-            $payload = json_encode(
-                [
-                    "object_type" => 'file',
-                    "object_id" => $existing_file->getId(),
-                    "crypto_type" => 'encrypt',
-
-                    "local_filename" => $filepath,
-                    "archive_filepath" => '',
-                    "desired_filename" => '',
-
-                    "redis_prefix" => $this->redis_prefix,    // debug purposes only
-                    "url" => $url,
-                    "api_key" => $this->api_key,
-                ]
-            );
-
-            $delay = 1;
-            $this->pheanstalk->useTube('crypto_requests')->put($payload, $priority, $delay);
-
-            // CryptoService handles firing events for files
-        }
+        // Fire off the required events
+        self::fireEvents($existing_file, $user);
     }
 
 
@@ -378,7 +496,7 @@ class ODRUploadService
 
         foreach ($relevant_images as $i) {
             $i->setOriginalChecksum('');
-            $i->setEncryptKey('');
+//            $i->setEncryptKey('');
             // localFilename will be reset inside $crypto_service->encryptImage() later
 
             if ( $i->getOriginal() ) {
@@ -402,34 +520,122 @@ class ODRUploadService
         // Flush the database changes
         $this->em->flush();
 
-        // Recreate all the necessary resized versions of the image
-        $resized_images = $this->entity_creation_service->createResizedImages($existing_image, $filepath, true);
+//        // Recreate all the necessary resized versions of the image
+//        $resized_images = $this->entity_creation_service->createResizedImages($existing_image, $filepath, true);
+//
+//        // Encrypt all the resized versions first
+//        $dirname = pathinfo($filepath, PATHINFO_DIRNAME);
+//        foreach ($resized_images as $resized_image) {
+//            $resized_image_filename = 'Image_'.$resized_image->getId().'.'.$resized_image->getExt();
+//            $this->crypto_service->encryptImage($resized_image->getId(), $dirname.'/'.$resized_image_filename);
+//        }
+//
+//        // Encrypt the original version of the image, storing its information back in $existing_image
+//        $this->crypto_service->encryptImage($existing_image->getId(), $filepath);
+//
+//
+//        // ----------------------------------------
+//        // Mark this datafield and datarecord as updated...unlike files, we don't want images to
+//        //  fire off events inside CryptoService...it would end up firing off one event for the
+//        //  original image, then another for each thumbnail created
+//        $datarecord = $existing_image->getDataRecord();
+//        $datafield = $existing_image->getDataField();
+//
+//        try {
+//            $event = new FilePostEncryptEvent($existing_image, $datafield);
+//            $this->event_dispatcher->dispatch($event, FilePostEncryptEvent::NAME);
+//        }
+//        catch (\Exception $e) {
+//            // ...don't want to rethrow the error since it'll interrupt everything after this
+//            //  event
+////            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+////                throw $e;
+//        }
+//
+//        try {
+//            $event = new DatafieldModifiedEvent($datafield, $user);
+//            $this->event_dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
+//        }
+//        catch (\Exception $e) {
+//            // ...don't want to rethrow the error since it'll interrupt everything after this
+//            //  event
+////            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+////                throw $e;
+//        }
+//
+//        try {
+//            $event = new DatarecordModifiedEvent($datarecord, $user);    // Do want to update the database here, unlike the image upload action
+//            $this->event_dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
+//        }
+//        catch (\Exception) {
+//            // ...don't want to rethrow the error since it'll interrupt everything after this
+//            //  event
+////            if ( $this->container->getParameter('kernel.environment') === 'dev' )
+////                throw $e;
+//        }
 
-        // Encrypt all the resized versions first
+        // ----------------------------------------
+        // Create thumbnails (and any other reiszed versions) of the original image before anything
+        //  happens
+        $all_images = $this->entity_creation_service->createResizedImages($existing_image, $filepath);
+        // The thumbnails and the original image all need the same steps performed...
+        $all_images[] = $existing_image;
+
         $dirname = pathinfo($filepath, PATHINFO_DIRNAME);
-        foreach ($resized_images as $resized_image) {
-            $resized_image_filename = 'Image_'.$resized_image->getId().'.'.$resized_image->getExt();
-            $this->crypto_service->encryptImage($resized_image->getId(), $dirname.'/'.$resized_image_filename);
+        foreach ($all_images as $i) {
+            // Rename the image while it's in the upload directory
+            $new_image_filename = 'Image_'.$i->getId().'.'.$i->getExt();
+            $i->setLocalFileName( $this->odr_images_directory.'/'.$new_image_filename );
+            rename($filepath, $dirname.'/'.$new_image_filename);
+
+            // Set the correct checksum here
+            $upload_filepath = realpath($dirname.'/'.$new_image_filename);
+            $i->setOriginalChecksum( md5_file($upload_filepath) );
+
+            $this->em->persist($i);
+
+            // Move the uploaded image into the not-web-accessible directory
+            $protected_filepath = $this->odr_crypto_dir.'/'.$new_image_filename;
+            rename($upload_filepath, $protected_filepath);
+
+            // If the image is supposed to be public, then might as well create the symlink immediately
+            if ( $i->isPublic() ) {
+                $accessible_filepath = $this->odr_web_dir.'/'.$new_image_filename;
+                if ( !file_exists($accessible_filepath) )
+                    symlink($protected_filepath, $accessible_filepath);
+            }
         }
 
-        // Encrypt the original version of the image, storing its information back in $existing_image
-        $this->crypto_service->encryptImage($existing_image->getId(), $filepath);
+        $this->em->flush();
 
 
         // ----------------------------------------
-        // Mark this datafield and datarecord as updated...unlike files, we don't want images to
-        //  fire off events inside CryptoService...it would end up firing off one event for the
-        //  original image, then another for each thumbnail created
-        $datarecord = $existing_image->getDataRecord();
-        $datafield = $existing_image->getDataField();
+        // Fire off the required events before returning the newly created file
+        self::fireEvents($existing_image, $user);
+    }
 
+
+    /**
+     * All of these upload operations require multiple events to be fired...
+     *
+     * @param File|Image $file
+     * @param ODRUser $user
+     */
+    private function fireEvents($file, $user)
+    {
+        $datarecord = $file->getDataRecord();
+        $datafield = $file->getDataField();
+
+        // This are all wrapped in a try/catch block because any uncaught exceptions thrown by the
+        //  event subscribers will prevent file encryption otherwise...
         try {
-            $event = new FilePostEncryptEvent($existing_image, $datafield);
-            $this->event_dispatcher->dispatch($event, FilePostEncryptEvent::NAME);
+            $event = new FilePostUploadEvent($file, $datafield);
+            $this->event_dispatcher->dispatch($event, FilePostUploadEvent::NAME);
         }
-        catch (\Exception $e) {
-            // ...don't want to rethrow the error since it'll interrupt everything after this
-            //  event
+        catch (\Exception) {
+            // ...don't particularly want to rethrow the error since it'll interrupt
+            //  everything downstream of the event...having file encryption interrupted is not
+            //  acceptable though, so any errors need to disappear
 //            if ( $this->container->getParameter('kernel.environment') === 'dev' )
 //                throw $e;
         }
@@ -439,19 +645,17 @@ class ODRUploadService
             $this->event_dispatcher->dispatch($event, DatafieldModifiedEvent::NAME);
         }
         catch (\Exception $e) {
-            // ...don't want to rethrow the error since it'll interrupt everything after this
-            //  event
 //            if ( $this->container->getParameter('kernel.environment') === 'dev' )
 //                throw $e;
         }
 
         try {
-            $event = new DatarecordModifiedEvent($datarecord, $user);    // Do want to update the database here, unlike the image upload action
+            // Do NOT mark the record as updated in the database after encryption finished...stuff
+            //  was already marked as updated when the initial upload was completed
+            $event = new DatarecordModifiedEvent($datarecord, $user, false);
             $this->event_dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
         }
-        catch (\Exception) {
-            // ...don't want to rethrow the error since it'll interrupt everything after this
-            //  event
+        catch (\Exception $e) {
 //            if ( $this->container->getParameter('kernel.environment') === 'dev' )
 //                throw $e;
         }

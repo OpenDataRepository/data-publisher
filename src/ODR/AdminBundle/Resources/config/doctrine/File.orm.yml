@@ -151,7 +151,7 @@ ODR\AdminBundle\Entity\File:
                     referencedColumnName: id
             orphanRemoval: false
 
-    lifecycleCallbacks:
+    lifecycleCallbacks: # TODO - delete these?
         prePersist: [ preUpload ]
         postPersist: [ upload ]
         preUpdate: [ preUpload ]
