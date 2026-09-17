@@ -1,0 +1,117 @@
+{% apply spaceless %}
+
+<div id="ODRReferencePluginDialogWrapper">
+    <div class="pure-u-1 ODRContentWrapper" style="margin-left:20px;">
+
+        <div class="pure-u-1">
+            <button id="ODRReferencePluginDialog_usecurrent" class="pure-button">Use Current Values</button>
+            <button id="ODRReferencePluginDialog_usecommon" class="pure-button pure-button-primary">Use Common Values</button>
+            <button id="ODRReferencePluginDialog_usenew" class="pure-button">Use New Values</button>
+        </div>
+
+        <div class="pure-u-1 ODRReferencePluginDialog_header">
+            <div class="pure-u-2-5">
+                Current Values
+            </div>
+            <div class="pure-u-1-8">
+                &nbsp;
+            </div>
+            <div class="pure-u-2-5">
+                Values from Crossref
+            </div>
+        </div>
+
+        <input type="hidden" id="ODRReferencePlugin_DOIInput_{{ datarecord_id }}" value="{{ field_values['URL'] }}" disabled />
+
+        <form id="ODRReferencePluginDialog_form" action="{{ path('odr_plugin_reference_save_dialog') }}">
+            <input type="hidden" name="datarecord_id" value="{{ datarecord_id }}" />
+            <input type="hidden" name="_token" value="{{ csrf_token(token_key) }}" />
+
+        {% for df_id,rpf_df in plugin_fields %}
+            {% set typeclass = rpf_df['typeClass'] %}
+            {% set rpf_name = rpf_df['rpf_name'] %}
+
+            <div class="pure-u-1">
+                <div class="pure-u-2-5">
+                    <label for="ODRReferencePluginDialogCurrent_{{ datarecord_id }}_{{ df_id }}" class="ODRReferencePluginDialog_label">
+                        {{ rpf_name }}
+                        &nbsp;<input class="ODRReferencePluginDialogCurrent_radio" type="radio" name="switch_{{ df_id }}" value="current" rel="{{ rpf_name }}" checked />
+                    </label>
+                    <div class="ODRFieldWrapper">
+                        {% if typeclass == 'LongText' %}
+                        <textarea id="ODRReferencePluginDialogCurrent_{{ datarecord_id }}_{{ df_id }}" class="ODRReferencePluginDialog_textarea pure-u-1" readonly>{% if field_values[rpf_name] is defined %}{{ field_values[rpf_name]|raw }}{% endif %}</textarea>
+                        {% else %}
+                        <input id="ODRReferencePluginDialogCurrent_{{ datarecord_id }}_{{ df_id }}" class="ODRReferencePluginDialog_input pure-u-1" type="text" value="{% if field_values[rpf_name] is defined %}{{ field_values[rpf_name]|raw }}{% endif %}" readonly />
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="pure-u-1-8">
+                    &nbsp;
+                </div>
+
+                <div class="pure-u-2-5">
+                    <label for="ODRReferencePluginDialogLookup_{{ datarecord_id }}_{{ df_id }}" class="ODRReferencePluginDialog_label">
+                        {{ rpf_name }}
+                        &nbsp;<input class="ODRReferencePluginDialogLookup_radio" type="radio" name="switch_{{ df_id }}" value="lookup" rel="{{ rpf_name }}" />
+                    </label>
+                    <div class="ODRFieldWrapper">
+                        {% if typeclass == 'LongText' %}
+                            <textarea id="ODRReferencePluginDialogLookup_{{ datarecord_id }}_{{ df_id }}" class="ODRReferencePluginDialog_textarea pure-u-1" name="lookup_{{ df_id }}" readonly></textarea>
+                        {% else %}
+                            <input id="ODRReferencePluginDialogLookup_{{ datarecord_id }}_{{ df_id }}" class="ODRReferencePluginDialog_input pure-u-1" name="lookup_{{ df_id }}" type="text" value="" readonly />
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+        </form>
+
+    </div>
+</div>
+
+<script>
+    if ( ODRReferencePlugin_id_lookup === undefined || ODRReferencePlugin_id_lookup === null )
+        var ODRReferencePlugin_id_lookup = new Map();
+
+    if ( !ODRReferencePlugin_id_lookup.has('{{ datarecord_id }}') )
+        ODRReferencePlugin_id_lookup.set('{{ datarecord_id }}', new Map());
+    var ODRReferencePlugin_ids = ODRReferencePlugin_id_lookup.get('{{ datarecord_id }}');
+
+{% for rpf_name,html_id in doi_fields %}
+    ODRReferencePlugin_ids.set('{{ rpf_name }}', '{{ html_id }}');
+{% endfor %}
+    {#console.log( 'current_datarecord', '{{ datarecord_id }}', ODRReferencePlugin_id_lookup );#}
+
+    $(function() {
+        $("#ODRReferencePluginDialog_usecurrent").unbind('click').click(function() {
+            $(".ODRReferencePluginDialogCurrent_radio").each(function(index,elem) {
+                $(elem).prop('checked', true);
+            });
+        });
+
+        $("#ODRReferencePluginDialog_usecommon").unbind('click').click(function() {
+            $(".ODRReferencePluginDialogCurrent_radio").each(function(index,elem) {
+                var rpf_name = $(elem).attr('rel');
+                if ( rpf_name == 'Book Title' || rpf_name == 'Publisher' )
+                    $(elem).prop('checked', true);
+            });
+            $(".ODRReferencePluginDialogLookup_radio").each(function(index,elem) {
+                var rpf_name = $(elem).attr('rel');
+                if ( rpf_name !== 'Book Title' && rpf_name !== 'Publisher' )
+                    $(elem).prop('checked', true);
+            });
+        });
+
+        $("#ODRReferencePluginDialog_usenew").unbind('click').click(function() {
+            $(".ODRReferencePluginDialogLookup_radio").each(function(index,elem) {
+                $(elem).prop('checked', true);
+            });
+        });
+
+        ODRReferencePlugin_queryCrossref('{{ datarecord_id }}');
+    });
+
+</script>
+
+{% endapply %}

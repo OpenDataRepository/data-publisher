@@ -10,10 +10,15 @@
 
 /**
  * Attempts to query the Crossref DOI store for a given DOI, and then attempts to fill in the
- * fields on ODR's FakeEdit page if it actually works.
+ * fields stored in ODRReferencePlugin_id_lookup if it actually works.
+ *
  * @param {string} datarecord_id
+ * @param {boolean} autosubmit If true, then the inputs in ODRReferencePlugin_id_lookup have their
+ *                             jQuery validation triggered
  */
-function ODRReferencePlugin_queryCrossref(datarecord_id) {
+function ODRReferencePlugin_queryCrossref(datarecord_id, autosubmit = false) {
+    // Believe I have to ensure it's a string...
+    datarecord_id = datarecord_id.toString();
     // console.log( 'current_datarecord', datarecord_id, ODRReferencePlugin_id_lookup );
 
     // If the lookup data doesn't exist, then don't continue
@@ -24,7 +29,7 @@ function ODRReferencePlugin_queryCrossref(datarecord_id) {
         has_lookup_data = false;
 
     if ( !has_lookup_data ) {
-        alert('asdf');
+        alert('Unable to locate where to store returned data from the API call');
         return;
     }
 
@@ -33,31 +38,18 @@ function ODRReferencePlugin_queryCrossref(datarecord_id) {
     if (doi_str == '')
         return;
 
-    // Because people are lazy, probably need to modify the value to just have a DOI
-    if ( doi_str.match(/https?:/) ) {
-        let pieces = doi_str.split('/');
-        let doi_pieces = pieces.slice(3);
-        doi_str = doi_pieces.join('/');
-    }
-    else if ( doi_str.match(/(dx.)?doi.org/) ) {
-        let pieces = doi_str.split('/');
-        let doi_pieces = pieces.slice(1);
-        doi_str = doi_pieces.join('/');
-    }
-    else if ( doi_str.match(/doi:/i) ) {
-        doi_str = doi_str.slice(4).trim();
-    }
-
     // Crossreff apparently tries to keep DOIs following this schema...slightly modified to add
     //  lowercase letters
+    const matches = doi_str.match(/10.\d{4,9}\/[-._;()/:a-zA-Z0-9]+/i);
     // https://www.crossref.org/blog/dois-and-matching-regular-expressions/
-    if ( !doi_str.match(/^10.\d{4,9}\/[-._;()/:a-zA-Z0-9]+$/i) ) {
-        alert('"' + doi_str + '" is an illegal DOI, aborting');
+    if ( matches == null || matches.length == 0 ) {
+        alert('"' + doi_str + '" does not contain a valid DOI, aborting');
         return;
     }
+    doi_str = matches[0];
 
     // Final step is to make the DOI url-safe
-    // console.log('fixed doi_str:', doi_str);
+    // console.log('fixed doi_str:', doi_str);  return;
     doi_str = doi_str.replaceAll('/', '%2F');
 
     // Ensure none of the fields on the page have a value, in case this is looking up a second
@@ -66,7 +58,7 @@ function ODRReferencePlugin_queryCrossref(datarecord_id) {
     // console.log('rpf_element_map:', rpf_element_map);
     rpf_element_map.forEach((value, key) => {
         let id = '#' + value;
-        // console.log('resetting:', $(id));
+        // console.log('resetting "' + id + '":', $(id));
 
         if ( $(id).is('input') )
             $(id).val('');
@@ -88,21 +80,25 @@ function ODRReferencePlugin_queryCrossref(datarecord_id) {
                 $.each(values, function(plugin_key, doi_value) {
                     // Insert the value from into the matching element on the page
                     let id = '#' + rpf_element_map.get(plugin_key);
+                    // console.log('saving "' + id + '":', $(id));
                     if ( $(id).is('input') )
                         $(id).val(doi_value);
                     else
                         $(id).text(doi_value);
 
-                    // Also need to trigger the jquery validate plugin on the relevant form
-                    let pieces = id.split(/_/);
-                    pieces[0] = 'EditForm';
-                    let form_id = '#' + pieces.join('_');
-                    // console.log('form_id', $(form_id));
-                    $(form_id).submit();
+                    if ( autosubmit ) {
+                        // Also need to trigger the jquery validate plugin on the relevant form
+                        let pieces = id.split(/_/);
+                        pieces[0] = 'EditForm';
+                        let form_id = '#' + pieces.join('_');
+                        // console.log('form_id', $(form_id));
+                        $(form_id).submit();
+                    }
                 });
             }
-            else
+            else {
                 alert('DOI does not refer to a single item, aborting');
+            }
         },
         error: function(jqXHR, textStatus, errorThrown) {
             // ODR's default error handler is going to eat the error by default, need to give
@@ -237,4 +233,103 @@ function ODRRRUFFReferencePlugin_parseCrossref(crossref_data) {
         values['URL'] = crossref_data['URL'];
 
     return values;
+}
+
+/**
+ * Opens ODR's modal and for the purposes of comparing Crossref data with an existing reference record
+ *
+ * @param {string} url
+ */
+function ODRReferencePlugin_openDialog(url) {
+    /** @type {odr_remodal_options} modal_options */
+    var modal_options = {
+        title: 'DOI Lookup via Crossref (<a target="_blank" href="https://www.crossref.org"><i class="fa fa-external-link"></i></a>)',
+        buttons: [
+            {
+                id: 'ODRReferencePlugin_dialogsave',
+                text: 'Save',
+                click_handler: function() {
+                    ODRReferencePlugin_saveDialog();
+                }
+            },
+            {
+                id: 'ODRReferencePlugin_dialogcancel',
+                secondary: true,
+                text: 'Cancel',
+                click_handler: function() {
+                    closeODRRemodal();
+                }
+            }
+        ]
+    };
+    openODRRemodal(modal_options);
+
+    $.ajax({
+        cache: false,
+        type: 'GET',
+        url: url,
+        dataType: "json",
+        success: function(data) {
+            updateODRRemodalBody(data.d.html);
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            // Close the dialog so it's not in some half-initialized state
+            closeODRRemodal();
+        },
+        complete: function(jqXHR) {
+            // Get the xdebugToken from response headers
+            var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+            // If the Sfjs object exists
+            if (typeof Sfjs !== "undefined") {
+                // Grab the toolbar element
+                var currentElement = $('.sf-toolbar')[0];
+
+                // Load the data of the given xdebug token into the current toolbar wrapper
+                Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+            }
+        }
+    });
+}
+
+/**
+ * Saves a form to change searchable/public status for multiple datafields at the same time.
+ */
+function ODRReferencePlugin_saveDialog() {
+
+    var form = $("#ODRReferencePluginDialog_form");
+    var url = $(form).attr('action');
+    var post_data = $(form).serialize();
+
+    $.ajax({
+        cache: false,
+        type: 'POST',
+        url: url,
+        data: post_data,
+        dataType: "json",
+        success: function(data) {
+            // TODO - partial reloads?
+            reloadPage();
+
+            // Don't need this open anymore
+            closeODRRemodal();
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            // Close the dialog so it's not in some half-initialized state
+            // closeODRRemodal();
+        },
+        complete: function(jqXHR) {
+            // Get the xdebugToken from response headers
+            var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+            // If the Sfjs object exists
+            if (typeof Sfjs !== "undefined") {
+                // Grab the toolbar element
+                var currentElement = $('.sf-toolbar')[0];
+
+                // Load the data of the given xdebug token into the current toolbar wrapper
+                Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+            }
+        }
+    });
 }

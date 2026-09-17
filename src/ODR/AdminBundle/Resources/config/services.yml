@@ -573,7 +573,9 @@ services:
 
     ODR\OpenRepository\GraphBundle\Controller\ReferenceController:
         public: true
-        arguments: *odr_base_args
+        arguments:
+            <<: *odr_base_args
+            $entity_creation_service: '@odr.entity_creation_service'
         calls:
             - [setContainer, ['@odr.controller_locator']]
         tags: ['controller.service_arguments']

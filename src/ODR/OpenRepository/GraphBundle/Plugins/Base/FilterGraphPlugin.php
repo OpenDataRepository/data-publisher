@@ -1349,8 +1349,10 @@ class FilterGraphPlugin extends ODRGraphPlugin implements DatatypePluginInterfac
 
         if ( !empty($dt_array['descendants']) ) {
             foreach ($dt_array['descendants'] as $child_dt_id => $child_dt_data) {
-                $child_dt_array = $child_dt_data['datatype'][$child_dt_id];
-                self::getFilterDatafieldLookup($child_dt_array, $filter_fields_lookup);
+                if ( isset($child_dt_data['datatype'][$child_dt_id]) ) {
+                    $child_dt_array = $child_dt_data['datatype'][$child_dt_id];
+                    self::getFilterDatafieldLookup($child_dt_array, $filter_fields_lookup);
+                }
             }
         }
     }

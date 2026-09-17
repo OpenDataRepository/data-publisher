@@ -144,10 +144,6 @@
                 {% endif %}
                 <i class="fa fa-keyboard-o Pointer ODRUTFInserter" title="Insert UTF-8 characters into {{ datafield_meta.fieldName }}"></i>
                 &nbsp;{{ datafield_meta.fieldName }}
-
-                {% if header_content|length > 0 %}
-                    <span class="FRight">{{ header_content|raw }}</span>
-                {% endif %}
             </label>
             {% if chemistry_plugin_fields[ datafield.id ] is defined %}
                 {% set subscript_delimiter = chemistry_plugin_fields[ datafield.id ]['subscript_delimiter'] %}
@@ -161,6 +157,24 @@
                     'subscript_delimiter': subscript_delimiter,
                     'superscript_delimiter': superscript_delimiter,
                 } %}
+            {% endif %}
+            {% if header_content|length > 0 or is_url_datafield %}
+            <span class="FRight">
+                {% if header_content|length > 0 %}
+                    {{ header_content|raw }}
+                {% endif %}
+                {% if is_url_datafield %}
+                    <i class="fa fa-external-link Pointer ODRReferencePlugin_trigger_{{ datarecord.id }}" title="Attempt to look up a DOI via Crossref"></i>
+                    <script>
+                        $(function() {
+                            // Using class because of the possibility of multiple copies of the same reference on the page
+                            $(".ODRReferencePlugin_trigger_{{ datarecord.id }}").unbind('click').click(function(event) {
+                                ODRReferencePlugin_openDialog( "{{ path('odr_plugin_reference_load_dialog', {request_datarecord_id: datarecord.id}) }}" );
+                            });
+                        });
+                    </script>
+                {% endif %}
+            </span>
             {% endif %}
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
                 <textarea
@@ -185,10 +199,6 @@
                 <i class="fa fa-keyboard-o Pointer ODRUTFInserter" title="Insert UTF-8 characters into {{ datafield_meta.fieldName }}"></i>
                 {% endif %}
                 &nbsp;{{ datafield_meta.fieldName }}
-
-                {% if header_content|length > 0 %}
-                    <span class="FRight">{{ header_content|raw }}</span>
-                {% endif %}
             </label>
             {% if chemistry_plugin_fields[ datafield.id ] is defined %}
                 {% set subscript_delimiter = chemistry_plugin_fields[ datafield.id ]['subscript_delimiter'] %}
@@ -202,6 +212,24 @@
                     'subscript_delimiter': subscript_delimiter,
                     'superscript_delimiter': superscript_delimiter,
                 } %}
+            {% endif %}
+            {% if header_content|length > 0 or is_url_datafield %}
+            <span class="FRight">
+                {% if header_content|length > 0 %}
+                    {{ header_content|raw }}
+                {% endif %}
+                {% if is_url_datafield %}
+                    <i class="fa fa-external-link Pointer ODRReferencePlugin_trigger_{{ datarecord.id }}" title="Attempt to look up a DOI via Crossref"></i>
+                    <script>
+                        $(function() {
+                            // Using class because of the possibility of multiple copies of the same reference on the page
+                            $(".ODRReferencePlugin_trigger_{{ datarecord.id }}").unbind('click').click(function(event) {
+                                ODRReferencePlugin_openDialog( "{{ path('odr_plugin_reference_load_dialog', {request_datarecord_id: datarecord.id}) }}" );
+                            });
+                        });
+                    </script>
+                {% endif %}
+            </span>
             {% endif %}
             <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
                 <input

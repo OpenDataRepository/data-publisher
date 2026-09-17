@@ -33,8 +33,12 @@ class ReferencesPlugin implements DatatypePluginInterface, TableResultsOverrideI
      * @param CacheService $cache_service
      * @param \Twig\Environment $templating
      */
-    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly \Twig\Environment $templating)
-    {
+    public function __construct(
+        private readonly EntityManager $em,
+        private readonly CacheService $cache_service,
+        private readonly \Twig\Environment $templating
+    ) {
+
     }
 
 
