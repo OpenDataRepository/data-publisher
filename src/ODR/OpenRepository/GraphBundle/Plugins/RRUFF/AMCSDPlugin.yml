@@ -296,4 +296,13 @@ odr_plugins.rruff.amcsd:
                 - no_user_edits
                 - is_derived
 
+        year:
+            name: Journal Year
+            description: The year from the journal in the CIF File
+            type: ShortVarchar
+            display_order: 32
+            properties:
+                - no_user_edits
+                - is_derived
+
     config_options:

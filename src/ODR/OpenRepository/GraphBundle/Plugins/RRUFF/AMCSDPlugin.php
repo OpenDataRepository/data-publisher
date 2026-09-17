@@ -78,8 +78,21 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
      * @param \Twig\Environment $templating
      * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly CryptoService $crypto_service, private readonly DatabaseInfoService $database_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly EntityCreationService $entity_create_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly LockService $lock_service, private readonly ODRUploadService $upload_service, private readonly XYZDataHelperService $xyzdata_helper_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly \Twig\Environment $templating, private readonly LoggerInterface $logger)
-    {
+    public function __construct(
+        private readonly EntityManager $em,
+        private readonly CryptoService $crypto_service,
+        private readonly DatabaseInfoService $database_info_service,
+        private readonly DatarecordInfoService $datarecord_info_service,
+        private readonly EntityCreationService $entity_create_service,
+        private readonly EntityMetaModifyService $entity_modify_service,
+        private readonly LockService $lock_service,
+        private readonly ODRUploadService $upload_service,
+        private readonly XYZDataHelperService $xyzdata_helper_service,
+        private readonly EventDispatcherInterface $event_dispatcher,
+        private readonly \Twig\Environment $templating,
+        private readonly LoggerInterface $logger
+    ) {
+
     }
 
 
@@ -214,6 +227,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     case 'Chemistry Elements':
                     case 'Locality':
                     case 'Crystal Density':
+                    case 'Journal Year':
                         // These fields can't be edited, since they're from the CIF file
 
                     case 'Original CIF File Contents':
@@ -672,6 +686,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
 //                case 'Temperature':
 //                case 'Locality':
 //                case 'Crystal Density':
+//                case 'Journal Year':
 //                    break;
 
                 default:
@@ -1186,6 +1201,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         $file_values['Chemistry'] = '';
                         $file_values['Chemistry Elements'] = '';
                         $file_values['Crystal Density'] = '';
+                        $file_values['Journal Year'] = '';
                     }
 
                     // The cell parameter values should only get cleared when no other file exists
@@ -1221,6 +1237,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                         'Chemistry Elements' => '',
                         'Locality' => '',
                         'Crystal Density' => '',
+                        'Journal Year' => '',
 
                         'Mineral' => '',
 
@@ -1791,6 +1808,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 case 'Chemistry Elements':
                 case 'Locality':
                 case 'Crystal Density':
+                case 'Journal Year':
 
                 case 'Original CIF File':
                 case 'Original CIF File Contents':
@@ -2704,6 +2722,13 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         }
 
         // ----------------------------------------
+        // Journal Year...also optional
+        if ( isset($cif_data['_journal_year']) ) {
+            if ( ValidUtility::isValidShortVarchar($cif_data['_journal_year']) )
+                $file_values['Journal Year'] = $cif_data['_journal_year'];
+        }
+
+        // ----------------------------------------
         // Pressure and Temperature are optional, but ideally come from these entries...
         if ( isset($cif_data['_cell_measurement_temperature']) ) {
             $temp = $cif_data['_cell_measurement_temperature'];
@@ -3317,6 +3342,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         $chemistry_elements_df_id = $render_plugin_map['Chemistry Elements']['id'];
         $locality_df_id = $render_plugin_map['Locality']['id'];
         $density_df_id = $render_plugin_map['Crystal Density']['id'];
+        $journal_year_df_id = $render_plugin_map['Journal Year']['id'];
 
         $original_cif_file_df_id = $render_plugin_map['Original CIF File']['id'];
         $original_cif_file_contents_df_id = $render_plugin_map['Original CIF File Contents']['id'];
@@ -3361,6 +3387,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             $chemistry_elements_df_id => [$cif_file_df_id, $original_cif_file_df_id],
             $locality_df_id => [$cif_file_df_id, $original_cif_file_df_id],
             $density_df_id => [$cif_file_df_id, $original_cif_file_df_id],
+            $journal_year_df_id => [$cif_file_df_id, $original_cif_file_df_id],
         ];
     }
 
