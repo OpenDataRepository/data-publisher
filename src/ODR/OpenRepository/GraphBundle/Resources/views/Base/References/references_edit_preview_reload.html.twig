@@ -1,0 +1,68 @@
+{% apply spaceless %}
+
+{% set DATATYPE_PLUGIN = constant('ODR\\AdminBundle\\Entity\\RenderPlugin::DATATYPE_PLUGIN') %}
+
+<div class="ODRThemeElement pure-u-1 Cursor" title="This shows a preview of what the reference will look like when not in Edit mode">
+    <div class="ODRInnerBox">
+        <div id="ODRReferencePluginPreview_{{ datarecord.id }}" class="ODRRenderPluginContent ODRReferenceSingle">
+        {% set rendering_options = {'is_top_level': 0, 'is_link': is_link, 'display_type': display_type, 'context': 'html', 'is_datatype_admin': is_datatype_admin} %}
+
+        {% for rpi_num,rpi in datatype.renderPluginInstances %}
+            {% if rpi.renderPlugin.plugin_type == DATATYPE_PLUGIN and rpi.renderPlugin.active and rpi.renderPlugin.render != 'false' %}
+                {% set can_execute_plugin = rpi|can_execute_datatype_plugin(datatype, rendering_options) %}
+
+                {% if can_execute_plugin %}
+                    {% set content = [datarecord]|datatype_plugin(datatype, rpi, theme_array, rendering_options, parent_datarecord, datatype_permissions, datafield_permissions) %}
+                    {% if content|length > 0 %}
+                        <!-- html for {{ rpi.renderPlugin.pluginName }} -->
+                        {{ content|raw }}
+                    {% endif %}
+                {% endif %}
+            {% endif %}
+        {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+    function ODRReferencePlugin_ReloadPreview_{{ datarecord.id }}() {
+        var url  = '{{ path('odr_plugin_reference_render', {'request_datarecord_id': datarecord.id} ) }}';
+
+        $.ajax({
+            cache: false,
+            type: 'GET',
+            url: url,
+            dataType: "json",
+            success: function(data, textStatus, jqXHR) {
+                $("#ODRReferencePluginPreview_{{ datarecord.id }}").html( data.d );
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                // Don't need to do anything specific on an error
+            },
+            complete: function(jqXHR, textStatus) {
+                // Get the xdebugToken from response headers
+                var xdebugToken = jqXHR.getResponseHeader('X-Debug-Token');
+
+                // If the Sfjs object exists
+                if (typeof Sfjs !== "undefined") {
+                    // Grab the toolbar element
+                    var currentElement = $('.sf-toolbar')[0];
+
+                    // Load the data of the given xdebug token into the current toolbar wrapper
+                    Sfjs.load(currentElement.id, '/app_dev.php/_wdt/'+ xdebugToken);
+                }
+            }
+        });
+    }
+
+    function ODRReferencePlugin_ReloadEditDatafield_{{ datarecord.id }}(datafield_id) {
+        ReloadFileDatafield('{{ datarecord.id }}', datafield_id );
+        ODRReferencePlugin_ReloadPreview_{{ datarecord.id }}();  {# NOTE - this doesn't really work because the file isn't usually finished encrypting prior to the reload #}
+    }
+
+    function ODRReferencePlugin_DeleteFileCallback_{{ datarecord.id }}() {
+        ODRReferencePlugin_ReloadPreview_{{ datarecord.id }}();
+    }
+</script>
+
+{% endapply %}

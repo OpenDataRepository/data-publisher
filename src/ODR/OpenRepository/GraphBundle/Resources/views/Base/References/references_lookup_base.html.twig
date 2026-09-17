@@ -23,7 +23,7 @@
 
     $(function() {
         $("#ODRReferencePlugin_trigger_{{ datarecord_id }}").unbind('click').click(function() {
-            ODRReferencePlugin_queryCrossref('{{ datarecord_id }}');
+            ODRReferencePlugin_queryCrossref('{{ datarecord_id }}', true);
         });
     });
 </script>

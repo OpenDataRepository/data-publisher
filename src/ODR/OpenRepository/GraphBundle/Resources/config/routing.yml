@@ -89,6 +89,16 @@ odr_plugin_reference_render:
     requirements:
         request_datarecord_id: \d+
 
+odr_plugin_reference_load_dialog:
+    path: /edit/plugins/references/load_dialog/{request_datarecord_id}
+    defaults: { _controller: ODR\OpenRepository\GraphBundle\Controller\ReferenceController::loaddialogAction }
+    requirements:
+        request_datarecord_id: \d+
+odr_plugin_reference_save_dialog:
+    path: /edit/plugins/references/save_dialog
+    defaults: { _controller: ODR\OpenRepository\GraphBundle\Controller\ReferenceController::savedialogAction }
+    methods: [POST]
+
 #-----------------------------------------
 # RRUFF Instrument Usage Controller
 odr_plugin_rruff_instrument_usage_redirect:

@@ -73,8 +73,21 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
      * @param \Twig\Environment $templating
      * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly DatabaseInfoService $database_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly EntityCreationService $entity_create_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly LockService $lock_service, private readonly SearchQueryService $search_query_service, private readonly SortService $sort_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly \Twig\Environment $templating, private readonly LoggerInterface $logger)
-    {
+    public function __construct(
+        private readonly EntityManager $em,
+        private readonly CacheService $cache_service,
+        private readonly DatabaseInfoService $database_info_service,
+        private readonly DatarecordInfoService $datarecord_info_service,
+        private readonly EntityCreationService $entity_create_service,
+        private readonly EntityMetaModifyService $entity_modify_service,
+        private readonly LockService $lock_service,
+        private readonly SearchQueryService $search_query_service,
+        private readonly SortService $sort_service,
+        private readonly EventDispatcherInterface $event_dispatcher,
+        private readonly \Twig\Environment $templating,
+        private readonly LoggerInterface $logger
+    ) {
+
     }
 
 
