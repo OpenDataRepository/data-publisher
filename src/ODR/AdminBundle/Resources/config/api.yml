@@ -775,9 +775,3 @@ odr_sitemap_datatype_page:
     dataset_uuid: '^[a-z0-9]+$'
     page: '\d+'
 
-odr_api_auth_status:
-  path: /api/{version}/auth/status
-  defaults: { _controller: ODR\AdminBundle\Controller\APIController::authStatusAction, _format: json }
-  methods: [ GET ]
-  requirements:
-    version: 'v\d+'

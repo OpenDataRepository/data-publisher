@@ -8,6 +8,9 @@
 {# using macro on purpose #}
 {% import "@ODRAdmin/XMLExport/datarecord_childtype.xml.twig" as mychildform %}
 
+{% for key,value in search_metadata|default({}) %}
+<{{ key }}>{{ value }}</{{ key }}>
+{% endfor %}
 <records>
 {% for initial_datarecord_id in sorted_datarecord_ids %}
     {% set data = lookup_array[initial_datarecord_id] %}

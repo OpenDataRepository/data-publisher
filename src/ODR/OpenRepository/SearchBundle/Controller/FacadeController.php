@@ -47,6 +47,19 @@ use Symfony\Component\Intl\Tests\Data\Provider\Json\JsonRegionDataProviderTest;
 class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\AbstractController
 {
 
+    /**
+     * Records returned by a search when the caller doesn't ask for a specific limit.  Searches can
+     * match tens of thousands of records, and each one is rendered in full, so returning everything
+     * by default is a good way to generate an enormous response.
+     */
+    const DEFAULT_SEARCH_LIMIT = 25;
+
+    /**
+     * Largest number of records a single search request may return.  Larger requests are clamped to
+     * this value rather than rejected; the response reports the limit that was actually applied.
+     */
+    const MAX_SEARCH_LIMIT = 100;
+
     public function __construct(
         private readonly DatarecordExportService $datarecord_export_service,
         private readonly PermissionsManagementService $permissions_management_service,
@@ -1493,6 +1506,14 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
      * criteria keys ("value", "selected_options", "selected_tags", "before"/"after", "filename",
      * "public_status", "quality").
      *
+     * The response wraps the records with a summary of the whole result set:
+     *
+     *   { "results": 2094, "offset": 30, "limit": 30, "records": [ ... ] }
+     *
+     *   - results : total number of records matching the search
+     *   - offset  : number of leading records skipped
+     *   - limit   : number of records this response is capped at (see below)
+     *
      * Query parameters:
      *   - ?metadata=false : trims the response down to the most useful info instead of full metadata.
      *   - ?download=file  : returns the results as a file download instead of inline.
@@ -1500,7 +1521,9 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
      * @param string $version
      * @param string $dataset_uuid The unique_id of the datatype to search.  A "dataset_uuid" in the
      *                             JSON body, if present, takes precedence over this.
-     * @param integer $limit Maximum number of records to return; 0 means "return all".
+     * @param integer $limit Maximum number of records to return.  Omitted or 0 uses
+     *                       {@link self::DEFAULT_SEARCH_LIMIT}, and anything above
+     *                       {@link self::MAX_SEARCH_LIMIT} is clamped to that maximum.
      * @param integer $offset Number of leading records to skip.
      * @param Request $request
      *
@@ -1607,14 +1630,15 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
             $offset = intval($offset);
             $limit = intval($limit);
 
-            // If limit is set to 0, then return all results
-            if ($limit === 0)
-                $limit = 999999999;
-
             if ($offset >= 1000000000)
                 throw new ODRBadRequestException('Offset must be less than a billion');
-            if ($limit >= 1000000000)
-                throw new ODRBadRequestException('Limit must be less than a billion');
+
+            // No limit given means the default page size, and requests for more than the maximum
+            //  are clamped to it...the response reports which limit ended up being used
+            if ($limit <= 0)
+                $limit = self::DEFAULT_SEARCH_LIMIT;
+            if ($limit > self::MAX_SEARCH_LIMIT)
+                $limit = self::MAX_SEARCH_LIMIT;
 
 
             // ----------------------------------------
@@ -1633,8 +1657,16 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
                 true        // ignore_searchable
             );
 
-            // Apply limit/offset to the results
+            // Apply limit/offset to the results, keeping the total count so the response can
+            //  describe which slice of the whole result set it contains
+            $total_results = count($datarecord_list);
             $datarecord_list = array_slice($datarecord_list, $offset, $limit);
+
+            $search_metadata = array(
+                'results' => $total_results,            // total records matching the search
+                'offset' => $offset,
+                'limit' => $limit,                      // the limit actually applied
+            );
 
             // Render the resulting list of datarecords into a single chunk of export data
             $baseurl = $this->getParameter('site_baseurl');
@@ -1646,7 +1678,8 @@ class FacadeController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstra
                 $user,
                 $baseurl,
                 1,
-                true
+                true,
+                $search_metadata
             );
 
 

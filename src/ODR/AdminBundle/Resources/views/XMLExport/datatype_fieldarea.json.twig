@@ -100,7 +100,8 @@
                         using_metadata,
                         baseurl,
                         version,
-                        show_records
+                        show_records,
+                        datatype['descendants'][child_datatype_id]['multiple_allowed']
                     ) %}
 
                     {% if "{" in content|trim %}
@@ -167,7 +168,8 @@
                         using_metadata,
                         baseurl,
                         version,
-                        show_records
+                        show_records,
+                        datatype['descendants'][child_datatype_id]['multiple_allowed']
                     ) %}
 
                     {% if "{" in content|trim %}
