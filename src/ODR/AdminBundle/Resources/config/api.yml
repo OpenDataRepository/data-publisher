@@ -31,7 +31,7 @@ odr_api_get_template_list:
 
 odr_api_get_datatype_single:
   path:  /api/{version}/search/database/{datatype_uuid}.{_format}
-  defaults: { _controller: ODR\AdminBundle\Controller\APIController::getDatatypeExportAction, type: 'databases', _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::getDatatypeExportAction, _format: json }
   methods: [ GET ]
   requirements:
     version: 'v\d+'
@@ -60,7 +60,7 @@ odr_api_get_jsonld:
 #
 odr_api_get_master_template:
   path:  /api/{version}/master/{datatype_uuid}.{_format}
-  defaults: { _controller: ODR\AdminBundle\Controller\APIController::getDatatypeExportAction, type: 'master_template', _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::getDatatypeExportAction, _format: json }
   methods: [ GET ]
   requirements:
     version: 'v\d+'
@@ -72,7 +72,7 @@ odr_api_get_master_template:
 #
 odr_api_get_dataset_template:
   path:  /api/{version}/template/{datatype_uuid}.{_format}
-  defaults: { _controller: ODR\AdminBundle\Controller\APIController::getDatatypeExportAction, type: 'master_template', _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::getDatatypeExportAction, _format: json }
   methods: [ GET ]
   requirements:
     version: 'v\d+'
@@ -85,7 +85,7 @@ odr_api_get_dataset_template:
 #
 odr_api_get_template_single:
   path:  /api/{version}/search/template/{datatype_uuid}.{_format}
-  defaults: { _controller: ODR\AdminBundle\Controller\APIController::getDatatypeExportAction, type: 'master_template', _format: json }
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::getDatatypeExportAction, _format: json }
   methods: [ GET ]
   requirements:
     version: 'v\d+'
