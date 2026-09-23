@@ -104,6 +104,10 @@ class URLButtonPlugin implements DatafieldPluginInterface
             if ( isset($options['render_in_edit']) && $options['render_in_edit'] === 'yes' )
                 $render_in_edit = true;
 
+            $append_record_uuid = false;
+            if ( isset($options['append_record_uuid']) && $options['append_record_uuid'] === 'yes' )
+                $append_record_uuid = true;
+
             $problem_option = '';
             if ( $button_label === '' )
                 $problem_option = 'button_label';
@@ -146,6 +150,7 @@ class URLButtonPlugin implements DatafieldPluginInterface
                         'button_label' => $button_label,
                         'target_url' => $target_url,
                         'render_in_display' => $render_in_display,
+                        'append_record_uuid' => $append_record_uuid,
                     ]
                 );
             }
@@ -159,6 +164,7 @@ class URLButtonPlugin implements DatafieldPluginInterface
                         'button_label' => $button_label,
                         'target_url' => $target_url,
                         'render_in_edit' => $render_in_edit,
+                        'append_record_uuid' => $append_record_uuid,
                     ]
                 );
             }

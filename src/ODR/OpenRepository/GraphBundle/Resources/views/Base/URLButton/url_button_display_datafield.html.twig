@@ -18,7 +18,7 @@
     $(function() {
         $("#Input_{{ unique_id }}").unbind('click').click(function(event) {
             event.preventDefault();
-            window.open('{{ target_url }}', '_blank');
+            window.open('{{ target_url }}{% if append_record_uuid %}{{ datarecord.unique_id }}{% endif %}', '_blank');
         });
     });
 </script>

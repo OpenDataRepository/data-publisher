@@ -43,6 +43,7 @@ use ODR\OpenRepository\SearchBundle\Component\Service\SearchKeyService;
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+
 class TextResultsController extends ODRCustomController
 {
 
@@ -142,8 +143,8 @@ class TextResultsController extends ODRCustomController
             $permissions_service = $this->permissions_management_service;
             /** @var SearchAPIService $search_api_service */
             $search_api_service = $this->search_api_service;
-            /** @var SortService $sort_service */
-            $sort_service = $this->sort_service;
+            /** @var SearchKeyService $search_key_service */
+            $search_key_service = $this->search_key_service;
             /** @var TableThemeHelperService $table_theme_helper_service */
             $table_theme_helper_service = $this->table_theme_helper_service;
 
@@ -233,10 +234,11 @@ class TextResultsController extends ODRCustomController
                 // Theoretically this page shouldn't get called without a search key, but maintain
                 //  an (emergency) fallback just in case...
 
-                // Get the sorted list of datarecords for this datatype
-                $list = $sort_service->getSortedDatarecordList($datatype->getId());
-                // Convert the list into a comma-separated string
-                $original_datarecord_list = array_keys($list);
+                $search_key = $search_key_service->encodeSearchKey(
+                    [
+                        'dt_id' => $datatype->getId()
+                    ]
+                );
             }
 
 
@@ -330,15 +332,22 @@ class TextResultsController extends ODRCustomController
                 }
             }
             else {
-                // This is for a linking page...don't need to do anything special here
+                // This is for a linking page...need to merge with a linking-specific default search
+                //  key if one exists
+                $merged_search_key = '';
+                if ($intent === 'searching')
+                    $merged_search_key = $pagination_helper_service->mergeWithDefaultSearchKey($search_key, $datatype, StoredSearchKey::SEARCH_CONTEXT);
+                else if ($intent === 'linking')
+                    $merged_search_key = $pagination_helper_service->mergeWithDefaultSearchKey($search_key, $datatype, StoredSearchKey::LINK_CONTEXT);
+
                 $original_datarecord_list = $search_api_service->performSearch(
                     $datatype,
-                    $search_key,
+                    $merged_search_key,
                     $user_permissions,
                     false,  // only want the grandparent datarecord ids that match the search
                     $sort_datafields,
                     $sort_directions
-                );    // this only returns grandparent datarecords
+                );
                 $viewable_datarecord_list = $original_datarecord_list;
             }
 

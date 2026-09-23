@@ -315,14 +315,13 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
                     'background_image_id' => $background_image_id,
 
                     // datatype/datafields to search
-//                    'search_params' => array(),
+                    'search_params' => $default_search_params,
                     'target_datatype' => $target_datatype,
                     'sidebar_array' => $sidebar_array,
                     'inverse_dt_names' => $inverse_dt_names,
 
                     // defaults if needed
                     'search_key' => $default_search_key,
-                    'search_params' => $default_search_params,
                     'default_search_params' => $default_search_params,
 
                     // theme selection
@@ -601,13 +600,13 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
                         'background_image_id' => $background_image_id,
 
                         // datatype/datafields to search
+                        'search_params' => $default_search_params,
                         'target_datatype' => $target_datatype,
                         'sidebar_array' => $sidebar_array,
                         'inverse_dt_names' => $inverse_dt_names,
 
                         // defaults if needed
                         'search_key' => $default_search_key,
-                        'search_params' => $default_search_params,
                         'default_search_params' => $default_search_params,
 
                         // theme selection
@@ -642,13 +641,13 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
                         'background_image_id' => $background_image_id,
 
                         // datatype/datafields to search
+                        'search_params' => $default_search_params,
                         'target_datatype' => $target_datatype,
                         'sidebar_array' => $sidebar_array,
                         'inverse_dt_names' => $inverse_dt_names,
 
                         // defaults if needed
                         'search_key' => $default_search_key,
-                        'search_params' => $default_search_params,
                         'default_search_params' => $default_search_params,
 
                         // theme selection
@@ -825,7 +824,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
                 $default_search_key = $search_key_service->getDefaultSearchKeyForContext($datatype, StoredSearchKey::LINK_CONTEXT);
 
             $default_search_params = [];
-            if ($default_search_key !== '' )
+            if ($default_search_key !== '')
                 $default_search_params = $search_key_service->decodeSearchKey($default_search_key);
 
             // Convert the POST request into a search key and validate it
@@ -1081,7 +1080,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
                 $datarecord_id = $grandparent_datarecord_list[0];
                 // ...but also send the search_theme_id and the search key so the search sidebar
                 //  doesn't disappear on users
-//                return $search_redirect_service->redirectToSingleDatarecord($datarecord_id, $search_theme_id, $search_key);
+//                return $search_redirect_service->redirectToSingleDatarecord($datarecord_id, $search_theme_id, $merged_search_key);
 
                 // ...actually, don't want to trigger a secondary redirect.  Apparently this particular
                 //  controller action actually does what's desired here, unlike everywhere else in ODR...
@@ -1091,7 +1090,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
                     array(
                         'datarecord_id' => $datarecord_id,
                         'search_theme_id' => 0,
-                        'search_key' => $search_key,
+                        'search_key' => $merged_search_key,
                         'offset' => 0
                     )
                 );
@@ -1289,8 +1288,13 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
             $grandparent_datarecord_list = $search_api_service->performSearch(
                 $datatype,
                 $search_key,
-                $user_permissions
-            );    // this only returns grandparent datarecord ids
+                $user_permissions,
+                false,   // only return top-level records
+                array(), // do not sort the results
+                array(),
+                false,   // do not search as super admin
+                true     // ...all just to ignore the searchable status of datafields
+            );
 
             // Load the cached versions of the first couple datarecords matching the search
             $dr_array = [];

@@ -1,0 +1,31 @@
+odr_plugins.base.space_group_synonyms:
+    name: Space Group Synonyms Search
+    category: Base
+    plugin_type: datafield
+    render: odr_plugins.base.space_group_synonyms
+    version: 1.0.0
+    override_fields: false
+    override_field_reload: false
+    override_child: false
+    override_table_fields: false
+    override_export: false
+    override_search: true
+    override_sort: false
+    suppress_no_fields_note: false
+    description: This plugin overrides ODR's search sidebar to allow Crystallographic Space Groups to be effectively searched by number instead of the Wyckoff-notation string.  e.g. 'P1', 'A1', 'B1', 'C1', 'I1', and 'F1' are all 'synonyms' for space group 1.
+
+    registered_events:
+
+    required_fields:
+        field:
+            name: Field
+            description: A datafield containing a Wyckoff-notation space group.
+            type: ShortVarchar
+
+    config_options:
+        search_synonyms_by_default:
+            name: Synonym search is default?
+            type: string
+            default: yes
+            choices: no||No,yes||Yes
+            description: Whether to search by synonyms by default
