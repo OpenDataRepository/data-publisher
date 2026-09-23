@@ -20,7 +20,7 @@ interface SearchOverrideInterface
 {
 
     /**
-     * Returns which entries of its entries the plugin wants to override in the search sidebar.
+     * Returns which datafields the plugin wants to override in the search sidebar.
      *
      * @param array $render_plugin_instance
      * @param array $datatype

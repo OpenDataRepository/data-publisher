@@ -236,7 +236,8 @@
         });
         // Don't need to do anything specific for the file/image's public status or quality
 
-        $(context).find(".ODRPluginSearchField").each(function(index,elem) {
+        // TODO - figure out how to move these into a plugin...
+        $(context).find(".ODRSearchSidebar_UnitConversionInput").each(function(index,elem) {
             var id = '#' + $(elem).attr("id");
             var main_value = $(id + "_main").val();
             var alt_value = $(id + "_alt").val();
@@ -251,6 +252,29 @@
 
                 new_value += ":" + alt_value;
                 $(elem).val(new_value);
+            }
+        });
+        $(context).find(".ODRSearchSidebar_SGSynonymInput").each(function(index,elem) {
+            var checkbox = $(elem).prev().find('input');
+            var search_synonyms_by_default = false;
+            if ( $(checkbox).attr('rel') == 'active' )
+                search_synonyms_by_default = true;
+
+            var checked = false;
+            if ( $(checkbox).prop('checked') === true )
+                checked = true;
+
+            var current_value = $(elem).val().trim();
+            if ( current_value === '' || current_value.startsWith('#') || current_value.indexOf(' ') !== -1 ) {
+                // If the value matches any of these conditions, then ignore the checked property of
+                //  the checkbox and don't change the value
+            }
+            else if ( (search_synonyms_by_default && !checked)
+                || (!search_synonyms_by_default && checked)
+            ) {
+                // Otherwise, if the
+                if ( !current_value.startsWith('~') )
+                    $(elem).val( '~' + current_value );
             }
         });
 

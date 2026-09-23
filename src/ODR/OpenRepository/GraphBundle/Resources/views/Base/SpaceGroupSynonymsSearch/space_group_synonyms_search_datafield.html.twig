@@ -1,0 +1,44 @@
+{% apply spaceless %}
+
+{% set datatype_id = datatype.id %}
+{% set datafield_id = datafield.id %}
+{% set fieldname = datafield['dataFieldMeta']['fieldName'] %}
+{% set description = datafield['dataFieldMeta']['description'] %}
+
+{#{% set search_converted = false %}#}
+{#{% if plugin_options['search_converted'] == 'yes' %}#}
+{#    {%  set search_converted = true %}#}
+{#{% endif %}#}
+
+    <span class="pure-u-1">
+        <label for="datafield_{{ datafield_id }}" class="pure-u-1" style="position: relative;">
+            <span title="{{ description }}">{{ fieldname }}:</span>
+
+            <span class="ODRSearchSidebar_InlineCheckbox">
+                <label for="datafield_{{ datafield_id }}_toggle">
+                    <input type="checkbox" id="datafield_{{ datafield_id }}_toggle" rel="{% if search_synonyms_by_default %}active{% endif %}" />
+                    &nbsp;Search synonyms
+                </label>
+            </span>
+
+            <i class="fa fa-lg fa-question-circle ODRSearchSidebar_PluginInfoIcon"></i>
+            <span class="ODRSearchSidebar_PluginInfoSpan">
+                <p>If checked, then synonyms of the given Wyckoff-notation space group will also be searched. e.g. a search for "P1" will also match "A1", "B1", "C1", "I1", and "F1".</p>
+                <p>Alternately, the number of the space group can be entered after the '#' character.  e.g. a search for "#7" will match "Pa", "Pb", "Pc", and "Pn".</p>
+            </span>
+        </label>
+    </span>
+
+    <input type="text" class="ODRInput pure-u-1 ODRSearchSidebar_SGSynonymInput" id="datafield_{{ datafield_id }}" name="{{ datafield_id }}" rel="{{ datatype_id }}" {% if preset_value != '' %}value="{{ preset_value }}"{% endif %} />
+
+<script>
+    $(function() {
+        {% if use_synonyms %}
+        $("#datafield_{{ datafield_id }}_toggle").prop('checked', true);
+        {% else %}
+        $("#datafield_{{ datafield_id }}_toggle").prop('checked', false);
+        {% endif %}
+    });
+</script>
+
+{% endapply %}

@@ -145,6 +145,16 @@ services:
             $templating: '@twig'
             $logger: "@logger"
 
+    odr_plugins.base.space_group_synonyms:
+        public: true
+        class: '%odr_plugin_base_classpath%\Base\SpaceGroupSynonymSearchPlugin'
+        arguments:
+            $cache_service: "@odr.cache_service"
+            $search_service: "@odr.search_service"
+            $search_query_service: "@odr.search_query_service"
+            $templating: '@twig'
+            $logger: "@logger"
+
     odr_plugins.base.unit_conversion:
         public: true
         class: '%odr_plugin_base_classpath%\Base\UnitConversionPlugin'

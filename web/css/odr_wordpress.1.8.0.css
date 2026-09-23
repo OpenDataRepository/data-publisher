@@ -4973,7 +4973,7 @@ i {
     padding: 0;
 }
 
-.ODRChemistryElementsPlugin_div {
+.ODRSearchSidebar_PluginInfoIcon {
     position: relative;
     float: right;
 
@@ -4982,7 +4982,7 @@ i {
     padding-right: 8px;
     display: inline-block;
 }
-.ODRChemistryElementsPlugin_info {
+.ODRSearchSidebar_PluginInfoSpan {
     background-color: white;
     border: 1px solid #EEEEFF;
     padding: 5px;
@@ -4998,13 +4998,17 @@ i {
     line-height: 1.6em;
     font-weight: normal;
 }
-.ODRChemistryElementsPlugin_div:hover + .ODRChemistryElementsPlugin_info, .ODRChemistryElementsPlugin_info:hover {
+.ODRSearchSidebar_PluginInfoIcon:hover + .ODRSearchSidebar_PluginInfoSpan, .ODRSearchSidebar_PluginInfoSpan:hover {
     visibility: visible;
 }
-
-.ODRChemistryElementsPlugin_info > p {
+.ODRSearchSidebar_PluginInfoSpan > p {
     margin-top: 0;
     margin-bottom: 15px;
+}
+
+.ODRSearchSidebar_InlineCheckbox {
+    display: inline-block !important;
+    padding-left: 10px;
 }
 
 .ODRCellparamPlugin_button {
