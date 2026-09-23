@@ -3,7 +3,7 @@ odr_plugins.base.url_button:
     category: Base
     plugin_type: datafield
     render: odr_plugins.base.url_button
-    version: 1.1.0
+    version: 1.2.0
     override_fields: false
     override_field_reload: false
     override_child: false
@@ -43,3 +43,10 @@ odr_plugins.base.url_button:
             default: no
             choices: no||No,yes||Yes
             description: Whether to render the button in Edit mode
+
+        append_record_uuid:
+            name: Append Record UUID?
+            type: string
+            default: no
+            choices: no||No,yes||Yes
+            description: If "Yes", then the record's uuid is automatically appended to the end of the generated URL.
