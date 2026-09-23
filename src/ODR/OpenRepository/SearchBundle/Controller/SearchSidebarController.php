@@ -72,6 +72,7 @@ class SearchSidebarController extends ODRCustomController
     }
 
     /**
+     * @deprecated
      * Re-renders and returns the HTML to search a datafield in the search sidebar.
      *
      * @param int $datafield_id
@@ -269,6 +270,7 @@ class SearchSidebarController extends ODRCustomController
                     [
                         'search_key' => $search_key,
                         'search_params' => $search_params,
+                        'default_search_params' => $default_search_params,
 
                         // required twig/javascript parameters
                         'user' => $user,
@@ -456,7 +458,7 @@ class SearchSidebarController extends ODRCustomController
             //  datafields to override
             $default_search_key = $search_key_service->getDefaultSearchKeyForContext($target_datatype, StoredSearchKey::LINK_CONTEXT);
             $default_search_params = [];
-            if ($default_search_key !== '' )
+            if ($default_search_key !== '')
                 $default_search_params = $search_key_service->decodeSearchKey($default_search_key);
 
             // Need to determine whether the user is targetting a particular datatype id for inverse
@@ -485,6 +487,7 @@ class SearchSidebarController extends ODRCustomController
                     [
                         'search_key' => $search_key,
                         'search_params' => $search_params,
+                        'default_search_params' => $default_search_params,
 
                         // required twig/javascript parameters
                         'user' => $user,
@@ -611,6 +614,7 @@ class SearchSidebarController extends ODRCustomController
                     [
                         'search_key' => $search_key,
                         'search_params' => $search_params,
+                        'default_search_params' => $default_search_params,
 
                         // required twig/javascript parameters
                         'user' => $user,

@@ -272,7 +272,8 @@
             else if ( (search_synonyms_by_default && !checked)
                 || (!search_synonyms_by_default && checked)
             ) {
-                // Otherwise, if the
+                // Otherwise, if the user wants to search differently than the default, prepend
+                //  the '~' character
                 if ( !current_value.startsWith('~') )
                     $(elem).val( '~' + current_value );
             }
