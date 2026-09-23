@@ -8,7 +8,8 @@
     using_metadata,
     baseurl,
     version,
-    show_records
+    show_records,
+    multiple_allowed
     ) %}
 
 
@@ -29,6 +30,7 @@
     "name": {{ datatype_meta.shortName|json_encode|raw }},   {# lack of surrounding quotation marks necessary #}
     "description": {{ datatype_meta.description|json_encode|raw }},
     "template_uuid": {{ datatype.unique_id|json_encode|raw }},
+    "search_slug": {{ datatype_meta.searchSlug|json_encode|raw }},
     "updated_at": "{{ datatype_meta.created|date('Y-m-d H:i:s') }}",
 
         {% if datatype.renderPluginInstances | length > 0 %}
@@ -42,6 +44,12 @@
         {% endset %}
         {{ plugin_block|comma|raw }}
         ],
+        {% endif %}
+
+        {# only set for child/linked databases: lets API consumers tell single-record descendants apart #}
+        {% if multiple_allowed is not null %}
+        "is_link": {{ is_link }},
+        "multiple_allowed": {{ multiple_allowed }},
         {% endif %}
 
         {% if datatype.metadata_for %}

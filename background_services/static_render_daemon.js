@@ -99,9 +99,36 @@ const redis = new Redis(); // localhost:6379, default db
 
 // Cached JWT for the public API. Keyed by the token URL because in a
 // shared-backend / multi-site setup the same daemon could be talking to
-// more than one ODR install. We re-fetch on 401 (token expired) or when
-// the cache is empty.
-const tokenCache = new Map();   // tokenUrl -> { token, fetchedAt }
+// more than one ODR install. We re-fetch when the cache is empty, when
+// the cached token is at/near its expiry, or when the API rejects it.
+const tokenCache = new Map();   // tokenUrl -> { token, fetchedAt, expiresAt }
+
+// ODR answers a missing/invalid/expired JWT on ^/api with 403 ("Access
+// Denied. The user is not appropriately authenticated."), not 401, so
+// both statuses have to trigger a token refresh. Treating 403 as fatal
+// meant a daemon holding a stale token never recovered until restart.
+const AUTH_FAILURE_STATUSES = [401, 403];
+
+// Refresh a cached token this many ms before it actually expires, so a
+// long-running fetch can't straddle the expiry boundary.
+const TOKEN_EXPIRY_SKEW_MS = 60 * 1000;
+
+/**
+ * Reads the `exp` claim out of a JWT without verifying it — we only use
+ * it to decide when to re-fetch. Returns null when the token isn't a
+ * readable JWT, in which case the caller falls back to a fixed TTL.
+ */
+function jwtExpiresAt(token) {
+    try {
+        const part = String(token).split('.')[1];
+        if (!part) return null;
+        const json = Buffer.from(part.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+        const exp = JSON.parse(json).exp;
+        return (typeof exp === 'number') ? exp * 1000 : null;
+    } catch (e) {
+        return null;
+    }
+}
 
 // Datatype schemas already handled this run (keyed by schema_output_path),
 // so we don't re-stat / re-fetch the same schema for every record of a
@@ -149,7 +176,11 @@ async function fetchApiToken(tokenUrl) {
             break;
         }
         if (!resp.ok) {
-            console.warn(`  [json] token fetch failed: HTTP ${resp.status} at ${currentUrl}`);
+            // Body usually says why (bad credentials, disabled account, ...)
+            let detail = '';
+            try { detail = (await resp.text()).slice(0, 200); } catch (e) { /* ignore */ }
+            console.warn(`  [json] token fetch failed: HTTP ${resp.status} at ${currentUrl}` +
+                (detail ? ` — ${detail}` : ''));
             return null;
         }
         const data = await resp.json();
@@ -161,13 +192,14 @@ async function fetchApiToken(tokenUrl) {
         // Cache against the ORIGINAL request URL so callers stay
         // consistent, but also surface the resolved final URL for the
         // operator to fix in PHP if a redirect was needed.
-        tokenCache.set(tokenUrl, { token: token, fetchedAt: Date.now(), resolvedUrl: currentUrl });
+        // Fall back to an hour when the token carries no readable `exp`
+        const expiresAt = jwtExpiresAt(token) || (Date.now() + 60 * 60 * 1000);
+        tokenCache.set(tokenUrl, { token: token, fetchedAt: Date.now(), expiresAt: expiresAt, resolvedUrl: currentUrl });
         if (currentUrl !== tokenUrl)
             console.warn(`  [json] tip: update StaticRenderService::enqueueByIds to use ${currentUrl} directly and avoid the redirect`);
-        console.log(`  [json] obtained token (${token.length} chars), cached for reuse`);
-        // Full token printed for debugging. Remove or gate behind a debug
-        // flag before production — a JWT in the logs is a credential.
-        console.log(`  [json] token: ${token}`);
+        console.log(`  [json] obtained token (${token.length} chars), valid until ` +
+            `${new Date(expiresAt).toISOString()}, cached for reuse`);
+        // NOTE: never log the token itself — a JWT in the logs is a credential.
         return token;
     } catch (e) {
         // "fetch failed" is undici's generic wrapper — the real reason
@@ -181,11 +213,16 @@ async function fetchApiToken(tokenUrl) {
 async function getApiToken(tokenUrl, { forceRefresh = false } = {}) {
     if (!forceRefresh) {
         const cached = tokenCache.get(tokenUrl);
-        if (cached) {
+        if (cached && cached.expiresAt - TOKEN_EXPIRY_SKEW_MS > Date.now()) {
             console.log(`  [json] using cached token for ${tokenUrl}`);
             return cached.token;
         }
+        if (cached)
+            console.log(`  [json] cached token for ${tokenUrl} expired — re-fetching`);
     }
+    // Drop the stale entry first so a failed refresh can't leave the old
+    // token in place for the next caller to retry with
+    tokenCache.delete(tokenUrl);
     return await fetchApiToken(tokenUrl);
 }
 
@@ -237,12 +274,12 @@ async function fetchAndWriteJsonRecord(jobData) {
     let resp;
     try {
         resp = await attempt();
-        if (resp.status === 401) {
-            // Token expired — re-fetch once and retry.
-            console.log(`  [json] got 401; refreshing token and retrying`);
+        if (AUTH_FAILURE_STATUSES.includes(resp.status)) {
+            // Token rejected (expired, or never valid) — re-fetch once and retry.
+            console.log(`  [json] got ${resp.status}; refreshing token and retrying`);
             token = await getApiToken(api_token_url, { forceRefresh: true });
             if (!token) {
-                console.warn(`  [json] could not refresh token after 401 — skipping`);
+                console.warn(`  [json] could not refresh token after ${resp.status} — skipping`);
                 return;
             }
             resp = await attempt();
@@ -253,7 +290,12 @@ async function fetchAndWriteJsonRecord(jobData) {
     }
 
     if (!resp.ok) {
-        console.warn(`  [json] record fetch failed: HTTP ${resp.status} ${resp.statusText} for ${api_record_url}`);
+        let detail = '';
+        try { detail = (await resp.text()).slice(0, 200); } catch (e) { /* ignore */ }
+        console.warn(`  [json] record fetch failed: HTTP ${resp.status} ${resp.statusText} for ${api_record_url}` +
+            (detail ? ` — ${detail}` : ''));
+        if (AUTH_FAILURE_STATUSES.includes(resp.status))
+            console.warn(`  [json] a fresh token was rejected — check that "${API_USERNAME}" can view this record`);
         return;
     }
 
@@ -315,11 +357,11 @@ async function fetchAndWriteSchema(jobData) {
     let resp;
     try {
         resp = await attempt();
-        if (resp.status === 401) {
-            console.log(`  [schema] got 401; refreshing token and retrying`);
+        if (AUTH_FAILURE_STATUSES.includes(resp.status)) {
+            console.log(`  [schema] got ${resp.status}; refreshing token and retrying`);
             token = await getApiToken(api_token_url, { forceRefresh: true });
             if (!token) {
-                console.warn(`  [schema] could not refresh token after 401 — skipping`);
+                console.warn(`  [schema] could not refresh token after ${resp.status} — skipping`);
                 return;
             }
             resp = await attempt();
@@ -331,7 +373,10 @@ async function fetchAndWriteSchema(jobData) {
     }
 
     if (!resp.ok) {
-        console.warn(`  [schema] fetch failed: HTTP ${resp.status} ${resp.statusText} for ${api_schema_url}`);
+        let detail = '';
+        try { detail = (await resp.text()).slice(0, 200); } catch (e) { /* ignore */ }
+        console.warn(`  [schema] fetch failed: HTTP ${resp.status} ${resp.statusText} for ${api_schema_url}` +
+            (detail ? ` — ${detail}` : ''));
         return;
     }
 

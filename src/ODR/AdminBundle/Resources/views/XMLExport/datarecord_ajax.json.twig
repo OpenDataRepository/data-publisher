@@ -52,6 +52,10 @@
 {
     {% endif %}
     {% if record_search %}
+    {# summary of the whole result set; the "records" array below is one page of it #}
+    {% for key,value in search_metadata|default({}) %}
+    "{{ key }}": {{ value|json_encode|raw }},
+    {% endfor %}
     "records": [
         {% endif %}
         {% for initial_datarecord_id in sorted_datarecord_ids %}

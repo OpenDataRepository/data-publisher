@@ -619,16 +619,24 @@ class APIController extends ODRCustomController
 
 
     /**
-     * Renders and returns the json/XML version of the given Datatype.
+     * Renders and returns the json/XML version of the given Datatype, which may
+     * be a regular database or a master template -- a datatype's unique_id
+     * identifies exactly one of them either way.
+     *
+     * Reached by four equivalent routes: /search/database/{uuid},
+     * /template/{uuid}, /search/template/{uuid} and /master/{uuid}.
+     *
+     * Access: anonymous callers are allowed through by security.yml for the
+     * first three of those, and canViewDatatype() below still limits them to
+     * public datatypes.
      *
      * @param string $version
      * @param string $datatype_uuid
-     * @param string $type
      * @param Request $request
      *
      * @return Response
      */
-    public function getDatatypeExportAction($version, $datatype_uuid, $type, Request $request)
+    public function getDatatypeExportAction($version, $datatype_uuid, Request $request)
     {
         try {
             // ----------------------------------------
@@ -644,17 +652,11 @@ class APIController extends ODRCustomController
                 // ...but return the data as a download on request
                 $download_response = true;
 
-            // This action can list both regular databases and master templates
-            // It doesn't make sense to have both in the same output
-            // /api/v4/template/{datatype_uuid} now returns a datatype template
-            // /api/v4/master/{datatype_uuid} now returns a master datatype template
-            // previous API versions return master templates
-            $is_master_type = 0;
-            if ($type === 'master_template' && $version !== 'v4' && $version !== 'v5')
-                $is_master_type = 1;
-
-            // print $datatype_uuid . ' -- ' . $is_master_type; exit();
-            $is_master_type = 0;
+            // This action serves both regular databases and master templates; a
+            // datatype's unique_id identifies exactly one of them, so the uuid
+            // alone says which was asked for.  The routes that reach this action
+            // (/search/database, /template, /search/template, /master) are
+            // therefore aliases of each other.
 
             // ----------------------------------------
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -671,8 +673,7 @@ class APIController extends ODRCustomController
             /** @var DataType $datatype */
             $datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType')->findOneBy(
                 [
-                    'unique_id' => $datatype_uuid,
-                    'is_master_type' => $is_master_type
+                    'unique_id' => $datatype_uuid
                 ]
             );
             if ($datatype == null)
@@ -8747,71 +8748,6 @@ class APIController extends ODRCustomController
                 throw new ODRException($e->getMessage(), 500, $source, $e);
         }
     }
-
-    /**
-     * Reports whether the current request comes from a logged-in user.
-     * Used by cached static pages to decide whether to redirect the
-     * visitor to the dynamic version (which can show non-public data).
-     *
-     *   GET /api/v1/auth/status
-     *   200: { "logged_in": true|false }
-     *
-     * CORS: the cached static files are typically served from a
-     * different host than the dynamic backend (site_baseurl vs
-     * wordpress_site_baseurl in WP-integrated mode). We allow a
-     * credentialed cross-origin request from site_baseurl so the
-     * cached page can call back to check session state.
-     *
-     * @param string  $version
-     * @param Request $request
-     * @return Response
-     */
-    public function authStatusAction($version, Request $request)
-    {
-        $logged_in = false;
-        try {
-            $token = $this->container->get('security.token_storage')->getToken();
-            if ($token !== null) {
-                $user = $token->getUser();
-                $logged_in = is_object($user) && $user !== 'anon.';
-            }
-        } catch (\Exception $e) {
-            // Any failure → treat as anonymous; never error here, we want
-            // the cached page's redirect script to keep working silently.
-        }
-
-        $response = new JsonResponse(array('logged_in' => $logged_in));
-
-        // CORS: allow the cached-file origin (site_baseurl) to call us
-        // with credentials. We only allow that one origin, never `*`,
-        // because credentialed requests + wildcard origin is forbidden
-        // by the spec anyway.
-        $req_origin = $request->headers->get('Origin');
-        if ($req_origin) {
-            $allowed = self::normalizeOrigin($this->getParameter('site_baseurl'));
-            if ($allowed !== '' && self::normalizeOrigin($req_origin) === $allowed) {
-                $response->headers->set('Access-Control-Allow-Origin', $req_origin);
-                $response->headers->set('Access-Control-Allow-Credentials', 'true');
-                $response->headers->set('Vary', 'Origin');
-            }
-        }
-        return $response;
-    }
-
-    /**
-     * Strip protocol-relative `//` and trailing slashes; force https.
-     * Used to compare an incoming Origin header against a configured
-     * baseurl.
-     */
-    private static function normalizeOrigin($origin)
-    {
-        $origin = trim((string)$origin);
-        $origin = preg_replace('#^https?:#', '', $origin);
-        $origin = ltrim($origin, '/');
-        $origin = rtrim($origin, '/');
-        return $origin === '' ? '' : 'https://' . $origin;
-    }
-
 
     /**
      * Enqueues every public, top-level record of the given dataset for

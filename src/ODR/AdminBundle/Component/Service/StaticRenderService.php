@@ -229,7 +229,9 @@ class StaticRenderService
         // detect whether the visitor is logged in (then redirects to the
         // dynamic URL if so). Same hostname as the dynamic page so the
         // browser sends the right session cookies.
-        $auth_check_url = $this->fetch_baseurl . '/api/v1/auth/status';
+        // NOTE: deliberately not under /api -- that firewall is stateless
+        // (JWT only) and would ignore the browser's session cookie.
+        $auth_check_url = $this->fetch_baseurl . '/auth/status';
         // The daemon ALSO fetches a JSON representation of this record
         // via the public API and writes it alongside the HTML. The API
         // is hosted on the ODR backend (site_baseurl), not on the WP

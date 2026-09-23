@@ -196,12 +196,19 @@ security:
         - { path: /odr/api/v3/token, role: PUBLIC_ACCESS }
         - { path: /odr_data/api/v3/token, role: PUBLIC_ACCESS }
         - { path: /odr_rruff/api/v3/token, role: PUBLIC_ACCESS }
-        - { path: ^/api,       role: IS_AUTHENTICATED_FULLY }
-#        - { path: ^/api, role: PUBLIC_ACCESS }
 
-#        - { path: ^/api, role: PUBLIC_ACCESS }
-#        - { path: ^/admin/datatype_export, role: PUBLIC_ACCESS }   # allows json/xml download of datatype specs, controller restricts access as needed
-#        - { path: ^/admin/datarecord_export, role: PUBLIC_ACCESS } # allows json/xml download of datarecords, controller restricts access as needed
+# Schema/template inspection without a token, so API consumers (and the
+# WordPress search plugins) can look up field uuids before authenticating.
+# All three paths resolve to APIController::getDatatypeExportAction and return
+# identical output for a database or a master template; that action still
+# enforces canViewDatatype(), so anonymous callers only ever see public ones.
+# The trailing "$" matters -- it keeps sub-routes such as
+# /api/v5/template/<uuid>/records authenticated.
+        - { path: '^/api/v[0-9]+/template/[a-z0-9]+(\.[a-z]+)?$',        role: PUBLIC_ACCESS }
+        - { path: '^/api/v[0-9]+/search/template/[a-z0-9]+(\.[a-z]+)?$', role: PUBLIC_ACCESS }
+        - { path: '^/api/v[0-9]+/search/database/[a-z0-9]+(\.[a-z]+)?$', role: PUBLIC_ACCESS }
+
+        - { path: ^/api,       role: IS_AUTHENTICATED_FULLY }
 
 ##########
 # These need to stay anonymous, otherwise users are unable to log in
