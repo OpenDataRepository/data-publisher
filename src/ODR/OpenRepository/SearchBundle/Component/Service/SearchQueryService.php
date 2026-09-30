@@ -2756,11 +2756,13 @@ class SearchQueryService
                         //  nothing
                         $piece = substr($piece, 1, -1);
 
-                        if ( is_numeric($piece) )
-                            if ( strpos($piece, '.') === false )
-                                $piece = intval($piece);
-                            else
+                        if ( is_numeric($piece) && $can_be_null ) {
+                            // Only convert to float/integer if the value and fieldtype are both numeric
+                            if ( str_contains($piece, '.') )
                                 $piece = floatval($piece);
+                            else
+                                $piece = intval($piece);
+                        }
 
                         if ($negate)
                             $str .= ' != ';
@@ -2791,11 +2793,27 @@ class SearchQueryService
                             $str .= ' LIKE ';
                     }
                 }
-                else if ( is_numeric($piece) ) {
-                    if ( strpos($piece, '.') !== false || $typeclass === 'XYZData' )
+                else if ( is_numeric($piece) && $can_be_null ) {
+                    // Only convert to float/integer if the value and fieldtype are both numeric
+                    if ( str_contains($piece, '.') || $typeclass === 'XYZData' )
                         $piece = floatval($piece);
                     else
                         $piece = intval($piece);
+                }
+                else if ( !$can_be_null ) {
+                    // Don't need fancier logic here, because the search term has already been
+                    //  split into individual pieces by this point
+                    $piece_is_quoted = false;
+                    if ( strlen($piece) > 2 && substr($piece, 0, 1) === "\"" && substr($piece, -1) === "\"" )
+                        $piece_is_quoted = true;
+
+                    if ( ($piece_is_quoted && $doublequotes_force_exact_match)
+                        || ($piece_is_quoted && strpos($piece, " ") === false)    // does have a quote, but doesn't have a space
+                    ) {
+                        // The first/last characters are doublequotes, and need to be replaced with
+                        //  nothing
+                        $piece = substr($piece, 1, -1);
+                    }
                 }
                 $negate = false;
                 $inequality = false;
