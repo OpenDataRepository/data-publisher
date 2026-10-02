@@ -330,7 +330,15 @@ async function app() {
                      */
                     else if(record.cell_params_type === 'amcsd') {
                         console.log('Processing AMCSD Record');
-                        if(await findValue(amcsd_map.a, record_data) !== '') {
+                        if(
+                            await findValue(amcsd_map.a, record_data) !== ''
+                            || await findValue(amcsd_map.pressure, record_data) !== ''
+                            || await findValue(amcsd_map.volume, record_data) !== ''
+                            || await findValue(amcsd_map.temperature, record_data) !== ''
+                            || await findValue(amcsd_map.alpha, record_data) !== ''
+                            || await findValue(amcsd_map.crystal_system, record_data) !== ''
+                            || await findValue(amcsd_map.space_group, record_data) !== ''
+                        ) {
                             let amcsd_mineral_name = (await findValue(amcsd_map.mineral_name, record_data)).toLowerCase();
 
                             /*
