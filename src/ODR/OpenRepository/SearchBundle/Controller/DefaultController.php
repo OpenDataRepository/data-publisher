@@ -32,6 +32,7 @@ use ODR\AdminBundle\Exception\ODRException;
 use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
+use ODR\AdminBundle\Component\Service\CrawlerVerificationService;
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
@@ -370,6 +371,43 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
     {
         $html = '';
         $is_wordpress_integrated = $this->getParameter('odr_wordpress_integrated');
+
+        // ----------------------------------------
+        // When a search string is given in the url (the route 'odr_search_immediate'), the page
+        //  runs that search as soon as it loads...which means bots/crawlers were triggering a
+        //  search for every url they felt like guessing at.  Until there's a way for anonymous
+        //  users to prove they're human, only users that are logged in get to search this way.
+        // The search engines are the exception, so these urls stay indexed.
+        // NOTE: deliberately outside the try/catch below...that block prints the exception when
+        //  this instance is integrated with wordpress, and a 404 page is wanted here instead
+        if ( $search_string !== null && $search_string !== '' ) {
+            // NOTE: on wordpress-integrated instances, WPAutoLoginSubscriber has already stuffed
+            //  the wordpress user into the token storage by this point
+            $current_user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
+            if ( $current_user === 'anon.' ) {
+                /** @var CrawlerVerificationService $crawler_verification_service */
+                $crawler_verification_service = $this->container->get('odr.crawler_verification_service');
+
+                // NOTE: getClientIp() only believes a forwarding header when symfony is
+                //  configured to trust the proxy, so this can't be spoofed by sending one
+                if ( !$crawler_verification_service->isVerifiedCrawler($request->getClientIp()) ) {
+                    // Keep this tiny on purpose...no template, no assets.  These urls cost almost
+                    //  nothing to refuse, and the X-Robots-Tag works on clients that ignore the
+                    //  visible page
+                    $response = new Response(
+                        '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
+                        .'<title>404 Not Found</title></head>'
+                        .'<body><h1>404 Not Found</h1>'
+                        .'<p>This page is not available. <a href="/">Return to the homepage</a>.</p>'
+                        .'</body></html>',
+                        404
+                    );
+                    $response->headers->set('Content-Type', 'text/html; charset=utf-8');
+                    $response->headers->set('X-Robots-Tag', 'noindex, nofollow');
+                    return $response;
+                }
+            }
+        }
 
         try {
             /** @var \Doctrine\ORM\EntityManager $em */

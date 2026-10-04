@@ -1754,6 +1754,11 @@ pre .support.value  {
     max-width: 500px;
 }
 
+/* the database uuid is long, so shrink it to keep it on one line */
+.ODRDatatypeUUID {
+    font-size: calc(1em - 4px);
+}
+
 .ODRHidden {
     display: none !important;
 }

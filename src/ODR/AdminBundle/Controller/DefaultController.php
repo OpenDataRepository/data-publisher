@@ -28,10 +28,86 @@ use ODR\AdminBundle\Component\Service\PermissionsManagementService;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 
 
 class DefaultController extends ODRCustomController
 {
+
+    /**
+     * Lifetime (seconds) of a JWT handed out by authTokenAction().  Short on
+     * purpose -- the caller has a session and can ask for another one.
+     */
+    const SESSION_TOKEN_TTL = 3600;
+
+
+    /**
+     * Hands a logged-in user a JWT for the API, authenticated by their PHP
+     * session.  Apps rendered inside ODR/WordPress can call this once and keep
+     * the token in JS memory instead of asking the user for credentials again.
+     *
+     *   POST /auth/token
+     *   200: { "token": "...", "expires_at": 1790000000, "expires_in": 3600,
+     *          "username": "someone@example.org" }
+     *   401: { "error": { "code": 401, "message": "..." } }
+     *
+     * Lives outside /api on purpose: the api firewall is stateless (JWT only)
+     * and never looks at the session cookie, so this has to sit on the main
+     * firewall alongside authStatusAction().
+     *
+     * Deliberately sends no CORS headers -- the response contains a bearer
+     * token, so only same-origin callers may read it.  A cross-origin POST can
+     * still be made, but the browser will not hand the attacker the body.
+     *
+     * The token is short-lived (see SESSION_TOKEN_TTL) rather than using the
+     * global lexik token_ttl: it lives in a browser, and the caller can simply
+     * ask for another one while their session is alive.
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function authTokenAction(Request $request)
+    {
+        try {
+            $token = $this->container->get('security.token_storage')->getToken();
+            $user = ($token !== null) ? $token->getUser() : null;
+
+            // "anon." is what an unauthenticated request looks like here
+            if ( !is_object($user) || $user === 'anon.' ) {
+                $response = new JsonResponse(
+                    array('error' => array('code' => 401, 'message' => 'Not logged in.')),
+                    401
+                );
+                $response->headers->set('Cache-Control', 'no-store, private');
+                return $response;
+            }
+
+            /** @var JWTTokenManagerInterface $jwt_manager */
+            $jwt_manager = $this->container->get('lexik_jwt_authentication.jwt_manager');
+
+            // An explicit "exp" overrides the bundle's configured ttl
+            $expires_at = time() + self::SESSION_TOKEN_TTL;
+            $jwt = $jwt_manager->createFromPayload($user, array('exp' => $expires_at));
+
+            $response = new JsonResponse(array(
+                'token' => $jwt,
+                'expires_at' => $expires_at,
+                'expires_in' => self::SESSION_TOKEN_TTL,
+                'username' => method_exists($user, 'getUserIdentifier') ? $user->getUserIdentifier() : (string)$user,
+            ));
+            // Never let a token sit in a shared or browser cache
+            $response->headers->set('Cache-Control', 'no-store, private');
+            return $response;
+        }
+        catch (\Exception $e) {
+            $source = 0x4a1c93b7;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
 
     /**
      * Reports whether the current request comes from a logged-in user.
