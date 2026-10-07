@@ -1,0 +1,3 @@
+# .xsd has no entry in apache mime.types, so it would otherwise be served with no
+# Content-Type at all.  Validators that check the type before parsing need this.
+AddType application/xml .xsd

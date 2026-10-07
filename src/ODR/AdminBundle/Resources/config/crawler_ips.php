@@ -11,11 +11,11 @@
  */
 
 return array(
-    'generated' => '2026-10-04T14:52:55+00:00',
+    'generated' => '2026-10-05T16:51:56+00:00',
     'sources' => array(
         'google' => array(
             'url' => 'https://developers.google.com/static/crawling/ipranges/common-crawlers.json',
-            'published' => '2026-10-02T14:46:11.000000',
+            'published' => '2026-10-05T14:47:00.000000',
             'prefixes' => 317,
         ),
         'bing' => array(

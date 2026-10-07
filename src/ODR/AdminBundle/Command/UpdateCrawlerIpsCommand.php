@@ -114,6 +114,25 @@ class UpdateCrawlerIpsCommand extends ContainerAwareCommand
 
         $dry_run = (bool)$input->getOption('dry-run');
 
+        // Check the destinations first, so a permission problem is reported before anything is
+        //  downloaded rather than after
+        if ( !$dry_run ) {
+            $blocked = false;
+            foreach ($output_files as $file) {
+                $problem = self::checkWritable($file);
+                if ( $problem !== true ) {
+                    $output->writeln('<error>Cannot write '.$file.': '.$problem.'</error>');
+                    $blocked = true;
+                }
+            }
+
+            if ( $blocked ) {
+                $output->writeln('');
+                $output->writeln('Nothing was downloaded.  Either fix the permissions, or run this as the user that owns those files.');
+                return 1;
+            }
+        }
+
         // Load whatever is currently stored, so a source that fails to download keeps its
         //  previous prefixes instead of silently vanishing from the list
         $existing = array();
@@ -208,9 +227,10 @@ class UpdateCrawlerIpsCommand extends ContainerAwareCommand
         }
 
         foreach ($output_files as $file) {
-            if ( !self::writeFile($file, $contents) ) {
-                $output->writeln('<error>Could not write '.$file.'</error>');
-                $logger->error('UpdateCrawlerIpsCommand.php: could not write "'.$file.'"');
+            $written = self::writeFile($file, $contents);
+            if ( $written !== true ) {
+                $output->writeln('<error>Could not write '.$file.': '.$written.'</error>');
+                $logger->error('UpdateCrawlerIpsCommand.php: could not write "'.$file.'": '.$written);
                 return 1;
             }
 
@@ -448,34 +468,85 @@ class UpdateCrawlerIpsCommand extends ContainerAwareCommand
     /**
      * Writes the generated file in one step, so a reader never sees it half-written.
      *
+     * Returns true on success, or a string explaining why the file couldn't be written.
+     *
      * @param string $file
      * @param string $contents
      *
-     * @return bool
+     * @return true|string
      */
     private static function writeFile($file, $contents)
     {
-        $directory = dirname($file);
-        if ( !is_dir($directory) )
-            return false;
+        $problem = self::checkWritable($file);
+        if ( $problem !== true )
+            return $problem;
 
-        $temp_file = tempnam($directory, 'crawler_ips');
-        if ( $temp_file === false )
-            return false;
+        // Write alongside the target and rename it into place, so a reader never sees a partial
+        //  file, and so the rename stays on the same filesystem.
+        // NOTE: deliberately not tempnam()...that emits "file created in the system's temporary
+        //  directory" and silently falls back to /tmp when the given directory isn't writable,
+        //  which symfony's error handler then escalates into a fatal error
+        $temp_file = $file.'.new.'.getmypid();
 
-        if ( file_put_contents($temp_file, $contents) === false ) {
+        if ( @file_put_contents($temp_file, $contents) === false ) {
             @unlink($temp_file);
-            return false;
+            return 'could not write the temporary file '.$temp_file;
         }
 
-        // tempnam() creates the file 0600, which the webserver user can't read
+        // The webserver user has to be able to read this
         @chmod($temp_file, 0644);
 
         if ( !@rename($temp_file, $file) ) {
             @unlink($temp_file);
-            return false;
+            return 'could not move '.$temp_file.' into place';
         }
 
         return true;
+    }
+
+
+    /**
+     * Returns true when the given path can be written, or a string explaining why it can't.
+     *
+     * Checked before anything is downloaded, so permission problems are reported immediately
+     * instead of after three http requests.
+     *
+     * @param string $file
+     *
+     * @return true|string
+     */
+    private static function checkWritable($file)
+    {
+        $directory = dirname($file);
+
+        if ( !is_dir($directory) )
+            return 'there is no directory '.$directory;
+        if ( !is_writable($directory) )
+            return $directory.' is not writable by '.self::currentUser();
+        if ( file_exists($file) && !is_writable($file) )
+            return $file.' is not writable by '.self::currentUser();
+
+        return true;
+    }
+
+
+    /**
+     * Returns the name of the user running this command, for permission error messages.
+     *
+     * @return string
+     */
+    private static function currentUser()
+    {
+        if ( function_exists('posix_geteuid') && function_exists('posix_getpwuid') ) {
+            $info = posix_getpwuid(posix_geteuid());
+            if ( is_array($info) && isset($info['name']) )
+                return 'the user "'.$info['name'].'"';
+        }
+
+        $user = getenv('USER');
+        if ( $user !== false && $user !== '' )
+            return 'the user "'.$user.'"';
+
+        return 'the current user';
     }
 }

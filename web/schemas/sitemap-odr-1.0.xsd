@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Open Data Repository Data Publisher
+    Sitemap extension schema, version 1.0
+
+    Declares the two ODR-specific elements that appear in the sitemaps served
+    by /sitemap.xml and /sitemap-{dataset_uuid}.xml:
+
+        odr:schema   on a <sitemap> entry, the JSON schema describing a dataset
+        odr:json     on a <url> entry, the JSON representation of that record
+
+    The sitemaps.org 0.9 schema permits extension elements only from another
+    namespace, and validates them with processContents="strict", so this file
+    has to exist and be reachable for a sitemap carrying these elements to
+    validate. Sitemaps point at it via xsi:schemaLocation.
+
+    This namespace is a published identifier. Add elements in a new version
+    rather than changing the meaning of these.
+-->
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+            xmlns:odr="https://odr.io/schemas/sitemap-odr/1.0"
+            targetNamespace="https://odr.io/schemas/sitemap-odr/1.0"
+            elementFormDefault="qualified">
+
+    <xsd:element name="schema" type="odr:odrLoc">
+        <xsd:annotation>
+            <xsd:documentation>
+                Absolute URL of the JSON schema that describes the dataset this
+                child sitemap covers. Appears on a sitemapindex sitemap entry,
+                after lastmod.
+            </xsd:documentation>
+        </xsd:annotation>
+    </xsd:element>
+
+    <xsd:element name="json" type="odr:odrLoc">
+        <xsd:annotation>
+            <xsd:documentation>
+                Absolute URL of the JSON representation of the record that the
+                accompanying loc points at as HTML. Appears on a urlset url
+                entry, after lastmod.
+            </xsd:documentation>
+        </xsd:annotation>
+    </xsd:element>
+
+    <xsd:simpleType name="odrLoc">
+        <xsd:annotation>
+            <xsd:documentation>
+                An absolute URL, bounded the same way sitemaps.org bounds loc.
+            </xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:anyURI">
+            <xsd:minLength value="12"/>
+            <xsd:maxLength value="2048"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+
+</xsd:schema>
