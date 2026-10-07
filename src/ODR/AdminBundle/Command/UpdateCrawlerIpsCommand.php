@@ -15,8 +15,13 @@
  * All three sources happen to publish the same schema:
  *   { "creationTime": "...", "prefixes": [ { "ipv4Prefix": "..." }, { "ipv6Prefix": "..." } ] }
  *
+ * The generated file lands in this instance's var/ (see the odr_crawler_ip_file parameter).
+ * That directory is per-instance even on linked installs, where src/ and vendor/ are shared, so
+ * a server running several instances refreshes them all at once with app/console-all.
+ *
  * Usage:
  *   php app/console odr:crawler_ips:update
+ *   php app/console-all odr:crawler_ips:update                      # every linked instance
  *   php app/console odr:crawler_ips:update --out=/path/to/other/crawler_ips.php
  *   php app/console odr:crawler_ips:update --check=66.249.66.1
  */
