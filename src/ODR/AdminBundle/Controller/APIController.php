@@ -8867,8 +8867,18 @@ class APIController extends ODRCustomController
             $by_datatype = $static_render_service->listRenderedFilesByDatatype();
             $page_size = \ODR\AdminBundle\Component\Service\StaticRenderService::SITEMAP_MAX_URLS;
 
+            // The sitemaps.org schema only allows extension elements from another
+            //  namespace, and validates them with processContents="strict", so <odr:schema>
+            //  below is namespaced and xsi:schemaLocation points at both schemas.
+            $odr_ns = \ODR\AdminBundle\Component\Service\StaticRenderService::SITEMAP_EXTENSION_NAMESPACE;
+            $odr_xsd = \ODR\AdminBundle\Component\Service\StaticRenderService::SITEMAP_EXTENSION_SCHEMA_URL;
+
             $xml  = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
-            $xml .= '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
+            $xml .= '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"' . "\n";
+            $xml .= '             xmlns:odr="'.$odr_ns.'"' . "\n";
+            $xml .= '             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"' . "\n";
+            $xml .= '             xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/siteindex.xsd'."\n";
+            $xml .= '                                 '.$odr_ns.' '.$odr_xsd.'">' . "\n";
             foreach ($by_datatype as $datatype_uuid => $files) {
                 $count = count($files);
                 $pages = max(1, (int)ceil($count / $page_size));
@@ -8883,7 +8893,7 @@ class APIController extends ODRCustomController
                         $static_render_service->getPublicSchemaUrlForDatatype($datatype_uuid),
                         ENT_QUOTES | ENT_XML1
                     );
-                    $schema_tag = "<schema>{$schema_loc}</schema>";
+                    $schema_tag = "<odr:schema>{$schema_loc}</odr:schema>";
                 }
 
                 for ($p = 1; $p <= $pages; $p++) {
@@ -8900,7 +8910,7 @@ class APIController extends ODRCustomController
                         ENT_QUOTES | ENT_XML1
                     );
                     $lastmod = gmdate('Y-m-d\TH:i:s\Z', $max_mtime);
-                    $xml .= "    <sitemap><loc>{$loc}</loc>{$schema_tag}<lastmod>{$lastmod}</lastmod></sitemap>\n";
+                    $xml .= "    <sitemap><loc>{$loc}</loc><lastmod>{$lastmod}</lastmod>{$schema_tag}</sitemap>\n";
                 }
             }
             $xml .= '</sitemapindex>' . "\n";
@@ -8955,8 +8965,17 @@ class APIController extends ODRCustomController
             // advertise it in the sitemap.
             $json_dir = dirname($files[0]['path']);
 
+            // See sitemapAction()...extension elements have to be namespaced, and come after
+            //  <lastmod> rather than before it
+            $odr_ns = \ODR\AdminBundle\Component\Service\StaticRenderService::SITEMAP_EXTENSION_NAMESPACE;
+            $odr_xsd = \ODR\AdminBundle\Component\Service\StaticRenderService::SITEMAP_EXTENSION_SCHEMA_URL;
+
             $xml  = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
-            $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
+            $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"' . "\n";
+            $xml .= '        xmlns:odr="'.$odr_ns.'"' . "\n";
+            $xml .= '        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"' . "\n";
+            $xml .= '        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd'."\n";
+            $xml .= '                            '.$odr_ns.' '.$odr_xsd.'">' . "\n";
             for ($i = $start; $i < $end; $i++) {
                 $f = $files[$i];
                 $loc = htmlspecialchars(
@@ -8964,19 +8983,21 @@ class APIController extends ODRCustomController
                     ENT_QUOTES | ENT_XML1
                 );
                 $lastmod = gmdate('Y-m-d\TH:i:s\Z', $f['mtime']);
-                $xml .= "    <url><loc>{$loc}</loc>";
+
                 // Only advertise the JSON sibling if it actually exists.
                 // The daemon writes it best-effort, so we don't want a
                 // dead URL when the API fetch failed or wasn't configured.
+                $json_tag = '';
                 $json_path = $json_dir . '/' . $f['record_uuid'] . '.json';
                 if (is_file($json_path)) {
                     $json_loc = htmlspecialchars(
                         $static_render_service->getPublicJsonUrlForFile($dataset_uuid, $f['record_uuid']),
                         ENT_QUOTES | ENT_XML1
                     );
-                    $xml .= "<json>{$json_loc}</json>";
+                    $json_tag = "<odr:json>{$json_loc}</odr:json>";
                 }
-                $xml .= "<lastmod>{$lastmod}</lastmod></url>\n";
+
+                $xml .= "    <url><loc>{$loc}</loc><lastmod>{$lastmod}</lastmod>{$json_tag}</url>\n";
             }
             $xml .= '</urlset>' . "\n";
 

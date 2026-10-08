@@ -549,6 +549,45 @@ class StaticRenderService
     }
 
     /**
+     * Namespace for the ODR-specific elements that the sitemaps carry
+     * (<odr:schema> and <odr:json>).
+     *
+     * The sitemaps.org 0.9 schema only permits extension elements from
+     * another namespace -- <xsd:any namespace="##other"> -- so anything ODR
+     * adds to a <url> or <sitemap> has to be qualified with this.
+     *
+     * NOTE: this string is a public identifier that appears in every sitemap
+     * ODR serves, so it must not change once published.  It does not have to
+     * resolve to anything; validators are pointed at the actual .xsd through
+     * xsi:schemaLocation instead.
+     */
+    const SITEMAP_EXTENSION_NAMESPACE = 'https://odr.io/schemas/sitemap-odr/1.0';
+
+    /**
+     * Path of the extension schema under the ODR web root.  Every install ships the file at
+     * this path (see web/schemas/), but what gets advertised is the canonical copy below.
+     */
+    const SITEMAP_EXTENSION_SCHEMA_PATH = '/schemas/sitemap-odr-1.0.xsd';
+
+    /**
+     * Canonical URL of the schema describing ODR's sitemap extension elements, advertised in
+     * every sitemap's xsi:schemaLocation.
+     *
+     * The sitemaps.org wildcard is processContents="strict", so a validator has to be able to
+     * fetch a declaration for every extension element...which means this URL must stay
+     * reachable.
+     *
+     * Deliberately hardcoded rather than derived from this install's site_baseurl: ODR is the
+     * canonical home of this schema for every install, so each one points at the same copy
+     * instead of advertising its own hostname.
+     *
+     * NOTE: odr.io redirects to www.odr.io.  Validators follow it, but if that ever becomes a
+     * problem, www.odr.io serves the same file directly.
+     */
+    const SITEMAP_EXTENSION_SCHEMA_URL = 'https://odr.io' . self::SITEMAP_EXTENSION_SCHEMA_PATH;
+
+
+    /**
      * Returns the public URL of a child sitemap for a datatype. Page 1
      * is `/sitemap-{uuid}.xml`; subsequent pages append `-{N}`.
      *
