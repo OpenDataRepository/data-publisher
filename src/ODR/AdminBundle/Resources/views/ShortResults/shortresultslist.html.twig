@@ -42,11 +42,13 @@
 
             'intent': intent,
         } %}
-{#
+
+        {% if user != 'anon.' and user.hasRole('ROLE_SUPER_ADMIN') %}
         <div id="mass_download_dialog_wrapper">
             {% include '@ODRAdmin/Default/mass_download_dialog.html.twig' %}
         </div>
-#}
+        {% endif %}
+
     {% else %}
         <div class="ODRShortResults_empty">
             {% if logged_in %}No Datarecords found{% else %}No Datarecords found{% endif %}

@@ -1783,8 +1783,8 @@ class DisplayController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            // Disabled: unauthenticated search-results file archiving (ported from develop a0ffd923)
-            throw new ODRNotImplementedException();
+//            // Disabled: unauthenticated search-results file archiving (ported from develop a0ffd923)
+//            throw new ODRNotImplementedException();
 
             // Grab necessary objects
             /** @var \Doctrine\ORM\EntityManager $em */
@@ -1820,8 +1820,10 @@ class DisplayController extends ODRCustomController
             $user_permissions = $permissions_service->getUserPermissionsArray($user);
 
             // TODO - loosen restrictions even more?
-            if ( !$permissions_service->canEditDatatype($user, $datatype) )
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
                 throw new ODRForbiddenException();
+//            if ( !$permissions_service->canEditDatatype($user, $datatype) )
+//                throw new ODRForbiddenException();
             // ----------------------------------------
 
 
@@ -1903,7 +1905,8 @@ class DisplayController extends ODRCustomController
         $return['d'] = '';
 
         try {
-            throw new ODRNotImplementedException();
+//            // Disabled: unauthenticated search-results file archiving (ported from develop a0ffd923)
+//            throw new ODRNotImplementedException();
 
             // Symfony firewall won't permit GET requests to reach this point
             $post = $request->request->all();
@@ -1941,6 +1944,18 @@ class DisplayController extends ODRCustomController
             if ($grandparent_datatype == null)
                 throw new ODRNotFoundException('Datatype');
 
+            // ----------------------------------------
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
+            $user_permissions = $permissions_service->getUserPermissionsArray($user);
+
+            // TODO - loosen restrictions even more?
+            if ( !$user->hasRole('ROLE_SUPER_ADMIN') )
+                throw new ODRForbiddenException();
+//            if ( !$permissions_service->canEditDatatype($user, $grandparent_datatype) )
+//                throw new ODRForbiddenException();
+            // ----------------------------------------
+
             // Need to verify that each datafield provided is related to the grandparent datatype,
             //  and that they're all file or image fields
             $associated_datatypes = $datatree_info_service->getAssociatedDatatypes($search_params_dt_id);
@@ -1964,16 +1979,6 @@ class DisplayController extends ODRCustomController
                 $hydrated_datafields[$df_id] = $df;
             }
             /** @var DataFields[] $hydrated_datafields */
-
-
-            // ----------------------------------------
-            /** @var ODRUser $user */
-            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
-            $user_permissions = $permissions_service->getUserPermissionsArray($user);
-
-            // TODO - loosen restrictions even more?
-            if ( !$permissions_service->canEditDatatype($user, $grandparent_datatype) )
-                throw new ODRForbiddenException();
 
             // The search results are already filtered to just the datarecords the user can view
 

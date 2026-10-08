@@ -37,7 +37,7 @@
             url: url,
             dataType: "json",
             success: function (data, textStatus, jqXHR) {
-                updateODRRemodalBody(data.d);
+                updateODRRemodalBody(data.d, 'full');
 
                 initMassDownloadDialogForm();
 
@@ -175,7 +175,7 @@
 
         $('#ODRMassDownloadFormWrapper').addClass('ODRHidden');
         $('#ODRFileDownloadForm_progress').removeClass('ODRHidden');
-        resetRemodalInnerHeight();
+        resetRemodalInnerHeight(true);
 
         $.ajax({
             type: 'POST',
