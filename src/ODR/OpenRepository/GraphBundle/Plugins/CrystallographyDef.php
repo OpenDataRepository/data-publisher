@@ -72,7 +72,7 @@ class CrystallographyDef
      * For ease of filtering space groups in the popup, also have a "point group" => "space group num"
      * mapping.
      *
-     * @var string[]
+     * @var array[]
      */
     public static $space_group_mapping = [
         // triclinic

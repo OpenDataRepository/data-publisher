@@ -292,7 +292,7 @@ class PermissionsManagementService
     /**
      * Returns whether the user can edit any datarecords of this datatype.  A return value of true
      * DOES NOT mean that the user can edit all datarecords of this datatype...there could be a
-     * further restriction.  See self::getDatarecordRestrictionList()
+     * further restriction.  {@see self::getDatarecordRestrictionList()}
      *
      * @param ODRUser $user
      * @param Datatype $datatype
