@@ -1,17 +1,58 @@
 {% apply spaceless %}
 
-{% if linked_importing %}
+{% set grandparent_external_id_field = null %}
+{% if grandparent_datatype is not null and grandparent_datatype.getexternalidfield is not null %}
+    {% set grandparent_external_id_field = grandparent_datatype.getexternalidfield %}
+{% endif %}
+{% set parent_external_id_field = null %}
+{% if parent_datatype is not null and parent_datatype.getexternalidfield is not null %}
+    {% set parent_external_id_field = parent_datatype.getexternalidfield %}
+{% endif %}
+{% set target_external_id_field = null %}
+{% if target_datatype is not null and target_datatype.getexternalidfield is not null %}
+    {% set target_external_id_field = target_datatype.getexternalidfield %}
+{% endif %}
+
+{% if import_type == 'link' or import_type == 'child-link' %}
     <div>
-        <p>This "import" doesn't actually create new Datarecords, but instead "links" already-existing Datarecords between two different Datatypes.</p>
-        <p>The CSV file needs to have at least two columns: the first column must contain External IDs of Datarecords in the first Datatype, and the second column must contain External IDs of Datarecords in the second Datatype.</p>
-        <p>Each row of the CSV file indicates that the Datarecord specified in the first column should be linked to the Datarecord specified in the second column.</p>
+        <p>This "import" doesn't actually create new Datarecords, but creates "links" between already-existing Datarecords in an 'ancestor' and a 'descendant' Datatype.</p>
+        {% if import_type == 'link' %}
+        <p>
+            The CSV file needs to have at least two columns...<br>
+            ...one column must contain External IDs of the descendant Datatype that is being linked to.<br>
+            ...another column must contain External IDs of the ancestor Datatype that is linking to the descendant.
+        </p>
+        {% else %}
+        <p>
+            The CSV file needs to have at least three columns...<br>
+            ...one column for the External IDs of the descendant Datatype that is being linked to.<br>
+            ...another column for the External IDs of the ancestor Datatype that is linking to the descendant.<br>
+            ...and a third column for the External IDs of the parent records of the Datatype is that is linking to the descendant.
+        </p>
+        {% endif %}
     </div>
-    </br>
+    <br>
 {% endif %}
 
 <hr>
+{% if import_type == 'child-link' %}
+    {# grandparent_external_id_field is guaranteed to exist at this point #}
     <div>
-        <span>Column to map to the External ID Datafield "{{ parent_datatype.getexternalidfield.getfieldname }}" for the {% if linked_importing %}local{% else %}parent{% endif %} Datatype "{{ parent_datatype.getshortname }}": </span>
+        <span>Column to map to the External ID Datafield "{{ grandparent_external_id_field.getfieldname }}" for the Datatype "{{ grandparent_datatype.getshortname }}": </span>
+        <select name="grandparent_external_id_column" id="grandparent_external_id_column">
+            <option value="">Select a column...</option>
+            {% for column_id, column_name in columns %}
+                <option value="{{ column_id }}">{{ column_name }}</option>
+            {% endfor %}
+        </select>
+        <span id="grandparent_external_id_warning"><i class="fa fa-lg fa-exclamation-circle Cursor"></i></span>
+    </div>
+{% endif %}
+{% if import_type == 'child' or import_type == 'link' or import_type == 'child-link' %}
+    {# parent_external_id_field could be null if import_type == 'child'...it won't be if import_type == 'link' or 'child-link' #}
+    {% if parent_external_id_field is not null %}
+    <div>
+        <span>Column to map to the External ID Datafield "{{ parent_external_id_field.getfieldname }}" for the {% if import_type == 'child' %}parent{% else %}ancestor{% endif %} Datatype "{{ parent_datatype.getshortname }}": </span>
         <select name="parent_external_id_column" id="parent_external_id_column">
             <option value="">Select a column...</option>
         {% for column_id, column_name in columns %}
@@ -20,66 +61,146 @@
         </select>
         <span id="parent_external_id_warning"><i class="fa fa-lg fa-exclamation-circle Cursor"></i></span>
     </div>
-
-{% if linked_importing %}
+    {% endif %}
+{% endif %}
+{% if import_type == 'top-level' or import_type == 'link' or import_type == 'child-link' %}
+    {# Do not want an import_type of 'child' to display this selector...the actual field selection will cover it #}
+    {# target_external_id_field could be null if import_type == 'top-level' or 'child'...it won't be if import_type == 'link' or 'child-link' #}
+    {% if target_external_id_field is not null %}
     <div>
-        <span>&nbsp;Column to map to the External ID Datafield "{{ datatype.getexternalidfield.getfieldname }}" for the remote Datatype "{{ datatype.getshortname }}": </span>
-        <select name="remote_external_id_column" id="remote_external_id_column">
+        <span>Column to map to the External ID Datafield "{{ target_external_id_field.getfieldname }}" for the Datatype "{{ target_datatype.getshortname }}": </span>
+        <select name="target_external_id_column" id="target_external_id_column">
             <option value="">Select a column...</option>
         {% for column_id, column_name in columns %}
             <option value="{{ column_id }}">{{ column_name }}</option>
         {% endfor %}
         </select>
-        <span id="remote_external_id_warning"><i class="fa fa-lg fa-exclamation-circle Cursor"></i></span>
+        <span id="target_external_id_warning"><i class="fa fa-lg fa-exclamation-circle Cursor"></i></span>
     </div>
+    {% endif %}
 {% endif %}
 <hr>
 
 <script>
     $(function() {
+{% if import_type == 'child-link' %}
+        $("#grandparent_external_id_column").unbind('change').change(function() {
+            var column_num = $(this).val();
+            if ( column_num === '' ) {
+                $("#grandparent_external_id_warning").removeClass('ODRHidden');
+                $("#grandparent_external_id_field_warning").removeClass('ODRHidden');
+            }
+            else {
+                $("#grandparent_external_id_warning").addClass('ODRHidden');
+                $("#grandparent_external_id_field_warning").addClass('ODRHidden');
+            }
 
-        $("#parent_external_id_column").unbind('change').change(function() {
-            if ( $(this).val() === '' )
-                $("#parent_external_id_warning").removeClass('ODRHidden');
-            else
-                $("#parent_external_id_warning").addClass('ODRHidden');
+        {% if presets is not null %}
+            var preset_column_num = "{{ presets.grandparent_external_id_column }}";
+            if ( column_num != preset_column_num )
+                ODRCSVImport_preventImport();
+        {% endif %}
 
-            // This parent_external_id selection is currently the only way the import checkboxes can get disabled
-            $(".import_checkbox").prop('disabled', false);
-            disableColumn( $(this).val() );
+            // There will never be checkboxes to disable in this situation
         });
-
-    {% if presets != null %}
-        $("#parent_external_id_column").val( {{ presets.parent_external_id_column }} );
-        $("#parent_external_id_column").trigger('change');
-        $("#parent_external_id_column").prop('disabled', false);    // Need to be able to change this after a failed csv validation
+    {% if presets != null and presets.grandparent_external_id_column != '' %}
+        $("#grandparent_external_id_column").prop('disabled', false)    // Need to be able to change this after a failed csv validation
+            .val( {{ presets.grandparent_external_id_column }} )
+            .trigger('change');
     {% endif %}
+{% endif %}
 
-{% if linked_importing %}
+{% if import_type == 'child' or import_type == 'link' or import_type == 'child-link' %}
+        $("#parent_external_id_column").unbind('change').change(function() {
+            var column_num = $(this).val();
+            if ( column_num === '' ) {
+                $("#parent_external_id_warning").removeClass('ODRHidden');
+                $("#parent_external_id_field_warning").removeClass('ODRHidden');
+            }
+            else {
+                $("#parent_external_id_warning").addClass('ODRHidden');
+                $("#parent_external_id_field_warning").addClass('ODRHidden');
+            }
 
-        $("#remote_external_id_column").unbind('change').change(function() {
-            if ( $(this).val() == '' )
-                $("#remote_external_id_warning").removeClass('ODRHidden');
-            else
-                $("#remote_external_id_warning").addClass('ODRHidden');
+        {% if presets is not null %}
+            var preset_column_num = "{{ presets.parent_external_id_column }}";
+            if ( column_num != preset_column_num )
+                ODRCSVImport_preventImport();
+        {% endif %}
+
+            {% if import_type == 'child' %}
+            // Selecting something here is currently the only way the import checkboxes can get disabled
+            ODRCSVImport_disableColumns();
+            {% endif %}
         });
+    {% if presets != null and presets.parent_external_id_column != '' %}
+        $("#parent_external_id_column").prop('disabled', false)    // Need to be able to change this after a failed csv validation
+            .val( {{ presets.parent_external_id_column }} )
+            .trigger('change');
+    {% endif %}
+{% endif %}
+{% if import_type == 'link' or import_type == 'child-link' %}
+        $("#target_external_id_column").unbind('change').change(function() {
+            var column_num = $(this).val();
+            if ( column_num === '' ) {
+                $("#target_external_id_warning").removeClass('ODRHidden');
+                $("#target_external_id_field_warning").removeClass('ODRHidden');
+            }
+            else {
+                $("#target_external_id_warning").addClass('ODRHidden');
+                $("#target_external_id_field_warning").addClass('ODRHidden');
+            }
 
-    {% if presets != null %}
-        $("#remote_external_id_column").val( {{ presets.remote_external_id_column }} );
-        $("#remote_external_id_column").trigger('change');
-        $("#remote_external_id_column").prop('disabled', false);    // Need to be able to change this after a failed csv validation
+        {% if presets is not null %}
+            var preset_column_num = "{{ presets.target_external_id_column }}";
+            if ( column_num != preset_column_num )
+                ODRCSVImport_preventImport();
+        {% endif %}
+
+            // Selecting something here is currently the only way the import checkboxes can get disabled
+            ODRCSVImport_disableColumns();
+        });
+    {% if presets != null and presets.target_external_id_column != '' %}
+        $("#target_external_id_column").prop('disabled', false)    // Need to be able to change this after a failed csv validation
+            .val( {{ presets.target_external_id_column }} )
+            .trigger('change');
     {% endif %}
 {% endif %}
     });
 
-    function disableColumn(column_id) {
-        // Uncheck the import box if it's checked
-        if ( $("#import_checkbox_" + column_id).is(':checked') )
-            $("#import_checkbox_" + column_id).trigger('click');
+    /**
+     * Fields selected for External IDs of datarecords must not get used as data for the actual import.
+     */
+    function ODRCSVImport_disableColumns() {
+        // console.log('ODRCSVImport_disableColumns()', column_id);
+        $(".import_checkbox").prop('disabled', false);
+        var selections = [];
 
-        // Disable it so it can't be checked
-        $("#import_checkbox_" + column_id).prop('disabled', true);
+        if ( $("#grandparent_external_id_column").length > 0 ) {
+            var grandparent_selection = $("#grandparent_external_id_column").val();
+            if ( grandparent_selection !== '' )
+                selections.push(grandparent_selection);
+        }
+        if ( $("#parent_external_id_column").length > 0 ) {
+            var parent_selection = $("#parent_external_id_column").val();
+            if ( parent_selection !== '' )
+                selections.push(parent_selection);
+        }
+        if ( $("#target_external_id_column").length > 0 ) {
+            var target_selection = $("#target_external_id_column").val();
+            if ( target_selection !== '' )
+                selections.push(target_selection);
+        }
+
+        $.each(selections, function(index,elem) {
+            var checkbox = $("#import_checkbox_" + elem);
+            // Uncheck the import box if it's checked
+            if ( $(checkbox).is(':checked') )
+                $(checkbox).trigger('click');
+
+            // Disable it so it can't be checked
+            $(checkbox).prop('disabled', true);
+        });
     }
-
 </script>
 {% endapply %}

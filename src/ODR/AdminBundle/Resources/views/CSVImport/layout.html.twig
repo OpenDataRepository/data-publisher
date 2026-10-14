@@ -1,18 +1,26 @@
 {% apply spaceless %}
 
-{% set external_id_field_id = null %}
-{% if datatype.getexternalidfield is not null %}
-    {% set external_id_field_id = datatype.getexternalidfield.id %}
+{% set grandparent_external_id_field = null %}
+{% if grandparent_datatype is not null and grandparent_datatype.getexternalidfield is not null %}
+    {% set grandparent_external_id_field = target_datatype.getexternalidfield.id %}
+{% endif %}
+{% set parent_external_id_field = null %}
+{% if parent_datatype is not null and parent_datatype.getexternalidfield is not null %}
+    {% set parent_external_id_field = parent_datatype.getexternalidfield.id %}
+{% endif %}
+{% set target_external_id_field = null %}
+{% if target_datatype is not null and target_datatype.getexternalidfield is not null %}
+    {% set target_external_id_field = target_datatype.getexternalidfield.id %}
 {% endif %}
 
 <div id="CSVImportLayoutForm">
-{% if not linked_importing %}
-    <div class="csvimport_header pure-u-1">
-        <button type="button" class="pure-button" onclick="selectAllFields();">
+{% if import_type == 'top-level' or import_type == 'child' %}
+    <div class="ODRCSVImport_header pure-u-1">
+        <button type="button" class="pure-button" onclick="ODRCSVImport_selectAllFields();">
             Import All
         </button>
         &nbsp;
-        <button type="button" class="pure-button" onclick="deselectAllFields();">
+        <button type="button" class="pure-button" onclick="ODRCSVImport_deselectAllFields();">
             Clear All
         </button>
     </div>
@@ -25,32 +33,44 @@
     <input type="hidden" id="column_{{ column_id }}_is_not_integer" value="1"/>
     {% endif %}
     {% if not column['could_be_decimal'] %}
-        <input type="hidden" id="column_{{ column_id }}_is_not_decimal" value="1"/>
+    <input type="hidden" id="column_{{ column_id }}_is_not_decimal" value="1"/>
     {% endif %}
 {% endfor %}
 
     <form id="csv_import_form">
-        {# this is the remote_datatype id if this is a linked import, or the child datatype id if importing into a childtype, or the top-level datatype otherwise #}
-        <input type="hidden" name="datatype_id" value="{{ datatype.id }}"/>
+        <input type="hidden" name="_token" value="{{ csrf_token(token_key) }}" />
+
+    {% if grandparent_datatype != null %}
+        {# null unless 'child-link' #}
+        <input type="hidden" name="grandparent_datatype_id" value="{{ grandparent_datatype.id }}"/>
+    {% endif %}
     {% if parent_datatype != null %}
+        {# null if 'top-level'...otherwise, the parent/ancestor side for target_datatype #}
         <input type="hidden" name="parent_datatype_id" value="{{ parent_datatype.id }}"/>
     {% endif %}
+        {# if 'top-level' or 'child', this is the datatype the data will be imported into #}
+        {# if 'link' or 'child-link', this is the descendant side of the link #}
+        <input type="hidden" name="target_datatype_id" value="{{ target_datatype.id }}"/>
+
 
     {% if parent_datatype != null %}
         {% include '@ODRAdmin/CSVImport/parent_datatype_settings.html.twig' with {
+            'grandparent_datatype': grandparent_datatype,
             'parent_datatype': parent_datatype,
-            'datatype': datatype,
-            'linked_importing': linked_importing,
+            'target_datatype': target_datatype,
+            'import_type': import_type,
+
             'columns': columns,
             'presets': presets
         } %}
     {% endif %}
 
-    {% if not linked_importing %}
+    {% if import_type == 'top-level' or import_type == 'child' %}
         {% include '@ODRAdmin/CSVImport/uniqueness_warnings.html.twig' with {
-            'datatype': datatype,
+            'target_datatype': target_datatype,
             'datafields': datafields,
             'datatree_array': datatree_array,
+
             'file_encoding_converted': file_encoding_converted
         } %}
 
@@ -101,7 +121,7 @@
 
                                 {# Fields marked as "no user edits" shouldn't be selectable, except when they're also the external id field #}
                                 {% set disable_selection = false %}
-                                {% if df_meta.prevent_user_edits and df_id != external_id_field_id %}
+                                {% if df_meta.prevent_user_edits and df_id != target_external_id_field %}
                                     {% set disable_selection = true %}
                                 {% endif %}
 
@@ -191,25 +211,25 @@
             {% endfor %}
             </tbody>
         </table>
-    {% endif %} {# if not linked_importing #}
+    {% endif %} {# if import_type == 'top-level' or import_type == 'child' #}
 
     </form>
 
-    {% if not linked_importing %}
+    {% if import_type == 'top-level' or import_type == 'child' %}
     <hr>
         <div>
             <b>Any files or images that you want to import using this CSV file need to be uploaded here.</b>
         </div>
         {% include '@ODRAdmin/CSVImport/filelist.html.twig' with {
-            'datatype_id': datatype.id,
-            'presets': presets}
-        %}
+            'datatype_id': target_datatype.id,
+            'presets': presets
+        } %}
     <hr>
     {% endif %}
 
      <div style="margin-top: 10px;">
          <button id="validate_button" type="button" class="pure-button pure-button-primary"
-                 onclick="validateImport();">
+                 onclick="ODRCSVImport_validateImport();">
              Validate Import
          </button>
      </div>
@@ -251,7 +271,7 @@
 
     $(function () {
 
-{% if not linked_importing %}
+{% if import_type == 'top-level' or import_type == 'child' %}
 
     {% for ft_id,ft_typename in allowed_fieldtypes %}
         allowed_fieldtypes[{{ ft_id }}] = "{{ ft_typename }}";
@@ -261,7 +281,7 @@
     {% for df in datafields %}
         {# Fields marked as "no user edits" shouldn't be selectable, except when they're also the external id field #}
         {% set disable_selection = false %}
-        {% if df.dataFieldMeta.prevent_user_edits and df.id != external_id_field_id %}
+        {% if df.dataFieldMeta.prevent_user_edits and df.id != target_external_id_field %}
             {% set disable_selection = true %}
         {% endif %}
 
@@ -293,6 +313,8 @@
         });
 
         $(".import_checkbox").unbind('change').change(function () {
+            // console.log('import_checkbox change', $(this));
+
             var column_id = $(this).attr('rel');
 
             var unique_checkbox = $("#column_" + column_id + "_unique");
@@ -342,25 +364,29 @@
                 $(hierarchy_delimiter_select).prop('disabled', true);
 
                 // Reset/disable all other warnings
-                updateHiddenFields();
+                ODRCSVImport_updateHiddenFields();
                 $(fieldtype_selector).trigger('change');
             }
 
             if (block_changes)
-                preventImport();
+                ODRCSVImport_preventImport();
         });
 
         $(".unique_checkbox").unbind('click').click(function () {
+            // console.log('unique_checkbox change', $(this));
+
             var column_id = $(this).attr('rel');
 
             // Warn about unique datafields
-            setUniqueWarnings(column_id, unique_datafields, unique_fieldtypes);
+            ODRCSVImport_setUniqueWarnings(column_id, unique_datafields, unique_fieldtypes);
 
             if (block_changes)
-                preventImport();
+                ODRCSVImport_preventImport();
         });
 
         $(".datafield_mapping").unbind('change').change(function () {
+            // console.log('datafield_mapping change', $(this));
+
             var column_id = $(this).attr('rel');
             var fieldtype_selector = $("#column_" + column_id + "_fieldtype");
 
@@ -379,13 +405,15 @@
 
             // Want to update every datafield selector so that a mapped datafield only shows up in
             //  the selector of the column it's mapped to...
-            updateHiddenFields();
+            ODRCSVImport_updateHiddenFields();
 
             // Let the fieldtype event handler deal with updating warnings...
             $(fieldtype_selector).trigger('change');
         });
 
         $(".fieldtype_mapping").unbind('change').change(function () {
+            // console.log('fieldtype_mapping change', $(this));
+
             var column_id = $(this).attr('rel');
 
             var fieldtype_id = $(this).val();
@@ -393,27 +421,29 @@
 
             // Need to select a delimiter for multiple radio/select fields, and for file/image fields
             var typename = allowed_fieldtypes[fieldtype_id];
-            setDelimiters(typename, column_id, df_id);
+            ODRCSVImport_setDelimiters(typename, column_id, df_id);
 
             // Update warnings about unique or external_id fields
-            setUniqueWarnings(column_id, unique_datafields, unique_fieldtypes);
-            updateHeaderWarnings();
+            ODRCSVImport_setUniqueWarnings(column_id, unique_datafields, unique_fieldtypes);
+            ODRCSVImport_updateHeaderWarnings();
 
             // Display some metadata about the selected fieldtype if needed
-            updateDatafieldMeta(column_id, allowed_fieldtypes);
+            ODRCSVImport_updateDatafieldMeta(column_id, allowed_fieldtypes);
 
             // Complain about missing delimiters if needed
-            updateDelimiterWarnings();
+            ODRCSVImport_updateDelimiterWarnings();
 
             if (block_changes)
-                preventImport();
+                ODRCSVImport_preventImport();
         });
 
         $(".secondary_delimiter").unbind('change').change(function () {
             if (block_changes) {
-                preventImport();
+                ODRCSVImport_preventImport();
                 return false;
             }
+
+            // console.log('secondary_delimiter change', $(this));
 
             var column_id = $(this).attr('rel');
             var delimiter_input = $("#column_" + column_id + "_delimiter");
@@ -426,14 +456,16 @@
             else
                 $(delimiter_input).addClass('ODRHidden');
 
-            updateDelimiterWarnings();
+            ODRCSVImport_updateDelimiterWarnings();
         });
 
         $(".hierarchy_delimiter").unbind('change').change(function () {
             if (block_changes) {
-                preventImport();
+                ODRCSVImport_preventImport();
                 return false;
             }
+
+            // console.log('hierarchy_delimiter change', $(this));
 
             var column_id = $(this).attr('rel');
             var delimiter_input = $("#column_" + column_id + "_hierarchy_delimiter");
@@ -446,11 +478,11 @@
             else
                 $(delimiter_input).addClass('ODRHidden');
 
-            updateDelimiterWarnings();
+            ODRCSVImport_updateDelimiterWarnings();
         });
 
         $(".ODRCSVImportDelimiter").unbind('keyup paste').on('keyup paste', function () {
-            updateDelimiterWarnings();
+            ODRCSVImport_updateDelimiterWarnings();
         });
 
     {% if presets != null %}
@@ -489,7 +521,6 @@
 
         {% for column_id, target in presets.hierarchy_delimiters %}
             // console.log( 'presets.hierarchy_delimiters[{{ column_id }}]: "{{ target|raw }}"' );
-
             target_found = false;
             $("#column_{{ column_id }}_hierarchy_select").children().each(function () {
                 if ($(this).attr('rel') === "{{ target|raw }}") {
@@ -509,7 +540,7 @@
                 && !$("#column_{{ column_id }}_unique").is(':checked')
             ) {
                 $("#column_{{ column_id }}_unique").trigger('click');
-                setUniqueWarnings("{{ column_id }}", unique_datafields, unique_fieldtypes);
+                ODRCSVImport_setUniqueWarnings("{{ column_id }}", unique_datafields, unique_fieldtypes);
             }
         {% endfor %}
 
@@ -518,15 +549,15 @@
         {% endfor %}
 
             // Ensure header warnings are accurate
-            updateHeaderWarnings();
-            updateDelimiterWarnings();
+            ODRCSVImport_updateHeaderWarnings();
+            ODRCSVImport_updateDelimiterWarnings();
 
             block_changes = true;
     {% else %}
-            // Disable updateHiddenFields() before triggering the subsequent change...otherwise it'll
+            // Disable ODRCSVImport_updateHiddenFields() before triggering the subsequent change...otherwise it'll
             //  run once per column of the csv file...which will repeatedly update the contents of
             //  each .datafield_mapping when the function only needs to be called once
-            window.sessionStorage.setItem('updateHiddenFields', 'false');
+            window.sessionStorage.setItem('ODRCSVImport_updateHiddenFields', 'false');
 
             // Select the preferred fieldtype for each of the columns in the CSV file...this
             //  intentionally doesn't trigger the change handler for fieldtype mapping
@@ -534,25 +565,25 @@
             // Ensure all of the fields are up to date
             $(".datafield_mapping").trigger('change');
 
-            // Re-enable updateHiddenFields()
-            window.sessionStorage.removeItem('updateHiddenFields');
-            // Manually trigger updateHiddenFields() so stuff is up to date
-            updateHiddenFields();
+            // Re-enable ODRCSVImport_updateHiddenFields()
+            window.sessionStorage.removeItem('ODRCSVImport_updateHiddenFields');
+            // Manually trigger ODRCSVImport_updateHiddenFields() so stuff is up to date
+            ODRCSVImport_updateHiddenFields();
     {% endif %} {# if presets != null #}
 
-{% endif %} {# if not linked_importing #}
+{% endif %} {# if import_type == 'top-level' or import_type == 'child' #}
     });
 
     /**
      * Disables the "Start Import" button when changes have been made that require revalidation of
      * the data.
      */
-    function preventImport() {
+    function ODRCSVImport_preventImport() {
         var change_block_str = 'You have changed something in the field layout...either re-validate the import, or reload the page to undo your changes';
         $("#import_button").removeAttr('onclick').prop('disabled', true).attr('title', change_block_str);
     }
 
-{% if not linked_importing %}
+{% if import_type == 'top-level' or import_type == 'child' %}
     /**
      * Updates visiblity of the delimiter inputs depending on which fieldtype is currently selected
      * for the given column.
@@ -561,7 +592,9 @@
      * @param {string} column_id
      * @param {string} df_id
      */
-    function setDelimiters(typename, column_id, df_id) {
+    function ODRCSVImport_setDelimiters(typename, column_id, df_id) {
+        // console.log('ODRCSVImport_setDelimiters()', typename, column_id, df_id);
+
         var delimiter_select = $("#column_" + column_id + "_select");
         var delimiter_field = $("#column_" + column_id + "_delimiter");
         var hierarchy_select = $("#column_" + column_id + "_hierarchy_select");
@@ -626,7 +659,8 @@
      * Creates and displays warnings to the user about delimiters...such as the delimiter meant
      * for a File/Image field can't be the same as the primary CSV delimiter.
      */
-    function updateDelimiterWarnings() {
+    function ODRCSVImport_updateDelimiterWarnings() {
+        // console.log('ODRCSVImport_updateDelimiterWarnings()');
 
         var csv_delimiter = "{{ csv_delimiter }}";
         $(".odr_csvimport_warning").each(function () {
@@ -686,7 +720,9 @@
      * @param {number} column_id
      * @param {array} allowed_fieldtypes
      */
-    function updateDatafieldMeta(column_id, allowed_fieldtypes) {
+    function ODRCSVImport_updateDatafieldMeta(column_id, allowed_fieldtypes) {
+        // console.log('ODRCSVImport_updateDatafieldMeta()', column_id, allowed_fieldtypes);
+
         var datafield_selector = $("#column_" + column_id);
         var datafield_id = $(datafield_selector).val();
 
@@ -706,7 +742,7 @@
 
             if (block_changes) {
                 $(".synch_checkbox").unbind('click').click(function () {
-                    preventImport();
+                    ODRCSVImport_preventImport();
                 });
             }
         }
@@ -743,10 +779,12 @@
      * When an existing datafield is mapped to a column of the CSV file, it needs to be not be
      * displayed as "available to map" to a different column.
      */
-    function updateHiddenFields() {
+    function ODRCSVImport_updateHiddenFields() {
         // If this session storage object exists, then this function shouldn't be run
-        if ( window.sessionStorage.getItem('updateHiddenFields') )
+        if ( window.sessionStorage.getItem('ODRCSVImport_updateHiddenFields') )
             return;
+
+        // console.log('ODRCSVImport_updateHiddenFields()');
 
         // Need to build a list of which datafields are currently mapped to a column
         var selected_fields = [];
@@ -784,7 +822,9 @@
      * @param {array} unique_datafields
      * @param {array} unique_fieldtypes
      */
-    function setUniqueWarnings(column_id, unique_datafields, unique_fieldtypes) {
+    function ODRCSVImport_setUniqueWarnings(column_id, unique_datafields, unique_fieldtypes) {
+        // console.log('ODRCSVImport_setUniqueWarnings()', column_id, unique_datafields, unique_fieldtypes);
+
         var import_checkbox = $("#import_checkbox_" + column_id);
         var unique_checkbox = $("#column_" + column_id + "_unique");
         var datafield_selector = $("#column_" + column_id);
@@ -855,11 +895,13 @@
     /**
      * Utility function to select all columns listed in the CSV file, marking them for import.
      */
-    function selectAllFields() {
-        // Disable updateHiddenFields() before triggering the subsequent change...otherwise it'll
+    function ODRCSVImport_selectAllFields() {
+        // Disable ODRCSVImport_updateHiddenFields() before triggering the subsequent change...otherwise it'll
         //  run once per column of the csv file...which will repeatedly update the contents of
         //  each .datafield_mapping when the function only needs to be called once
-        window.sessionStorage.setItem('updateHiddenFields', 'false');
+        window.sessionStorage.setItem('ODRCSVImport_updateHiddenFields', 'false');
+
+        // console.log('ODRCSVImport_selectAllFields()');
 
         $(".import_checkbox").each(function () {
             if (!$(this).is(':checked')) {
@@ -867,20 +909,22 @@
             }
         });
 
-        // Re-enable updateHiddenFields()
-        window.sessionStorage.removeItem('updateHiddenFields');
-        // Manually trigger updateHiddenFields() so stuff is up to date
-        updateHiddenFields();
+        // Re-enable ODRCSVImport_updateHiddenFields()
+        window.sessionStorage.removeItem('ODRCSVImport_updateHiddenFields');
+        // Manually trigger ODRCSVImport_updateHiddenFields() so stuff is up to date
+        ODRCSVImport_updateHiddenFields();
     }
 
     /**
      * Utility function to deselect all columns listed in the CSV file, preventing their import.
      */
-    function deselectAllFields() {
-        // Disable updateHiddenFields() before triggering the subsequent change...otherwise it'll
+    function ODRCSVImport_deselectAllFields() {
+        // Disable ODRCSVImport_updateHiddenFields() before triggering the subsequent change...otherwise it'll
         //  run once per column of the csv file...which will repeatedly update the contents of
         //  each .datafield_mapping when the function only needs to be called once
-        window.sessionStorage.setItem('updateHiddenFields', 'false');
+        window.sessionStorage.setItem('ODRCSVImport_updateHiddenFields', 'false');
+
+        // console.log('ODRCSVImport_deselectAllFields()');
 
         $(".import_checkbox").each(function () {
             if ($(this).is(':checked')) {
@@ -888,38 +932,63 @@
             }
         });
 
-        // Re-enable updateHiddenFields()
-        window.sessionStorage.removeItem('updateHiddenFields');
-        // Manually trigger updateHiddenFields() so stuff is up to date
-        updateHiddenFields();
+        // Re-enable ODRCSVImport_updateHiddenFields()
+        window.sessionStorage.removeItem('ODRCSVImport_updateHiddenFields');
+        // Manually trigger ODRCSVImport_updateHiddenFields() so stuff is up to date
+        ODRCSVImport_updateHiddenFields();
     }
 
-    {% endif %} {# if not linked_importing #}
+{% endif %} {# if import_type == 'top-level' or import_type == 'child' #}
 
     /**
      * Performs some final validation on the form before starting the server-side CSV Validation.
      */
-    function validateImport() {
+    function ODRCSVImport_validateImport() {
 
-    {% if parent_datatype == null %}
-        {# do nothing #}
-    {% else %}
-        if ($("#parent_external_id_column").val() === '') {
-            alert('ERROR: One column of the CSV file must be mapped to the external ID for the {% if linked_importing %}local{% else %}parent{% endif %} Datatype "{{ parent_datatype.getshortname }}"');
-            return;
-        }
-        {% if linked_importing %}
-        if ($("#remote_external_id_column").val() === '') {
-            alert('ERROR: One column of the CSV file must be mapped to the external ID for the remote Datatype "{{ datatype.getshortname }}"');
-            return;
-        }
+        var grandparent_external_id_column = null;
+        var parent_external_id_column = null;
+        var target_external_id_column = null;
 
-        if ($("#parent_external_id_column").val() === $("#remote_external_id_column").val()) {
-            alert("ERROR: The external IDs for the local and remote datatypes can't both be mapped to the same column");
+    {% if import_type == 'child-link' %}
+        {# grandparent_external_id_field is guaranteed to exist at this point #}
+        grandparent_external_id_column = $("#grandparent_external_id_column").val();
+        if ( grandparent_external_id_column === '' ) {
+            alert('ERROR: One column of the CSV file must be mapped to the external ID for the Datatype "{{ grandparent_datatype.getshortname }}"');
             return;
         }
-        {% endif %}    {# end if linked_importing #}
-    {% endif %}    {# end if parent_datatype == null #}
+    {% endif %}
+    {% if import_type == 'child' or import_type == 'link' or import_type == 'child-link' %}
+        {# parent_external_id_field could be null if import_type == 'child'...it won't be if import_type == 'link' or 'child-link' #}
+        {% if parent_external_id_field is not null %}
+        parent_external_id_column = $("#parent_external_id_column").val();
+        if ( parent_external_id_column === '' ) {
+            alert('ERROR: One column of the CSV file must be mapped to the external ID for the Datatype "{{ parent_datatype.getshortname }}"');
+            return;
+        }
+        {% endif %}
+    {% endif %}
+        {# target_external_id_field could be null if import_type == 'top-level' or 'child'...it won't be if import_type == 'link' or 'child-link' #}
+        {% if target_external_id_field is not null %}
+        target_external_id_column = $("#target_external_id_column").val();
+        if ( target_external_id_column === '' ) {
+            alert('ERROR: One column of the CSV file must be mapped to the external ID for the Datatype "{{ target_datatype.getshortname }}"');
+            return;
+        }
+        {% endif %}
+
+
+        if ( grandparent_external_id_column !== null && parent_external_id_column !== null && grandparent_external_id_column === parent_external_id_column ) {
+            alert("ERROR: Each datatype's external ID field must be mapped to a different column in the CSV File");
+            return;
+        }
+        if ( grandparent_external_id_column !== null && target_external_id_column !== null && grandparent_external_id_column === target_external_id_column ) {
+            alert("ERROR: Each datatype's external ID field must be mapped to a different column in the CSV File");
+            return;
+        }
+        if ( parent_external_id_column !== null && target_external_id_column !== null && parent_external_id_column === target_external_id_column ) {
+            alert("ERROR: Each datatype's external ID field must be mapped to a different column in the CSV File");
+            return;
+        }
 
         // If no checkboxes checked, no point doing any importing...
         var any_checked = false;
@@ -927,17 +996,23 @@
         $(".import_checkbox:checked").each(function () {
             any_checked = true;
 
-            {% if parent_datatype != null %}
-            if ($("#parent_external_id_column").val() === $(this).attr('rel')) {
+            if ( grandparent_external_id_column !== null && grandparent_external_id_column === $(this).attr('rel')) {
+                alert("ERROR: The column mapped to the grandparent Datatype's external ID can't also be mapped to a Datafield");
+                block_import = true;
+            }
+            if ( parent_external_id_column !== null && parent_external_id_column === $(this).attr('rel')) {
                 alert("ERROR: The column mapped to the parent Datatype's external ID can't also be mapped to a Datafield");
                 block_import = true;
             }
-            {% endif %}
+            if ( target_external_id_column !== null && target_external_id_column === $(this).attr('rel')) {
+                alert("ERROR: The column mapped to the target Datatype's external ID can't also be mapped to a Datafield");
+                block_import = true;
+            }
         });
 
-    {% if not linked_importing %}
+    {% if import_type == 'top-level' or import_type == 'child' %}
         if (!any_checked) {
-            alert('ERROR: No columns selected for import');
+            alert('ERROR: No import columns selected');
             return;
         }
 
@@ -945,7 +1020,6 @@
         $(".unique_checkbox:checked").each(function () {
             $(this).prop('disabled', false);
         });
-
 
         // Notify when same datafield selected for two different columns
         var selections = [];
@@ -975,12 +1049,12 @@
                 return false;
             }
         });
-
+    {% endif %}  {# if import_type == 'top-level' or import_type == 'child' #}
 
         // If any of the conditions aren't met, don't proceed with import
         if (block_import)
             return;
-    {% endif %} {# if not linked_importing #}
+
 
     {% if tracked_job_id is defined %}
         {# Delete existing tracked job before revalidating #}
@@ -1006,12 +1080,10 @@
                 }
             }
         });
-
     {% endif %}
 
         var import_data = $("#csv_import_form").serialize();
-        // console.log(import_data);
-        // return;
+        // console.log(import_data);  return;
 
         var url = '{{ path('odr_csv_import_start_validate') }}';
         $.ajax({

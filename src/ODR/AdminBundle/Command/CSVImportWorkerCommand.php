@@ -86,12 +86,13 @@ $output->writeln($data->url);
                     'mapping' => $data->mapping,
                     'line' => $data->line,
 
-                    // Only used when importing into a child/linked datatype
-                    'parent_external_id_column' => $data->parent_external_id_column,
+                    'grandparent_datatype_id' => $data->grandparent_datatype_id,
                     'parent_datatype_id' => $data->parent_datatype_id,
+                    'target_datatype_id' => $data->target_datatype_id,
 
-                    // Only used when creating links via importing
-                    'remote_external_id_column' => $data->remote_external_id_column,
+                    'grandparent_external_id_column' => $data->grandparent_external_id_column,
+                    'parent_external_id_column' => $data->parent_external_id_column,
+                    'target_external_id_column' => $data->target_external_id_column,
                 ];
 
                 // Set the options for the POST request

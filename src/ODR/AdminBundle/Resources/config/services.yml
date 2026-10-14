@@ -765,9 +765,11 @@ services:
         class: ODR\AdminBundle\Component\Service\CSVImportHelperService
         arguments:
             $em: "@doctrine.orm.entity_manager"
-            $dti_service: "@odr.datatree_info_service"
+            $datarecord_info_service: "@odr.datarecord_info_service"
+            $datatree_info_service: "@odr.datatree_info_service"
             $search_service: "@odr.search_service"
             $sort_service: "@odr.sort_service"
+            $odr_tmp_directory: "%odr_tmp_directory%"
             $logger: "@logger"
 
     odr.csv_export_helper_service:

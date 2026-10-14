@@ -74,6 +74,8 @@ $output->writeln($data->url);
 
                 // Create the required url and the parameters to send
                 $parameters = [
+                    'import_type' => $data->import_type,
+
                     'tracked_job_id' => $data->tracked_job_id,
                     'datatype_id' => $data->datatype_id,
                     'user_id' => $data->user_id,
@@ -83,7 +85,6 @@ $output->writeln($data->url);
 
                     'api_key' => $data->api_key,
 
-                    // Only used when importing into a top-level or child datatype
                     'unique_columns' => $data->unique_columns,
                     'datafield_mapping' => $data->datafield_mapping,
                     'fieldtype_mapping' => $data->fieldtype_mapping,
@@ -91,12 +92,13 @@ $output->writeln($data->url);
                     'hierarchy_delimiters' => $data->hierarchy_delimiters,
                     'synch_columns' => $data->synch_columns,
 
-                    // Only used when importing into a child/linked datatype
-                    'parent_external_id_column' => $data->parent_external_id_column,
+                    'grandparent_datatype_id' => $data->grandparent_datatype_id,
                     'parent_datatype_id' => $data->parent_datatype_id,
+                    'target_datatype_id' => $data->target_datatype_id,
 
-                    // Only used when creating links via importing
-                    'remote_external_id_column' => $data->remote_external_id_column,
+                    'grandparent_external_id_column' => $data->grandparent_external_id_column,
+                    'parent_external_id_column' => $data->parent_external_id_column,
+                    'target_external_id_column' => $data->target_external_id_column,
                 ];
 
                 // Set the options for the POST request

@@ -1365,50 +1365,36 @@ odr_csv_import:
     requirements:
         datatype_id: \d+
 
-odr_csv_import_delimiter_changed:
-    path: /csvimport/delimiter
-    defaults: { _controller: ODR\AdminBundle\Controller\CSVImportController::delimiterAction }
-    methods: [ POST ]
-
 odr_csv_file_redownload:
     path: /csvimport/redownload
     defaults: { _controller: ODR\AdminBundle\Controller\CSVImportController::redownloadfileAction }
-
 odr_csv_refresh_filelist:
     path: /csvimport/filelist/refresh
     defaults: { _controller: ODR\AdminBundle\Controller\CSVImportController::refreshfilelistAction }
 odr_csv_delete_filelist:
     path: /csvimport/filelist/delete
     defaults: { _controller: ODR\AdminBundle\Controller\CSVImportController::deletefilelistAction }
-
 odr_csv_cancel_import:
     path: /csvimport/cancel
     defaults: { _controller: ODR\AdminBundle\Controller\CSVImportController::cancelAction }
-
 odr_csv_import_layout:
-    path: /csvimport/layout/{source_datatype_id}/{target_datatype_id}
+    path: /csvimport/layout
     defaults: { _controller: ODR\AdminBundle\Controller\CSVImportController::layoutAction }
-    requirements:
-        source_datatype_id: \d+
-        target_datatype_id: \d+
-
+    methods: [ POST ]
 
 odr_csv_import_start_validate:
     path: /csvimport/start_validate
     defaults: { _controller: ODR\AdminBundle\Controller\CSVImportController::startvalidateAction }
     methods: [ POST ]
-
 odr_csv_import_validate:
     path: /beanstalk/csv_import/validate
     defaults: { _controller: ODR\AdminBundle\Controller\CSVImportController::csvvalidateAction }
     methods: [ POST ]
-
 odr_csv_import_validate_results:
     path: /beanstalk/csv_import/validate_results/{tracked_job_id}
     defaults: { _controller: ODR\AdminBundle\Controller\CSVImportController::validateresultsAction }
     requirements:
         tracked_job_id: \d+
-
 
 odr_csv_import_start_worker:
     path: /csvimport/start_worker/{job_id}
@@ -1421,7 +1407,6 @@ odr_csv_import_worker:
     path: /beanstalk/csv_import/worker
     defaults: { _controller: ODR\AdminBundle\Controller\CSVImportController::csvworkerAction }
     methods: [ POST ]
-
 odr_csv_link_worker:
     path: /beanstalk/csv_import/link_worker
     defaults: { _controller: ODR\AdminBundle\Controller\CSVImportController::csvlinkworkerAction }

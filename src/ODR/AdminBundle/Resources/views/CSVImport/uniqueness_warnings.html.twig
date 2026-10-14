@@ -1,8 +1,17 @@
 {% apply spaceless %}
-    {# This twig file is never called when "importing into" a linked datatype #}
-    {% set external_id_field = datatype.getexternalidfield %}
 
-    <div class="csvimport_header pure-u-2-3">
+{# This twig file is only called on 'top-level' and 'child' imports #}
+{% set parent_external_id_field = null %}
+{% if parent_datatype is not null and parent_datatype.getexternalidfield is not null %}
+    {% set parent_external_id_field = parent_datatype.getexternalidfield %}
+{% endif %}
+
+{% set target_external_id_field = null %}
+{% if target_datatype is not null and target_datatype.getexternalidfield is not null %}
+    {% set target_external_id_field = target_datatype.getexternalidfield %}
+{% endif %}
+
+    <div class="ODRCSVImport_header pure-u-2-3">
         {% if file_encoding_converted %}
             {# notify that the file's encoding got changed #}
             <div class="pure-u-1" style="margin-bottom:20px;">
@@ -11,44 +20,60 @@
             </div>
         {% endif %}
 
-        {% if external_id_field == null %}
-            {% if datatype.grandparent.id == datatype.id %}
-                {# notify that the top-level datatype doesn't have an external id field #}
+        {% if import_type == 'top-level' %}
+            {% if target_external_id_field is null %}
+            <div class="pure-u-1">
+                <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
+                <span>&nbsp;This Datatype doesn't have an "External ID" Datafield...as such, the importing process is incapable of updating existing Datarecords.  Any rows imported will ALWAYS create new Datarecords.</span>
+            </div>
+            {% else %}
+            <div id="target_external_id_field_warning" class="pure-u-1">
+                <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
+                <span>&nbsp;This Datatype's External ID Datafield, "{{ target_external_id_field.getfieldname }}", is not currently mapped to a column of the CSV File.  If it is not set, then the importing process will not be capable of updating existing Datarecords.</span>
+            </div>
+            {% endif %}
+        {% else %}    {# import_type == 'child' #}
+            {% if parent_external_id_field is null %}
+            <div class="pure-u-1">
+                <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
+                <span>&nbsp;The top-level Datatype doesn't have an "External ID" Datafield...as such, the importing process is incapable of updating existing Datarecords.  Any rows imported will ALWAYS create new Datarecords.</span>
+            </div>
+            {% else %}
+            <div id="parent_external_id_field_warning" class="pure-u-1">
+                <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
+                <span>&nbsp;The top-level Datatype's External ID Datafield, "{{ parent_external_id_field.getfieldname }}", is not currently mapped to a column of the CSV File.  If it is not set, then the importing process will not be capable of updating existing Datarecords.</span>
+            </div>
+            {% endif %}
+
+            {% set multiple_allowed = false %}
+            {% if datatree_array['multiple_allowed'][target_datatype.id] is defined %}
+                {% set multiple_allowed = true %}
+            {% endif %}
+
+            {% if target_external_id_field is null %}
+                {% if multiple_allowed %}
                 <div class="pure-u-1">
                     <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
-                    <span>&nbsp;This Datatype doesn't have an "External ID" Datafield...as such, the importing process is incapable of updating existing Datarecords.  Any rows imported will ALWAYS create new Datarecords.</span>
+                    <span>&nbsp;The child Datatype doesn't have an "External ID" Datafield...as such, the importing process is incapable of updating existing Datarecords.  Any rows imported will ALWAYS create new Datarecords.</span>
                 </div>
-            {% else %}
-                {% set multiple_allowed = false %}
-                {% if datatree_array['multiple_allowed'][datatype.id] is defined %}
-                    {% set multiple_allowed = true %}
-                {% endif %}
-
-                {# notify that the child datatype doesn't have an external id field #}
-                {% if multiple_allowed %}
-                    <div class="pure-u-1">
-                        <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
-                        <span>&nbsp;This Datatype doesn't have an "External ID" Datafield...as such, the importing process is incapable of updating existing Datarecords.  Any rows imported will ALWAYS create new Datarecords.</span>
-                    </div>
                 {% else %}
-                    <div class="pure-u-1">
-                        <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
-                        <span>&nbsp;This Datatype doesn't have an "External ID" Datafield...as such, the importing process is incapable of updating existing Datarecords.  Any rows imported MAY OVERWRITE existing Datarecords.</span>
-                    </div>
+                <div class="pure-u-1">
+                    <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
+                    <span>&nbsp;The child Datatype doesn't have an "External ID" Datafield...as such, the importing process is incapable of updating existing Datarecords.  Any rows imported MAY OVERWRITE existing Datarecords.</span>
+                </div>
                 {% endif %}
+            {% else %}
+                <div id="target_external_id_field_warning" class="pure-u-1">
+                    <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
+                    <span>&nbsp;The child Datatype's External ID Datafield, "{{ target_external_id_field.getfieldname }}", is not currently mapped to a column of the CSV File.  If it is not set, then the importing process will not be capable of updating existing Datarecords.</span>
+                </div>
             {% endif %}
-        {% else %}
-            {# notify that the external id field is not mapped #}
-            <div id="external_id_field_warning" class="pure-u-1">
-                <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
-                <span>&nbsp;This Datatype's External ID Datafield, "{{ external_id_field.getfieldname }}", is currently not mapped to a column of the CSV File...as such, the importing process is incapable of updating existing Datarecords.  Any rows imported WILL create new Datarecords.</span>
-            </div>
         {% endif %}
 
         {# every other unique datafield that the user can edit needs a warning too #}
         {% for df_id, df in datafields %}
             {% set df_meta = df.dataFieldMeta %}
-            {% if df_meta.is_unique == 1 and df_meta.prevent_user_edits == 0 and external_id_field != null and external_id_field.id != df_id %}
+            {% if df_meta.is_unique == 1 and df_meta.prevent_user_edits == 0 and target_external_id_field is not null and target_external_id_field.id != df_id %}
             <div id="datafield_{{ df_id }}_unique_notice" class="pure-u-1">
                 <span><i class="fa fa-lg fa-exclamation-circle Cursor"></i></span>
                 <span>&nbsp;The unique Datafield "{{ df_meta.fieldName }}" is currently not mapped to a column of the CSV File...if any new Datarecords are created as a result of this import, this datafield will have multiple blank values.</span>
@@ -58,25 +83,63 @@
     </div>
 
 <script>
-    function updateHeaderWarnings() {
-{% if external_id_field == null %}
-        /* no external id datafield, do nothing */
-{% else %}
-        // Check to see if the external id datafield is mapped to a csv column
-        var selected = false;
+    /**
+     * Changes to which fields are mapped for import need to update warnings for external id fields
+     */
+    function ODRCSVImport_updateHeaderWarnings() {
+        // console.log('ODRCSVImport_updateHeaderWarnings()');
+
+        var grandparent_external_id_field_is_selected = false;
+        var parent_external_id_field_is_selected = false;
+        var target_external_id_field_is_selected = false;
         $(".datafield_mapping:enabled").each(function() {
             var selected_df = $(this).children('option:selected').val();
-            if ( selected_df === "{{ external_id_field.id }}" )
-                selected = true;
+
+            {% if grandparent_external_id_field is not null %}
+            if ( selected_df === "{{ grandparent_external_id_field.id }}" )
+                grandparent_external_id_field_is_selected = true;
+            {% endif %}
+
+            {% if parent_external_id_field is not null %}
+            if ( selected_df === "{{ parent_external_id_field.id }}" )
+                parent_external_id_field_is_selected = true;
+            {% endif %}
+
+            {% if target_external_id_field is not null %}
+            if ( selected_df === "{{ target_external_id_field.id }}" )
+                target_external_id_field_is_selected = true;
+            {% endif %}
         });
 
-        // Display the warning based on whether it is
-        if (selected)
-            $("#external_id_field_warning").addClass('ODRHidden');
-        else
-            $("#external_id_field_warning").removeClass('ODRHidden');
+        {% if grandparent_external_id_field is not null %}
+        if ( $("#grandparent_external_id_column").length > 0 && $("#grandparent_external_id_column").val() !== '' )
+            grandparent_external_id_field_is_selected = true;
 
-{% endif %}
+        if (grandparent_external_id_field_is_selected)
+            $("#grandparent_external_id_field_warning").addClass('ODRHidden');
+        else
+            $("#grandparent_external_id_field_warning").removeClass('ODRHidden');
+        {% endif %}
+
+        {% if parent_external_id_field is not null %}
+        if ( $("#parent_external_id_column").length > 0 && $("#parent_external_id_column").val() !== '' )
+            parent_external_id_field_is_selected = true;
+
+        if (parent_external_id_field_is_selected)
+            $("#parent_external_id_field_warning").addClass('ODRHidden');
+        else
+            $("#parent_external_id_field_warning").removeClass('ODRHidden');
+        {% endif %}
+
+        {% if target_external_id_field is not null %}
+        if ( $("#target_external_id_column").length > 0 && $("#target_external_id_column").val() !== '' )
+            target_external_id_field_is_selected = true;
+
+        if (target_external_id_field_is_selected)
+            $("#target_external_id_field_warning").addClass('ODRHidden');
+        else
+            $("#target_external_id_field_warning").removeClass('ODRHidden');
+        {% endif %}
 
         // Deal with unique datafields that aren't external id/name datafields
         var datafield_usage = {};
