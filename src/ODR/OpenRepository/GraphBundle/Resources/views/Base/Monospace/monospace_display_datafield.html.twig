@@ -1,0 +1,32 @@
+{% apply spaceless %}
+
+{% set datafield_meta = datafield.dataFieldMeta %}
+{% set field_typename = datafield_meta.fieldType.typeName %}
+{% set field_typeclass = datafield_meta.fieldType.typeClass %}
+
+{% set datarecordfield = '' %}
+{% set valuefield = '' %}
+{% set valuefield_value = '' %}
+{% if datarecord.dataRecordFields[ datafield.id ] is defined %}
+    {% set datarecordfield = datarecord.dataRecordFields[ datafield.id ] %}
+
+    {% if field_typename == "Paragraph Text" and datarecordfield.longText[0] is defined %}
+        {% set valuefield = datarecordfield.longText[0] %}
+        {% set valuefield_value = valuefield.value %}
+    {% endif %}
+{% endif %}
+
+{% set unique_id = datarecord.id ~ '_' ~ datafield.id %}
+{% set input_id = field_typeclass ~ 'Form_' ~ unique_id %}
+
+        {# This plugin is only called on paragraph text fields #}
+        <fieldset>
+            <label for="Input_{{ unique_id }}" class="ODRFieldLabel" title="{{ datafield_meta.description }}">
+                {{ datafield_meta.fieldName }}
+            </label>
+            <div class="ODRFieldWrapper" id="Input_{{ unique_id }}">
+                <textarea id="{{ input_id }}" class="pure-u-1 Cursor ODRMonospace" readonly="readonly">{{ valuefield_value }}</textarea>
+            </div>
+        </fieldset>
+
+{% endapply %}
