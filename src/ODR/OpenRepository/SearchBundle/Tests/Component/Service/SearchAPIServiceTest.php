@@ -2094,16 +2094,16 @@ class SearchAPIServiceTest extends WebTestCase
                 true
             ],
 
-            /*
-                        'RRUFF Reference: general search of "downs"' => [
-                            [
-                                'dt_id' => 1,
-                                'gen' => 'downs',
-                            ],
-                            [35,36,49,66,68],
-                            false
-                        ],
-            */
+/*
+            'RRUFF Reference: general search of "downs"' => [
+                [
+                    'dt_id' => 1,
+                    'gen' => 'downs',
+                ],
+                [35,36,49,66,68],
+                false
+            ],
+  */
             'IMA List: general search of "downs" for complete datarecord list, without non-public records' => [
                 [
                     'dt_id' => 2,
@@ -3212,6 +3212,50 @@ class SearchAPIServiceTest extends WebTestCase
                     /*81,*/82,83,84,85,86,87,/*88,*/89,/*90,*/
                 ],
                 false
+            ],
+
+            // Ignore search
+            'RRUFF Sample: default ignore search' => [
+                [  // given
+                    'dt_id' => 3,
+                    '1' => '!""'
+                ],
+                [  // default
+                    'dt_id' => 3,
+                    'ignore' => '3_2_1',  // ignore the RRUFF Sample -> IMA Mineral -> RRUFF Reference
+                ],
+                [
+                    107,126  // these are the only two samples that directly link to a reference
+                ],
+                true,
+            ],
+            'RRUFF Sample: override ignore search v1' => [
+                [  // given
+                    'dt_id' => 3,
+                    '1' => '!""',
+                    'ignore' => '*',  // disable entirely
+                ],
+                [  // default
+                    'dt_id' => 3,
+                    'ignore' => '3_2_1',  // ignore the RRUFF Sample -> IMA Mineral -> RRUFF Reference
+                ],
+                array_merge( range(98, 139), /*[323]*/ ),  // the 42 rruff samples that are linked to a mineral
+                true,
+            ],
+            'RRUFF Sample: override ignore search v2' => [
+                [  // given
+                    'dt_id' => 3,
+                    '1' => '""',
+                    'ignore' => '*',  // disable entirely
+                ],
+                [  // default
+                    'dt_id' => 3,
+                    'ignore' => '3_2_1',  // ignore the RRUFF Sample -> IMA Mineral -> RRUFF Reference
+                ],
+                [
+                    323  // this sample isn't linked to anything at all
+                ],
+                true,
             ],
 
             // Inverse search
