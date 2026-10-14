@@ -2442,6 +2442,9 @@ class DisplayController extends ODRCustomController
             // ----------------------------------------
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
+
+            if ( $user === 'anon.' )
+                throw new ODRForbiddenException();
             if ( !$permissions_service->canViewDatatype($user, $datatype) )
                 throw new ODRForbiddenException();
             // ----------------------------------------
