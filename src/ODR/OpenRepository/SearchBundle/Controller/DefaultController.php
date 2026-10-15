@@ -250,7 +250,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
 
             if ( $search_string !== '' ) {
                 $immediate_search_field = $target_datatype->getImmediateSearchField();
-                if ( empty($immediate_search_field) ) {
+                if ( is_null($immediate_search_field) ) {
                     // If no field is specified for this purpose, then splice the given value into
                     //  the 'general' search
                     $default_search_params['gen'] = $search_string;
@@ -258,8 +258,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
                 else {
                     // ...otherwise, splice in the given value for that field.  This intentionally
                     //  overrides the field's value in the 'default search key', if it has one
-                    $df = $immediate_search_field[0];
-                    $default_search_params[ $df->getId() ] = $search_string;
+                    $default_search_params[ $immediate_search_field->getId() ] = $search_string;
                 }
             }
 
@@ -560,7 +559,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
 
             if ( $search_string !== '' ) {
                 $immediate_search_field = $target_datatype->getImmediateSearchField();
-                if ( empty($immediate_search_field) ) {
+                if ( is_null($immediate_search_field) ) {
                     // If no field is specified for this purpose, then splice the given value into
                     //  the 'general' search
                     $default_search_params['gen'] = $search_string;
@@ -568,8 +567,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
                 else {
                     // ...otherwise, splice in the given value for that field.  This intentionally
                     //  overrides the field's value in the 'default search key', if it has one
-                    $df = $immediate_search_field[0];
-                    $default_search_params[ $df->getId() ] = $search_string;
+                    $default_search_params[ $immediate_search_field->getId() ] = $search_string;
                 }
             }
 

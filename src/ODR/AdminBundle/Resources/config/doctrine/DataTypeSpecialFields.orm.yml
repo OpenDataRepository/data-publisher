@@ -27,6 +27,12 @@ ODR\AdminBundle\Entity\DataTypeSpecialFields:
             nullable: false
             column: display_order
 
+        sort_desc:
+            type: integer
+            nullable: false
+            default: 0
+            column: sort_desc
+
         created:
             type: datetime
             gedmo:

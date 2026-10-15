@@ -86,8 +86,14 @@ class EntityMetaModifyService
      * @param EventDispatcherInterface $event_dispatcher
      * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly DatatreeInfoService $datatree_info_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly LoggerInterface $logger)
-    {
+    public function __construct(
+        private readonly EntityManager $em,
+        private readonly CacheService $cache_service,
+        private readonly DatatreeInfoService $datatree_info_service,
+        private readonly EventDispatcherInterface $event_dispatcher,
+        private readonly LoggerInterface $logger
+    ) {
+
     }
 
 
@@ -1107,6 +1113,7 @@ class EntityMetaModifyService
         $existing_values = [
             // Not allowed to change datatype/datafield, or purpose
             'displayOrder' => $dtsf->getDisplayOrder(),
+            'sort_desc' => $dtsf->getSortDesc(),
         ];
         foreach ($existing_values as $key => $value) {
             if ( isset($properties[$key]) && $properties[$key] != $value )
@@ -1140,8 +1147,10 @@ class EntityMetaModifyService
 
 
         // Set any new properties
-        if (isset($properties['displayOrder']))
+        if ( isset($properties['displayOrder']) )
             $new_dtsf->setDisplayOrder( $properties['displayOrder'] );
+        if ( isset($properties['sort_desc']) )
+            $new_dtsf->setSortDesc( $properties['sort_desc'] );
 
         $new_dtsf->setUpdated($created);
         $new_dtsf->setUpdatedBy($user);

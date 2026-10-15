@@ -1798,11 +1798,13 @@ class DisplaytemplateController extends ODRCustomController
                     $ancestor_datatype = $datatree->getAncestor();
                     $descendant_datatype = $datatree->getDescendant();
 
-                    foreach ($ancestor_datatype->getNameFields() as $display_order => $name_df) {
+                    foreach ($ancestor_datatype->getNameFields() as $display_order => $dtsf) {
+                        $name_df = $dtsf->getDataField();
                         if ( $name_df->getDataType()->getId() === $descendant_datatype->getId() )
                             $affects_namefield = true;
                     }
-                    foreach ($ancestor_datatype->getSortFields() as $display_order => $sort_df) {
+                    foreach ($ancestor_datatype->getSortFields() as $display_order => $dtsf) {
+                        $sort_df = $dtsf->getDataField();
                         if ( $sort_df->getDataType()->getId() === $descendant_datatype->getId() )
                             $affects_sortfield = true;
                     }
@@ -2088,11 +2090,13 @@ class DisplaytemplateController extends ODRCustomController
             $descendant_datatype = $datatree->getDescendant();
 
             $affects_special_field = false;
-            foreach ($ancestor_datatype->getNameFields() as $display_order => $name_df) {
+            foreach ($ancestor_datatype->getNameFields() as $display_order => $dtsf) {
+                $name_df = $dtsf->getDataField();
                 if ( $name_df->getDataType()->getId() === $descendant_datatype->getId() )
                     $affects_special_field = true;
             }
-            foreach ($ancestor_datatype->getSortFields() as $display_order => $sort_df) {
+            foreach ($ancestor_datatype->getSortFields() as $display_order => $dtsf) {
+                $sort_df = $dtsf->getDataField();
                 if ( $sort_df->getDataType()->getId() === $descendant_datatype->getId() )
                     $affects_special_field = true;
             }
@@ -4577,6 +4581,15 @@ if ($debug)
                 }
             }
 
+            // This entry should only exist when setting up default sort fields
+            $sort_directions = [];
+            if ( $purpose === 'sort' ) {
+                if ( !isset($post['sort_directions']) )
+                    throw new ODRBadRequestException();
+
+                $sort_directions = $post['sort_directions'];
+            }
+
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->container->get('doctrine')->getManager();
@@ -4653,6 +4666,11 @@ if ($debug)
                     throw new ODRBadRequestException('Illegal datafield '.$df_id);
             }
 
+            foreach ($sort_directions as $df_id => $dir) {
+                if ( !isset($seen_datafields[$df_id]) )
+                    throw new ODRBadRequestException('Illegal sort direction '.$df_id);
+            }
+
 
             // ----------------------------------------
             // Now that the given data is valid, load what's already in the database
@@ -4694,21 +4712,32 @@ if ($debug)
             $changes_made = false;
             foreach ($df_list as $df_id => $display_order) {
                 if ( !isset($entities[$df_id]) ) {
+                    // Determine whether the user wanted this field to sort 'desc' instead of 'asc'
+                    $sort_desc = 0;
+                    if ( $purpose === 'sort' && isset($sort_directions[$df_id]) && $sort_directions[$df_id] === 'desc' )
+                        $sort_desc = 1;
+
                     // ...this datafield is not already marked as a special field, so create a new
                     //  entry for it
-                    $dtsf = $entity_create_service->createDatatypeSpecialField($user, $datatype, $df_lookup[$df_id], $field_purpose, $display_order, true);    // don't flush immediately...
+                    $dtsf = $entity_create_service->createDatatypeSpecialField($user, $datatype, $df_lookup[$df_id], $field_purpose, $display_order, $sort_desc, true);    // don't flush immediately...
                     $changes_made = true;
 
                     // Don't need to deal with this entity later on
                     unset( $entities[$df_id] );
                 }
                 else {
+                    // Determine whether the user wanted this field to sort 'desc' instead of 'asc'
+                    $sort_desc = 0;
+                    if ( $purpose === 'sort' && isset($sort_directions[$df_id]) && $sort_directions[$df_id] === 'desc' )
+                        $sort_desc = 1;
+
                     // ...this datafield was already marked as a special field...
                     $dtsf = $entities[$df_id];
-                    if ( $display_order !== $dtsf->getDisplayOrder() ) {
+                    if ( $display_order !== $dtsf->getDisplayOrder() || $sort_desc !== $dtsf->getSortDesc() ) {
                         // ...so ensure it's in the correct order
                         $props = [
-                            'displayOrder' => $display_order
+                            'displayOrder' => $display_order,
+                            'sort_desc' => $sort_desc,
                         ];
                         $entity_modify_service->updateDatatypeSpecialField($user, $dtsf, $props, true);    // don't flush immediately...
                         $changes_made = true;

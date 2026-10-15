@@ -132,9 +132,11 @@ class PaginationHelperService
         else {
             // If there's nothing in the user's session or the search key...then get this datatype's
             //  current list of sort fields, and convert it into sort criteria for the user's session
-            foreach ($datatype->getSortFields() as $display_order => $df) {
-                $sort_datafields[$display_order] = $df->getId();
+            foreach ($datatype->getSortFields() as $display_order => $dtsf) {
+                $sort_datafields[$display_order] = $dtsf->getDataField()->getId();
                 $sort_directions[$display_order] = 'asc';
+                if ( $dtsf->getSortDesc() === 1 )
+                    $sort_directions[$display_order] = 'desc';
             }
             $this->odr_tab_service->setSortCriteria($odr_tab_id, $sort_datafields, $sort_directions);
         }

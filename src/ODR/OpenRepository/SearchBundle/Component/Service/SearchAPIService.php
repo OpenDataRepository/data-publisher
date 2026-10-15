@@ -1826,9 +1826,9 @@ class SearchAPIService
                 if ( $dir !== 'asc' )
                     $is_default_sort_order = false;
             }
-            foreach ($datatype->getSortFields() as $display_order => $df) {
+            foreach ($datatype->getSortFields() as $display_order => $dtsf) {
                 $has_sortfields = true;
-                if ( !isset($sort_datafields[$display_order]) || $df->getId() !== $sort_datafields[$display_order] )
+                if ( !isset($sort_datafields[$display_order]) || $dtsf->getDataField()->getId() !== $sort_datafields[$display_order] )
                     $is_default_sort_order = false;
             }
             if ( $has_sortfields && $is_default_sort_order )
