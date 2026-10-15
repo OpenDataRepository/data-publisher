@@ -244,6 +244,67 @@ class SearchAPIServiceTest extends WebTestCase
         $this->assertEqualsCanonicalizing( $expected_search_params, $filtered_search_params );
     }
 
+    #[DataProvider('provideDefaultSearchParams')]
+    public function testDefaultSearchParams($search_params, $default_search_params, $expected_grandparent_ids, $search_as_super_admin)
+    {
+        exec('redis-cli flushall');
+        $client = static::createClient();
+        if ( $client->getContainer()->getParameter('database_name') !== $_ENV['PHPUNIT_TESTING_DB'] )
+            $this->markTestSkipped('Wrong database');
+
+        /** @var SearchAPIService $search_api_service */
+        $search_api_service = $client->getContainer()->get('odr.search_api_service');
+        /** @var SearchKeyService $search_key_service */
+        $search_key_service = $client->getContainer()->get('odr.search_key_service');
+
+        // Convert each array of search params into a search key...
+        $given_search_key = $search_key_service->encodeSearchKey($search_params);
+        $default_search_key = $search_key_service->encodeSearchKey($default_search_params);
+
+        $merged_search_key = $search_key_service->mergeSearchKeys($given_search_key, $default_search_key);
+
+//        fwrite(STDERR, 'Search Key: '.$search_key."\n");
+        $grandparent_datarecord_list = $search_api_service->performSearch(
+            null,     // don't want to hydrate Datatypes here, so this is null
+            $merged_search_key,
+            array(),  // search testing is with either zero permissions, or super-admin permissions
+            false,    // only want grandparent datarecord ids here
+            array(),  // testing doesn't need a specific set of sort datafields...
+            array(),  // ...or a specific sort order
+            $search_as_super_admin,
+            true      // the XYZData tests involve a field that isn't usually searchable
+        );
+        // this also indirectly serves as a test of InlineLink
+
+        $this->assertEqualsCanonicalizing( $expected_grandparent_ids, $grandparent_datarecord_list );
+    }
+
+    #[DataProvider('provideSpecificSearchKeys')]
+    public function testSpecificSearchKeys($search_key, $expected_grandparent_ids, $search_as_super_admin)
+    {
+        exec('redis-cli flushall');
+        $client = static::createClient();
+        if ( $client->getContainer()->getParameter('database_name') !== $_ENV['PHPUNIT_TESTING_DB'] )
+            $this->markTestSkipped('Wrong database');
+
+        /** @var SearchAPIService $search_api_service */
+        $search_api_service = $client->getContainer()->get('odr.search_api_service');
+
+//        fwrite(STDERR, 'Search Key: '.$search_key."\n");
+        $grandparent_datarecord_list = $search_api_service->performSearch(
+            null,     // don't want to hydrate Datatypes here, so this is null
+            $search_key,
+            array(),  // search testing is with either zero permissions, or super-admin permissions
+            false,    // only want grandparent datarecord ids here
+            array(),  // testing doesn't need a specific set of sort datafields...
+            array(),  // ...or a specific sort order
+            $search_as_super_admin,
+            true      // the XYZData tests involve a field that isn't usually searchable
+        );
+
+        $this->assertEqualsCanonicalizing( $expected_grandparent_ids, $grandparent_datarecord_list );
+    }
+
 
     /**
      * @return array
@@ -2033,16 +2094,16 @@ class SearchAPIServiceTest extends WebTestCase
                 true
             ],
 
-            /*
-                        'RRUFF Reference: general search of "downs"' => [
-                            [
-                                'dt_id' => 1,
-                                'gen' => 'downs',
-                            ],
-                            [35,36,49,66,68],
-                            false
-                        ],
-            */
+/*
+            'RRUFF Reference: general search of "downs"' => [
+                [
+                    'dt_id' => 1,
+                    'gen' => 'downs',
+                ],
+                [35,36,49,66,68],
+                false
+            ],
+  */
             'IMA List: general search of "downs" for complete datarecord list, without non-public records' => [
                 [
                     'dt_id' => 2,
@@ -3151,6 +3212,50 @@ class SearchAPIServiceTest extends WebTestCase
                     /*81,*/82,83,84,85,86,87,/*88,*/89,/*90,*/
                 ],
                 false
+            ],
+
+            // Ignore search
+            'RRUFF Sample: default ignore search' => [
+                [  // given
+                    'dt_id' => 3,
+                    '1' => '!""'
+                ],
+                [  // default
+                    'dt_id' => 3,
+                    'ignore' => '3_2_1',  // ignore the RRUFF Sample -> IMA Mineral -> RRUFF Reference
+                ],
+                [
+                    107,126  // these are the only two samples that directly link to a reference
+                ],
+                true,
+            ],
+            'RRUFF Sample: override ignore search v1' => [
+                [  // given
+                    'dt_id' => 3,
+                    '1' => '!""',
+                    'ignore' => '*',  // disable entirely
+                ],
+                [  // default
+                    'dt_id' => 3,
+                    'ignore' => '3_2_1',  // ignore the RRUFF Sample -> IMA Mineral -> RRUFF Reference
+                ],
+                array_merge( range(98, 139), /*[323]*/ ),  // the 42 rruff samples that are linked to a mineral
+                true,
+            ],
+            'RRUFF Sample: override ignore search v2' => [
+                [  // given
+                    'dt_id' => 3,
+                    '1' => '""',
+                    'ignore' => '*',  // disable entirely
+                ],
+                [  // default
+                    'dt_id' => 3,
+                    'ignore' => '3_2_1',  // ignore the RRUFF Sample -> IMA Mineral -> RRUFF Reference
+                ],
+                [
+                    323  // this sample isn't linked to anything at all
+                ],
+                true,
             ],
 
             // Inverse search

@@ -606,7 +606,7 @@ class DatabaseInfoService
     private function getDatatypeSpecialFields($grandparent_datatype_id)
     {
         $query = $this->em->createQuery(
-           'SELECT dt.id AS dt_id, dtsf.field_purpose, dtsf.displayOrder, df.id AS df_id
+           'SELECT dt.id AS dt_id, dtsf.field_purpose, dtsf.displayOrder, dtsf.sort_desc, df.id AS df_id
             FROM ODR\AdminBundle\Entity\DataType AS dt
             LEFT JOIN ODR\AdminBundle\Entity\DataTypeSpecialFields AS dtsf WITH dtsf.dataType = dt
             LEFT JOIN ODR\AdminBundle\Entity\DataFields AS df WITH dtsf.dataField = df
@@ -621,6 +621,7 @@ class DatabaseInfoService
             $dt_id = $result['dt_id'];
             $field_purpose = $result['field_purpose'];
             $display_order = $result['displayOrder'];
+            $sort_desc = $result['sort_desc'];
             $df_id = $result['df_id'];
 
             if ( !isset($special_fields[$dt_id]) )
@@ -630,7 +631,7 @@ class DatabaseInfoService
                 if ( $field_purpose === DataTypeSpecialFields::NAME_FIELD )
                     $special_fields[$dt_id]['name'][$display_order] = $df_id;
                 else if ( $field_purpose === DataTypeSpecialFields::SORT_FIELD )
-                    $special_fields[$dt_id]['sort'][$display_order] = $df_id;
+                    $special_fields[$dt_id]['sort'][$display_order] = ['df_id' => $df_id, 'sort_desc' => $sort_desc];
                 else if ( $field_purpose === DataTypeSpecialFields::IMMEDIATE_SEARCH_FIELD )
                     $special_fields[$dt_id]['immediate_search'][$display_order] = $df_id;
             }
@@ -1041,8 +1042,11 @@ class DatabaseInfoService
         // ...going to need to also find their names from the cached datatype array
         foreach ($dt['nameFields'] as $display_order => $df_id)
             $current_namefields[$df_id] = ['display_order' => $display_order, 'field_name' => ''];
-        foreach ($dt['sortFields'] as $display_order => $df_id)
-            $current_sortfields[$df_id] = ['display_order' => $display_order, 'field_name' => ''];
+        foreach ($dt['sortFields'] as $display_order => $sort_df_data) {
+            $sort_df_id = $sort_df_data['df_id'];
+            $sort_desc = $sort_df_data['sort_desc'];
+            $current_sortfields[$sort_df_id] = ['display_order' => $display_order, 'field_name' => '', 'sort_desc' => $sort_desc];
+        }
 
         $datatypes_to_check = [$datatype_id];
         while ( !empty($datatypes_to_check) ) {

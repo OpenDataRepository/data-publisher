@@ -1,0 +1,24 @@
+odr_plugins.base.monospace:
+    name: Monospace Plugin
+    category: Base
+    plugin_type: datafield
+    render: odr_plugins.base.monospace
+    version: 1.0.0
+    override_fields: false
+    override_field_reload: false
+    override_child: false
+    override_table_fields: false
+    override_export: false
+    override_search: false
+    override_sort: false
+    suppress_no_fields_note: false
+    description: Forces a ParagraphText field to have monospaced font.
+    registered_events:
+
+    required_fields:
+        field:
+            name: Field
+            description: TODO
+            type: LongText
+
+    config_options:

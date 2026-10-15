@@ -100,8 +100,15 @@ class EntityCreationService
      * @param EventDispatcherInterface $event_dispatcher
      * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly CacheService $cache_service, private readonly LockService $lock_service, private readonly UUIDService $uuid_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly LoggerInterface $logger)
-    {
+    public function __construct(
+        private readonly EntityManager $em,
+        private readonly CacheService $cache_service,
+        private readonly LockService $lock_service,
+        private readonly UUIDService $uuid_service,
+        private readonly EventDispatcherInterface $event_dispatcher,
+        private readonly LoggerInterface $logger
+    ) {
+
     }
 
 
@@ -697,12 +704,13 @@ class EntityCreationService
      * @param DataFields $datafield
      * @param int $field_purpose {@link DataTypeSpecialFields::NAME_FIELD}, {@link DataTypeSpecialFields::SORT_FIELD}
      * @param int $display_order
+     * @param int $sort_desc
      * @param bool $delay_flush If true, then don't flush prior to returning
      * @param \DateTime|null $created If provided, then the created/updated dates are set to this
      *
      * @return DataTypeSpecialFields
      */
-    public function createDatatypeSpecialField($user, $datatype, $datafield, $field_purpose, $display_order = 999, $delay_flush = false, $created = null)
+    public function createDatatypeSpecialField($user, $datatype, $datafield, $field_purpose, $display_order = 999, $sort_desc = 0, $delay_flush = false, $created = null)
     {
         // ----------------------------------------
         // Have some verification to do first...
@@ -722,6 +730,7 @@ class EntityCreationService
         $dtsf->setDataField($datafield);
         $dtsf->setFieldPurpose($field_purpose);
         $dtsf->setDisplayOrder($display_order);
+        $dtsf->setSortDesc($sort_desc);
 
         $dtsf->setCreated($created);
         $dtsf->setUpdated($created);

@@ -1121,10 +1121,11 @@ class APIController extends ODRCustomController
             }
 
             // If this datatype has a name field, make sure the query selects it for the JSON response
-            if (!empty($datatype->getNameFields())) {
-                foreach ($datatype->getNameFields() as $name_df) {
+            if ( !empty($datatype->getNameFields()) ) {
+                foreach ($datatype->getNameFields() as $dtsf) {
                     // Might as well use the sort service for this too, but it's slightly trickier
                     //  since there could be more than one field making up the name values
+                    $name_df = $dtsf->getDataField();
                     $values = $sort_service->sortDatarecordsByDatafield(
                         $name_df->getId(),
                         'asc',

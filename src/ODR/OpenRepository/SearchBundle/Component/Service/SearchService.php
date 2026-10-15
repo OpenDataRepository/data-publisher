@@ -2507,10 +2507,10 @@ class SearchService
      * Returns one of four different arrays of related records, depending on the two boolean flags.
      *
      * @param int $datatype_id
-     * @param bool $datatype_is_ancestor If true, the values of the array will be descendants to $datatype_id
-     *                                   If false, then the values of the array be ancestors to $datatype_id
-     * @param bool $descendants_are_links If true, the values of the array will be linked records
-     *                                    If false, the values of the array will be child/parent records
+     * @param bool $datatype_is_ancestor If true, the values of the array will be descendants to the given datatype.
+     *                                   If false, then the values of the array will be ancestors to the given datatype.
+     * @param bool $descendants_are_links If true, the values of the array will be linked records.
+     *                                    If false, the values of the array will be child/parent records.
      * @return array
      */
     public function getCachedDatarecordList($datatype_id, $datatype_is_ancestor = false, $descendants_are_links = false)
