@@ -16,8 +16,10 @@ namespace ODR\OpenRepository\GraphBundle\Plugins\Base;
 // Services
 use ODR\AdminBundle\Component\Service\CryptoService;
 // ODR
+use ODR\AdminBundle\Exception\ODRException;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 // Symfony
+
 class CSVTablePlugin implements DatafieldPluginInterface
 {
 
@@ -28,8 +30,12 @@ class CSVTablePlugin implements DatafieldPluginInterface
      * @param CryptoService $crypto_service
      * @param string $odr_web_directory
      */
-    public function __construct(private readonly \Twig\Environment $templating, private readonly CryptoService $crypto_service, private $odr_web_directory)
-    {
+    public function __construct(
+        private readonly \Twig\Environment $templating,
+        private readonly CryptoService $crypto_service,
+        private $odr_web_directory
+    ) {
+
     }
 
 
@@ -90,18 +96,23 @@ class CSVTablePlugin implements DatafieldPluginInterface
 
             // ----------------------------------------
             // The method of data extraction depends on the type of field...
-            $is_file = false;
-            if ( $datafield['dataFieldMeta']['fieldType']['typeClass'] === 'File' )
-                $is_file = true;
-
-            // Extract the data from the field
+            $typeclass = $datafield['dataFieldMeta']['fieldType']['typeClass'];
             $ret = [];
-            if ( $is_file )
-                $ret = self::readFile($datarecord, $datafield);
-            else
-                $ret = self::readXYZData($datarecord, $datafield);
+            switch ($typeclass) {
+                case 'LongText':
+                    $ret = self::readParagraphText($datarecord, $datafield);
+                    break;
+                case 'File':
+                    $ret = self::readFile($datarecord, $datafield);
+                    break;
+                case 'XYZData':
+                    $ret = self::readXYZData($datarecord, $datafield);
+                    break;
+                default:
+                    throw new ODRException('The CSVTable plugin can not run on a "'.$typeclass.'" field');
+            }
 
-            // If either function couldn't finish, don't execute the plugin
+            // If the function couldn't read the field, then don't execute the plugin
             if ( is_null($ret) )
                 return '';
 
@@ -152,108 +163,12 @@ class CSVTablePlugin implements DatafieldPluginInterface
 
 
     /**
-     * Converts a file's contents into an array of lines.
+     * Given a couple lines, attempts to guess which delimiter (if any) they're using.
      *
-     * @param array $datarecord
-     * @param array $datafield
-     *
+     * @param array $lines
      * @return array|null
      */
-    private function readFile($datarecord, $datafield)
-    {
-        $file_data = [];
-        $num_columns = 0;
-
-        $datafield_id = $datafield['id'];
-
-        if ( isset($datarecord['dataRecordFields'][$datafield_id]['file']['0']) ) {
-            $files_to_delete = [];
-
-            // Check that the file exists...
-            $file = $datarecord['dataRecordFields'][$datafield_id]['file']['0'];
-            $local_filepath = realpath( $this->odr_web_directory.'/'.$file['localFileName']);
-            if (!$local_filepath) {
-                // File does not exist, decryption depends on whether the file is
-                //  public or not...
-                $public_date = $file['fileMeta']['publicDate'];
-                $now = new \DateTime();
-                if ($now < $public_date) {
-                    // File is not public...decrypt to something hard to guess
-                    $non_public_filename = md5($file['original_checksum'].'_'.$file['id'].'_'.random_int(2500,10000)).'.'.$file['ext'];
-                    $local_filepath = $this->crypto_service->decryptFile($file['id'], $non_public_filename);
-
-                    // Ensure the decrypted version gets deleted later
-                    array_push($files_to_delete, $local_filepath);
-                }
-                else {
-                    // File is public, but not decrypted for some reason
-                    $local_filepath = $this->crypto_service->decryptFile($file['id']);
-                }
-            }
-
-            // Only allow this action for files smaller than 5Mb?
-            $filesize = $file['filesize'] / 1024 / 1024;
-            if ($filesize > 5)
-                throw new \Exception('Currently not permitted to execute on files larger than 5Mb');
-
-            // Shouldn't happen, but be safe...
-            if ( !file_exists($local_filepath) )
-                return null;
-
-            // Load file and parse into array
-            ini_set('auto_detect_line_endings', true);
-            $handle = fopen($local_filepath, "r");
-            if ( !$handle )
-                throw new \Exception('Could not open "'.$local_filepath.'"');
-
-            $ret = self::guessFileProperties($handle);
-            $delimiter = $ret['delimiter'];
-            $num_columns = $ret['num_columns'];
-
-            if ( is_null($delimiter) || is_null($num_columns) ) {
-                // Some sort of error...abort the plugin execution so it doesn't throw an error
-                fclose($handle);
-                // Delete any non-public files that got decrypted
-                foreach ($files_to_delete as $file_path)
-                    unlink($file_path);
-
-                return null;
-            }
-
-            // Re-read the file with the determined delimiter
-            fseek($handle, 0, SEEK_SET);
-            $csv_data = fgetcsv($handle, 1024, $delimiter);
-            while ( $csv_data !== false ) {
-                $file_data[] = $csv_data;
-                $csv_data = fgetcsv($handle, 1024, $delimiter);
-            }
-
-
-            // ----------------------------------------
-            // Done reading the file
-            fclose($handle);
-
-            // Delete any non-public files that got decrypted
-            foreach ($files_to_delete as $file_path)
-                unlink($file_path);
-        }
-
-        return [
-            'data' => $file_data,
-            'num_columns' => $num_columns
-        ];
-    }
-
-
-    /**
-     * Attempts to guess the delimiter and the number of columns from the first several lines of the
-     * given file.
-     *
-     * @param resource $handle
-     * @return array
-     */
-    private function guessFileProperties($handle)
-    {
+    private function guessDelimiters($lines) {
         // Since these are (hopefully) scientific data files, the set of valid delimiters is (hopefully)
         //  pretty small
         $valid_delimiters = [
@@ -267,23 +182,6 @@ class CSVTablePlugin implements DatafieldPluginInterface
             'delimiter' => null,
             'num_columns' => null,
         ];
-
-        // Read the first couple non-comment lines in the file...
-        $lines = [];
-        for ($i = 0; $i < 5; ) {
-            $line = trim(fgets($handle));
-            if ( !feof($handle) && $line !== '' && str_starts_with($line, '#') ) {
-                // empty line or comment line, skip over if possible
-            }
-            else if ( $line !== '' ) {
-                // should be a line of data...store for further parsing
-                $lines[] = $line;
-                $i++;
-            }
-
-            if ( feof($handle) )
-                break;
-        }
 
         // If the file was blank or entirely composed of comments, then there's nothing to check
         if ( empty($lines) )
@@ -342,6 +240,210 @@ class CSVTablePlugin implements DatafieldPluginInterface
         $ret['delimiter'] = $delimiter_guess;
         $ret['num_columns'] = $num_columns_guess;
         return $ret;
+    }
+
+
+    /**
+     * Attempts to guess the delimiter and the number of columns from the first several lines of the
+     * given file.
+     *
+     * @param array $lines
+     * @return array
+     */
+    private function guessTextDelimiter($lines)
+    {
+        // Extract the first couple non-comment lines
+        $check_lines = [];
+        $count = 0;
+        for ($i = 0; ; $i++) {
+            // If checked enough lines, or no lines remaining, then stop the loop
+            if ( $count == 5 || !isset($lines[$i]) )
+                break;
+
+            $line = $lines[$i];
+            if ( $line !== '' ) {
+                if ( str_starts_with($line, '#') ) {
+                    // comment line, skip over if possible
+                }
+                else {
+                    // should be a line of data...store for further parsing
+                    $check_lines[] = $line;
+                    $count++;
+                }
+            }
+        }
+
+        // Attempt to guess the delimiters
+        return self::guessDelimiters($check_lines);
+    }
+
+
+    /**
+     * Attempts to guess the delimiter and the number of columns from the first several lines of the
+     * given file.
+     *
+     * @param resource $handle
+     * @return array
+     */
+    private function guessFileDelimiters($handle)
+    {
+        // Read the first couple non-comment lines in the file...
+        $lines = [];
+        for ($i = 0; $i < 5; ) {
+            $line = trim(fgets($handle));
+            if ( !feof($handle) && $line !== '' && str_starts_with($line, '#') ) {
+                // empty line or comment line, skip over if possible
+            }
+            else if ( $line !== '' ) {
+                // should be a line of data...store for further parsing
+                $lines[] = $line;
+                $i++;
+            }
+
+            if ( feof($handle) )
+                break;
+        }
+
+        // Attempt to guess the delimiters
+        return self::guessDelimiters($lines);
+    }
+
+
+    /**
+     * Attempts to convert a ParagraphText field's contents into an array of lines.
+     *
+     * @param array $datarecord
+     * @param array $datafield
+     *
+     * @return array|null
+     */
+    private function readParagraphText($datarecord, $datafield)
+    {
+        $field_data = [];
+        $num_columns = 0;
+
+        $datafield_id = $datafield['id'];
+        if ( isset($datarecord['dataRecordFields'][$datafield_id]['longText']) ) {
+            // Going to attempt to turn this field's contents into a table...
+            $value = $datarecord['dataRecordFields'][$datafield_id]['longText'][0]['value'];
+            $lines = str_replace("\r", "", $value);
+            $lines = explode("\n", $lines);
+
+            // ...which requires guessing a delimiter first
+            $ret = self::guessTextDelimiter($lines);
+            $delimiter = $ret['delimiter'];
+            $num_columns = $ret['num_columns'];
+
+            if ( is_null($delimiter) || is_null($num_columns) ) {
+                // Some sort of error...abort the plugin execution so it doesn't throw an error
+                return null;
+            }
+
+            // No error, so use the given delimiter to read all the lines of data in the field
+            foreach ($lines as $line) {
+                $csv_data = str_getcsv($line, $delimiter);
+                $field_data[] = $csv_data;
+            }
+        }
+
+        return [
+            'data' => $field_data,
+            'num_columns' => $num_columns
+        ];
+    }
+
+
+    /**
+     * Converts a file's contents into an array of lines.
+     *
+     * @param array $datarecord
+     * @param array $datafield
+     *
+     * @return array|null
+     */
+    private function readFile($datarecord, $datafield)
+    {
+        $file_data = [];
+        $num_columns = 0;
+
+        $datafield_id = $datafield['id'];
+
+        if ( isset($datarecord['dataRecordFields'][$datafield_id]['file']['0']) ) {
+            $files_to_delete = [];
+
+            // Check that the file exists...
+            $file = $datarecord['dataRecordFields'][$datafield_id]['file']['0'];
+            $local_filepath = realpath( $this->odr_web_directory.'/'.$file['localFileName']);
+            if (!$local_filepath) {
+                // File does not exist, decryption depends on whether the file is
+                //  public or not...
+                $public_date = $file['fileMeta']['publicDate'];
+                $now = new \DateTime();
+                if ($now < $public_date) {
+                    // File is not public...decrypt to something hard to guess
+                    $non_public_filename = md5($file['original_checksum'].'_'.$file['id'].'_'.random_int(2500,10000)).'.'.$file['ext'];
+                    $local_filepath = $this->crypto_service->decryptFile($file['id'], $non_public_filename);
+
+                    // Ensure the decrypted version gets deleted later
+                    array_push($files_to_delete, $local_filepath);
+                }
+                else {
+                    // File is public, but not decrypted for some reason
+                    $local_filepath = $this->crypto_service->decryptFile($file['id']);
+                }
+            }
+
+            // Only allow this action for files smaller than 5Mb?
+            $filesize = $file['filesize'] / 1024 / 1024;
+            if ($filesize > 5)
+                throw new \Exception('Currently not permitted to execute on files larger than 5Mb');
+
+            // Shouldn't happen, but be safe...
+            if ( !file_exists($local_filepath) )
+                return null;
+
+            // Load file and parse into array
+            ini_set('auto_detect_line_endings', true);
+            $handle = fopen($local_filepath, "r");
+            if ( !$handle )
+                throw new \Exception('Could not open "'.$local_filepath.'"');
+
+            $ret = self::guessFileDelimiters($handle);
+            $delimiter = $ret['delimiter'];
+            $num_columns = $ret['num_columns'];
+
+            if ( is_null($delimiter) || is_null($num_columns) ) {
+                // Some sort of error...abort the plugin execution so it doesn't throw an error
+                fclose($handle);
+                // Delete any non-public files that got decrypted
+                foreach ($files_to_delete as $file_path)
+                    unlink($file_path);
+
+                return null;
+            }
+
+            // Re-read the file with the determined delimiter
+            fseek($handle, 0, SEEK_SET);
+            $csv_data = fgetcsv($handle, 1024, $delimiter);
+            while ( $csv_data !== false ) {
+                $file_data[] = $csv_data;
+                $csv_data = fgetcsv($handle, 1024, $delimiter);
+            }
+
+
+            // ----------------------------------------
+            // Done reading the file
+            fclose($handle);
+
+            // Delete any non-public files that got decrypted
+            foreach ($files_to_delete as $file_path)
+                unlink($file_path);
+        }
+
+        return [
+            'data' => $file_data,
+            'num_columns' => $num_columns
+        ];
     }
 
 
