@@ -32,6 +32,7 @@
         'editable_only': editable_only,
 
         'display_export_options': true,
+        'override_disablesidebar': override_disablesidebar,
         'intent': 'searching',
 
         'user': user,
@@ -99,9 +100,9 @@
 
 <script>
     $(function() {
-{% if (odr_wordpress_integrated and theme.themeMeta.disableSearchSidebar == true) %}
+{% if config_odr_wordpress_integrated and theme.themeMeta.disableSearchSidebar == true and override_disablesidebar == false %}
         disableSearchSidebar();        {# defined in @ODRAdmin/Default/common_js.html.twig #}
-{% elseif theme.themeMeta.disableSearchSidebar == false %}
+{% elseif theme.themeMeta.disableSearchSidebar == false or override_disablesidebar == true %}
         enableSearchSidebar('{{ search_key }}', 'expanded');
 {% else %}
         enableSearchSidebar('{{ search_key }}', 'collapsed');

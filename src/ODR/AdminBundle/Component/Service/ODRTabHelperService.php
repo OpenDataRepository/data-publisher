@@ -566,6 +566,92 @@ class ODRTabHelperService
 
 
     /**
+     * Returns the current status of the 'override_disablesidebar' session key.
+     *
+     * @param string $odr_tab_id
+     * @return bool
+     */
+    public function getOverrideDisableSidebar($odr_tab_id)
+    {
+        // Check that the requested tab exists in the user's session
+        $tab_data = self::getTabData($odr_tab_id);
+        if ( is_null($tab_data) ) {
+            // If the tab doesn't exist, then always return false
+            return false;
+        }
+
+        // The theme_id is less likely to exist than the datatype_id...
+        $theme_id = $cookie_key = null;
+        if ( isset($tab_data['theme_id']) ) {
+            $theme_id = $tab_data['theme_id'];
+            $cookie_key = 'theme_'.$theme_id.'_override_disablesidebar';
+        }
+
+        // If the override_disablesidebar value doesn't exist in the current session...
+        if ( !isset($tab_data['override_disablesidebar']) ) {
+            // ...then attempt to fall back to a value in a cookie first
+            $request = $this->request_stack->getCurrentRequest();
+            $cookies = $request->cookies;
+            if ( !is_null($cookie_key) && $cookies->has($cookie_key) ) {
+                // ...use the value from the cookie if it exists
+                $val = $cookies->get($cookie_key);
+                if ( $val === '0' )
+                    $tab_data['override_disablesidebar'] = false;
+                else
+                    $tab_data['override_disablesidebar'] = true;
+            }
+            else {
+                // ...but if the cookie doesn't exist, then use the default
+                $tab_data['override_disablesidebar'] = false;
+            }
+
+            // Regardless of where it came from, save the setting in the tab data
+            self::setTabData($odr_tab_id, $tab_data);
+        }
+
+        // Return the current value
+        return $tab_data['override_disablesidebar'];
+    }
+
+
+    /**
+     * Toggles the current status of the 'override_disablesidebar' session key.
+     *
+     * @param string $odr_tab_id
+     * @return bool
+     */
+    public function toggleOverrideDisableSidebar($odr_tab_id)
+    {
+        // Check that the requested tab exists in the user's session
+        $tab_data = self::getTabData($odr_tab_id);
+        if ( is_null($tab_data) ) {
+            // If the tab doesn't exist, then always return false
+            return false;
+        }
+
+        // NOTE: can't set cookie values here, because that has to be tied to the response
+        // Also can't check the cookie value here, because that would prevent override_disablesidebar
+        //  from being changed
+
+        if ( !isset($tab_data['override_disablesidebar']) ) {
+            // If the key doesn't exist, then assume the user wants to start overriding
+            $tab_data['override_disablesidebar'] = true;
+            self::setTabData($odr_tab_id, $tab_data);
+
+            return true;
+        }
+        else {
+            // If the key does exist, then invert it before saving and returning
+            $override_disablesidebar = $tab_data['override_disablesidebar'];
+            $tab_data['override_disablesidebar'] = !$override_disablesidebar;
+            self::setTabData($odr_tab_id, $tab_data);
+
+            return !$override_disablesidebar;
+        }
+    }
+
+
+    /**
      * Checks whether the requested tab exists in the user's session, returning null if it doesn't.
      *
      * @param string $odr_tab_id
