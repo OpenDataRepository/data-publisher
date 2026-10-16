@@ -3,7 +3,7 @@ odr_plugins.base.csvtable:
     category: Base
     plugin_type: datafield
     render: odr_plugins.base.csvtable
-    version: 2.0.0
+    version: 2.1.0
     override_fields: false
     override_field_reload: false
     override_child: false
@@ -18,8 +18,8 @@ odr_plugins.base.csvtable:
     required_fields:
         csv_file:
             name: CSV File
-            description: A file or XYZData field containing CSV-formatted data.
-            type: File|XYZData
+            description: A ParagraphText, File, or XYZData field containing CSV-formatted data.
+            type: LongText|File|XYZData
 
     config_options:
         use_first_row_as_header:

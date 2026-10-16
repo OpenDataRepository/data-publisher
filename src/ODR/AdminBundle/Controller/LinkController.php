@@ -3615,6 +3615,7 @@ class LinkController extends ODRCustomController
                     $dr,
                     '',        // no search key
                     null,      // just use the master theme
+                    false,     // sidebar will always be enabled for this
                     'multiple' // don't attach the javascript for a display page
                 ),
             ];

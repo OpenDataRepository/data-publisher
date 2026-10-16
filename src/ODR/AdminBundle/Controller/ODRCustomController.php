@@ -247,6 +247,8 @@ class ODRCustomController extends AbstractController
         if ( $cookies->has('datatype_'.$datatype->getId().'_editable_only') )
             $only_display_editable_datarecords = $cookies->get('datatype_'.$datatype->getId().'_editable_only');
 
+        // Determine whether the user is currently overriding a hidden search sidebar
+        $override_disablesidebar = $odr_tab_service->getOverrideDisableSidebar($odr_tab_id);
 
         // If a datarecord restriction exists, and the user only wants to display editable datarecords...
         $editable_only = false;
@@ -440,6 +442,7 @@ class ODRCustomController extends AbstractController
                         'has_search_restriction' => $has_search_restriction,
                         'editable_only' => $only_display_editable_datarecords,
                         'can_edit_datatype' => $can_edit_datatype,
+                        'override_disablesidebar' => $override_disablesidebar,
                         'use_jupyterhub' => $use_jupyterhub,
 
                         'datatype_array' => $stacked_datatype_array,
@@ -486,6 +489,7 @@ class ODRCustomController extends AbstractController
                     'can_edit_datatype' => $can_edit_datatype,
                     'editable_only' => $only_display_editable_datarecords,
                     'has_search_restriction' => $has_search_restriction,
+                    'override_disablesidebar' => $override_disablesidebar,
 
                     // required for load_datarecord_js.html.twig
                     'search_theme_id' => $theme->getId(),
@@ -603,6 +607,7 @@ class ODRCustomController extends AbstractController
 
                     'can_edit_datatype' => $can_edit_datatype,
                     'editable_only' => $only_display_editable_datarecords,
+                    'override_disablesidebar' => $override_disablesidebar,
                     'has_search_restriction' => $has_search_restriction,
                     'public_datarecord_list' => $public_datarecord_list,
 

@@ -58,7 +58,6 @@ use Doctrine\ORM\EntityManager;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
-
 class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterface, MassEditTriggerEventInterface, TableResultsOverrideInterface
 {
 
@@ -233,6 +232,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     case 'Original CIF File Contents':
                         // This field can't be edited, since it's from the Original CIF file
 
+                    case 'Diffraction File Table':
                     case 'Diffraction Search Values':
                     case 'Wavelength':
                     case 'Radiation Element':
@@ -783,6 +783,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         foreach ($plugin_fields as $df_id => $rpf_df) {
             switch ( $rpf_df['rpf_name'] ) {
                 // These fields are derived from the DIF File
+                case 'Diffraction File Table':
                 case 'Diffraction Search Values':
 //                case 'Wavelength':    // these two are optional
 //                case 'Radiation Element':
@@ -1269,6 +1270,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 }
                 else if ( $relevant_rpf_name === 'DIF File' ) {
                     // These fields should always get cleared when a DIF File is deleted
+                    $file_values['Diffraction File Table'] = '';
                     $file_values['Diffraction Search Values'] = '';
                     $file_values['Wavelength'] = '';
                     $file_values['Radiation Element'] = '';
@@ -1814,6 +1816,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 case 'Original CIF File Contents':
 
                 case 'DIF File':
+                case 'Diffraction File Table':
                 case 'Diffraction Search Values':
                 case 'Wavelength':
                 case 'Radiation Element':
@@ -1938,7 +1941,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 // If either of these files are uploaded...
                 foreach ($file_values as $rpf_name => $df_value) {
                     // ...the DIF File remains authoritative for these fields...
-                    if ( $rpf_name === 'Diffraction Search Values'
+                    if ( $rpf_name === 'Diffraction File Table' || $rpf_name === 'Diffraction Search Values'
                         || $rpf_name === 'Wavelength' || $rpf_name === 'Radiation Element'
                     ) {
                         continue;
@@ -2880,11 +2883,21 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
     private function readDIFFile($local_filepath)
     {
         // ----------------------------------------
-        // The relevant section of the DIF file has seven columns...2-THETA, INTENSITY, D-SPACING,
-        //  H, K, L, and Multiplicity...this regex extracts the first three columns, and discards
-        //  the remainder
-        $pattern = '/(?:\s+)([\d\.]+)(?:\s+)([\d\.]+)(?:\s+)([\d\.]+)(?:[^\n]+)/';
-        $diffraction_values = [];
+        // Bunch of different regexes on this file...
+
+        // ...the line with wavelength is a string followed by a decimal value
+        $wavelength_regex = '/\s+X-RAY WAVELENGTH:\s+([^\s]+)/';
+        // ...the line with cellparameters is a string followed by six decimal values
+        $cellparam_regex = '/\s+CELL PARAMETERS:\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)/';
+        // ...the line with the space group is a string followed by another string
+        $space_group_regex = '/\s+SPACE GROUP:\s+([^\s]+)/';
+
+        // ...and the table has seven columns...2-THETA, INTENSITY, D-SPACING, H, K, L, and
+        //  Multiplicity...sandwiched inbetween a variable number of spaces
+        $diffraction_regex = '/(?:\s+)([0-9.]+)(?:\s+)([0-9.]+)(?:\s+)([0-9.]+)(?:\s+)([0-9.-]+)(?:\s+)([0-9.-]+)(?:\s+)([0-9.-]+)(?:\s+)([0-9.]+)(?:\s+)/';
+        $diffraction_table_lines = [];
+        $diffraction_table_lines[] = "2-THETA\tINTENSITY\tD-SPACING\tH\tK\tL\tMultiplicity";
+        $diffraction_search_values = [];
 
         // Also want to get the rest of the values from this file when possible, even if they're
         //  not likely to be used
@@ -2946,7 +2959,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             }
             else if ( str_contains($line, 'X-RAY WAVELENGTH') ) {
                 $matches = [];
-                if ( preg_match('/\s+X-RAY WAVELENGTH:\s+([^\s]+)/', $line, $matches) === 1 ) {
+                if ( preg_match($wavelength_regex, $line, $matches) === 1 ) {
                     $file_values['Wavelength'] = $matches[1];
 
                     // If the file has a valid wavelength (which it should...)
@@ -2962,7 +2975,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             }
             else if ( str_contains($line, 'CELL PARAMETERS:') ) {
                 $matches = [];
-                if ( preg_match('/\s+CELL PARAMETERS:\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)/', $line, $matches) === 1 ) {
+                if ( preg_match($cellparam_regex, $line, $matches) === 1 ) {
                     if (ValidUtility::isValidShortVarchar($matches[1]))
                         $file_values['a'] = $matches[1];
                     if (ValidUtility::isValidShortVarchar($matches[2]))
@@ -2980,7 +2993,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             else if ( str_contains($line, 'SPACE GROUP:') ) {
                 // Space Group are usually 5-12ish characters long, so they fit inside a ShortVarchar
                 $matches = [];
-                if ( preg_match('/\s+SPACE GROUP:\s+([^\s]+)/', $line, $matches) === 1 ) {
+                if ( preg_match($space_group_regex, $line, $matches) === 1 ) {
                     $sg = trim($matches[1]);
 
                     // For historical reasons, AMC files might have a '*' before the space group
@@ -3039,20 +3052,26 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     break;
 
                 $matches = [];
-                $ret = preg_match($pattern, $line, $matches);
+                $ret = preg_match($diffraction_regex, $line, $matches);
                 if ( $ret === 1 ) {
                     $two_theta = $matches[1];
                     $intensity = $matches[2];
                     $d_spacing = $matches[3];
+                    $h = $matches[4];
+                    $k = $matches[5];
+                    $l = $matches[6];
+                    $mult = $matches[7];
+
+                    $diffraction_table_lines[] = $two_theta."\t".$intensity."\t".$d_spacing."\t".$h."\t".$k."\t".$l."\t".$mult;
 
                     if ( floatval($intensity) >= 4.0)
-                        $diffraction_values[] = '('.$d_spacing.','.$intensity.','.$two_theta.')';
+                        $diffraction_search_values[] = '('.$d_spacing.','.$intensity.','.$two_theta.')';
                 }
             }
         }
 
-        // Want all file contents in a single field
-        $file_values['Diffraction Search Values'] = implode("|", $diffraction_values);
+        $file_values['Diffraction File Table'] = implode("\n", $diffraction_table_lines);
+        $file_values['Diffraction Search Values'] = implode("|", $diffraction_search_values);
 
         // All data gathered, close the file and return the mapping array
         fclose($handle);
@@ -3348,6 +3367,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         $original_cif_file_contents_df_id = $render_plugin_map['Original CIF File Contents']['id'];
 
         $dif_file_df_id = $render_plugin_map['DIF File']['id'];
+        $diffraction_file_table_df_id = $render_plugin_map['Diffraction File Table']['id'];
         $diffraction_search_values_df_id = $render_plugin_map['Diffraction Search Values']['id'];
         $wavelength_df_id = $render_plugin_map['Wavelength']['id'];
         $radiation_element_df_id = $render_plugin_map['Radiation Element']['id'];
@@ -3362,6 +3382,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
             $amc_file_contents_short_df_id => [$amc_file_df_id],
             $cif_file_contents_df_id => [$cif_file_df_id],
             $original_cif_file_contents_df_id => [$original_cif_file_df_id],
+            $diffraction_file_table_df_id => [$dif_file_df_id],
             $diffraction_search_values_df_id => [$dif_file_df_id],
             $wavelength_df_id => [$dif_file_df_id],
             $radiation_element_df_id => [$dif_file_df_id],

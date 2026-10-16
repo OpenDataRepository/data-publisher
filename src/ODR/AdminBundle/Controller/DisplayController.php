@@ -268,6 +268,9 @@ class DisplayController extends ODRCustomController
             if ( $can_edit_datatype && !is_null($restricted_datarecord_list) && $only_display_editable_datarecords )
                 $editable_only = true;
 
+            // Determine whether the user is currently overriding a hidden search sidebar
+            $override_disablesidebar = $odr_tab_service->getOverrideDisableSidebar($odr_tab_id);
+
 
             // If this datarecord is being viewed from a search result list...
             $original_search_key = $search_key;
@@ -344,6 +347,7 @@ class DisplayController extends ODRCustomController
                 [
                     'page_type' => 'display',
                     'theme' => $theme,
+                    'override_disablesidebar' => $override_disablesidebar,
 
                     'can_edit_datarecord' => $can_edit_datarecord,
                     'can_add_datarecord' => $can_add_datarecord,
@@ -373,7 +377,7 @@ class DisplayController extends ODRCustomController
             // Render the display page for this datarecord
             /** @var ODRRenderService $odr_render_service */
             $odr_render_service = $this->render_service;
-            $page_html = $odr_render_service->getDisplayHTML($user, $datarecord, $merged_search_key, $theme);
+            $page_html = $odr_render_service->getDisplayHTML($user, $datarecord, $merged_search_key, $theme, $override_disablesidebar);
 
             // $now = microtime(true);
             // print "NOW: " . $now . "<br />";
