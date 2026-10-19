@@ -80,6 +80,7 @@ services:
                 form.factory: '@form.factory'
                 security.token_storage: '@security.token_storage'
                 odr.crawler_verification_service: '@odr.crawler_verification_service'
+                odr.recaptcha_service: '@odr.recaptcha_service'
                 security.csrf.token_manager: '@security.csrf.token_manager'
                 parameter_bag: '@parameter_bag'
                 event_dispatcher: '@event_dispatcher'
@@ -992,6 +993,21 @@ services:
         class: ODR\AdminBundle\Component\Service\CrawlerVerificationService
         arguments:
             $data_file: "%odr_crawler_ip_file%"
+            $logger: "@logger"
+
+    # reCAPTCHA for ODR's own pages.  Only active for the hosts named in this instance's
+    # parameters.yml, so wordpress-integrated sites keep using the gate in the astra child theme.
+    #
+    # NOTE: the parameter bag is injected rather than the individual parameters.  Referencing a
+    # "%parameter%" that an instance hasn't defined is a container compile error, and most
+    # instances have no reason to define these.
+    odr.recaptcha_service:
+        public: true
+        class: ODR\AdminBundle\Component\Service\RecaptchaService
+        arguments:
+            $parameter_bag: "@parameter_bag"
+            $cache_service: "@odr.cache_service"
+            $crawler_verification_service: "@odr.crawler_verification_service"
             $logger: "@logger"
 
     odr.tab_helper_service:

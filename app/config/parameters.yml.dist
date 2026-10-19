@@ -280,3 +280,24 @@ parameters:
         jupyterhub_baseurl: [[ ENTER URL OF JUPYTERHUB DOMAIN HERE ]]     # This url MUST NOT have a trailing forward slash
         api_key: [[ ENTER RANDOM KEY HERE - Text String ]]
         bridge_token: [[ ENTER RANDOM KEY HERE - Text String ]]
+
+    # ----------------------------------------------------------------------------
+    # reCAPTCHA for ODR's own search urls (RecaptchaService)
+    #
+    # Only set these on an install that serves ODR directly to the public and wants
+    # /<search_slug>/<search_string> reopened to anonymous visitors.  With no keys set, those
+    # urls stay closed to anyone who isn't logged in, which is the default everywhere.
+    #
+    # Sites that reach ODR through wordpress (the odr.io subdomains, rruff.net) use the gate in
+    # the astra child theme instead and must NOT list their hosts here.
+    #
+    # DELIBERATELY COMMENTED OUT: these are read through the parameter bag, so a missing key is
+    # simply "not configured".  Leaving them commented also keeps
+    # validate_instance_config.php from reporting every other instance as missing keys.
+    #
+    #   odr_recaptcha_site_key: ''        # reCAPTCHA v2 "I'm not a robot" site key
+    #   odr_recaptcha_secret: ''          # ...and its secret
+    #   odr_recaptcha_hosts: 'www.odr.io,odr.io'   # hosts this applies to; default if unset
+    #   odr_recaptcha_block_seconds: 7200          # ban length, and how long a pass is trusted
+    #   odr_recaptcha_allow_verified_crawlers: 0   # 1 lets verified crawlers skip the challenge
+    # ----------------------------------------------------------------------------

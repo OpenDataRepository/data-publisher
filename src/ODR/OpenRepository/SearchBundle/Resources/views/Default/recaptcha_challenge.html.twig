@@ -1,0 +1,60 @@
+{# Challenge shown to an anonymous visitor asking for a url that runs a search.
+
+   Deliberately self-contained: it extends nothing and loads nothing but Google's widget.  It is
+   served to clients we don't trust yet, so it shouldn't pull in the full page chrome, and on a
+   wordpress-integrated install there is no chrome to pull in anyway.
+
+   Posting the form returns to the same url, where RecaptchaService checks the token. #}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Confirm you are human</title>
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+            margin: 0;
+            padding: 40px 16px;
+            background: #fff;
+            color: #333;
+            display: flex;
+            justify-content: center;
+        }
+        main { max-width: 32rem; }
+        h1 { font-size: 1.3rem; margin: 0 0 .75rem; }
+        p { line-height: 1.5; margin: 0 0 1rem; }
+        .term { font-weight: 600; }
+        button { font: inherit; padding: .5rem 1rem; margin-top: 1rem; cursor: pointer; }
+        .note { color: #666; font-size: .9rem; }
+    </style>
+</head>
+<body>
+<main>
+    <h1>Confirm you are human</h1>
+
+    <p>
+        Searching for <span class="term">{{ search_string }}</span> needs a quick check first.
+        Automated traffic has been running very large numbers of searches, so a search that
+        arrives straight from a url is confirmed this way.
+    </p>
+
+    <form method="post" action="{{ form_action }}">
+        <input type="hidden" name="odr_recaptcha" value="1">
+        <div class="g-recaptcha" data-sitekey="{{ site_key }}"></div>
+        <button type="submit">Continue</button>
+    </form>
+
+    {% if failed is defined and failed %}
+        <p class="note">That didn't verify. Please try again.</p>
+    {% endif %}
+
+    <p class="note">
+        Already have an account? <a href="{{ path('fos_user_security_login') }}">Log in</a> and
+        searches run without this step.
+    </p>
+</main>
+</body>
+</html>
