@@ -2569,7 +2569,7 @@ class SearchKeyService
         $readable_search_key = array();
         foreach ($search_params as $key => $value) {
             // Ignore these keys
-            if ( $key === 'dt_id' || $key === 'sort_by' || $key === 'ignore' || $key === 'merge' )
+            if ( $key === 'dt_id' || $key === 'sort_by' || $key === 'merge' )
                 continue;
 
             if ( $key === 'gen' || $key === 'gen_lim' ) {
@@ -2581,6 +2581,9 @@ class SearchKeyService
                     $readable_search_key['All Fields (current database)'] = $value;
                 else
                     $readable_search_key['All Fields (including descendants)'] = $value;
+            }
+            else if ( $key === 'ignore' ) {
+                $readable_search_key['Ignoring certain descendants'] = '';
             }
             else if ( $key === 'inverse' ) {
                 $readable_search_key['Search Ancestor'] = $dt_lookup[$value];
@@ -2912,12 +2915,17 @@ class SearchKeyService
 
         foreach ($default_search_params as $key => $value) {
             // ...but this can get complicated in several cases
-            if ($key === 'dt_id' || $key === 'merge' || $key === 'sort_by' || $key === 'ignore') {
+            if ($key === 'dt_id' || $key === 'merge' || $key === 'sort_by') {
                 // The defaults for these keys should never be used
             }
             else if ($key === 'gen' || $key === 'gen_lim') {
                 // The defaults for these keys should only be used when neither of them already exist
                 if ( !isset($given_search_params['gen']) && !isset($given_search_params['gen_lim']) )
+                    $merged_search_params[$key] = $value;
+            }
+            else if ($key === 'ignore') {
+                // The default for this should only be used when it doesn't already exist
+                if ( !isset($given_search_params['ignore']) )
                     $merged_search_params[$key] = $value;
             }
             else if ($key === 'inverse') {

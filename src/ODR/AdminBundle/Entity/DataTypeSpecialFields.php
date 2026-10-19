@@ -50,6 +50,11 @@ class DataTypeSpecialFields
     private $displayOrder;
 
     /**
+     * @var int
+     */
+    private $sort_desc;
+
+    /**
      * @var \DateTime
      */
     private $created;
@@ -146,6 +151,30 @@ class DataTypeSpecialFields
     public function getDisplayOrder()
     {
         return $this->displayOrder;
+    }
+
+    /**
+     * Set sort_desc.
+     *
+     * @param int $sort_desc
+     *
+     * @return DataTypeSpecialFields
+     */
+    public function setSortDesc($sort_desc)
+    {
+        $this->sort_desc = $sort_desc;
+
+        return $this;
+    }
+
+    /**
+     * Get sort_desc.
+     *
+     * @return int
+     */
+    public function getSortDesc()
+    {
+        return $this->sort_desc;
     }
 
     /**

@@ -33,6 +33,7 @@ use ODR\AdminBundle\Exception\ODRForbiddenException;
 use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 use ODR\AdminBundle\Component\Service\DatabaseInfoService;
+use ODR\AdminBundle\Component\Service\RecaptchaService;
 use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\AdminBundle\Component\Service\ODRTabHelperService;
 use ODR\AdminBundle\Component\Service\PaginationHelperService;
@@ -250,7 +251,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
 
             if ( $search_string !== '' ) {
                 $immediate_search_field = $target_datatype->getImmediateSearchField();
-                if ( empty($immediate_search_field) ) {
+                if ( is_null($immediate_search_field) ) {
                     // If no field is specified for this purpose, then splice the given value into
                     //  the 'general' search
                     $default_search_params['gen'] = $search_string;
@@ -258,8 +259,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
                 else {
                     // ...otherwise, splice in the given value for that field.  This intentionally
                     //  overrides the field's value in the 'default search key', if it has one
-                    $df = $immediate_search_field[0];
-                    $default_search_params[ $df->getId() ] = $search_string;
+                    $default_search_params[ $immediate_search_field->getId() ] = $search_string;
                 }
             }
 
@@ -358,6 +358,31 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
 
 
     /**
+     * The tiny 404 used to refuse a search url.
+     *
+     * No template, no assets: these urls cost almost nothing to refuse, and the X-Robots-Tag
+     * works on clients that ignore the visible page.
+     *
+     * @return Response
+     */
+    private static function searchRefusedResponse()
+    {
+        $response = new Response(
+            '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
+            .'<title>404 Not Found</title></head>'
+            .'<body><h1>404 Not Found</h1>'
+            .'<p>This page is not available. <a href="/">Return to the homepage</a>.</p>'
+            .'</body></html>',
+            404
+        );
+        $response->headers->set('Content-Type', 'text/html; charset=utf-8');
+        $response->headers->set('X-Robots-Tag', 'noindex, nofollow');
+
+        return $response;
+    }
+
+
+    /**
      * Renders the base page for searching purposes
      *
      * @param String $search_slug   Which datatype to load a search page for.
@@ -387,20 +412,73 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
             //  the wordpress user into the token storage by this point
             $current_user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
             if ( $current_user === 'anon.' ) {
-                // Keep this tiny on purpose...no template, no assets.  These urls cost almost
-                //  nothing to refuse, and the X-Robots-Tag works on clients that ignore the
-                //  visible page
-                $response = new Response(
-                    '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
-                    .'<title>404 Not Found</title></head>'
-                    .'<body><h1>404 Not Found</h1>'
-                    .'<p>This page is not available. <a href="/">Return to the homepage</a>.</p>'
-                    .'</body></html>',
-                    404
-                );
-                $response->headers->set('Content-Type', 'text/html; charset=utf-8');
-                $response->headers->set('X-Robots-Tag', 'noindex, nofollow');
-                return $response;
+                /** @var RecaptchaService $recaptcha_service */
+                $recaptcha_service = $this->container->get('odr.recaptcha_service');
+
+                // NOTE: getClientIp() only believes a forwarding header when symfony is
+                //  configured to trust the proxy, so this can't be spoofed by sending one
+                $client_ip = $request->getClientIp();
+
+                // Only the hosts named in background_services/.env get a chance to prove
+                //  themselves...everything else (notably the wordpress-integrated sites, which
+                //  have their own gate in the astra child theme) is refused as before
+                if ( !$recaptcha_service->isEnabledForHost($request->getHost()) )
+                    return self::searchRefusedResponse();
+
+                // a verified search crawler, when that's switched on
+                if ( $recaptcha_service->isAllowedCrawler($client_ip) ) {
+                    // fall through to the search
+                }
+                else if ( $recaptcha_service->isBlocked($client_ip) ) {
+                    // failed recently...refusing costs nothing, which is the point
+                    return self::searchRefusedResponse();
+                }
+                else if ( $recaptcha_service->hasPassed($client_ip) ) {
+                    // fall through to the search
+                }
+                else {
+                    $passed = false;
+                    $failed = false;
+
+                    // NOTE: the route has no method requirement, so the challenge can post back
+                    //  to the same url
+                    if ( $request->request->has('odr_recaptcha') ) {
+                        $token = (string)$request->request->get('g-recaptcha-response', '');
+                        $verdict = $recaptcha_service->verify($token, $client_ip);
+
+                        if ( $verdict === true ) {
+                            $recaptcha_service->markPassed($client_ip);
+                            $passed = true;
+                        }
+                        else if ( $verdict === null ) {
+                            // couldn't reach google, or our own secret is wrong...don't punish
+                            //  the visitor for our problem, just ask again
+                            $failed = true;
+                        }
+                        else {
+                            $recaptcha_service->blockClient($client_ip);
+                            return self::searchRefusedResponse();
+                        }
+                    }
+
+                    if ( !$passed ) {
+                        $html = $this->renderView(
+                            '@ODROpenRepositorySearch/Default/recaptcha_challenge.html.twig',
+                            array(
+                                'search_string' => $search_string,
+                                'site_key' => $recaptcha_service->getSiteKey(),
+                                'form_action' => $request->getRequestUri(),
+                                'failed' => $failed,
+                            )
+                        );
+
+                        $response = new Response($html, 200);
+                        $response->headers->set('Content-Type', 'text/html; charset=utf-8');
+                        $response->headers->set('X-Robots-Tag', 'noindex, nofollow');
+                        $response->headers->set('Cache-Control', 'no-store, private');
+                        return $response;
+                    }
+                }
             }
         }
 
@@ -560,7 +638,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
 
             if ( $search_string !== '' ) {
                 $immediate_search_field = $target_datatype->getImmediateSearchField();
-                if ( empty($immediate_search_field) ) {
+                if ( is_null($immediate_search_field) ) {
                     // If no field is specified for this purpose, then splice the given value into
                     //  the 'general' search
                     $default_search_params['gen'] = $search_string;
@@ -568,8 +646,7 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
                 else {
                     // ...otherwise, splice in the given value for that field.  This intentionally
                     //  overrides the field's value in the 'default search key', if it has one
-                    $df = $immediate_search_field[0];
-                    $default_search_params[ $df->getId() ] = $search_string;
+                    $default_search_params[ $immediate_search_field->getId() ] = $search_string;
                 }
             }
 

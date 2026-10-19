@@ -19,6 +19,7 @@ namespace ODR\AdminBundle\Component\Service;
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecord;
 use ODR\AdminBundle\Entity\DataType;
+use ODR\AdminBundle\Entity\DataTypeSpecialFields;
 use ODR\AdminBundle\Entity\RadioOptions;
 use ODR\AdminBundle\Entity\Tags;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
@@ -190,7 +191,7 @@ class SortService
      * a wasted effort, but I'm not going to willingly implement a different function to optimize it.
      *
      * @param DataType $datatype
-     * @param DataFields[] $fields
+     * @param DataTypeSpecialFields[] $fields
      *
      * @return array An ordered list of datarecord_id => value
      */
@@ -222,11 +223,12 @@ class SortService
         }
         else if ( count($fields) === 1 ) {
             // If the datatype only has one of this special field, then don't need the multisort
-            $field = $fields[0];
-            if ( $field->getDataType()->getId() === $datatype->getId() )
-                $datarecord_list = self::sortDatarecordsByDatafield( $field->getId() );
+            $dtsf = $fields[0];
+            $df = $dtsf->getDataField();
+            if ( $df->getDataType()->getId() === $datatype->getId() )
+                $datarecord_list = self::sortDatarecordsByDatafield( $df->getId() );
             else
-                $datarecord_list = self::sortDatarecordsByLinkedDatafield( $datatype->getId(), $field->getId() );
+                $datarecord_list = self::sortDatarecordsByLinkedDatafield( $datatype->getId(), $df->getId() );  // NOTE: not $df->getDatatype() here.
         }
         else {
             // If the datatype uses more than one of these fields, then need to multisort
@@ -237,9 +239,13 @@ class SortService
             $sort_directions = [];
             $linked_datafields = [];
             $numeric_datafields = [];
-            foreach ($fields as $display_order => $df) {
+            foreach ($fields as $display_order => $dtsf) {
+                $df = $dtsf->getDataField();
+
                 $sort_datafields[$display_order] = $df->getId();
                 $sort_directions[$display_order] = 'asc';
+                if ( $dtsf->getSortDesc() === 1 )
+                    $sort_directions[$display_order] = 'desc';
 
                 // It's easier to determine whether this is a linked field or not here instead
                 //  of inside the multisort function

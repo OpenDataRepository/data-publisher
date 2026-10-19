@@ -275,13 +275,15 @@ class ODRRenderService
      *
      * @param ODRUser $user
      * @param DataRecord $datarecord
-     * @param string $search_key
-     * @param Theme|null $theme
-     * @param string $record_display_view
+     * @param string $search_key Can be the empty string
+     * @param Theme|null $theme If not null, which Theme to render the datarecord with
+     * @param bool $override_disablesidebar If true, then the sidebar is always available
+     * @param string $record_display_view 'single' or 'multiple'...if 'multiple', then the javascript
+     *                                    in display_ajax.html.twig is not printed
      *
      * @return string
      */
-    public function getDisplayHTML($user, $datarecord, $search_key, $theme = null, $record_display_view = 'single')
+    public function getDisplayHTML($user, $datarecord, $search_key, $theme = null, $override_disablesidebar = false, $record_display_view = 'single')
     {
         // Check whether this is an "oversized" search key...need somewhat different HTML if so
         $is_oversized_search_key = false;
@@ -298,6 +300,8 @@ class ODRRenderService
             'is_oversized_search_key' => $is_oversized_search_key,
 
             'has_linked_datatypes' => 0,
+
+            'override_disablesidebar' => $override_disablesidebar,
         ];
 
         $datatype = $datarecord->getDataType();
@@ -344,11 +348,12 @@ class ODRRenderService
      * @param string $search_key Can be the empty string
      * @param int $search_theme_id Can be 0, only used to correctly set a redirect
      * @param Theme|null $theme If not null, which Theme to render the datarecord with
+     * @param bool $override_disablesidebar If true, then the sidebar is always available
      * @param bool $edit_shows_all_fields If true, then none of the datafields are ever hidden
      *
      * @return string
      */
-    public function getEditHTML($user, $datarecord, $search_key = '', $search_theme_id = 0, $theme = null, $edit_shows_all_fields = false)
+    public function getEditHTML($user, $datarecord, $search_key = '', $search_theme_id = 0, $theme = null, $override_disablesidebar = false, $edit_shows_all_fields = false)
     {
         $datatype = $datarecord->getDataType();
         $datatype_id = $datatype->getId();
@@ -370,6 +375,8 @@ class ODRRenderService
             'edit_shows_all_fields' => $edit_shows_all_fields,
 
             'has_linked_datatypes' => 0,
+
+            'override_disablesidebar' => $override_disablesidebar,
         ];
 
         // Determine whether to display the "View Linked Records..." button

@@ -1814,6 +1814,10 @@ odr_sort_shortresults:
     defaults: { _controller: ODR\AdminBundle\Controller\SessionController::sortSearchResultsViewAction }
     methods: [ POST ]
 
+odr_override_disablesidebar:
+    path:  /session/toggle/override_disablesidebar
+    defaults: { _controller: ODR\AdminBundle\Controller\SessionController::overridedisablesidebarAction }
+
 #-----------------------------------------
 
 

@@ -20,7 +20,7 @@
             <div class="pure-u-1 ODRSpecialFieldSelection_datafields">
                 {% for df_id,df_name in dt_data['datafields'] %}
                 <div id="ODRSpecialFieldSelection_df_{{ df_id }}_avail" class="ODRSpecialFieldSelection_datafield" rel="{{ df_id }}">
-                    <span class="ODRSpecialFieldSelection ODRTristateCheckbox binary"><i class="fa {% if current_datafields[df_id] is defined %}fa-check{% endif %}"></i></span>
+                    <span class="ODRSpecialFieldSelection ODRTristateCheckbox binary{% if purpose == 'search' and current_datafields|length > 0 and current_datafields[df_id] is not defined %} ODRTristateCheckbox_disabled{% endif %}"><i class="fa {% if current_datafields[df_id] is defined %}fa-check{% endif %}"></i></span>
                     <span class="ODRSpecialFieldSelection_datafield_name">{{ df_name }}</span>
                 </div>
                 {% endfor %}
@@ -41,6 +41,17 @@
                     <span class="ODRSpecialFieldSelection_up"><i class="fa fa-lg fa-caret-square-o-up"></i></span>
                     <span class="ODRSpecialFieldSelection_down"><i class="fa fa-lg fa-caret-square-o-down"></i></span>
                     <span class="ODRSpecialFieldSelection_datafield_name">{{ df_data['field_name'] }}</span>
+                    {% if purpose == 'sort' %}
+                    <span class="FRight">
+                        <label for="ODRSpecialFieldSelection_df_{{ df_id }}_dir">
+                            Sort Direction:
+                            <select id="ODRSpecialFieldSelection_df_{{ df_id }}_dir" class="ODRSpecialFieldSelection_dir" name="sort_directions[{{ df_id }}]">
+                                <option value="asc"{% if df_data['sort_desc'] == 0 %} selected{% endif %}>ASC</option>
+                                <option value="desc"{% if df_data['sort_desc'] == 1 %} selected{% endif %}>DESC</option>
+                            </select>
+                        </label>
+                    </span>
+                    {% endif %}
                 </div>
                 {% endfor %}
             </form>
@@ -141,8 +152,21 @@
                 '<span class="ODRSpecialFieldSelection_trash" title=""><i class="fa fa-lg fa-trash-o"></i></span>' +
                 '<span class="ODRSpecialFieldSelection_up"><i class="fa fa-lg fa-caret-square-o-up"></i></span>' +
                 '<span class="ODRSpecialFieldSelection_down"><i class="fa fa-lg fa-caret-square-o-down"></i></span>' +
-                '<span class="ODRSpecialFieldSelection_datafield_name">' + df_name + '</span>' +
-            '</div>';
+                '<span class="ODRSpecialFieldSelection_datafield_name">' + df_name + '</span>';
+        {% if purpose == 'sort' %}
+        str +=
+            '<span class="FRight">' +
+                '<label for="ODRSpecialFieldSelection_df_' + df_id + '_dir">' +
+                    'Sort Direction: ' +
+                    '<select id="ODRSpecialFieldSelection_df_' + df_id + '_dir" class="ODRSpecialFieldSelection_dir" name="sort_directions[' + df_id + ']">' +
+                        '<option value="asc" selected>ASC</option>' +
+                        '<option value="desc">DESC</option>' +
+                    '</select>' +
+                '</label>' +
+            '</span>';
+        {% endif %}
+
+        str += '</div>';
 
         // Append the block of HTML and attach handlers to it
         $("#ODRSpecialDatafieldSelectionForm").append(str);

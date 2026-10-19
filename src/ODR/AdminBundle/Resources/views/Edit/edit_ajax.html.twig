@@ -89,7 +89,7 @@ $(function() {
     setupAccordions();
     setupAccordionHighlights();
 
-{% if (odr_wordpress_integrated and theme.themeMeta.disableSearchSidebar == true) or search_key == '' %}
+{% if (config_odr_wordpress_integrated and theme.themeMeta.disableSearchSidebar == true and override_disablesidebar == false) or search_key == '' %}
     disableSearchSidebar();    {# defined in @ODRAdmin/Default/common_js.html.twig #}
 {% else %}
     enableSearchSidebar('{{ search_key }}', 'collapsed');    {# defined in @ODRAdmin/Default/common_js.html.twig #}

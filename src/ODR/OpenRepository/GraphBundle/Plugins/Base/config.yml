@@ -168,6 +168,12 @@ services:
             $templating: '@twig'
             $logger: "@logger"
 
+    odr_plugins.base.monospace:
+        public: true
+        class: '%odr_plugin_base_classpath%\Base\MonospacePlugin'
+        arguments:
+            $templating: '@twig'
+
     # ----------------------------------------
     # ThemeElement Plugins
     odr_plugins.base.file_updater_helper:

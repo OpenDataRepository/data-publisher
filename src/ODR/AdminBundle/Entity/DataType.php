@@ -1282,7 +1282,7 @@ class DataType
 
     /**
      * Get all name fields defined for this datatype.
-     * @return DataFields[]
+     * @return DataTypeSpecialFields[]
      */
     public function getNameFields()
     {
@@ -1291,7 +1291,7 @@ class DataType
             foreach ($this->dataTypeSpecialFields as $dtsf) {
                 /** @var DataTypeSpecialFields $dtsf */
                 if ( $dtsf->getFieldPurpose() === DataTypeSpecialFields::NAME_FIELD )
-                    $namefields[$dtsf->getDisplayOrder()] = $dtsf->getDataField();
+                    $namefields[$dtsf->getDisplayOrder()] = $dtsf;
             }
             ksort($namefields);
             $namefields = array_values($namefields);
@@ -1302,7 +1302,7 @@ class DataType
 
     /**
      * Get all sort fields defined for this datatype.
-     * @return DataFields[]
+     * @return DataTypeSpecialFields[]
      */
     public function getSortFields()
     {
@@ -1311,7 +1311,7 @@ class DataType
             foreach ($this->dataTypeSpecialFields as $dtsf) {
                 /** @var DataTypeSpecialFields $dtsf */
                 if ( $dtsf->getFieldPurpose() === DataTypeSpecialFields::SORT_FIELD )
-                    $sortfields[$dtsf->getDisplayOrder()] = $dtsf->getDataField();
+                    $sortfields[$dtsf->getDisplayOrder()] = $dtsf;
             }
             ksort($sortfields);
             $sortfields = array_values($sortfields);
@@ -1322,7 +1322,7 @@ class DataType
 
     /**
      * Gets the "immediate search" field defined for this datatype.
-     * @return DataFields[]
+     * @return DataFields|null
      */
     public function getImmediateSearchField()
     {
@@ -1331,12 +1331,10 @@ class DataType
             foreach ($this->dataTypeSpecialFields as $dtsf) {
                 /** @var DataTypeSpecialFields $dtsf */
                 if ( $dtsf->getFieldPurpose() === DataTypeSpecialFields::IMMEDIATE_SEARCH_FIELD )
-                    $immediate_search_field[$dtsf->getDisplayOrder()] = $dtsf->getDataField();
+                    return $dtsf->getDataField();
             }
-            ksort($immediate_search_field);
-            $immediate_search_field = array_values($immediate_search_field);
         }
 
-        return $immediate_search_field;
+        return null;
     }
 }

@@ -706,4 +706,62 @@ class SessionController extends ODRCustomController
         $response->headers->set('Content-Type', 'application/json');
         return $response;
     }
+
+
+    /**
+     * Toggles whether the user wants to override disabling of the search sidebar.
+     *
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function overridedisablesidebarAction(Request $request)
+    {
+        $return = [];
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        $cookie_key = '';
+        $cookie_value = '';
+
+        try {
+            // Grab necessary objects
+            /** @var ODRTabHelperService $odr_tab_service */
+            $odr_tab_service = $this->tab_helper_service;
+
+            // Grab the tab's id, if it exists
+            $params = $request->query->all();
+            $odr_tab_id = '';
+            if ( isset($params['odr_tab_id']) )
+                $odr_tab_id = $params['odr_tab_id'];
+
+            if ($odr_tab_id !== '') {
+                // Need to store this both in the user's session and a cookie
+                $tab_data = $odr_tab_service->getTabData($odr_tab_id);
+                $override_disablesidebar = $odr_tab_service->toggleOverrideDisableSidebar($odr_tab_id);
+
+                // Also update the cookie value
+                $theme_id = $tab_data['theme_id'];
+                $cookie_key = 'theme_'.$theme_id.'_override_disablesidebar';
+
+                // The value is stored back in the cookie after the response is created below
+                $cookie_value = $override_disablesidebar;
+
+                $return['d'] = ['enable_sidebar' => $override_disablesidebar];
+            }
+        }
+        catch (\Exception $e) {
+            $source = 0x1cfad2a4;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        $response->headers->setCookie(\Symfony\Component\HttpFoundation\Cookie::create($cookie_key, $cookie_value));
+        return $response;
+    }
 }

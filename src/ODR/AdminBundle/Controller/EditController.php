@@ -3660,6 +3660,9 @@ class EditController extends ODRCustomController
             if ( $cookies->has('datatype_'.$datatype->getId().'_edit_shows_all') )
                 $edit_shows_all_fields = $cookies->get('datatype_'.$datatype->getId().'_edit_shows_all');
 
+            // Determine whether the user is currently overriding a hidden search sidebar
+            $override_disablesidebar = $odr_tab_service->getOverrideDisableSidebar($odr_tab_id);
+
 
             // If this datarecord is being viewed from a search result list...
             $original_search_key = $search_key;
@@ -3759,6 +3762,7 @@ class EditController extends ODRCustomController
                     'datatype_permissions' => $datatype_permissions,
                     'theme' => $theme,
                     'edit_shows_all_fields' => $edit_shows_all_fields,
+                    'override_disablesidebar' => $override_disablesidebar,
 
                     'datarecord' => $datarecord,
                     'datatype' => $datatype,
@@ -3782,7 +3786,15 @@ class EditController extends ODRCustomController
 
 
             // Render the edit page for this datarecord
-            $page_html = $odr_render_service->getEditHTML($user, $datarecord, $merged_search_key, $search_theme_id, $theme, $edit_shows_all_fields);
+            $page_html = $odr_render_service->getEditHTML(
+                $user,
+                $datarecord,
+                $merged_search_key,
+                $search_theme_id,
+                $theme,
+                $override_disablesidebar,
+                $edit_shows_all_fields
+            );
 
             $return['d'] = [
                 'datatype_id' => $datatype->getId(),
