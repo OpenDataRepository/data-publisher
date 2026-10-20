@@ -2500,7 +2500,7 @@ class CSVImportController extends ODRCustomController
 
             // For readability, linking datarecords with csv importing uses a different controller action
             $url = $this->generateUrl('odr_csv_import_worker', [], UrlGeneratorInterface::ABSOLUTE_URL);
-            if ( $import_type === 'link' || $import_type === 'child_link' )
+            if ( $import_type === 'link' || $import_type === 'child-link' )
                 $url = $this->generateUrl('odr_csv_link_worker', [], UrlGeneratorInterface::ABSOLUTE_URL);
 
 
@@ -4126,46 +4126,55 @@ exit();
             // Pull data from the post
             $tracked_job_id = intval($post['tracked_job_id']);
             $user_id = $post['user_id'];
-            $datatype_id = $post['datatype_id'];
+//            $datatype_id = $post['datatype_id'];
 //            $mapping = $post['mapping'];
             $line = $post['line'];
             $api_key = $post['api_key'];
 
-/*
-            $column_delimiters = null;
-            if ( isset($post['column_delimiters']) )
-                $column_delimiters = $post['column_delimiters'];
-*/
-
-            // If the import is for a child or linked datatype, then one of the columns from the csv
-            //  file has to be mapped to the parent/local datatype's external id datafield
-            $parent_datatype_id = '';
+            // Could be up to three datatype ids provided...
+            // Needs to be empty string instead of null because it's passed into the database and over cURL
+            $grandparent_datatype_id = $parent_datatype_id = $target_datatype_id = '';
+            if ( isset($post['grandparent_datatype_id']) )
+                $grandparent_datatype_id = $post['grandparent_datatype_id'];
             if ( isset($post['parent_datatype_id']) )
                 $parent_datatype_id = $post['parent_datatype_id'];
-            $parent_external_id_column = '';
+            if ( isset($post['target_datatype_id']) )
+                $target_datatype_id = $post['target_datatype_id'];
+
+            // The target datatype id must not be null
+            if ( $target_datatype_id == '' )
+                throw new ODRBadRequestException('Invalid Form');
+
+            // Each of the three datatypes could also have an associated external_id_column
+            // Needs to be empty string instead of null because it's passed into the database and over cURL
+            $grandparent_external_id_column = $parent_external_id_column = $target_external_id_column = '';
+            if ( isset($post['grandparent_external_id_column']) )
+                $grandparent_external_id_column = $post['grandparent_external_id_column'];
             if ( isset($post['parent_external_id_column']) )
                 $parent_external_id_column = $post['parent_external_id_column'];
-
-            // If the import is for a linked datatype, then another column from the csv file also
-            //  has to be mapped to the remote datatype's external id datafield...
-            $remote_external_id_column = '';
-            if ( isset($post['remote_external_id_column']) )
-                $remote_external_id_column = $post['remote_external_id_column'];
+            if ( isset($post['target_external_id_column']) )
+                $target_external_id_column = $post['target_external_id_column'];
 
 
             // ----------------------------------------
             // Load symfony objects
             $beanstalk_api_key = $this->getParameter('beanstalk_api_key');
+            if ($api_key !== $beanstalk_api_key)
+                throw new ODRException('Invalid job data');
 
             /** @var \Doctrine\ORM\EntityManager $em */
             $em = $this->container->get('doctrine')->getManager();
             $repo_datatype = $em->getRepository('ODR\AdminBundle\Entity\DataType');
             $repo_user = $em->getRepository('ODR\OpenRepository\UserBundle\Entity\User');
 
+            /** @var DatabaseInfoService $database_info_service */
+            $database_info_service = $this->database_info_service;
             /** @var DatarecordInfoService $datarecord_info_service */
             $datarecord_info_service = $this->datarecord_info_service;
             /** @var EntityCreationService $entity_create_service */
             $entity_create_service = $this->entity_creation_service;
+            /** @var PermissionsManagementService $permissions_service */
+            $permissions_service = $this->permissions_management_service;
             /** @var LoggerInterface $logger */
             $logger = $this->container->get('logger');
 
@@ -4175,27 +4184,98 @@ exit();
             // NOTE - $dispatcher is an instance of \Symfony\Component\Event\EventDispatcher in prod mode,
             //  and an instance of \Symfony\Component\Event\Debug\TraceableEventDispatcher in dev mode
 
+            // ----------------------------------------
+            // Determine which datatype this import job was called on
+            $source_datatype_id = $target_datatype_id;
+            if ( $parent_datatype_id !== '' )
+                $source_datatype_id = $parent_datatype_id;
+            if ( $grandparent_datatype_id !== '' )
+                $source_datatype_id = $grandparent_datatype_id;
 
-            if ($api_key !== $beanstalk_api_key)
-                throw new ODRException('Invalid job data');
+            // Load required datatype entities
+            /** @var DataType $source_datatype */
+            $source_datatype = $repo_datatype->find($source_datatype_id);
+            if ($source_datatype == null)
+                throw new ODRException('Invalid Form...Datatype is deleted');
 
+
+            // --------------------
+            // Determine user privileges
             /** @var ODRUser $user */
             $user = $repo_user->find($user_id);
-            /** @var DataType $datatype */
-            $datatype = $repo_datatype->find($datatype_id);
-            if ($datatype == null)
-                throw new ODRException('Invalid Form...Remote Datatype is deleted');
+            $datatype_permissions = $permissions_service->getDatatypePermissions($user);
 
-            /** @var DataType $parent_datatype */
-            $parent_datatype = $repo_datatype->find($parent_datatype_id);
-            if ($parent_datatype == null)
-                throw new ODRException('Invalid Form...Local Datatype is deleted');
+            // Ensure user has permissions to be doing this
+            if ( !$permissions_service->isDatatypeAdmin($user, $source_datatype) )    // TODO - less restrictive permissions?
+                throw new ODRForbiddenException();
+            // --------------------
 
+            // This doesn't make sense on a master template...
+            if ( $source_datatype->getIsMasterType() )
+                throw new ODRBadRequestException('Unable to import into a master template');
+            // ...or a metadata datatype
+            if ( !is_null($source_datatype->getMetadataFor()) )
+                throw new ODRBadRequestException('Unable to import into a metadata datatype');
+
+
+            // ----------------------------------------
+            // Check whether the given prefix is valid
+            $prefix = strval($target_datatype_id);
+            if ( $parent_datatype_id !== '' )
+                $prefix = strval($parent_datatype_id).'_'.$prefix;
+            if ( $grandparent_datatype_id !== '' )
+                $prefix = strval($grandparent_datatype_id).'_'.$prefix;
+
+            $dt_array = $database_info_service->getDatatypeArray($source_datatype_id);
+            $import_targets = self::getImportTargets($source_datatype_id, $dt_array, $datatype_permissions);
+            if ( !isset($import_targets['prefixes'][$prefix]) )
+                throw new ODRBadRequestException();
+            $import_type = $import_targets['prefixes'][$prefix]['type'];
+
+            // ...while it shouldn't be an issue, ensure the external id columns aren't mapped when
+            //  they're not going to be used
+            if ( $import_type === 'top-level' ) {
+                $grandparent_external_id_column = $parent_external_id_column = $target_external_id_column = '';
+                unset( $post['grandparent_external_id_column'] );
+                unset( $post['parent_external_id_column'] );
+                unset( $post['target_external_id_column'] );
+            }
+            else if ( $import_type === 'child' ) {
+                $grandparent_external_id_column = $target_external_id_column = '';
+                unset( $post['grandparent_external_id_column'] );
+                unset( $post['target_external_id_column'] );
+            }
+            else if ( $import_type === 'link' ) {
+                $grandparent_external_id_column = '';
+                unset( $post['grandparent_external_id_column'] );
+            }
+
+
+            // ----------------------------------------
+            // Because the prefix is valid, these datatypes will also load if they exist
+            /** @var null|DataType $grandparent_datatype */
+            $grandparent_datatype = null;
+            if ( $grandparent_datatype_id !== '' )
+                $grandparent_datatype = $repo_datatype->find($grandparent_datatype_id);
+
+            /** @var null|DataType $parent_datatype */
+            $parent_datatype = null;
+            if ( $parent_datatype_id !== '' )
+                $parent_datatype = $repo_datatype->find($parent_datatype_id);
+
+            // Target datatype should always exist
+            /** @var DataType $target_datatype */
+            $target_datatype = $repo_datatype->find($target_datatype_id);
+            if ($target_datatype == null)
+                throw new ODRNotFoundException('Datatype');
+
+
+            // Linking will always take place between the parent and the target datatype
             /** @var DataTree $datatree */
             $datatree = $em->getRepository('ODR\AdminBundle\Entity\DataTree')->findOneBy(
                 [
                     'ancestor' => $parent_datatype->getId(),
-                    'descendant' => $datatype->getId()
+                    'descendant' => $target_datatype->getId()
                 ]
             );
             if ($datatree == null)
@@ -4208,68 +4288,74 @@ exit();
                 $has_secondary_datatree = true;
 
 
-            // This doesn't make sense on a master template...
-            if ( $datatype->getIsMasterType() )
-                throw new ODRBadRequestException('Unable to import into a master template');
-            if ( $parent_datatype->getIsMasterType() )
-                throw new ODRBadRequestException('Unable to import into a master template');
-            // ...or a metadata datatype
-            if ( !is_null($datatype->getMetadataFor()) )
-                throw new ODRBadRequestException('Unable to import into a metadata datatype');
-            if ( !is_null($parent_datatype->getMetadataFor()) )
-                throw new ODRBadRequestException('Unable to import into a metadata datatype');
-
 
             // ----------------------------------------
-            // Locate "local" and "remote" datarecords
-            $local_external_id_field = $parent_datatype->getExternalIdField();
-            $local_external_id = trim( (string) $line[$parent_external_id_column] );
-            $local_datarecord = $datarecord_info_service->getDatarecordByExternalId($local_external_id_field, $local_external_id);
-            if ( is_null($local_datarecord) )
-                $logger->debug('no local datarecord in Datatype '.$parent_datatype_id.' with "'.$local_external_id.'"...');
-            else
-                $logger->debug('located local datarecord in Datatype '.$parent_datatype_id.' with "'.$local_external_id.'"...');
+            // Locate the two or three records required to make the link
+            $grandparent_datarecord = $parent_datarecord = $target_datarecord = null;
+            if ( $import_type === 'child-link' ) {
+                $grandparent_external_id_field = $grandparent_datatype->getExternalIdField();
+                $grandparent_external_id = trim( (string) $line[$grandparent_external_id_column] );
+                $grandparent_datarecord = $datarecord_info_service->getDatarecordByExternalId($grandparent_external_id_field, $grandparent_external_id);
+                if ( is_null($grandparent_datarecord) )
+                    $logger->debug('no grandparent datarecord in Datatype '.$grandparent_datatype_id.' with "'.$grandparent_external_id.'"...');
+                else
+                    $logger->debug('located grandparent datarecord in Datatype '.$grandparent_datatype_id.' with "'.$grandparent_external_id.'"...');
 
-            $remote_external_id_field = $datatype->getExternalIdField();
-            $remote_external_id = trim( (string) $line[$remote_external_id_column] );
-            $remote_datarecord = $datarecord_info_service->getDatarecordByExternalId($remote_external_id_field, $remote_external_id);
-            if ( is_null($remote_datarecord) )
-                $logger->debug('no remote datarecord in Datatype '.$datatype_id.' with "'.$local_external_id.'"...');
+                $parent_external_id_field = $parent_datatype->getExternalIdField();
+                $parent_external_id = trim( (string) $line[$parent_external_id_column] );
+                $parent_datarecord = $datarecord_info_service->getChildDatarecordByExternalId($parent_external_id_field, $parent_external_id, $grandparent_external_id_field, $grandparent_external_id);
+                if ( is_null($parent_datarecord) )
+                    $logger->debug('no parent datarecord in Datatype '.$parent_datatype_id.' with "'.$parent_external_id.'"...');
+                else
+                    $logger->debug('located parent datarecord in Datatype '.$parent_datatype_id.' with "'.$parent_external_id.'"...');
+            }
+            else {  // import_type === 'link'
+                $parent_external_id_field = $parent_datatype->getExternalIdField();
+                $parent_external_id = trim( (string) $line[$parent_external_id_column] );
+                $parent_datarecord = $datarecord_info_service->getDatarecordByExternalId($parent_external_id_field, $parent_external_id);
+                if ( is_null($parent_datarecord) )
+                    $logger->debug('no parent datarecord in Datatype '.$parent_datatype_id.' with "'.$parent_external_id.'"...');
+                else
+                    $logger->debug('located parent datarecord in Datatype '.$parent_datatype_id.' with "'.$parent_external_id.'"...');
+            }
+
+            $target_external_id_field = $target_datatype->getExternalIdField();
+            $target_external_id = trim( (string) $line[$target_external_id_column] );
+            $target_datarecord = $datarecord_info_service->getDatarecordByExternalId($target_external_id_field, $target_external_id);
+            if ( is_null($target_datarecord) )
+                $logger->debug('no target datarecord in Datatype '.$target_datatype_id.' with "'.$target_external_id.'"...');
             else
-                $logger->debug('located remote datarecord in Datatype '.$datatype_id.' with "'.$local_external_id.'"...');
+                $logger->debug('located target datarecord in Datatype '.$target_datatype_id.' with "'.$target_external_id.'"...');
 
 
             // ----------------------------------------
             // The local and the remote datarecords aren't technically guaranteed to exist...
             $change_made = false;
-            if ( !is_null($local_datarecord) && !is_null($remote_datarecord) ) {
+            if ( !is_null($parent_datarecord) && !is_null($target_datarecord) ) {
                 // ...but if they do, then ensure a link exists from the local datarecord to the
                 //  remote datarecord
-                $entity_create_service->createDatarecordLink($user, $local_datarecord, $remote_datarecord);
+                $entity_create_service->createDatarecordLink($user, $parent_datarecord, $target_datarecord);
                 $change_made = true;
 
-                $status .= ' -- Datarecord '.$local_datarecord->getId().' Datatype '.$parent_datatype->getId().' (external id: "'.$local_external_id.'") is now linked to Datarecord '.$remote_datarecord->getId().' Datatype '.$datatype->getId().' (external id: "'.$remote_external_id.'")'."\n";
-                $logger->debug(' -- Datarecord '.$local_datarecord->getId().' Datatype '.$parent_datatype->getId().' (external id: "'.$local_external_id.'") is now linked to Datarecord '.$remote_datarecord->getId().' Datatype '.$datatype->getId().' (external id: "'.$remote_external_id.'")');
+                $status .= ' -- Datarecord '.$parent_datarecord->getId().' Datatype '.$parent_datatype->getId().' (external id: "'.$parent_external_id.'") is now linked to Datarecord '.$target_datarecord->getId().' Datatype '.$target_datatype->getId().' (external id: "'.$target_external_id.'")'."\n";
+                $logger->debug(' -- Datarecord '.$parent_datarecord->getId().' Datatype '.$parent_datatype->getId().' (external id: "'.$parent_external_id.'") is now linked to Datarecord '.$target_datarecord->getId().' Datatype '.$target_datatype->getId().' (external id: "'.$target_external_id.'")');
 
-                // TODO - this won't actually get called until CSVImporter can create links for child datatypes
-                // TODO - ...which hopefully won't happen anytime soon
                 // If there's a "secondary" datatree for this relation...
                 if ( $has_secondary_datatree ) {
                     // ...then due to the rules, we can satisfy it by calling createDatarecordLink()
                     //  again with the grandparent datarecord
-                    $grandparent_datarecord = $local_datarecord->getGrandparent();
-                    $entity_create_service->createDatarecordLink($user, $grandparent_datarecord, $remote_datarecord);
+                    $entity_create_service->createDatarecordLink($user, $grandparent_datarecord, $target_datarecord);
 
-                    $logger->debug(' -- -- also created link between Datarecord '.$grandparent_datarecord->getId().' Datatype '.$grandparent_datarecord->getDataType()->getId().' to Datarecord '.$remote_datarecord->getId());
+                    $logger->debug(' -- -- also created link between Datarecord '.$grandparent_datarecord->getId().' Datatype '.$grandparent_datatype->getId().' to Datarecord '.$target_datarecord->getId());
                 }
             }
             else {
-                if ( is_null($local_datarecord) && is_null($remote_datarecord) )
-                    $status .= ' -- neither the local datarecord referred to by "'.$local_external_id.'" nor the remote datarecord referred to by "'.$remote_external_id.'" exist, skipping'."\n";
-                else if ( is_null($local_datarecord) )
-                    $status .= ' -- the local datarecord referred to by "'.$local_external_id.'" does not exist, skipping'."\n";
+                if ( is_null($parent_datarecord) && is_null($target_datarecord) )
+                    $status .= ' -- neither the parent datarecord referred to by "'.$parent_external_id.'" nor the target datarecord referred to by "'.$target_external_id.'" exist, skipping'."\n";
+                else if ( is_null($parent_datarecord) )
+                    $status .= ' -- the parent datarecord referred to by "'.$parent_external_id.'" does not exist, skipping'."\n";
                 else
-                    $status .= ' -- the remote datarecord referred to by "'.$remote_external_id.'" does not exist, skipping'."\n";
+                    $status .= ' -- the target datarecord referred to by "'.$target_external_id.'" does not exist, skipping'."\n";
 
                 $logger->debug(' -- one or both datarecords do not exist, skipping');
             }
@@ -4278,7 +4364,7 @@ exit();
             if ( $change_made ) {
                 // Force a rebuild of the cached entry for the ancestor datarecord
                 try {
-                    $event = new DatarecordModifiedEvent($local_datarecord, $user);
+                    $event = new DatarecordModifiedEvent($parent_datarecord, $user);
                     $dispatcher->dispatch($event, DatarecordModifiedEvent::NAME);
                     $logger->debug('DatarecordModifiedEvent dispatched');
                 }
@@ -4291,7 +4377,7 @@ exit();
 
                 // Also rebuild the cached list of which datarecords this ancestor datarecord now links to
                 try {
-                    $event = new DatarecordLinkStatusChangedEvent( [$local_datarecord->getId()], $remote_datarecord->getDataType(), $user);
+                    $event = new DatarecordLinkStatusChangedEvent( [$parent_datarecord->getId()], $target_datatype, $user);
                     $dispatcher->dispatch($event, DatarecordLinkStatusChangedEvent::NAME);
                     $logger->debug('DatarecordLinkStatusChangedEvent dispatched');
                 }
