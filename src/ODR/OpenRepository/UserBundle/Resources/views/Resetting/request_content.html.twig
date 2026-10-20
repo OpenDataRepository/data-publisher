@@ -3,16 +3,18 @@
 
 <form action="{{ path('fos_user_resetting_send_email') }}" method="POST" class="fos_user_resetting_request pure-form ODRLoginForm">
     <fieldset>
-        <div class="pure-control-group">
+        <div class="pure-control-group ODRResettingBody">
             Please enter the email address you use to access ODR.
         </div>
 
         <div class="pure-control-group">
-        {% if invalid_username is defined %}
-            <p>No account was found for "{{ invalid_username }}".</p>
+        {# Only ever reports the SHAPE of what was typed.  Whether an account exists must not be
+           observable here -- see ResettingController::sendEmailAction(). #}
+        {% if email_error is defined and email_error %}
+            <p class="ODRInputError">{{ email_error }}</p>
         {% endif %}
             <label for="username">Email:</label>
-            <input type="text" id="username" name="username" required="required" />
+            <input type="email" id="username" name="username" required="required" />
         </div>
 
 {% if not app.user %}
@@ -24,3 +26,5 @@
 {% endif %}
     </fieldset>
 </form>
+
+<p class="ODRResettingReturn"><a href="{{ path('fos_user_security_login') }}">Return to Login</a></p>

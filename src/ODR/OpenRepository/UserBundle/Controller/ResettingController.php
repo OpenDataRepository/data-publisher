@@ -59,6 +59,49 @@ class ResettingController
     }
 
     /**
+     * Says what is wrong with the shape of an email address, or null when it looks fine.
+     *
+     * The point of naming the specific problem is that it is entirely about what the visitor
+     * typed -- it never consults the database, so it can't leak whether an account exists.
+     *
+     * @param string $email
+     *
+     * @return string|null
+     */
+    private function emailFormatError($email)
+    {
+        if ($email === '')
+            return 'Please enter your email address.';
+
+        if (preg_match('/\s/', $email))
+            return 'Invalid email format - contains a space';
+
+        $at_count = substr_count($email, '@');
+        if ($at_count === 0)
+            return 'Invalid email format - missing @ symbol';
+        if ($at_count > 1)
+            return 'Invalid email format - more than one @ symbol';
+
+        list($local, $domain) = explode('@', $email, 2);
+
+        if ($local === '')
+            return 'Invalid email format - missing the part before the @ symbol';
+        if ($domain === '')
+            return 'Invalid email format - missing domain';
+        if (strpos($domain, '.') === false)
+            return 'Invalid email format - domain is missing a suffix, such as .org';
+        if (substr($domain, 0, 1) === '.' || substr($domain, -1) === '.')
+            return 'Invalid email format - domain starts or ends with a dot';
+        if (strpos($domain, '..') !== false)
+            return 'Invalid email format - domain contains two dots in a row';
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL))
+            return 'Invalid email format';
+
+        return null;
+    }
+
+    /**
      * Shows the "enter your email" form (route: fos_user_resetting_request).
      */
     public function requestAction()
@@ -77,28 +120,35 @@ class ResettingController
         if ($redirect = $this->redirectLoggedInUser())
             return $redirect;
 
-        $username = (string)$request->request->get('username');
+        $username = trim((string)$request->request->get('username'));
 
+        // Anything that isn't a plausible email address is rejected on the spot.  This is the ONLY
+        //  thing this action is allowed to tell the visitor, because it depends purely on what
+        //  they typed and not on what's in the database.
+        $email_error = $this->emailFormatError($username);
+        if ($email_error !== null) {
+            return new Response($this->twig->render('@ODROpenRepositoryUser/Resetting/request.html.twig', [
+                'email_error' => $email_error,
+            ]));
+        }
+
+        // From here on, every outcome looks identical from outside: whether the account exists,
+        //  and whether a reset was already requested for it, must not be observable.  Anyone can
+        //  POST this form, so a "no account was found" reply (or a visibly different
+        //  "already requested" page) would let a stranger test addresses against the user table.
         /** @var User|null $user */
         $user = $this->user_manager->findUserByUsernameOrEmail($username);
-        if (null === $user) {
-            return new Response($this->twig->render('@ODROpenRepositoryUser/Resetting/request.html.twig', [
-                'invalid_username' => $username,
-            ]));
+
+        if (null !== $user && !$user->isPasswordRequestNonExpired($this->reset_token_ttl)) {
+            // A real account with no reset in flight...issue a token and send the link.  A recent
+            //  request is deliberately left alone rather than resent, which also stops the form
+            //  being used to mail-bomb an address.
+            $user->setConfirmationToken($this->token_generator->generateToken());
+            $user->setPasswordRequestedAt(new \DateTime());
+            $this->user_manager->updateUser($user);
+
+            $this->sendResettingEmail($user);
         }
-
-        // If a reset was already requested recently, don't send another (offer a resend instead)
-        if ($user->isPasswordRequestNonExpired($this->reset_token_ttl)) {
-            return new Response($this->twig->render('@ODROpenRepositoryUser/Resetting/passwordAlreadyRequested.html.twig', [
-                'username' => $username,
-            ]));
-        }
-
-        $user->setConfirmationToken($this->token_generator->generateToken());
-        $user->setPasswordRequestedAt(new \DateTime());
-        $this->user_manager->updateUser($user);
-
-        $this->sendResettingEmail($user);
 
         return new RedirectResponse($this->router->generate('fos_user_resetting_check_email'));
     }
@@ -156,20 +206,26 @@ class ResettingController
         if ($redirect = $this->redirectLoggedInUser())
             return $redirect;
 
-        $username = (string)$request->request->get('username');
+        $username = trim((string)$request->request->get('username'));
 
-        /** @var User|null $user */
-        $user = $this->user_manager->findUserByUsernameOrEmail($username);
-        if (null === $user) {
+        // Same rule as sendEmailAction: this endpoint is open to anyone, so it must not reveal
+        //  whether the address belongs to an account.  Only the format of the input is reported.
+        $email_error = $this->emailFormatError($username);
+        if ($email_error !== null) {
             return new Response($this->twig->render('@ODROpenRepositoryUser/Resetting/request.html.twig', [
-                'invalid_username' => $username,
+                'email_error' => $email_error,
             ]));
         }
 
-        // Reset the request state so sendEmailAction will send a fresh email
-        $user->setConfirmationToken(null);
-        $user->setPasswordRequestedAt(null);
-        $this->user_manager->updateUser($user);
+        /** @var User|null $user */
+        $user = $this->user_manager->findUserByUsernameOrEmail($username);
+
+        if (null !== $user) {
+            // Clear the request state so sendEmailAction() below issues a fresh token and email
+            $user->setConfirmationToken(null);
+            $user->setPasswordRequestedAt(null);
+            $this->user_manager->updateUser($user);
+        }
 
         return $this->sendEmailAction($request);
     }

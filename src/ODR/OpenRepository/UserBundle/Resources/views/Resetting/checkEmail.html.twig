@@ -1,6 +1,11 @@
 {% extends "@ODROpenRepositoryUser/layout.html.twig" %}
 
 {% block fos_user_content %}
-    <p>If an account matching that email exists, a password-reset link has been sent to it.</p>
-    <p>The link will remain valid for a limited time. Please check your email (including your spam folder).</p>
+    {# Deliberately conditional: this page is shown whether or not the address matches an
+       account, so the wording must not confirm that it does. #}
+    <div class="ODRResettingBody">
+        <p>If that email matches an account, a reset link is on its way.</p>
+        <p>Check your inbox, including your spam folder. The link expires in 24 hours.</p>
+    </div>
+    <p class="ODRResettingReturn"><a href="{{ path('fos_user_security_login') }}">Return to Login</a></p>
 {% endblock fos_user_content %}
