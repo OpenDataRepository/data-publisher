@@ -94,7 +94,11 @@ class ODRUserManager
      */
     public function findUserByUsernameOrEmail($usernameOrEmail)
     {
-        return $this->getRepository()->loadUserByUsername($usernameOrEmail);
+        // NOTE: symfony 6 renamed UserLoaderInterface::loadUserByUsername() to
+        //  loadUserByIdentifier(), and UserRepository was migrated...this caller wasn't, so every
+        //  password reset died in doctrine's magic __call ("must start with findBy, findOneBy or
+        //  countBy") rather than anywhere near the security layer.
+        return $this->getRepository()->loadUserByIdentifier($usernameOrEmail);
     }
 
     /**
