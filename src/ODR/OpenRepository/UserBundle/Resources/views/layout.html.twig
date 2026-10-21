@@ -37,16 +37,22 @@
             <div class="ODRContentWrapper pure-u-1 pure-u-sm-1-2 pure-u-lg-1-3">
                 <div class="ODRThemeElement pure-u-1">
                     <div class="ODRInnerBox pure-u-1">
-                        <h3 class="ODRHeader" style="padding-left: 0px;"><i class="fa fa-md fa-user fa-fw"></i>
                         {% if is_granted("IS_AUTHENTICATED_REMEMBERED") %}
+                        <h3 class="ODRHeader" style="padding-left: 0px;"><i class="fa fa-md fa-user fa-fw"></i>
                             Logged in as {{ app.user.username }} |
                             <a href="{{ path('fos_user_security_logout') }}">
                                 Log out
                             </a>
-                        {% else %}
-                            <a href="{{ path('fos_user_security_login') }}">Log in</a>
-                        {% endif %}
                         </h3>
+                        {% else %}
+                        {# The whole title area links to the login page, icon and text together,
+                           so it's an obvious way back from the password-reset pages. #}
+                        <h3 class="ODRHeader" style="padding-left: 0px;">
+                            <a href="{{ path('fos_user_security_login') }}" class="ODRHeaderLink">
+                                <i class="fa fa-md fa-user fa-fw"></i>Log in
+                            </a>
+                        </h3>
+                        {% endif %}
                         <div class="ODRBodyContent">
                             {% block fos_user_content %}
                             {% endblock fos_user_content %}

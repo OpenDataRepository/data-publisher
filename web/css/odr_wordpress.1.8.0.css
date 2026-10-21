@@ -3530,6 +3530,20 @@ a.ui-button:active,
     margin-top:10px;
 }
 
+/* The login box centres everything (#login_wrapper above), which suits the login form but turns
+   the password-reset pages into centred prose.  Left-align that text; the "Return to Login" link
+   sits outside this wrapper so it stays centred. */
+.ODRResettingBody {
+    text-align: left;
+}
+
+/* The reset form's error line is prose, so it reads left-aligned like the instruction above it,
+   even though the form controls themselves stay centred.  Scoped to this box so .ODRInputError
+   keeps its existing behaviour everywhere else in ODR. */
+#login_wrapper .ODRInputError {
+    text-align: left;
+}
+
 .ODROAuthProviderList {
     text-align: center;
     padding-bottom: 25px;

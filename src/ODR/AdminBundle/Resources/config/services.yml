@@ -1001,6 +1001,27 @@ services:
     # NOTE: the parameter bag is injected rather than the individual parameters.  Referencing a
     # "%parameter%" that an instance hasn't defined is a container compile error, and most
     # instances have no reason to define these.
+    # symfony's mailer service is private, so console commands can't fetch it from the container.
+    # odr:mailer:test needs to, hence this alias.
+    odr.mailer:
+        alias: mailer
+        public: true
+
+    # Lets mailer_dsn be "gmail+api://default" -- sends through the Gmail API with a Workspace
+    # service account instead of SMTP.  Symfony's own google-mailer bridge only does SMTP with an
+    # app password, so this transport is ours.  Credentials come from this instance's
+    # parameters.yml (see parameters.yml.dist), read via the parameter bag so instances that
+    # don't send mail this way need no parameters at all.
+    odr.mailer.gmail_api_transport_factory:
+        class: ODR\AdminBundle\Component\Mailer\GmailApiTransportFactory
+        arguments:
+            $parameter_bag: "@parameter_bag"
+            $cache_service: "@odr.cache_service"
+            $dispatcher: "@?event_dispatcher"
+            $logger: "@?logger"
+        tags:
+            - { name: mailer.transport_factory }
+
     odr.recaptcha_service:
         public: true
         class: ODR\AdminBundle\Component\Service\RecaptchaService
