@@ -1,6 +1,16 @@
 parameters:
 #    odr_open_repository_user.example.class: ODR\OpenRepository\UserBundle\Example
 
+    # The address outgoing mail is sent From.  Was called mailer_user, back when it was
+    # swiftmailer's SMTP username; symfony/mailer takes credentials in mailer_dsn instead, so
+    # all this ever did was set the From header.
+    #
+    # Defaulted here so every instance has it -- it is injected below, and an injected
+    # "%parameter%" that an instance hasn't defined is a container compile error.  An
+    # instance's own parameters.yml overrides this.  Null means ResettingController falls
+    # back to noreply@<site host>.
+    mailer_from_email: null
+
 services:
 
     # Registered as a service (controller.service_arguments) so Symfony resolves it from the
@@ -65,6 +75,6 @@ services:
             $form_factory: '@form.factory'
             $token_storage: '@security.token_storage'
             $site_baseurl: '%site_baseurl%'
-            $from_email: '%mailer_user%'
+            $from_email: '%mailer_from_email%'
             $reset_token_ttl: 86400
         tags: ['controller.service_arguments']

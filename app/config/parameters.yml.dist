@@ -5,10 +5,11 @@ parameters:
     database_name: odr_master
     database_user: odr_master
     database_password: [[ ENTER DATABASE PASSWORD HERE ]]
-    mailer_transport: smtp
-    mailer_host: localhost
-    mailer_user: null
-    mailer_password: null
+    # The From address for outgoing mail.  symfony/mailer takes its credentials from mailer_dsn,
+    # so there is no mailer_transport / mailer_host / mailer_user / mailer_password any more --
+    # those were swiftmailer's and nothing read them.
+    # Null falls back to noreply@<site host>.
+    mailer_from_email: null
     # symfony/mailer DSN (replaces swiftmailer). null://null discards mail; set smtp://user:pass@host or a real transport in production.
     mailer_dsn: 'null://null'
     locale: en
@@ -300,4 +301,43 @@ parameters:
     #   odr_recaptcha_hosts: 'www.odr.io,odr.io'   # hosts this applies to; default if unset
     #   odr_recaptcha_block_seconds: 7200          # ban length, and how long a pass is trusted
     #   odr_recaptcha_allow_verified_crawlers: 0   # 1 lets verified crawlers skip the challenge
+    # ----------------------------------------------------------------------------
+
+    # ----------------------------------------------------------------------------
+    # Sending mail through the Gmail API (GmailApiTransport)
+    #
+    # Only needed when mailer_dsn is 'gmail+api://default'.  Two ways to authenticate; the
+    # transport uses whichever is configured, preferring the OAuth one.  Either way the Gmail API
+    # has to be enabled in the Google Cloud project, and the scope is
+    # https://www.googleapis.com/auth/gmail.send
+    #
+    # gmail_api_private_key is the service account's RSA private key from its JSON key file,
+    # base64-encoded so the PEM fits on one line:
+    #     php -r 'echo base64_encode(json_decode(file_get_contents("key.json"))->private_key);'
+    #
+    # Test it without triggering a password reset:
+    #     php app/console odr:mailer:test you@example.org
+    #
+    # Commented out so instances that don't send mail this way need no parameters -- they are read
+    # through the parameter bag, so missing keys are simply "not configured".
+    #
+    # mailer_dsn: 'gmail+api://default'
+    #
+    # EITHER -- OAuth client + refresh token (no service-account key, so this still works when the
+    # organization enforces iam.disableServiceAccountKeyCreation).  Get the refresh token with:
+    #     php app/console odr:mailer:authorize --client-id=... --client-secret=...
+    # A "Web application" OAuth client needs its redirect uri registered in the Cloud Console;
+    # add http://localhost:8765/ there, or pass --redirect-uri with one it already has.
+    #
+    # gmail_api_client_id: 'XXXX.apps.googleusercontent.com'
+    # gmail_api_client_secret: 'GOCSPX-...'
+    # gmail_api_refresh_token: '1//...'
+    # gmail_api_user: 'noreply@yourdomain.org'   # the mailbox you authorized; also the From
+    #
+    # OR -- service account + domain-wide delegation (needs a downloadable key, and the scope
+    # authorized in the Workspace admin console):
+    #
+    # gmail_api_service_account: 'odr-mailer@PROJECT.iam.gserviceaccount.com'
+    # gmail_api_user: 'noreply@yourdomain.org'
+    # gmail_api_private_key: 'BASE64-ENCODED-PEM'
     # ----------------------------------------------------------------------------
