@@ -2892,12 +2892,14 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
         // ...the line with the space group is a string followed by another string
         $space_group_regex = '/\s+SPACE GROUP:\s+([^\s]+)/';
 
-        // ...and the table has seven columns...2-THETA, INTENSITY, D-SPACING, H, K, L, and
-        //  Multiplicity...sandwiched inbetween a variable number of spaces
-        $diffraction_regex = '/(?:\s+)([0-9.]+)(?:\s+)([0-9.]+)(?:\s+)([0-9.]+)(?:\s+)([0-9.-]+)(?:\s+)([0-9.-]+)(?:\s+)([0-9.-]+)(?:\s+)([0-9.]+)(?:\s+)/';
+        // The DIF file is apparently not guaranteed to have the multiplicity column...
+        $has_multiplicity = false;
+        // ...so the useful table could have six or seven columns...2-THETA, INTENSITY, D-SPACING,
+        //  H, K, L, and optionally Multiplicity...sandwiched inbetween a variable number of spaces
+        $diffraction_regex = '/(?:[ \t]+)([0-9.]+)(?:[ \t]+)([0-9.]+)(?:[ \t]+)([0-9.]+)(?:[ \t]+)([0-9.-]+)(?:[ \t]+)([0-9.-]+)(?:[ \t]+)([0-9.-]+)(?:[ \t]+)?([0-9.]+)?(?:[ \t]+)?/';
         $diffraction_table_lines = [];
-        $diffraction_table_lines[] = "2-THETA\tINTENSITY\tD-SPACING\tH\tK\tL\tMultiplicity";
         $diffraction_search_values = [];
+
 
         // Also want to get the rest of the values from this file when possible, even if they're
         //  not likely to be used
@@ -3042,7 +3044,7 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                 // TODO - I forget whether these values have to be normalized to GPa and K...
             }
 
-            if ( str_contains($line, 'INTENSITY') && str_contains($line, 'D-SPACING') ) {
+            if ( str_contains($line, '2-THETA') && str_contains($line, 'INTENSITY') && str_contains($line, 'D-SPACING') ) {
                 // This line needs to have at least two pieces in it
                 $header_line = $line_num;
             }
@@ -3060,17 +3062,36 @@ class AMCSDPlugin implements DatatypePluginInterface, DatafieldDerivationInterfa
                     $h = $matches[4];
                     $k = $matches[5];
                     $l = $matches[6];
-                    $mult = $matches[7];
 
-                    $diffraction_table_lines[] = $two_theta."\t".$intensity."\t".$d_spacing."\t".$h."\t".$k."\t".$l."\t".$mult;
+                    // The display table wants all six or seven columns
+                    $table_line = $two_theta."\t".$intensity."\t".$d_spacing."\t".$h."\t".$k."\t".$l;
+                    // The multiplicity column is not guaranteed to exist
+                    if ( isset($matches[7]) ) {
+                        $has_multiplicity = true;
+                        $table_line .= "\t".$matches[7];
+                    }
+                    $diffraction_table_lines[] = $table_line;
 
+                    // The search values only care about rows with an intensity above some value
                     if ( floatval($intensity) >= 4.0)
                         $diffraction_search_values[] = '('.$d_spacing.','.$intensity.','.$two_theta.')';
                 }
             }
         }
 
+        // The display table uses a ParagraphText field...
         $file_values['Diffraction File Table'] = implode("\n", $diffraction_table_lines);
+        if ( strlen($file_values['Diffraction File Table']) > 0) {
+            // ...the header line should only be prepended if there's actually data, otherwise records
+            //  with errors are impossible to find
+            $header_line = "2-THETA\tINTENSITY\tD-SPACING\tH\tK\tL";
+            if ( $has_multiplicity )
+                $header_line .= "\tMultiplicity";
+
+            $file_values['Diffraction File Table'] = $header_line."\n".$file_values['Diffraction File Table'];
+        }
+
+        // Each "point" for an XYZData field should be separated by the pipe character
         $file_values['Diffraction Search Values'] = implode("|", $diffraction_search_values);
 
         // All data gathered, close the file and return the mapping array
