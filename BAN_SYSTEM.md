@@ -26,7 +26,7 @@ reason into each access-log line, **fail2ban** reads the log and decides who to 
                  Apache ── banned bot / Bustamite flood? ──► 410, logged gate=banned-bot / attack
                                  │
                                  ▼
-                 WordPress / ODR ──► 404 gate=minimal_404, 403 gate=challenge, 302 gate=allowlist ...
+                 WordPress / ODR ──► 404 gate=minimal_404, 403 gate=challenge, 302 gate=solved ...
                                  │
                                  ▼
                  access log: one line per request, ending in gate=<reason>
@@ -153,11 +153,20 @@ LogFormat "%h %l %u %t \"%r\" %>s %O \"%{Referer}i\" \"%{User-Agent}i\" gate=%{X
 You can add fields *after* `gate=%{X-ODR-Gate}o` (for example ` body=%B`), but nothing before
 it, or the fail2ban filters won't match.
 
-**2.3 Install the bot-ban rules:**
+**2.3 Install the rule files:**
 
 ```bash
-cp $BB/apache/odr-bot-bans.conf /etc/apache2/conf-available/
+cp $BB/apache/odr-bot-bans.conf    /etc/apache2/conf-available/
+cp $BB/apache/odr_minimal_404s.conf /etc/apache2/conf-available/
 ```
+
+- `odr-bot-bans.conf` answers banned bots and the Bustamite flood with **410**
+  (`gate=banned-bot`, `gate=attack`).
+- `odr_minimal_404s.conf` answers the urls the WordPress theme would refuse with its minimal 404
+  (old RRUFF urls, missing root files, bot-shaped paths like `/_/R060867` or `/chem=o/R060290`)
+  with a **404** tagged `gate=minimal_404`, *without starting WordPress*. Only patterns that no
+  real page can match are there. The theme still refuses everything else, and remains the
+  fallback for these.
 
 **2.4 Edit the vhost file.** Inside the `<VirtualHost *:443>` block for `www.rruff.net`:
 
@@ -168,12 +177,17 @@ cp $BB/apache/odr-bot-bans.conf /etc/apache2/conf-available/
 2. **Delete** any earlier hand-added rules for the flood: the `RewriteCond … sample_child_id`
    lines, their `RewriteRule … [G,L,E=odr_attack:1]`, and
    `Header always set X-ODR-Gate attack env=odr_attack`. The include replaces them.
-3. Add, before `</VirtualHost>`:
+3. Add, before `</VirtualHost>`, in this order:
    ```apache
    Include /etc/apache2/conf-available/odr-bot-bans.conf
+   Include /etc/apache2/conf-available/odr_minimal_404s.conf
    ```
+4. Make sure the vhost has **no `ErrorDocument 404`** pointing into WordPress (for example
+   `ErrorDocument 404 /index.php`). With one, each of these 404s would start WordPress after all.
 
-If the port-80 vhost serves the site itself rather than redirecting to https, do the same there.
+The port-80 vhost can take the same two `Include` lines. Apache's rewrite rules run before its
+`Redirect`, so bots probing over plain http are answered there without the extra redirect hop.
+If the port-80 vhost serves the site itself rather than redirecting, it needs them.
 
 **2.5 Check the configuration and reload:**
 
@@ -182,17 +196,22 @@ apachectl configtest          # must print: Syntax OK
 systemctl reload apache2
 ```
 
-**Check:** all three should give the result shown.
+**Check:** each should give the result shown.
 
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' -A 'Amazonbot/0.1' https://www.rruff.net/            # 410
 curl -s -o /dev/null -w '%{http_code}\n' 'https://www.rruff.net/Bustamite?sample_child_id=1'  # 410
+curl -s -o /dev/null -w '%{http_code}\n' https://www.rruff.net/_/R060867                      # 404
 curl -s -o /dev/null -w '%{http_code}\n' https://www.rruff.net/                              # 200
-tail -3 /var/log/apache2/rruff.net-ssl-access.log
+tail -4 /var/log/apache2/rruff.net-ssl-access.log
 #   … "GET / HTTP/2.0" 410 … gate=banned-bot
 #   … "GET /Bustamite?sample_child_id=1 HTTP/2.0" 410 … gate=attack
+#   … "GET /_/R060867 HTTP/2.0" 404 … gate=minimal_404
 #   … "GET / HTTP/2.0" 200 … gate=-
 ```
+
+The `/_/R060867` 404 is Apache's own short "Not Found" page rather than the theme's. That's how
+you can tell WordPress wasn't started for it.
 
 These test requests come from your own address. That's why step 3.3 puts it in `odr_ignoreip`
 **before** fail2ban starts: on startup fail2ban reads the last hour of the log, and would
@@ -411,7 +430,8 @@ sudo crontab -u <ODR user> -e                # delete the odr:banned_bot_ips:upd
 rm /usr/local/sbin/odr-ban-bot-ips
 ```
 
-In the vhost file, delete the `Include …/odr-bot-bans.conf` line, then run
+In the vhost file(s), delete the two `Include …/odr-bot-bans.conf` / `…/odr_minimal_404s.conf`
+lines, then run
 `apachectl configtest && systemctl reload apache2`.
 
 ---
@@ -421,6 +441,7 @@ In the vhost file, delete the `Include …/odr-bot-bans.conf` line, then run
 | In the repo | Installed to | Purpose |
 | --- | --- | --- |
 | `docs/server/bot-bans/apache/odr-bot-bans.conf` | `/etc/apache2/conf-available/` | 410 for banned bots and the Bustamite flood |
+| `docs/server/bot-bans/apache/odr_minimal_404s.conf` | `/etc/apache2/conf-available/` | the theme's minimal 404s, answered before WordPress starts |
 | `docs/server/bot-bans/fail2ban/filter.d/odr-410.conf` | `/etc/fail2ban/filter.d/` | matches any 410 |
 | `docs/server/bot-bans/fail2ban/filter.d/odr-minimal404.conf` | `/etc/fail2ban/filter.d/` | matches `gate=minimal_404` |
 | `docs/server/bot-bans/fail2ban/filter.d/odr-challenge.conf` | `/etc/fail2ban/filter.d/` | matches `gate=challenge` |
