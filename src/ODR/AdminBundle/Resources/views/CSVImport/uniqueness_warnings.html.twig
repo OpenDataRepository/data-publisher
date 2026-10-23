@@ -36,12 +36,12 @@
             {% if parent_external_id_field is null %}
             <div class="pure-u-1">
                 <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
-                <span>&nbsp;The top-level Datatype doesn't have an "External ID" Datafield...as such, the importing process is incapable of updating existing Datarecords.  Any rows imported will ALWAYS create new Datarecords.</span>
+                <span>&nbsp;The top-level Datatype doesn't have an "External ID" Datafield...as such, the importing process cannot continue.</span>
             </div>
             {% else %}
             <div id="parent_external_id_field_warning" class="pure-u-1">
                 <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
-                <span>&nbsp;The top-level Datatype's External ID Datafield, "{{ parent_external_id_field.getfieldname }}", is not currently mapped to a column of the CSV File.  If it is not set, then the importing process will not be capable of updating existing Datarecords.</span>
+                <span>&nbsp;The top-level Datatype's External ID Datafield, "{{ parent_external_id_field.getfieldname }}", MUST be mapped to a column of the CSV File.</span>
             </div>
             {% endif %}
 

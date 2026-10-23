@@ -62,8 +62,8 @@ class CSVImportHelperService
      * so that the rest of the functions in this service can do their job more easily.
      *
      * @param array $post
-     * @param array $file_headers
-     * @param string $import_type
+     * @param array $file_headers can be empty
+     * @param string $import_type 'top-level' or 'child' or 'link' or 'child-link'
      *
      * @return array
      */

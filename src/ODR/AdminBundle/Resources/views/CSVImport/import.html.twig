@@ -30,20 +30,23 @@
                     {% for prefix,data in import_targets['prefixes'] %}
                         {% set dt_id = data['id'] %}
                         {% set dt = import_targets['lookup'][dt_id] %}
+
+                        {% set multiple_allowed = false %}
                         {% if datatree_array['multiple_allowed'][dt_id] is defined %}
                             {% set multiple_allowed = true %}
                         {% endif %}
 
+                        {% set error = data['error'] %}
                         {% set warn = data['warn'] %}
 
                         {% if data['type'] == 'top-level' %}
                         <option class="ODRCSVImport_toplevel{% if warn %} ODRCSVImport_warn{% endif %}" value="{{ prefix }}">{{ dt.shortname }}</option>
                         {% elseif data['type'] == 'child' %}
-                        <option class="ODRCSVImport_child{% if warn %} ODRCSVImport_warn{% endif %}{% if multiple_allowed %} multiple{% else %} single{% endif %}" value="{{ prefix }}">|-- {{ dt.shortname }} (child)</option>
+                        <option class="ODRCSVImport_child{% if error %} ODRCSVImport_error{% elseif warn %} ODRCSVImport_warn{% endif %}{% if multiple_allowed %} multiple{% else %} single{% endif %}" value="{{ prefix }}">|-- {{ dt.shortname }} ({% if error %}invalid {% endif %}child)</option>
                         {% elseif data['type'] == 'link' %}
-                        <option class="ODRCSVImport_link{% if warn %} ODRCSVImport_warn{% endif %}" value="{{ prefix }}">|-- {{ dt.shortname }} ({% if warn %}invalid {% endif %}link)</option>
+                        <option class="ODRCSVImport_link{% if error %} ODRCSVImport_error{% endif %}" value="{{ prefix }}">|-- {{ dt.shortname }} ({% if error %}invalid {% endif %}link)</option>
                         {% elseif data['type'] == 'child-link' %}
-                        <option class="ODRCSVImport_childlink{% if warn %} ODRCSVImport_warn{% endif %}" value="{{ prefix }}">|&nbsp;&nbsp;&nbsp;&nbsp;|-- {{ dt.shortname }} ({% if warn %}invalid {% endif %}link)</option>
+                        <option class="ODRCSVImport_childlink{% if error %} ODRCSVImport_error{% endif %}" value="{{ prefix }}">|&nbsp;&nbsp;&nbsp;&nbsp;|-- {{ dt.shortname }} ({% if error %}invalid {% endif %}link)</option>
                         {% endif %}
                     {% endfor %}
                     </select>
@@ -52,22 +55,21 @@
                         <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
                         <span>&nbsp;The top-level Datatype doesn't have an "External ID" Datafield...every row in the CSV file WILL become a new Datarecord.</span>
                     </span>
-                    <span id="top_level_link_warning" class="ODRCSVImport_warning ODRHidden">
-                        <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
-                        <span>&nbsp;This top-level Datatype doesn't have an "External ID" Datafield...CSV Importing can't continue because it's impossible to determine which Datarecords to link to.</span>
-                    </span>
 
+                    <span id="childtype_parent_import_error" class="ODRCSVImport_warning ODRHidden">
+                        <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
+                        <span>&nbsp;This top-level Datatype doesn't have an "External ID" Datafield...CSV Importing can't continue because it's impossible to determine which child Datarecords to modify.</span>
+                    </span>
                     <span id="childtype_single_import_warning" class="ODRCSVImport_warning ODRHidden">
                         <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
                         <span>&nbsp;This child Datatype doesn't have an "External ID" Datafield...if a parent Datarecord in the CSV file already has a child Datarecord, then the contents of the child Datarecord WILL be overwritten.</span>
                     </span>
-
                     <span id="childtype_multiple_import_warning" class="ODRCSVImport_warning ODRHidden">
                         <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
                         <span>&nbsp;This child Datatype doesn't have an "External ID" Datafield...every row in the CSV file WILL become a new child Datarecord.</span>
                     </span>
 
-                    <span id="invalid_linked_datatype_warning" class="ODRCSVImport_warning ODRHidden">
+                    <span id="linked_descendant_import_error" class="ODRCSVImport_warning ODRHidden">
                         <span><i class="fa fa-lg fa-exclamation-triangle Cursor"></i></span>
                         <span>&nbsp;CSV Importing can't continue because it's impossible to determine which Datarecords to link to.</span>
                     </span>
@@ -192,10 +194,64 @@
     $(function() {
         disableSearchSidebar();    {# defined in @ODRAdmin/Default/common_js.html.twig #}
 
-        if ( $(".ODRCSVImport_toplevel").hasClass('ODRCSVImport_warn') )
+        if ( $(".ODRCSVImport_toplevel").hasClass('ODRCSVImport_error') )
+            $("#top_level_import_error").removeClass('ODRHidden');
+        else if ( $(".ODRCSVImport_toplevel").hasClass('ODRCSVImport_warn') )
             $("#top_level_import_warning").removeClass('ODRHidden');
 
     {% if presets == null %}
+        $("#target_datatype").unbind('change').change(function() {
+            // Hide all warnings...they'll get shown if required
+            $(".ODRCSVImport_warning").addClass('ODRHidden');
+
+            var option = $(this).children(':selected');
+            var type = 'top-level';
+            if ( $(option).hasClass('ODRCSVImport_child') )
+                type = 'child';
+            else if ( $(option).hasClass('ODRCSVImport_link') || $(option).hasClass('ODRCSVImport_childlink') )
+                type = 'link';
+
+            var has_error = false;
+            var has_warning = false;
+            if ( $(option).hasClass('ODRCSVImport_error') )
+                has_error = true;
+            else if ( $(option).hasClass('ODRCSVImport_warn') )
+                has_warning = true;
+
+            if ( type == 'top-level' ) {
+                if ( has_warning ) {
+                    // If the top-level has a warning, then it's because it lacks an external id field
+                    $("#top_level_import_warning").removeClass('ODRHidden');
+                }
+
+                // The top-level option can't have the error class
+            }
+            else if ( type == 'child' ) {
+                if ( has_error ) {
+                    // The only way for a child descendant to have an error is if the parent lacks
+                    //  an external id field
+                    $("#childtype_parent_import_error").removeClass('ODRHidden');
+                }
+                else if ( has_warning ) {
+                    // Child descendants without an external id field display warnings tailored to
+                    //  whether they allow multiple child records or not
+                    if ( $(option).hasClass('single') )
+                        $("#childtype_single_import_warning").removeClass('ODRHidden');
+                    else if ( $(option).hasClass('multiple') )
+                        $("#childtype_multiple_import_warning").removeClass('ODRHidden');
+                }
+            }
+            else if ( type == 'link' ) {
+                // Linked descendants need all related datatypes to have an external id field...if
+                //  any are missing, then they all display the same error
+                if ( has_error )
+                    $("#linked_descendant_import_error").removeClass('ODRHidden');
+            }
+
+            // Ensure file upload div shows/hides itself if an invalid link is selected
+            $("#delimiter_select").trigger('change');
+        });
+
         $("#delimiter_select").unbind('change').change(function() {
             var char = $(this).children(':selected').first().attr('rel');
             $("#delimiter_field").val(char);
@@ -211,47 +267,6 @@
             }
 
             ODRCSVImport_delimiterChanged(char);
-        });
-
-        $("#target_datatype").unbind('change').change(function() {
-            // Hide all warnings...they'll get shown if required
-            $(".ODRCSVImport_warning").addClass('ODRHidden');
-
-            var top_level_has_warning = false;
-            if ( $(".ODRCSVImport_toplevel").hasClass('ODRCSVImport_warn') )
-                top_level_has_warning = true;
-
-            var option = $(this).children(':selected');
-            var type = 'top-level';
-            if ( $(option).hasClass('ODRCSVImport_child') )
-                type = 'child';
-            else if ( $(option).hasClass('ODRCSVImport_link') || $(option).hasClass('ODRCSVImport_childlink') )
-                type = 'link';
-
-            if ( top_level_has_warning ) {
-                // A top-level warning has two different outcomes
-                if ( type == 'top-level' || type == 'child' )
-                    $("#top_level_import_warning").removeClass('ODRHidden');
-                else if ( type == 'link' )
-                    $("#top_level_link_warning").removeClass('ODRHidden');
-            }
-            else if ( $(option).hasClass('ODRCSVImport_warn') ) {
-                if ( type == 'child' ) {
-                    // Child descendants without an external id field display warnings tailored to
-                    //  whether they allow multiple child records or not
-                    if ( $(option).hasClass('single') )
-                        $("#childtype_single_import_warning").removeClass('ODRHidden');
-                    else if ( $(option).hasClass('multiple') )
-                        $("#childtype_multiple_import_warning").removeClass('ODRHidden');
-                }
-                else if ( type == 'link' ) {
-                    // Linked descendants display their own error
-                    $("#invalid_linked_datatype_warning").removeClass('ODRHidden');
-                }
-            }
-
-            // Ensure file upload div shows/hides itself if an invalid link is selected
-            $("#delimiter_select").trigger('change');
         });
     {% else %}
         $("#target_datatype").val("{{ presets.prefix }}");
@@ -368,12 +383,12 @@
      * @param {string} delimiter
      */
     function ODRCSVImport_delimiterChanged(delimiter) {
-        // Don't display the file upload div when either link warning is active
-        var active_link_warning = false;
-        if ( !$("#top_level_link_warning").hasClass('ODRHidden') || !$("#invalid_linked_datatype_warning").hasClass('ODRHidden') )
-            active_link_warning = true;
+        // Don't display the file upload div when either of the two errors are active
+        var prevent_csv_upload = false;
+        if ( !$("#childtype_parent_import_error").hasClass('ODRHidden') || !$("#linked_descendant_import_error").hasClass('ODRHidden') )
+            prevent_csv_upload = true;
 
-        if ( delimiter === "" || delimiter === " " || active_link_warning )
+        if ( delimiter === "" || delimiter === " " || prevent_csv_upload )
             $("#file_upload_div").addClass('ODRHidden');
         else
             $("#file_upload_div").removeClass('ODRHidden');
