@@ -1,0 +1,73 @@
+# ODR bot bans.  See BAN_SYSTEM.md.
+#
+# Every jail drops the banned address at the firewall (nftables) for web traffic only --
+# ports 80 and 443 -- so a mistaken ban can never lock anyone out of ssh.  Drop rather than
+# reject: under a flood, answering every refused packet is work we don't need to do.
+
+[DEFAULT]
+# Addresses never banned by these jails: this server, and wherever the people testing the
+# search gate sit.  Five unsolved challenges in an hour bans the office otherwise.
+# ADD YOUR OFFICE / VPN ADDRESSES HERE (space separated, CIDR allowed).
+odr_ignoreip = 127.0.0.1/8 ::1
+
+# The access log(s) written with the combined_gate LogFormat -- one per line
+odr_logpath = /var/log/apache2/rruff.net-ssl-access.log
+
+odr_banaction = nftables[type=multiport, blocktype=drop]
+odr_port = http,https
+
+
+# Anything that got a 410: the Bustamite?sample_child_id flood (gate=attack) and banned bots
+# (gate=banned-bot).  Apache sends those before PHP runs.  One is enough.
+[odr-410]
+enabled   = true
+filter    = odr-410
+logpath   = %(odr_logpath)s
+backend   = auto
+ignoreip  = %(odr_ignoreip)s
+banaction = %(odr_banaction)s
+port      = %(odr_port)s
+maxretry  = 1
+findtime  = 1h
+bantime   = 48h
+
+# 5 of the theme's minimal 404s (urls that aren't a valid search) within an hour.
+# Applies to everyone, verified search crawlers included.
+[odr-minimal404]
+enabled   = true
+filter    = odr-minimal404
+logpath   = %(odr_logpath)s
+backend   = auto
+ignoreip  = %(odr_ignoreip)s
+banaction = %(odr_banaction)s
+port      = %(odr_port)s
+maxretry  = 5
+findtime  = 1h
+bantime   = 48h
+
+# 5 reCAPTCHA challenges served within an hour, i.e. asking and never answering.
+[odr-challenge]
+enabled   = true
+filter    = odr-challenge
+logpath   = %(odr_logpath)s
+backend   = auto
+ignoreip  = %(odr_ignoreip)s
+banaction = %(odr_banaction)s
+port      = %(odr_port)s
+maxretry  = 5
+findtime  = 1h
+bantime   = 48h
+
+# Published ip lists of banned bots (Amazonbot, ...), loaded by odr-ban-bot-ips rather than
+# found in a log.  Longer than the refresh interval so a listed address never lapses; one that
+# drops off the published list expires on its own.
+[odr-bots]
+enabled   = true
+filter    = odr-manual
+logpath   = /dev/null
+backend   = polling
+ignoreip  = %(odr_ignoreip)s
+banaction = %(odr_banaction)s
+port      = %(odr_port)s
+maxretry  = 1
+bantime   = 3d

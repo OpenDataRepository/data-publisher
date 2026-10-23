@@ -1,0 +1,5 @@
+# ODR bot bans: keep ban records at least as long as the longest ban (odr-bots, 3 days), so a
+# fail2ban restart puts every unexpired ban back.  The default, 1 day, would forget the rest.
+
+[Definition]
+dbpurgeage = 4d
