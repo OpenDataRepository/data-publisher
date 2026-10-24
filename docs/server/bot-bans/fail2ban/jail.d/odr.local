@@ -18,7 +18,8 @@ odr_port = http,https
 
 
 # Anything that got a 410: the Bustamite?sample_child_id flood (gate=attack) and banned bots
-# (gate=banned-bot).  Apache sends those before PHP runs.  One is enough.
+# (gate=banned-bot).  Apache sends those before PHP runs.  One is enough.  An approved crawler's
+# 410 (gate=approved_410) isn't counted.
 [odr-410]
 enabled   = true
 filter    = odr-410
@@ -31,8 +32,8 @@ maxretry  = 1
 findtime  = 1h
 bantime   = 48h
 
-# 5 of the theme's minimal 404s (urls that aren't a valid search) within an hour.
-# Applies to everyone, verified search crawlers included.
+# 5 minimal 404s (urls that aren't a valid search) within an hour.  An approved crawler's are
+# logged gate=approved_404 instead, and aren't counted: it gets the 404 but isn't banned.
 [odr-minimal404]
 enabled   = true
 filter    = odr-minimal404
@@ -45,7 +46,8 @@ maxretry  = 5
 findtime  = 1h
 bantime   = 48h
 
-# 5 reCAPTCHA challenges served within an hour, i.e. asking and never answering.
+# 5 reCAPTCHA challenges served within an hour, i.e. asking and never answering.  Every page
+# a visitor without a pass asks for is a challenge, until they solve one.
 [odr-challenge]
 enabled   = true
 filter    = odr-challenge

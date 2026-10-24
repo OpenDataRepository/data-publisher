@@ -1,0 +1,19 @@
+# ODR gate: this server's settings.  Install as /etc/apache2/odr-gate-local.conf, owned by root,
+# mode 600 -- it holds the secret that signs the pass cookie.  See BAN_SYSTEM.md.
+
+# The ODR instance that serves this site.  The challenge script is served from its checkout, and
+# reads its settings from app/config/gate.ini there.
+Define ODR_DIR "/home/rruff/data-publisher"
+Define ODR_GATE_DIR "${ODR_DIR}/docs/server/bot-bans/gate"
+SetEnv odr_gate_config "${ODR_DIR}/app/config/gate.ini"
+
+# The secret that signs the pass cookie.  Must be the same as pass_secret in
+# ${ODR_DIR}/app/config/gate.ini.  Generate one with:  openssl rand -hex 32
+# Changing it (in both places) signs everyone out of the gate.
+Define ODR_GATE_SECRET "REPLACE_WITH_THE_OUTPUT_OF_openssl_rand_-hex_32"
+
+# Free pass: requests from these addresses skip every rule in odr-gate.conf.  Localhost, and this
+# server's own public address(es) -- the static render daemon and WordPress's loopback requests
+# (wp-cron, site health) come from there.  Add a line per address; CIDR ranges are allowed.
+SetEnvIfExpr "-R '127.0.0.0/8' || -R '::1/128'" odr_trusted=1
+SetEnvIfExpr "-R '144.217.146.145'" odr_trusted=1

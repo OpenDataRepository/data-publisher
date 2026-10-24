@@ -231,6 +231,8 @@ class UpdateCrawlerIpsCommand extends ContainerAwareCommand
             return ( $failures > 0 ) ? 1 : 0;
         }
 
+        $text_contents = self::generateTextFile($prefixes);
+
         foreach ($output_files as $file) {
             $written = self::writeFile($file, $contents);
             if ( $written !== true ) {
@@ -238,8 +240,19 @@ class UpdateCrawlerIpsCommand extends ContainerAwareCommand
                 $logger->error('UpdateCrawlerIpsCommand.php: could not write "'.$file.'": '.$written);
                 return 1;
             }
-
             $output->writeln('Wrote <info>'.$file.'</info>');
+
+            // The same ranges as plain text, for the Apache search gate.  Root turns this into
+            //  Apache config (docs/server/bot-bans/bin/odr-gate-update-crawlers), and root must
+            //  never execute a file this user can write -- so a validated text list, not the php
+            $text_file = preg_replace('/\.php$/', '', $file).'.txt';
+            $written = self::writeFile($text_file, $text_contents);
+            if ( $written !== true ) {
+                $output->writeln('<error>Could not write '.$text_file.': '.$written.'</error>');
+                $logger->error('UpdateCrawlerIpsCommand.php: could not write "'.$text_file.'": '.$written);
+                return 1;
+            }
+            $output->writeln('Wrote <info>'.$text_file.'</info>');
         }
 
         // A partial failure is still worth a non-zero exit, so cron reports it
@@ -342,6 +355,7 @@ class UpdateCrawlerIpsCommand extends ContainerAwareCommand
                     'family' => 4,
                     'network' => $entry[0],
                     'mask' => $entry[1],
+                    'cidr' => long2ip($entry[0]).'/'.substr_count(decbin($entry[1]), '1'),
                     'source' => $name,
                 );
             }
@@ -352,6 +366,7 @@ class UpdateCrawlerIpsCommand extends ContainerAwareCommand
                     'family' => 6,
                     'network_hex' => $entry[0],
                     'bits' => $entry[1],
+                    'cidr' => inet_ntop(hex2bin($entry[0])).'/'.$entry[1],
                     'source' => $name,
                 );
             }
@@ -399,6 +414,7 @@ class UpdateCrawlerIpsCommand extends ContainerAwareCommand
                 'family' => 4,
                 'network' => $network,
                 'mask' => $mask,
+                'cidr' => long2ip($network).'/'.$bits,
                 'source' => $source,
             );
         }
@@ -410,8 +426,31 @@ class UpdateCrawlerIpsCommand extends ContainerAwareCommand
             'family' => 6,
             'network_hex' => bin2hex($packed),
             'bits' => $bits,
+            'cidr' => inet_ntop($packed).'/'.$bits,
             'source' => $source,
         );
+    }
+
+
+    /**
+     * Renders the plain text list: one "<cidr> <source>" per line, after a commented header.
+     *
+     * @param array $prefixes
+     *
+     * @return string
+     */
+    private static function generateTextFile($prefixes)
+    {
+        $lines = array();
+        $lines[] = '# Search engine crawler IP ranges, read by docs/server/bot-bans/bin/odr-gate-update-crawlers.';
+        $lines[] = '# GENERATED FILE -- do not edit by hand.  Regenerate with:';
+        $lines[] = '#     php app/console odr:crawler_ips:update';
+        $lines[] = '# generated '.date('c');
+        $lines[] = '';
+        foreach ($prefixes as $prefix)
+            $lines[] = $prefix['cidr'].' '.$prefix['source'];
+
+        return implode("\n", $lines)."\n";
     }
 
 

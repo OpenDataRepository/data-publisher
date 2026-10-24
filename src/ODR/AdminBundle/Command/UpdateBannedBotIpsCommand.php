@@ -12,7 +12,7 @@
  *
  * This only writes the list.  Banning needs root, so docs/server/bot-bans/bin/odr-ban-bot-ips
  * (run from root's cron) feeds the list to fail2ban's odr-bots jail.  A bot that identifies itself
- * is also refused by user agent in docs/server/bot-bans/apache/odr-bot-bans.conf, which catches
+ * is also refused by user agent in docs/server/bot-bans/apache/odr-gate.conf, which catches
  * it even from an address that isn't published yet.
  *
  * To ban another bot, add it to SOURCES.

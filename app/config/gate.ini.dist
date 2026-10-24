@@ -1,0 +1,19 @@
+; ODR gate: settings for the reCAPTCHA challenge (docs/server/bot-bans/gate/challenge.php).
+; Copy to app/config/gate.ini in each instance and fill it in.  See BAN_SYSTEM.md.
+; gate.ini is per instance and never committed, like parameters.yml.  The web server has to be
+; able to read it; nobody else needs to.
+
+; reCAPTCHA v2 "I'm not a robot" keys, from https://www.google.com/recaptcha/admin -- the same pair
+; the WordPress search gate uses is fine.  Every hostname the site answers on must be registered.
+recaptcha_site_key = "REPLACE"
+recaptcha_secret   = "REPLACE"
+
+; The secret that signs the pass cookie.  Must be the same as ODR_GATE_SECRET in
+; /etc/apache2/odr-gate-local.conf, which Apache uses to check it.  Generate with:
+;   openssl rand -hex 32
+; Changing it (in both places) signs everyone out of the gate.
+pass_secret = "REPLACE"
+
+; How long a solved challenge lasts, in hours (at least 1).  The pass is tied to the visitor's
+; address, so a phone that changes networks is asked again.
+pass_hours = 24
