@@ -261,7 +261,7 @@ class DatarecordInfoService
                e_f, e_fm, partial e_f_cb.{id, username, email, firstName, lastName},
                e_i, e_im, e_ip, e_ipm, e_is, partial e_ip_cb.{id, username, email, firstName, lastName},
 
-               e_b, e_iv, e_dv, e_lt, e_lvc, e_mvc, e_svc, e_dtv, e_xyz,
+               e_b, e_iv, e_dv, e_lt, e_lvc, e_mvc, e_svc, e_dtv,
 
                partial e_b_ub.{id, username, email, firstName, lastName},
                partial e_iv_ub.{id, username, email, firstName, lastName},
@@ -270,8 +270,7 @@ class DatarecordInfoService
                partial e_lvc_ub.{id, username, email, firstName, lastName},
                partial e_mvc_ub.{id, username, email, firstName, lastName},
                partial e_svc_ub.{id, username, email, firstName, lastName},
-               partial e_dtv_ub.{id, username, email, firstName, lastName},
-               partial e_xyz_ub.{id, username, email, firstName, lastName}
+               partial e_dtv_ub.{id, username, email, firstName, lastName}
 
             FROM ODR\AdminBundle\Entity\DataRecord AS dr
             LEFT JOIN dr.dataRecordMeta AS drm
@@ -320,8 +319,6 @@ class DatarecordInfoService
             LEFT JOIN e_svc.updatedBy AS e_svc_ub
             LEFT JOIN drf.datetimeValue AS e_dtv
             LEFT JOIN e_dtv.updatedBy AS e_dtv_ub
-            LEFT JOIN drf.XYZData AS e_xyz
-            LEFT JOIN e_xyz.updatedBy AS e_xyz_ub
 
             LEFT JOIN drf.dataField AS df
             LEFT JOIN df.dataFieldMeta AS dfm
