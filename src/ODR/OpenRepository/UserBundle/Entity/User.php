@@ -42,13 +42,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, LegacyP
     /** @ORM\Column(type="string", length=180) */
     protected $username;
 
-    /** @ORM\Column(name="username_canonical", type="string", length=180) */
+    /** @ORM\Column(name="username_canonical", type="string", length=180, unique=true) */
     protected $usernameCanonical;
 
     /** @ORM\Column(type="string", length=180) */
     protected $email;
 
-    /** @ORM\Column(name="email_canonical", type="string", length=180) */
+    /** @ORM\Column(name="email_canonical", type="string", length=180, unique=true) */
     protected $emailCanonical;
 
     /** @ORM\Column(type="boolean") */
@@ -66,7 +66,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, LegacyP
     /** @ORM\Column(name="last_login", type="datetime", nullable=true) */
     protected $lastLogin;
 
-    /** @ORM\Column(name="confirmation_token", type="string", length=180, nullable=true) */
+    /** @ORM\Column(name="confirmation_token", type="string", length=180, nullable=true, unique=true) */
     protected $confirmationToken;
 
     /** @ORM\Column(name="password_requested_at", type="datetime", nullable=true) */
