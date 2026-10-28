@@ -10,10 +10,10 @@
 # ADD YOUR OFFICE / VPN ADDRESSES HERE (space separated, CIDR allowed).
 odr_ignoreip = 127.0.0.1/8 ::1
 
-# The access logs written with the combined_gate LogFormat: every site using the gate.  A wildcard
-# picks up a new site's log on the next fail2ban reload; or list them, one per line, indented.
-# Bans are server-wide (they're at the firewall): abuse on one site blocks the address from all.
-odr_logpath = /var/log/apache2/*-access.log
+# The shared log the gate writes its events to, from every site (odr-gate.conf).  The sites' own
+# access logs aren't read.  Bans are server-wide (they're at the firewall): abuse on one site
+# blocks the address from all.
+odr_logpath = /var/log/apache2/odr-ban-monitor.log
 
 odr_banaction = nftables[type=multiport, blocktype=drop]
 odr_port = http,https

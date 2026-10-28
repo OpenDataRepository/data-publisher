@@ -42,7 +42,7 @@ Protects the sites on an ODR server from automated traffic in two layers:
  WordPress / ODR  (refuse any remaining junk urls themselves: gate=minimal_404)
                   │
                   ▼
- access log, every line ending in gate=<value>
+ odr-ban-monitor.log: one line per gate event, from every site (sites' own logs unchanged)
                   │
                   ▼
  fail2ban: reads each new line, counts per address, bans ──► nftables
@@ -87,7 +87,9 @@ show as broken on the gate page. The gate therefore serves each site's logo itse
 publish, **never by user agent**. ODR downloads those ranges, and a root script turns them into
 Apache config.
 
-**The bans.** fail2ban is a background service that follows every site's access log:
+**The bans.** fail2ban is a background service that follows **`/var/log/apache2/odr-ban-monitor.log`**,
+a shared log the gate writes its events to from every site. Each site keeps its own access log,
+in whatever format and name it already uses; fail2ban doesn't read those.
 
 1. It reads each new line and tests it against its **filters**, which are regular expressions
    matching the `gate=…` value at the end of the line.
@@ -132,7 +134,9 @@ solves two reCAPTCHAs.
 
 ## Log values
 
-The last field of each access-log line, `gate=…`:
+Each line of `odr-ban-monitor.log` ends in `gate=<value> site=<site>`. The monitor log holds the
+values marked **●**; the others are only sent as the `X-ODR-Gate` response header, so a site can
+add them to its own log with `%{X-ODR-Gate}o` if wanted.
 
 | Value | Meaning |
 | --- | --- |
@@ -140,15 +144,15 @@ The last field of each access-log line, `gate=…`:
 | `api` | an API route: allowed |
 | `crawler` | an approved crawler: allowed |
 | `passed` | a visitor with a valid pass cookie: allowed |
-| `challenge` | shown the gate page (403). **Counted by fail2ban** (10 in 24 h bans). |
-| `solved` | solved it: pass cookie set, sent back to their page (303) |
-| `challenge-google-unreachable` | Google couldn't be asked, so the challenge was shown again. Not counted. |
+| `challenge` ● | shown the gate page (403). **Counted by fail2ban** (10 in 24 h bans). |
+| `solved` ● | solved it: pass cookie set, sent back to their page (303) |
+| `challenge-google-unreachable` ● | Google couldn't be asked, so the challenge was shown again. Not counted. |
 | `gate-logo` | the gate page's logo |
-| `gate-misconfigured` | the gate couldn't read its settings (503). See Troubleshooting. |
-| `minimal_404` | a url no real page can match (404). **Counted by fail2ban** (10 in 24 h bans). |
-| `approved_404` | the same, for an approved crawler. Not counted. |
-| `attack` / `banned-bot` | the Bustamite flood / a banned bot's user agent (410). **Banned at once.** |
-| `approved_410` | the same, for an approved crawler. Not counted. |
+| `gate-misconfigured` ● | the gate couldn't read its settings (503). See Troubleshooting. |
+| `minimal_404` ● | a url no real page can match (404). **Counted by fail2ban** (10 in 24 h bans). |
+| `approved_404` ● | the same, for an approved crawler. Not counted. |
+| `attack` / `banned-bot` ● | the Bustamite flood / a banned bot's user agent (410). **Banned at once.** |
+| `approved_410` ● | the same, for an approved crawler. Not counted. |
 | `-` | none of the above: answered before the gate (e.g. a 301 to https), or untagged |
 
 WordPress adds its own values on the RRUFF search routes (`logged-in`, `passed-earlier` and so on),
@@ -269,14 +273,9 @@ a2enconf odr-gate
 
 Don't `a2enconf` the rules file: the gate includes it for the sites that ask for it.
 
-If `grep -rn combined_gate /etc/apache2/` finds no `LogFormat` line, add this one to
-`/etc/apache2/apache2.conf`, next to the other `LogFormat` lines:
-
-```apache
-LogFormat "%h %l %u %t \"%r\" %>s %O \"%{Referer}i\" \"%{User-Agent}i\" gate=%{X-ODR-Gate}o" combined_gate
-```
-
-You can add fields *after* `gate=%{X-ODR-Gate}o` (for example ` body=%B`), but nothing before it.
+There's no log format to set up. The gate defines its own and writes its events to
+`/var/log/apache2/odr-ban-monitor.log`. Each site's own access log stays exactly as it is. The
+standard log rotation for `/var/log/apache2/*.log` covers the monitor log too.
 
 **Check:**
 
@@ -301,14 +300,13 @@ cp $BB/fail2ban/fail2ban.d/odr.local /etc/fail2ban/fail2ban.d/
 
 ```ini
 odr_ignoreip = 127.0.0.1/8 ::1 144.217.146.145 216.220.243.246
-odr_logpath = /var/log/apache2/*-access.log
+odr_logpath = /var/log/apache2/odr-ban-monitor.log
 ```
 
 - **`odr_ignoreip`**: this server's address(es) plus every office and VPN address. Testing a gate
   page from the office produces challenges, and ten unsolved ones in 24 hours would ban you.
-- **`odr_logpath`**: the access logs of every site using the gate. The wildcard covers the usual
-  `<site>-access.log` / `<site>-ssl-access.log` names. Adjust it to match your `CustomLog`
-  lines, or list the files one per line, indented.
+- **`odr_logpath`**: the shared monitor log. Leave it as it is unless Apache's log directory isn't
+  `/var/log/apache2`.
 
 **5.3 Check and start:**
 
@@ -380,16 +378,13 @@ downloaded the next time the page is shown.
 
 In each `<VirtualHost>` that serves the site (the :443 one, and :80 too):
 
-1. Make its `CustomLog` use `combined_gate`, with a filename the fail2ban wildcard matches:
-   ```apache
-   CustomLog ${APACHE_LOG_DIR}/rruff.net-ssl-access.log combined_gate
-   ```
-2. Add, before `</VirtualHost>`:
+1. Add, before `</VirtualHost>`:
    ```apache
    Use OdrGate /home/rruff/data-publisher rruff
    ```
    The second word is the rule set: `rruff` for the RRUFF site, `none` for every other site.
-3. Make sure the vhost has **no `ErrorDocument 404` or `ErrorDocument 410`** pointing into
+   The site's own `CustomLog` stays as it is.
+2. Make sure the vhost has **no `ErrorDocument 404` or `ErrorDocument 410`** pointing into
    WordPress.
 
 ```bash
@@ -413,9 +408,10 @@ curl -s -o /dev/null -w '%{http_code}\n' -A 'Amazonbot/0.1' https://www.rruff.ne
 ```
 
 Then open the site in a browser. You should see its branded gate page. Solve it, and you should
-land on the page you asked for and be able to browse normally. The access log shows
-`gate=challenge`, then `gate=solved`, then `gate=passed`. Also check that the static render
-daemon still works: its requests show `gate=trusted`.
+land on the page you asked for and be able to browse normally.
+`grep 'site=www.rruff.net' /var/log/apache2/odr-ban-monitor.log | tail` shows your `gate=challenge`
+and then `gate=solved`. After that, your requests are in the site's own log only. Also check that
+the static render daemon still works: its requests don't appear in the monitor log at all.
 
 Make sure every hostname the site answers on is registered on the reCAPTCHA key. Otherwise its
 gate page shows "Invalid domain for site key".
@@ -434,8 +430,10 @@ If a server runs the earlier version (one `Include …/odr-gate.conf` per vhost)
 4. Do step 4 (`a2enmod macro`, copy both files, `a2enconf odr-gate`).
 5. In each vhost, replace `Include /etc/apache2/conf-available/odr-gate.conf` with
    `Use OdrGate <instance> <rules>`.
-6. Set `odr_logpath` in `/etc/fail2ban/jail.d/odr.local` to the wildcard, then run
-   `fail2ban-client reload`.
+6. Set `odr_logpath` in `/etc/fail2ban/jail.d/odr.local` to
+   `/var/log/apache2/odr-ban-monitor.log`, then run `fail2ban-client reload`.
+7. Optionally, switch the sites' `CustomLog` lines back to their usual format. They no longer need
+   `combined_gate`.
 
 The pass signature now covers the hostname, so existing passes stop working once. Everyone
 solves the reCAPTCHA again.
@@ -446,7 +444,8 @@ solves the reCAPTCHA again.
 
 | Task | Command |
 | --- | --- |
-| What a site is doing | `grep -o 'gate=[a-z0-9_-]*' <access log> \| sort \| uniq -c \| sort -rn` |
+| Gate events, all sites | `grep -o 'gate=[a-z0-9_-]*' /var/log/apache2/odr-ban-monitor.log \| sort \| uniq -c \| sort -rn` |
+| Gate events, one site | `grep 'site=www.rruff.net' /var/log/apache2/odr-ban-monitor.log \| tail -20` |
 | Ban overview | `fail2ban-client status` |
 | One jail: counts and banned addresses | `fail2ban-client status odr-challenge` |
 | Is an address banned, and by which jail? | `fail2ban-client banned 1.2.3.4` |
@@ -503,6 +502,13 @@ points at it, that it's group `www-data` and mode 640, and look in Apache's erro
 
 **The reCAPTCHA box says "Invalid domain for site key".** Register the hostname on the key in the
 reCAPTCHA admin console.
+
+**Nobody is ever banned.**
+1. Is the gate writing the monitor log? `tail /var/log/apache2/odr-ban-monitor.log` should show
+   recent `gate=challenge` lines. If it's empty, check that the sites have their `Use OdrGate`
+   line and that `odr-gate.conf` is enabled.
+2. Is fail2ban reading it? `fail2ban-client status odr-challenge` should list
+   `/var/log/apache2/odr-ban-monitor.log` under **File list**.
 
 **Google is being challenged** (Googlebot requests logged `gate=challenge`). The crawler ranges
 aren't loaded. Check `/etc/apache2/odr-gate-crawlers.conf` exists and isn't empty, then re-run
