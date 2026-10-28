@@ -197,7 +197,7 @@ ls $BB/apache $BB/gate $BB/bin
 #   odr-gate.conf  odr-gate-local.conf.example  odr-gate-rules-rruff.conf
 #   challenge.php
 #   odr-ban-bot-ips  odr-gate-update-crawlers
-grep -vc '^#' $MAIN/var/crawler_ips.txt          # several hundred
+sudo -u $MAIN_USER php app/console odr:crawler_ips:update --env=prod --check=66.249.66.1   # "is a verified google crawler"
 grep -vc '^#' $MAIN/var/banned_bot_ips.txt       # a couple of thousand
 ```
 
@@ -252,7 +252,7 @@ ls -l /etc/apache2/odr-gate-local.conf $MAIN/app/config/gate.ini   # -rw------- 
 
 ```bash
 install -m 755 $BB/bin/odr-gate-update-crawlers /usr/local/sbin/
-odr-gate-update-crawlers $MAIN/var/crawler_ips.txt
+odr-gate-update-crawlers $MAIN/var/crawler_ips.json
 #   /etc/apache2/odr-gate-crawlers.conf: 549 IPv4 + 22 IPv6 ranges (new file)
 ```
 
@@ -340,7 +340,7 @@ As root (`crontab -e`), a little later:
 
 ```cron
 10 */6 * * * /usr/local/sbin/odr-ban-bot-ips /home/odr/data-publisher/var/banned_bot_ips.txt
-45 3 * * 1   /usr/local/sbin/odr-gate-update-crawlers /home/odr/data-publisher/var/crawler_ips.txt
+45 3 * * 1   /usr/local/sbin/odr-gate-update-crawlers /home/odr/data-publisher/var/crawler_ips.json
 ```
 
 ---
@@ -560,5 +560,5 @@ The `gate.ini` and `gate_branding.ini` files in the instances can stay or go.
 | `docs/server/bot-bans/fail2ban/filter.d/odr-*.conf` | `/etc/fail2ban/filter.d/` | what each jail counts |
 | `docs/server/bot-bans/fail2ban/jail.d/odr.local` | `/etc/fail2ban/jail.d/` | the jails and their limits |
 | `docs/server/bot-bans/fail2ban/fail2ban.d/odr.local` | `/etc/fail2ban/fail2ban.d/` | keeps ban records long enough to survive restarts |
-| `src/ODR/AdminBundle/Command/UpdateCrawlerIpsCommand.php` | (ODR code) | `odr:crawler_ips:update` → `var/crawler_ips.php` and `.txt` |
+| `src/ODR/AdminBundle/Command/UpdateCrawlerIpsCommand.php` | (ODR code) | `odr:crawler_ips:update` → `var/crawler_ips.json`, read by ODR, the theme and the gate |
 | `src/ODR/AdminBundle/Command/UpdateBannedBotIpsCommand.php` | (ODR code) | `odr:banned_bot_ips:update` → `var/banned_bot_ips.txt` |

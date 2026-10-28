@@ -2,18 +2,20 @@
 """
 ODR search gate: turns ODR's verified-crawler list into the Apache config odr-gate.conf reads.
 
-The list (var/crawler_ips.txt) is written by `php app/console odr:crawler_ips:update` as the ODR
-user.  Apache's config is read as root, so this never includes that file: it validates every
-line, collapses the ranges, and writes its own config.  Run from root's cron after the ODR command.
+The list (var/crawler_ips.json) is written by `php app/console odr:crawler_ips:update` as the
+ODR user.  Apache's config is read as root, so this never includes that file: it reads it as
+data, validates every range, collapses them, and writes its own config.  Run from root's cron
+after the ODR command.
 
-    odr-gate-update-crawlers /home/rruff/data-publisher/var/crawler_ips.txt
-    odr-gate-update-crawlers --dry-run /home/rruff/data-publisher/var/crawler_ips.txt
+    odr-gate-update-crawlers /home/odr/data-publisher/var/crawler_ips.json
+    odr-gate-update-crawlers --dry-run /home/odr/data-publisher/var/crawler_ips.json
 
 Writes /etc/apache2/odr-gate-crawlers.conf.  When it changed, checks the whole Apache config
 (apachectl configtest) before reloading, and puts the previous file back if the check fails.
 """
 
 import ipaddress
+import json
 import os
 import subprocess
 import sys
@@ -25,23 +27,26 @@ NARROWEST_ALLOWED = {4: 8, 6: 16}   # refuse anything broader than /8 (IPv4) or 
 
 def read_list(path):
     networks, rejected = [], []
-    with open(path) as handle:
-        for line in handle:
-            line = line.strip()
-            if not line or line.startswith('#'):
-                continue
-            token = line.split()[0]
-            try:
-                network = ipaddress.ip_network(token, strict=False)
-            except ValueError:
-                rejected.append(token + ' (not a range)')
-                continue
-            if not network.is_global:
-                rejected.append(token + ' (not a public range)')
-            elif network.prefixlen < NARROWEST_ALLOWED[network.version]:
-                rejected.append(token + ' (too broad)')
-            else:
-                networks.append(network)
+    try:
+        with open(path) as handle:
+            data = json.load(handle)
+        # each entry is [network, mask or bits, source, cidr]; only the cidr is used, and checked
+        entries = list(data.get('ipv4', [])) + list(data.get('ipv6', []))
+    except (OSError, ValueError, AttributeError, TypeError) as error:
+        sys.exit('could not read %s as json: %s' % (path, error))
+    for entry in entries:
+        token = str(entry[3]) if isinstance(entry, list) and len(entry) >= 4 else repr(entry)
+        try:
+            network = ipaddress.ip_network(token, strict=False)
+        except ValueError:
+            rejected.append(token + ' (not a range)')
+            continue
+        if not network.is_global:
+            rejected.append(token + ' (not a public range)')
+        elif network.prefixlen < NARROWEST_ALLOWED[network.version]:
+            rejected.append(token + ' (too broad)')
+        else:
+            networks.append(network)
     return networks, rejected
 
 

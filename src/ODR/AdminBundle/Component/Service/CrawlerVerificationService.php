@@ -135,8 +135,8 @@ class CrawlerVerificationService
 
 
     /**
-     * Loads the generated file, which is a plain php array so that opcache holds it and there's
-     * no parsing cost per request.
+     * Loads the generated json file (var/crawler_ips.json).  About 50 KB, decoded once per
+     * request that needs it.
      *
      * A missing or malformed file means "no crawler matches anything"...which is deliberately the
      * safe direction for the server (anonymous visitors get blocked) but the dangerous direction
@@ -156,7 +156,7 @@ class CrawlerVerificationService
             return $this->data;
         }
 
-        $loaded = @include $this->data_file;
+        $loaded = json_decode((string)@file_get_contents($this->data_file), true);
         if ( !is_array($loaded) || !isset($loaded['ipv4']) || !isset($loaded['ipv6']) ) {
             $this->logger->error('CrawlerVerificationService: the crawler ip file at "'.$this->data_file.'" is malformed, so no crawler will be recognized');
             return $this->data;
