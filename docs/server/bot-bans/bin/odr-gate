@@ -1,0 +1,843 @@
+#!/usr/bin/env python3
+"""
+ODR gate: install, add sites to, and verify the gate + ban system.  See BAN_SYSTEM.md.
+
+Run as root, from the ODR checkout the other instances are linked to:
+
+    odr-gate verify                      check everything, change nothing
+    odr-gate install                     set up / repair the server-wide parts (safe to re-run)
+    odr-gate add-site <hostname> --instance <ODR instance dir> --rules <rruff|none>
+                                         turn the gate on for one site's vhost(s)
+
+Options:
+    --yes             don't ask; use what's already configured (or detected) for everything
+    --dry-run         say what would change, change nothing
+    --main DIR        the ODR instance the others are linked to (default: this checkout)
+    --server-ips "a b"  this server's public addresses (default: detected)
+    --office-ips "a b"  addresses that are never banned (default: kept from the current setup)
+    --recaptcha-site-key KEY / --recaptcha-secret KEY / --pass-secret SECRET
+                      the shared reCAPTCHA pair and the cookie secret.  install asks for all three
+                      first, every time, unless given here -- never taken from an existing file
+    --pass-hours N    how long a solved reCAPTCHA lasts (default: the current setting, else 96)
+
+install and add-site back up every file they change to /var/backups/odr-gate/<time>/, and
+add-site puts the vhost files back if Apache's config check fails afterwards.
+"""
+
+import argparse
+import datetime
+import getpass
+import grp
+import ipaddress
+import os
+import pwd
+import re
+import shutil
+import subprocess
+import sys
+import time
+
+# Every absolute system path goes through P(), so the tool can be tested against a fake tree
+ROOT = os.environ.get('ODR_GATE_TEST_ROOT', '')
+
+
+def P(path):
+    return ROOT + path
+
+
+BB = os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..'))
+REPO = os.path.realpath(os.path.join(BB, '..', '..', '..'))
+
+MODULES = ['macro', 'rewrite', 'headers', 'setenvif', 'alias', 'env']
+APACHE_FILES = {                                   # repo file -> installed copy
+    'apache/odr-gate.conf': '/etc/apache2/conf-available/odr-gate.conf',
+    'apache/odr-gate-rules-rruff.conf': '/etc/apache2/conf-available/odr-gate-rules-rruff.conf',
+}
+FAIL2BAN_FILES = {
+    'fail2ban/filter.d/odr-410.conf': '/etc/fail2ban/filter.d/odr-410.conf',
+    'fail2ban/filter.d/odr-minimal404.conf': '/etc/fail2ban/filter.d/odr-minimal404.conf',
+    'fail2ban/filter.d/odr-challenge.conf': '/etc/fail2ban/filter.d/odr-challenge.conf',
+    'fail2ban/filter.d/odr-manual.conf': '/etc/fail2ban/filter.d/odr-manual.conf',
+    'fail2ban/fail2ban.d/odr.local': '/etc/fail2ban/fail2ban.d/odr.local',
+}
+SCRIPTS = {
+    'bin/odr-ban-bot-ips': '/usr/local/sbin/odr-ban-bot-ips',
+    'bin/odr-gate-update-crawlers': '/usr/local/sbin/odr-gate-update-crawlers',
+}
+LOCAL_CONF = '/etc/apache2/odr-gate-local.conf'
+CRAWLERS_CONF = '/etc/apache2/odr-gate-crawlers.conf'
+JAIL = '/etc/fail2ban/jail.d/odr.local'
+CRON = '/etc/cron.d/odr-gate'
+JAILS = ['odr-410', 'odr-minimal404', 'odr-challenge', 'odr-bots']
+OBSOLETE_INCLUDES = ['odr-gate.conf', 'odr-bot-bans.conf', 'odr_minimal_404s.conf']
+CRON_MARKERS = ['odr:banned_bot_ips:update', 'odr:crawler_ips:update', 'odr-ban-bot-ips', 'odr-gate-update-crawlers']
+MIN_THEME = (1, 2, 21)
+STALE_DAYS = 8
+
+
+# ------------------------------------------------------------------------------------- output
+
+class Report:
+    def __init__(self):
+        self.problems = 0
+        self.warnings = 0
+
+    def section(self, title):
+        print('\n' + title)
+
+    def ok(self, text, fix=None):
+        print('  \u2713 ' + text)
+
+    def bad(self, text, fix=None):
+        self.problems += 1
+        print('  \u2717 ' + text + ('\n      fix: ' + fix if fix else ''))
+
+    def warn(self, text, fix=None):
+        self.warnings += 1
+        print('  ! ' + text + ('\n      ' + fix if fix else ''))
+
+    def info(self, text):
+        print('    ' + text)
+
+
+def say(text):
+    print(text)
+
+
+def die(text):
+    sys.exit('odr-gate: ' + text)
+
+
+# ------------------------------------------------------------------------------------ helpers
+
+def run(cmd, check=False, quiet=True, cwd=None):
+    """Runs a command; returns (exit code, combined output)."""
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
+    except FileNotFoundError:
+        return 127, cmd[0] + ': not installed'
+    out = (result.stdout + result.stderr).strip()
+    if check and result.returncode != 0:
+        die('%s failed:\n%s' % (' '.join(cmd), out))
+    if not quiet and out:
+        say(out)
+    return result.returncode, out
+
+
+def read(path):
+    try:
+        with open(path) as handle:
+            return handle.read()
+    except OSError:
+        return None
+
+
+def same_file(source, target):
+    return read(source) is not None and read(source) == read(target)
+
+
+def age_days(path):
+    try:
+        return (time.time() - os.path.getmtime(path)) / 86400
+    except OSError:
+        return None
+
+
+def owner(path):
+    try:
+        return pwd.getpwuid(os.stat(path).st_uid).pw_name
+    except (OSError, KeyError):
+        return None
+
+
+class Changes:
+    """Every change install / add-site makes goes through here: dry-run, and backups."""
+
+    def __init__(self, dry_run):
+        self.dry_run = dry_run
+        self.backup_dir = P('/var/backups/odr-gate/' + datetime.datetime.now().strftime('%Y%m%d-%H%M%S'))
+        self.backed_up = {}
+
+    def backup(self, path):
+        if path in self.backed_up or not os.path.exists(path):
+            return
+        target = self.backup_dir + (path[len(ROOT):] if ROOT and path.startswith(ROOT) else path)
+        if not self.dry_run:
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            shutil.copy2(path, target)
+        self.backed_up[path] = target
+
+    def restore(self):
+        for path, copy in self.backed_up.items():
+            shutil.copy2(copy, path)
+
+    def write(self, path, contents, mode=0o644, user=None, group=None, why=''):
+        if read(path) == contents:
+            return False
+        say('  %s %s%s' % ('would write' if self.dry_run else 'writing', path, ' (' + why + ')' if why else ''))
+        if self.dry_run:
+            return True
+        self.backup(path)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        temp = path + '.odr-gate-new'
+        with open(temp, 'w') as handle:
+            handle.write(contents)
+        os.chmod(temp, mode)
+        if user or group:
+            uid = pwd.getpwnam(user).pw_uid if user else -1
+            gid = grp.getgrnam(group).gr_gid if group else -1
+            try:
+                os.chown(temp, uid, gid)
+            except PermissionError:
+                pass
+        os.replace(temp, path)
+        return True
+
+    def copy(self, source, target, mode=0o644):
+        return self.write(target, read(source), mode=mode, why='from ' + os.path.relpath(source, REPO))
+
+    def command(self, cmd, why='', cwd=None):
+        say('  %s %s%s' % ('would run' if self.dry_run else 'running', ' '.join(cmd), ' (' + why + ')' if why else ''))
+        if self.dry_run:
+            return 0, ''
+        return run(cmd, cwd=cwd)
+
+
+# ------------------------------------------------------------------------- reading the setup
+
+def parse_ini(path):
+    values = {}
+    for line in (read(path) or '').splitlines():
+        match = re.match(r'^\s*([A-Za-z_]+)\s*=\s*"?(.*?)"?\s*$', line)
+        if match and not line.lstrip().startswith(';'):
+            values[match.group(1)] = match.group(2)
+    return values
+
+
+def real_value(value):
+    return value if value and not value.startswith('REPLACE') else None
+
+
+def parse_local_conf():
+    text = read(P(LOCAL_CONF)) or ''
+    defines = dict(re.findall(r'^\s*Define\s+(\w+)\s+"?([^"\n]*)"?', text, re.M))
+    trusted = []
+    for expr in re.findall(r'^\s*SetEnvIfExpr\s+"([^"]*)"\s+odr_trusted=1', text, re.M):
+        trusted += re.findall(r"-R\s+'([^']+)'", expr)
+    return {
+        'exists': bool(text),
+        'secret': real_value(defines.get('ODR_GATE_SECRET')),
+        'gate_dir': defines.get('ODR_GATE_DIR'),
+        'gate_config': defines.get('ODR_GATE_CONFIG'),
+        'old_format': 'ODR_DIR' in defines and 'ODR_GATE_CONFIG' not in defines,
+        'trusted': trusted,
+    }
+
+
+def parse_jail_ignoreip():
+    match = re.search(r'^odr_ignoreip\s*=\s*(.*)$', read(P(JAIL)) or '', re.M)
+    return match.group(1).split() if match else []
+
+
+def apache_log_dir():
+    match = re.search(r'APACHE_LOG_DIR=([^\s$]+)', read(P('/etc/apache2/envvars')) or '')
+    return match.group(1) if match else '/var/log/apache2'
+
+
+def detect_server_ips():
+    code, out = run(['hostname', '-I'])
+    found = []
+    for token in out.split() if code == 0 else []:
+        try:
+            if ipaddress.ip_address(token).is_global:
+                found.append(token)
+        except ValueError:
+            pass
+    return found
+
+
+def local_addresses(values):
+    return [v for v in values if v not in ('127.0.0.1/8', '127.0.0.0/8', '::1', '::1/128')]
+
+
+class VHost:
+    def __init__(self, file, start, header):
+        self.file = file
+        self.start = start
+        self.end = None
+        self.header = header
+        self.names = []
+        self.uses = []
+        self.old_includes = []
+        self.error_documents = []
+        self.hand_rules = []
+        self.document_root = None
+
+    @property
+    def label(self):
+        port = re.search(r':(\d+)', self.header)
+        return '%s (port %s, %s)' % (self.names[0] if self.names else '(no ServerName)',
+                                     port.group(1) if port else '?', os.path.basename(self.file))
+
+
+def parse_vhosts():
+    hosts = []
+    directory = P('/etc/apache2/sites-enabled')
+    try:
+        files = sorted(f for f in os.listdir(directory) if f.endswith('.conf'))
+    except OSError:
+        return hosts
+    for name in files:
+        path = os.path.realpath(os.path.join(directory, name))
+        current = None
+        for number, line in enumerate((read(path) or '').splitlines()):
+            stripped = line.strip()
+            if stripped.startswith('#'):
+                continue
+            if re.match(r'<VirtualHost\b', stripped, re.I):
+                current = VHost(path, number, stripped)
+            elif current and re.match(r'</VirtualHost>', stripped, re.I):
+                current.end = number
+                hosts.append(current)
+                current = None
+            elif current:
+                words = stripped.split()
+                key = words[0].lower() if words else ''
+                if key in ('servername', 'serveralias'):
+                    current.names += [w.lower() for w in words[1:]]
+                elif key == 'use' and len(words) > 1 and words[1] == 'OdrGate':
+                    current.uses.append((number, words[2:]))
+                elif key == 'include' and any(words[-1].endswith(o) for o in OBSOLETE_INCLUDES):
+                    current.old_includes.append((number, stripped))
+                elif key == 'errordocument' and len(words) > 1 and words[1] in ('404', '410'):
+                    current.error_documents.append(stripped)
+                elif key == 'documentroot' and len(words) > 1:
+                    current.document_root = words[1].strip('"')
+                elif 'sample_child_id' in stripped or 'odr_attack' in stripped:
+                    current.hand_rules.append((number, stripped))
+    return hosts
+
+
+def hand_rule_lines(path, host):
+    """The line numbers of the hand-added Bustamite rules from earlier instructions, in one vhost:
+    each marked line, and for a RewriteCond, the rest of its chain through the RewriteRule it
+    governs -- removing conditions without their rule would leave that rule applying to everything."""
+    lines = (read(path) or '').splitlines()
+    remove = set()
+    for number, _ in host.hand_rules:
+        remove.add(number)
+        if lines[number].strip().lower().startswith('rewritecond'):
+            follow = number + 1
+            while follow < host.end:
+                word = (lines[follow].strip().split() or [''])[0].lower()
+                if word == 'rewritecond':
+                    remove.add(follow)
+                elif word == 'rewriterule':
+                    remove.add(follow)
+                    break
+                elif word and not word.startswith('#'):
+                    break
+                follow += 1
+    return remove
+
+
+def theme_version(document_root):
+    style = os.path.join(document_root or '', 'wp-content/themes/odr-astra-child-theme/style.css')
+    match = re.search(r'^Version:\s*([\d.]+)', read(style) or '', re.M)
+    return tuple(int(p) for p in match.group(1).split('.')) if match else None
+
+
+# ------------------------------------------------------------------------------------- verify
+
+def verify(args):
+    report = Report()
+    main = args.main
+    local = parse_local_conf()
+    log_dir = apache_log_dir()
+    monitor = P(log_dir + '/odr-ban-monitor.log')
+
+    report.section('Code (%s)' % main)
+    if os.path.isfile(os.path.join(main, 'app/config/gate.ini.dist')) and os.path.isdir(BB):
+        report.ok('ODR code includes the gate')
+    else:
+        report.bad('%s doesn\'t look like an ODR checkout with the gate' % main, 'pass --main, or git pull there')
+
+    report.section('Apache')
+    for module in MODULES:
+        if os.path.exists(P('/etc/apache2/mods-enabled/%s.load' % module)):
+            report.ok('module %s enabled' % module)
+        else:
+            report.bad('module %s not enabled' % module, 'odr-gate install')
+    for source, target in APACHE_FILES.items():
+        if not os.path.exists(P(target)):
+            report.bad('%s missing' % target, 'odr-gate install')
+        elif same_file(os.path.join(BB, source), P(target)):
+            report.ok('%s is current' % target)
+        else:
+            report.bad('%s differs from the repository (outdated or edited)' % target, 'odr-gate install')
+    if os.path.exists(P('/etc/apache2/conf-enabled/odr-gate.conf')):
+        report.ok('odr-gate.conf is enabled (a2enconf)')
+    else:
+        report.bad('odr-gate.conf is not enabled', 'odr-gate install')
+    for old in ('odr-bot-bans.conf', 'odr_minimal_404s.conf'):
+        if os.path.exists(P('/etc/apache2/conf-available/' + old)):
+            report.warn('obsolete %s is still in conf-available' % old, 'remove it once no vhost includes it')
+
+    report.section('Gate settings')
+    if not local['exists']:
+        report.bad('%s missing' % LOCAL_CONF, 'odr-gate install')
+    else:
+        if local['old_format']:
+            report.bad('%s is the old single-site format' % LOCAL_CONF, 'odr-gate install (converts it)')
+        mode = os.stat(P(LOCAL_CONF)).st_mode & 0o777
+        (report.ok if mode & 0o077 == 0 else report.bad)('%s mode %o%s' % (LOCAL_CONF, mode, '' if mode & 0o077 == 0 else ' -- should be 600'))
+        if local['secret']:
+            report.ok('cookie secret set')
+        else:
+            report.bad('no cookie secret (ODR_GATE_SECRET)', 'odr-gate install')
+        if local['gate_dir'] and os.path.isfile(os.path.join(local['gate_dir'], 'challenge.php')):
+            report.ok('gate page found (%s)' % local['gate_dir'])
+        elif local['gate_dir']:
+            report.bad('no challenge.php in ODR_GATE_DIR %s' % local['gate_dir'], 'odr-gate install')
+        trusted = local_addresses(local['trusted'])
+        if trusted:
+            report.ok('free pass: localhost + ' + ', '.join(trusted))
+        else:
+            report.bad('free pass has no server address -- the static renderer and wp-cron will be challenged', 'odr-gate install --server-ips "..."')
+
+    ini_path = local['gate_config'] or os.path.join(main, 'app/config/gate.ini')
+    ini = parse_ini(ini_path)
+    if not ini:
+        report.bad('%s missing' % ini_path, 'odr-gate install')
+    else:
+        for key in ('recaptcha_site_key', 'recaptcha_secret'):
+            (report.ok if real_value(ini.get(key)) else report.bad)('%s %s' % (key, 'set' if real_value(ini.get(key)) else 'missing'),
+                                                                     None if real_value(ini.get(key)) else 'odr-gate install (asks for the keys)')
+        if local['secret'] and ini.get('pass_secret') == local['secret']:
+            report.ok('gate.ini secret matches Apache\'s')
+        else:
+            report.bad('gate.ini pass_secret doesn\'t match ODR_GATE_SECRET -- nobody\'s pass will be accepted', 'odr-gate install')
+        report.info('a solved reCAPTCHA lasts %s hours (pass_hours)' % ini.get('pass_hours', '96'))
+        try:
+            group = grp.getgrgid(os.stat(ini_path).st_gid).gr_name
+            mode = os.stat(ini_path).st_mode & 0o777
+            if group == 'www-data' and mode & 0o040 and not mode & 0o004:
+                report.ok('gate.ini readable by the web server only (group www-data, %o)' % mode)
+            else:
+                report.warn('gate.ini is group %s, mode %o -- expected group www-data, 640' % (group, mode), 'odr-gate install')
+        except (OSError, KeyError):
+            pass
+
+    report.section('Crawler and banned-bot lists')
+    for path, what in ((os.path.join(main, 'var/crawler_ips.json'), 'crawler list'),
+                       (os.path.join(main, 'var/banned_bot_ips.txt'), 'banned-bot list'),
+                       (P(CRAWLERS_CONF), 'Apache crawler config')):
+        days = age_days(path)
+        if days is None:
+            report.bad('%s missing (%s)' % (what, path), 'odr-gate install')
+        elif days > STALE_DAYS:
+            report.warn('%s is %.0f days old (%s)' % (what, days, path), 'check the cron jobs in %s' % CRON)
+        else:
+            report.ok('%s current (%s)' % (what, os.path.basename(path)))
+    for source, target in SCRIPTS.items():
+        if same_file(os.path.join(BB, source), P(target)):
+            report.ok('%s is current' % target)
+        else:
+            report.bad('%s missing or outdated' % target, 'odr-gate install')
+
+    report.section('fail2ban')
+    code, _ = run(['fail2ban-client', '--version'])
+    if code == 127:
+        report.bad('fail2ban not installed', 'odr-gate install')
+    else:
+        for source, target in FAIL2BAN_FILES.items():
+            (report.ok if same_file(os.path.join(BB, source), P(target)) else report.bad)(
+                '%s %s' % (target, 'is current' if same_file(os.path.join(BB, source), P(target)) else 'missing or outdated'),
+                None if same_file(os.path.join(BB, source), P(target)) else 'odr-gate install')
+        jail = read(P(JAIL)) or ''
+        if not jail:
+            report.bad('%s missing' % JAIL, 'odr-gate install')
+        else:
+            expected = render_jail(parse_jail_ignoreip(), log_dir)
+            (report.ok if jail == expected else report.bad)(
+                '%s %s' % (JAIL, 'is current' if jail == expected else 'differs from the repository (old limits or log path)'),
+                None if jail == expected else 'odr-gate install (keeps your never-ban addresses)')
+            office = [a for a in local_addresses(parse_jail_ignoreip()) if a not in local['trusted']]
+            report.info('never banned: ' + ', '.join(parse_jail_ignoreip()))
+            if not office:
+                report.warn('no office addresses in the never-ban list', 'odr-gate install --office-ips "..."')
+        code, out = run(['fail2ban-client', 'status'])
+        loaded = re.findall(r'[\w-]+', out.split('Jail list:')[-1]) if 'Jail list:' in out else []
+        for name in JAILS:
+            (report.ok if name in loaded else report.bad)('jail %s %s' % (name, 'running' if name in loaded else 'not running'),
+                                                          None if name in loaded else 'odr-gate install')
+        code, out = run(['fail2ban-client', 'status', 'odr-challenge'])
+        if code == 0 and 'odr-ban-monitor.log' in out:
+            report.ok('fail2ban reads the shared monitor log')
+        elif code == 0:
+            report.bad('fail2ban isn\'t reading odr-ban-monitor.log', 'odr-gate install')
+    days = age_days(monitor)
+    if days is None:
+        report.warn('%s doesn\'t exist yet' % monitor, 'it appears once a site using the gate refuses something')
+    else:
+        report.info('monitor log last written %.1f hours ago' % (days * 24))
+
+    report.section('Scheduled updates')
+    cron = read(P(CRON)) or ''
+    if all(marker in cron for marker in CRON_MARKERS):
+        report.ok('%s has all four jobs' % CRON)
+    else:
+        report.bad('%s missing or incomplete' % CRON, 'odr-gate install')
+    for user in ('root', owner(os.path.join(main, 'var')) or ''):
+        if user and any(m in old_crontab(user) for m in CRON_MARKERS):
+            report.warn('%s\'s own crontab still has odr-gate jobs (they now run from %s)' % (user, CRON), 'odr-gate install (removes them)')
+
+    report.section('Sites')
+    hosts = parse_vhosts()
+    gated = [h for h in hosts if h.uses]
+    if not gated:
+        report.bad('no vhost uses the gate yet', 'odr-gate add-site <hostname> --instance <dir> --rules <rruff|none>')
+    for host in hosts:
+        if host.uses:
+            words = host.uses[0][1]
+            instance = words[0] if words else '?'
+            rules = words[1] if len(words) > 1 else '?'
+            report.ok('%s: gate on (instance %s, rules %s)' % (host.label, instance, rules))
+            if not os.path.isdir(instance):
+                report.bad('  instance %s doesn\'t exist' % instance)
+            elif not os.path.isfile(os.path.join(instance, 'app/config/gate_branding.ini')):
+                report.warn('  no branding (%s/app/config/gate_branding.ini): plain page' % instance, 'odr-gate add-site creates one')
+            if rules not in ('none', '?') and not os.path.isfile(P('/etc/apache2/conf-available/odr-gate-rules-%s.conf' % rules)):
+                report.bad('  rule set "%s" has no odr-gate-rules-%s.conf' % (rules, rules))
+        elif host.old_includes:
+            report.bad('%s: still uses the old single-site Include' % host.label,
+                       'odr-gate add-site %s --instance <dir> --rules <rruff|none>' % (host.names[0] if host.names else '<hostname>'))
+        else:
+            report.info('%s: gate not on' % host.label)
+        if host.uses and host.old_includes:
+            report.bad('  also still has %s' % host.old_includes[0][1], 'odr-gate add-site (removes it)')
+        for _, line in host.hand_rules:
+            report.warn('  hand-added rule left over: %s' % line, 'remove it from %s -- the gate now does this' % host.file)
+        for line in host.error_documents:
+            report.warn('  %s -- if this points into WordPress, the gate\'s cheap 404/410s start WordPress' % line)
+        version = theme_version(host.document_root)
+        if host.uses and version and version < MIN_THEME:
+            report.bad('  WordPress theme is %s, needs %s or later' % ('.'.join(map(str, version)), '.'.join(map(str, MIN_THEME))), 'deploy odr-astra-child-theme')
+
+    report.section('Apache configuration')
+    code, out = run(['apachectl', 'configtest'])
+    (report.ok if code == 0 else report.bad)('apachectl configtest: %s' % (out.splitlines()[-1] if out else code))
+
+    print('\n%s: %d problem(s), %d warning(s)' % ('OK' if report.problems == 0 else 'NOT READY', report.problems, report.warnings))
+    return 0 if report.problems == 0 else 1
+
+
+def old_crontab(user):
+    code, out = run(['crontab', '-l', '-u', user])
+    return out if code == 0 else ''
+
+
+# ------------------------------------------------------------------------------------ install
+
+def render_local_conf(main, secret, server_ips):
+    text = read(os.path.join(BB, 'apache/odr-gate-local.conf.example'))
+    text = text.replace('/home/odr/data-publisher', main)
+    text = text.replace('REPLACE_WITH_THE_OUTPUT_OF_openssl_rand_-hex_32', secret)
+    server_line = 'SetEnvIfExpr "%s" odr_trusted=1' % ' || '.join("-R '%s'" % ip for ip in server_ips)
+    text = re.sub(r'^SetEnvIfExpr "-R \'144\.217\.146\.145\'" odr_trusted=1$',
+                  server_line if server_ips else '# (no server address set)', text, flags=re.M)
+    return text
+
+
+def render_gate_ini(values):
+    text = read(os.path.join(REPO, 'app/config/gate.ini.dist'))
+    for key, value in values.items():
+        text = re.sub(r'^%s\s*=.*$' % key, lambda m: '%s = "%s"' % (key, value) if key != 'pass_hours' else 'pass_hours = %s' % value, text, flags=re.M)
+    return text
+
+
+def render_jail(ignoreip, log_dir):
+    text = read(os.path.join(BB, 'fail2ban/jail.d/odr.local'))
+    text = re.sub(r'^odr_ignoreip\s*=.*$', 'odr_ignoreip = ' + ' '.join(ignoreip), text, flags=re.M)
+    text = re.sub(r'^odr_logpath\s*=.*$', 'odr_logpath = %s/odr-ban-monitor.log' % log_dir, text, flags=re.M)
+    return text
+
+
+def render_cron(main, user):
+    return ('# ODR gate: refreshes the crawler and banned-bot lists.  Written by odr-gate install;\n'
+            '# see BAN_SYSTEM.md.  The ODR command writes each list as the instance\'s user, then root\n'
+            '# loads it.\n'
+            '0 */6 * * *  {u}  cd {m} && php app/console odr:banned_bot_ips:update --env=prod > /dev/null\n'
+            '10 */6 * * * root /usr/local/sbin/odr-ban-bot-ips {m}/var/banned_bot_ips.txt > /dev/null\n'
+            '30 3 * * 1   {u}  cd {m} && php app/console odr:crawler_ips:update --env=prod > /dev/null\n'
+            '45 3 * * 1   root /usr/local/sbin/odr-gate-update-crawlers {m}/var/crawler_ips.json > /dev/null\n'
+            ).format(u=user, m=main)
+
+
+def ask(prompt, default, args, required=True):
+    if args.yes or not sys.stdin.isatty():
+        if required and not default:
+            die('%s is needed; pass it on the command line (see --help)' % prompt)
+        return default
+    answer = input('%s%s: ' % (prompt, ' [%s]' % default if default else '')).strip()
+    return answer or default
+
+
+def ask_secret(prompt, flag, args, hidden, minimum, what):
+    """A key or secret, typed in -- never read from an existing file.  Asked until it looks right."""
+    if args.yes or not sys.stdin.isatty():
+        die('%s is needed: pass %s' % (what, flag))
+    while True:
+        value = (getpass.getpass(prompt + ': ') if hidden else input(prompt + ': ')).strip()
+        if re.match(r'^[A-Za-z0-9_-]{%d,}$' % minimum, value):
+            return value
+        say('  that doesn\'t look like %s (letters, digits, - and _, at least %d characters); try again' % (what, minimum))
+
+
+def mask(value):
+    return value[:4] + '\u2026' + value[-4:] if len(value) > 12 else '\u2026\u2026'
+
+
+def confirm(prompt, args):
+    if args.yes or not sys.stdin.isatty():
+        return True
+    return input(prompt + ' [yes/no]: ').strip().lower() in ('y', 'yes')
+
+
+def install(args):
+    if os.geteuid() != 0 and not ROOT:
+        die('run as root')
+    changes = Changes(args.dry_run)
+    main = args.main
+    user = owner(os.path.join(main, 'var'))
+    if not user or not os.path.isfile(os.path.join(main, 'app/config/gate.ini.dist')):
+        die('%s doesn\'t look like an up-to-date ODR checkout (no app/config/gate.ini.dist); pass --main or git pull' % main)
+    log_dir = apache_log_dir()
+    local = parse_local_conf()
+
+    # ---- every question first, so nothing has changed if the answers turn out wrong
+    #  The three secrets are always typed in (or given on the command line), never read from an
+    #  existing file.  pass_hours only from the current file -- an older version's default (24)
+    #  isn't a choice anyone made.
+    say('Secrets (typed in; the secret ones aren\'t shown)')
+    site_key = args.recaptcha_site_key or ask_secret('  reCAPTCHA site key (v2 "I\'m not a robot")', '--recaptcha-site-key',
+                                                     args, hidden=False, minimum=20, what='the reCAPTCHA site key')
+    secret_key = args.recaptcha_secret or ask_secret('  reCAPTCHA secret key', '--recaptcha-secret',
+                                                     args, hidden=True, minimum=20, what='the reCAPTCHA secret key')
+    cookie_secret = args.pass_secret or ask_secret('  Cookie secret (the same one as before keeps everyone signed in)', '--pass-secret',
+                                                   args, hidden=True, minimum=32, what='the cookie secret')
+    if local['secret'] and cookie_secret != local['secret']:
+        say('  note: that\'s a different cookie secret from the current one -- everyone will solve the reCAPTCHA again')
+
+    say('\nAddresses (press Enter to accept the suggestion)')
+    server_ips = (args.server_ips.split() if args.server_ips else None) or local_addresses(local['trusted']) or detect_server_ips()
+    server_ips = ask('  This server\'s public address(es), space separated', ' '.join(server_ips), args).split()
+    current_ignore = parse_jail_ignoreip()
+    office = (args.office_ips.split() if args.office_ips else None) or [a for a in local_addresses(current_ignore) if a not in server_ips]
+    office = ask('  Office / VPN addresses never to ban (space separated, may be empty)', ' '.join(office), args, required=False).split()
+
+    need_fail2ban = run(['fail2ban-client', '--version'])[0] == 127
+    if need_fail2ban and not confirm('\nfail2ban isn\'t installed.  Install it (apt-get install fail2ban)?', args):
+        die('fail2ban is required; nothing was changed')
+
+    current_ini = os.path.join(main, 'app/config/gate.ini')
+    pass_hours = args.pass_hours or parse_ini(current_ini).get('pass_hours') or '96'
+
+    say('\nAbout to set up the gate with:')
+    say('  main ODR instance   %s (user %s)' % (main, user))
+    say('  reCAPTCHA keys      site %s, secret %s' % (mask(site_key), mask(secret_key)))
+    say('  cookie secret       %s%s' % (mask(cookie_secret), '' if not local['secret'] or cookie_secret == local['secret'] else '  (changed: everyone signs in again)'))
+    say('  free pass           localhost, ' + (', '.join(server_ips) or '(none!)'))
+    say('  never banned        localhost, ' + ', '.join(server_ips + office))
+    say('  pass length         %s hours' % pass_hours)
+    if need_fail2ban:
+        say('  fail2ban            will be installed')
+    if args.dry_run:
+        say('  (dry run: nothing will be changed)')
+    if not confirm('Go ahead?', args):
+        die('stopped; nothing was changed')
+
+    # ---- Apache, server-wide
+    say('\nApache')
+    for module in MODULES:
+        if not os.path.exists(P('/etc/apache2/mods-enabled/%s.load' % module)):
+            changes.command(['a2enmod', '-q', module])
+    for source, target in APACHE_FILES.items():
+        changes.copy(os.path.join(BB, source), P(target))
+    changes.write(P(LOCAL_CONF), render_local_conf(main, cookie_secret, server_ips), mode=0o600, user='root', group='root',
+                  why='the converted old format' if local['old_format'] else '')
+    if not os.path.exists(P('/etc/apache2/conf-enabled/odr-gate.conf')):
+        changes.command(['a2enconf', '-q', 'odr-gate'])
+
+    # ---- shared gate settings
+    say('\nGate settings')
+    ini_path = os.path.join(main, 'app/config/gate.ini')
+    changes.write(ini_path, render_gate_ini({'recaptcha_site_key': site_key, 'recaptcha_secret': secret_key,
+                                             'pass_secret': cookie_secret, 'pass_hours': pass_hours}),
+                  mode=0o640, user=user, group='www-data')
+
+    # ---- lists and their root scripts
+    say('\nCrawler and banned-bot lists')
+    for source, target in SCRIPTS.items():
+        changes.copy(os.path.join(BB, source), P(target), mode=0o755)
+    console = ['runuser', '-u', user, '--', 'php', 'app/console']
+    for command, path in (('odr:crawler_ips:update', 'var/crawler_ips.json'), ('odr:banned_bot_ips:update', 'var/banned_bot_ips.txt')):
+        days = age_days(os.path.join(main, path))
+        if days is None or days > 1 or args.refresh:
+            code, out = changes.command(console + [command, '--env=prod'], why='as ' + user, cwd=main)
+            if code != 0:
+                say('    warning: %s exited %d:\n    %s' % (command, code, out.replace('\n', '\n    ')))
+
+    # ---- fail2ban
+    say('\nfail2ban')
+    if need_fail2ban:
+        changes.command(['apt-get', 'install', '-y', 'fail2ban'])
+    for source, target in FAIL2BAN_FILES.items():
+        changes.copy(os.path.join(BB, source), P(target))
+    ignore = ['127.0.0.1/8', '::1'] + [a for a in server_ips + office if a not in ('127.0.0.1/8', '::1')]
+    changes.write(P(JAIL), render_jail(list(dict.fromkeys(ignore)), log_dir))
+    monitor = P(log_dir + '/odr-ban-monitor.log')
+    if not os.path.exists(monitor):
+        # fail2ban won't start a jail whose log doesn't exist yet
+        changes.write(monitor, '', mode=0o640, user='root', group='adm', why='empty, so fail2ban can start before the first event')
+    code, out = changes.command(['fail2ban-client', '-t'])
+    if code != 0:
+        die('fail2ban configuration test failed:\n' + out)
+    changes.command(['systemctl', 'enable', '--now', 'fail2ban'])
+    changes.command(['systemctl', 'restart', 'fail2ban'])
+
+    # ---- the first loads
+    say('\nLoading the lists')
+    changes.command([P('/usr/local/sbin/odr-gate-update-crawlers'), os.path.join(main, 'var/crawler_ips.json')])
+    changes.command([P('/usr/local/sbin/odr-ban-bot-ips'), os.path.join(main, 'var/banned_bot_ips.txt')])
+
+    # ---- schedule
+    say('\nScheduled updates')
+    changes.write(P(CRON), render_cron(main, user))
+    for who in ('root', user):
+        table = old_crontab(who)
+        kept = [line for line in table.splitlines() if not any(m in line for m in CRON_MARKERS)]
+        if table and len(kept) != len(table.splitlines()):
+            say('  %s %s\'s own crontab: removing the old odr-gate jobs (now in %s)' % ('would edit' if args.dry_run else 'editing', who, CRON))
+            if not args.dry_run:
+                backup = changes.backup_dir + '/crontab.' + who
+                os.makedirs(changes.backup_dir, exist_ok=True)
+                with open(backup, 'w') as handle:
+                    handle.write(table + '\n')
+                subprocess.run(['crontab', '-u', who, '-'], input='\n'.join(kept) + '\n', text=True, check=True)
+
+    # ---- check and reload
+    say('\nApache configuration')
+    code, out = changes.command(['apachectl', 'configtest'])
+    if code != 0:
+        die('apachectl configtest failed -- nothing reloaded:\n' + out)
+    changes.command(['systemctl', 'reload', 'apache2'])
+
+    if changes.backed_up and not args.dry_run:
+        say('\nBackups of everything changed: ' + changes.backup_dir)
+    say('\nDone.  Next: odr-gate add-site <hostname> --instance <dir> --rules <rruff|none> for each site,\nthen odr-gate verify.')
+    return 0
+
+
+# ----------------------------------------------------------------------------------- add-site
+
+def add_site(args):
+    if os.geteuid() != 0 and not ROOT:
+        die('run as root')
+    changes = Changes(args.dry_run)
+    name = args.hostname.lower()
+    instance = os.path.realpath(args.instance) if args.instance else None
+    if not instance or not os.path.isdir(os.path.join(instance, 'app/config')):
+        die('--instance must be the site\'s ODR instance directory (with app/config), e.g. /home/rruff/data-publisher')
+    if args.rules != 'none' and not os.path.isfile(P('/etc/apache2/conf-available/odr-gate-rules-%s.conf' % args.rules)):
+        die('no rule set "%s" (/etc/apache2/conf-available/odr-gate-rules-%s.conf); run odr-gate install first' % (args.rules, args.rules))
+    if not os.path.exists(P('/etc/apache2/conf-enabled/odr-gate.conf')):
+        die('the gate isn\'t installed yet; run odr-gate install first')
+
+    hosts = [h for h in parse_vhosts() if name in h.names]
+    if not hosts:
+        die('no vhost in /etc/apache2/sites-enabled has ServerName or ServerAlias %s' % name)
+
+    say('Vhosts for %s' % name)
+    edits = {}
+    for host in hosts:
+        drop = [n for n, _ in host.old_includes] + [n for n, _ in host.uses]
+        edits.setdefault(host.file, []).append((host, drop))
+        say('  %s: %s' % (host.label, 'replacing ' + ', '.join(l for _, l in host.old_includes + [(n, 'Use OdrGate ' + ' '.join(w)) for n, w in host.uses]) if drop else 'adding the gate'))
+        if host.hand_rules:
+            say('    removing the hand-added Bustamite rules (the gate does this now)')
+        for line in host.error_documents:
+            say('    check this: %s -- if it points into WordPress, the gate\'s 404/410s start WordPress' % line)
+
+    use_line = 'Use OdrGate %s %s' % (instance, args.rules)
+    for path, hosts_in_file in edits.items():
+        lines = read(path).splitlines(keepends=True)
+        remove = set()
+        insert = {}
+        for host, drop in hosts_in_file:
+            remove.update(drop)
+            remove.update(hand_rule_lines(path, host))
+            indent = re.match(r'\s*', lines[host.end - 1] if host.end > 0 else '').group(0) or '    '
+            insert[host.end] = indent + use_line + '\n'
+        out = []
+        for number, line in enumerate(lines):
+            if number in insert:
+                out.append(insert[number])
+            if number not in remove:
+                out.append(line)
+        changes.write(path, ''.join(out), mode=os.stat(path).st_mode & 0o777, why='Use OdrGate')
+
+    code, out = changes.command(['apachectl', 'configtest'])
+    if code != 0:
+        if not args.dry_run:
+            changes.restore()
+        die('apachectl configtest failed, so the vhost files were put back:\n' + out)
+    changes.command(['systemctl', 'reload', 'apache2'])
+
+    # Branding isn't Apache config, so it's written once the vhosts are in place
+    branding = os.path.join(instance, 'app/config/gate_branding.ini')
+    if not os.path.isfile(branding):
+        text = read(os.path.join(REPO, 'app/config/gate_branding.ini.dist'))
+        site_name = args.site_name or re.sub(r'^www\.', '', name)
+        text = re.sub(r'^site_name\s*=.*$', 'site_name = "%s"' % site_name, text, flags=re.M)
+        text = re.sub(r'^logo_alt\s*=.*$', 'logo_alt = "%s"' % site_name, text, flags=re.M)
+        changes.write(branding, text, user=owner(os.path.join(instance, 'var')), group='www-data',
+                      why='default branding -- edit it to set the logo and colours')
+    say('\nDone.  Check it with: odr-gate verify')
+    return 0
+
+
+# --------------------------------------------------------------------------------------- main
+
+def main():
+    parser = argparse.ArgumentParser(prog='odr-gate', description=__doc__.split('\n\n')[0].strip(),
+                                     formatter_class=argparse.RawDescriptionHelpFormatter, epilog=__doc__.split('\n\n', 1)[1])
+    parser.add_argument('command', choices=['verify', 'install', 'add-site'])
+    parser.add_argument('hostname', nargs='?')
+    parser.add_argument('--main', default=REPO)
+    parser.add_argument('--instance')
+    parser.add_argument('--rules', default='none')
+    parser.add_argument('--site-name')
+    parser.add_argument('--server-ips')
+    parser.add_argument('--office-ips')
+    parser.add_argument('--recaptcha-site-key')
+    parser.add_argument('--recaptcha-secret')
+    parser.add_argument('--pass-secret', help='the secret that signs the pass cookie (keep it the same to keep everyone signed in)')
+    parser.add_argument('--pass-hours', help='how long a solved reCAPTCHA lasts (default: keep the current setting, else 96)')
+    parser.add_argument('--refresh', action='store_true', help='re-download the crawler and banned-bot lists')
+    parser.add_argument('--yes', action='store_true')
+    parser.add_argument('--dry-run', action='store_true')
+    args = parser.parse_args()
+    args.main = os.path.realpath(args.main)
+
+    if args.command == 'verify':
+        return verify(args)
+    if args.command == 'install':
+        return install(args)
+    if not args.hostname:
+        parser.error('add-site needs the site\'s hostname, e.g. odr-gate add-site www.rruff.net --instance /home/rruff/data-publisher --rules rruff')
+    return add_site(args)
+
+
+if __name__ == '__main__':
+    sys.exit(main())

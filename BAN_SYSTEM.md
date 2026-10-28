@@ -12,9 +12,7 @@ Protects the sites on an ODR server from automated traffic in two layers:
 - [What happens to a request](#what-happens-to-a-request)
 - [What gets banned](#what-gets-banned)
 - [Log values](#log-values)
-- [Installation: once per server](#installation-once-per-server)
-- [Adding a site](#adding-a-site)
-- [Upgrading from the single-site gate](#upgrading-from-the-single-site-gate)
+- [Installation](#installation)
 - [Day-to-day operation](#day-to-day-operation)
 - [Changing the rules](#changing-the-rules)
 - [Troubleshooting](#troubleshooting)
@@ -160,283 +158,120 @@ described in the theme's `odr_search_gate.php`.
 
 ---
 
-## Installation: once per server
+## Installation
 
-Do this **as root**, in order. Each step ends with a check: stop there if it fails. Then add each
-site with [Adding a site](#adding-a-site).
+Everything is done by one tool, **`odr-gate`**, in the ODR repository at
+`docs/server/bot-bans/bin/odr-gate`. Run it **as root**, from the ODR checkout the other
+instances are linked to. It has three commands:
 
-### 0. Before you start
-
-| Requirement | How to check |
+| Command | What it does |
 | --- | --- |
-| Ubuntu 24.04, Apache 2.4 with PHP | `apache2 -v`, `ls /etc/apache2/mods-enabled/ \| grep php` |
-| nftables, Python 3 | `nft --version`, `python3 --version` |
-| WordPress sites: theme **odr-astra-child-theme 1.2.20 or later** | `grep ^Version <wordpress>/wp-content/themes/odr-astra-child-theme/style.css` |
-| One reCAPTCHA **v2 "I'm not a robot"** key pair, with **every hostname of every site** registered | https://www.google.com/recaptcha/admin |
+| `odr-gate verify` | Checks every part of the setup and lists what's wrong, with the fix for each. **Changes nothing.** Run it any time. |
+| `odr-gate install` | Sets up, or repairs, everything server-wide. Safe to re-run. |
+| `odr-gate add-site …` | Turns the gate on for one site. |
 
-**Values used below.** Set these in your root shell first:
+`install` and `add-site` back up every file they change to `/var/backups/odr-gate/<date-time>/`.
+`--dry-run` shows what they would do without doing it.
 
-```bash
-MAIN=/home/odr/data-publisher                 # the ODR instance the others are linked to
-BB=$MAIN/docs/server/bot-bans                 # the ban-system files in the repo
-MAIN_USER=$(stat -c %U $MAIN/var)             # the user that owns it
-```
+### Before you start
 
-### 1. Deploy the code and generate the lists
+- **The ODR code** is up to date in the main instance (`git pull`, as its user).
+- **WordPress sites** run theme **odr-astra-child-theme 1.2.21 or later**.
+- **You have three secrets to hand.** `install` asks for them every time it runs, and never
+  reads them from an existing file:
+  - **the reCAPTCHA site key and secret key**, a v2 "I'm not a robot" pair with every hostname of
+    every site registered on it;
+  - **the cookie secret** that signs visitors' passes. To keep everyone signed in, use the current
+    one: `grep ODR_GATE_SECRET /etc/apache2/odr-gate-local.conf`. For a new server, or to sign
+    everyone out, make one with `openssl rand -hex 32`.
 
-```bash
-cd $MAIN
-sudo -u $MAIN_USER git pull
-sudo -u $MAIN_USER php app/console cache:clear --env=prod
-sudo -u $MAIN_USER php app/console odr:crawler_ips:update --env=prod
-sudo -u $MAIN_USER php app/console odr:banned_bot_ips:update --env=prod
-```
-
-Clear the cache of every linked instance too, e.g. `php app/console-all cache:clear --env=prod`.
-
-**Check:**
+### 1. Install
 
 ```bash
-ls $BB/apache $BB/gate $BB/bin
-#   odr-gate.conf  odr-gate-local.conf.example  odr-gate-rules-rruff.conf
-#   challenge.php
-#   odr-ban-bot-ips  odr-gate-update-crawlers
-sudo -u $MAIN_USER php app/console odr:crawler_ips:update --env=prod --check=66.249.66.1   # "is a verified google crawler"
-grep -vc '^#' $MAIN/var/banned_bot_ips.txt       # a couple of thousand
+cd /home/odr/data-publisher
+docs/server/bot-bans/bin/odr-gate install
 ```
 
-### 2. Shared gate settings
+It asks **all its questions first**:
+1. the three secrets (the two secret ones aren't shown as you type);
+2. this server's public address(es) and the office / VPN addresses that must never be banned,
+   suggesting what it detects or already has (press Enter to accept);
+3. whether to install fail2ban, if it isn't installed.
 
-The gate needs one secret, shared by Apache (which checks pass cookies) and the gate page (which
-signs them):
+Then it shows a summary, with the secrets masked, and **changes nothing until you answer `yes`**.
+
+To run it without questions, pass the answers instead:
+`--yes --recaptcha-site-key … --recaptcha-secret … --pass-secret … --office-ips "216.220.243.246"`.
+
+**What it does**, in order. Each step is skipped if it's already right:
+1. enables the Apache modules (`macro rewrite headers setenvif alias env`);
+2. installs and enables `odr-gate.conf` and the RRUFF rule set;
+3. writes `/etc/apache2/odr-gate-local.conf` (secret, free pass), converting the old format if
+   it finds it;
+4. writes the shared `app/config/gate.ini` (keys, secret, pass length);
+5. downloads the crawler and banned-bot lists, and installs the two root scripts;
+6. installs fail2ban if needed, writes its filters and jails, and restarts it;
+7. loads the lists into Apache and fail2ban;
+8. writes the schedule, `/etc/cron.d/odr-gate`, and removes the old jobs from root's and the
+   ODR user's own crontabs;
+9. checks Apache's configuration, then reloads Apache.
+
+### 2. Add each site
 
 ```bash
-SECRET=$(openssl rand -hex 32)
+docs/server/bot-bans/bin/odr-gate add-site www.rruff.net --instance /home/rruff/data-publisher --rules rruff
+docs/server/bot-bans/bin/odr-gate add-site odr.io --instance /home/odr/data-publisher --rules none --site-name "Open Data Repository"
 ```
 
-**2.1 Apache's settings,** `/etc/apache2/odr-gate-local.conf` (root only):
+- **The hostname** is any `ServerName` or `ServerAlias` of the site. Every vhost that has it,
+  :443 and :80, gets the gate.
+- **`--instance`** is the site's ODR instance. Its branding is read from there.
+- **`--rules`**: `rruff` for the RRUFF site, `none` for every other site.
 
-```bash
-install -m 600 -o root -g root $BB/apache/odr-gate-local.conf.example /etc/apache2/odr-gate-local.conf
-sed -i "s#REPLACE_WITH_THE_OUTPUT_OF_openssl_rand_-hex_32#$SECRET#" /etc/apache2/odr-gate-local.conf
-sed -i "s#/home/odr/data-publisher#$MAIN#g" /etc/apache2/odr-gate-local.conf
-```
+In each of those vhosts it:
+- adds `Use OdrGate …`, replacing any old `Include …/odr-gate.conf` lines and removing the
+  hand-added Bustamite rules from earlier instructions;
+- leaves the site's own `CustomLog` alone;
+- warns about anything it can't safely judge, such as an `ErrorDocument 404` that might point
+  into WordPress.
 
-Then edit it and set the **free-pass** line to this server's own public address(es). Keep the
-localhost line.
+If Apache's configuration check fails, it puts the vhost files back. It also creates the site's
+branding file, if there isn't one yet.
 
-```apache
-SetEnvIfExpr "-R '144.217.146.145'" odr_trusted=1
-```
+### 3. Brand each site
 
-Requests from these addresses skip the gate on every site. The static render daemon, WordPress's
-loopback requests (wp-cron, site health) and the gate's own logo downloads come from here, and
-**break if it's wrong**.
-
-**2.2 The shared gate settings,** `$MAIN/app/config/gate.ini`, next to `parameters.yml` in the
-main instance. Like `parameters.yml` it's never committed; the template is
-`app/config/gate.ini.dist`.
-
-```bash
-install -m 640 -o $MAIN_USER -g www-data $MAIN/app/config/gate.ini.dist $MAIN/app/config/gate.ini
-sed -i "0,/^pass_secret = \"REPLACE\"/s##pass_secret = \"$SECRET\"#" $MAIN/app/config/gate.ini
-```
-
-Then edit it and fill in `recaptcha_site_key` and `recaptcha_secret`. `pass_hours` (default 96)
-is how long a solved reCAPTCHA lasts, on every site.
-
-**Check:** the same secret is in both files, and the permissions are right.
-
-```bash
-grep -o '"[0-9a-f]\{64\}"' /etc/apache2/odr-gate-local.conf $MAIN/app/config/gate.ini   # same value twice
-ls -l /etc/apache2/odr-gate-local.conf $MAIN/app/config/gate.ini   # -rw------- root root / -rw-r----- <user> www-data
-```
-
-### 3. Approved crawlers
-
-```bash
-install -m 755 $BB/bin/odr-gate-update-crawlers /usr/local/sbin/
-odr-gate-update-crawlers $MAIN/var/crawler_ips.json
-#   /etc/apache2/odr-gate-crawlers.conf: 549 IPv4 + 22 IPv6 ranges (new file)
-```
-
-It validates the list, writes `/etc/apache2/odr-gate-crawlers.conf`, checks the Apache config,
-and reloads Apache.
-
-### 4. Apache, server-wide
-
-```bash
-a2enmod macro rewrite headers setenvif alias env
-cp $BB/apache/odr-gate.conf $BB/apache/odr-gate-rules-rruff.conf /etc/apache2/conf-available/
-a2enconf odr-gate
-```
-
-Don't `a2enconf` the rules file: the gate includes it for the sites that ask for it.
-
-There's no log format to set up. The gate defines its own and writes its events to
-`/var/log/apache2/odr-ban-monitor.log`. Each site's own access log stays exactly as it is. The
-standard log rotation for `/var/log/apache2/*.log` covers the monitor log too.
-
-**Check:**
-
-```bash
-apachectl configtest && systemctl reload apache2      # Syntax OK
-```
-
-Enabling `odr-gate.conf` changes nothing yet. It only defines the gate, and each site turns it on.
-
-### 5. fail2ban
-
-**5.1 Install and copy in the configuration:**
-
-```bash
-apt install fail2ban
-cp $BB/fail2ban/filter.d/odr-*.conf  /etc/fail2ban/filter.d/
-cp $BB/fail2ban/jail.d/odr.local     /etc/fail2ban/jail.d/
-cp $BB/fail2ban/fail2ban.d/odr.local /etc/fail2ban/fail2ban.d/
-```
-
-**5.2 Edit `/etc/fail2ban/jail.d/odr.local`.** Set the two values at the top:
-
-```ini
-odr_ignoreip = 127.0.0.1/8 ::1 144.217.146.145 216.220.243.246
-odr_logpath = /var/log/apache2/odr-ban-monitor.log
-```
-
-- **`odr_ignoreip`**: this server's address(es) plus every office and VPN address. Testing a gate
-  page from the office produces challenges, and ten unsolved ones in 24 hours would ban you.
-- **`odr_logpath`**: the shared monitor log. Leave it as it is unless Apache's log directory isn't
-  `/var/log/apache2`.
-
-**5.3 Check and start:**
-
-```bash
-fail2ban-client -t            # must end with: OK: configuration test is successful
-systemctl enable fail2ban
-systemctl restart fail2ban
-fail2ban-client status        # Jail list: odr-410, odr-bots, odr-challenge, odr-minimal404, sshd
-```
-
-### 6. Banned bots' published addresses
-
-```bash
-install -m 755 $BB/bin/odr-ban-bot-ips /usr/local/sbin/
-odr-ban-bot-ips $MAIN/var/banned_bot_ips.txt
-fail2ban-client status odr-bots                       # about 2,300 currently banned
-```
-
-### 7. Schedule the updates
-
-As the main instance's user (`crontab -u $MAIN_USER -e`):
-
-```cron
-0 */6 * * *  cd /home/odr/data-publisher && php app/console odr:banned_bot_ips:update --env=prod
-30 3 * * 1   cd /home/odr/data-publisher && php app/console odr:crawler_ips:update --env=prod
-```
-
-As root (`crontab -e`), a little later:
-
-```cron
-10 */6 * * * /usr/local/sbin/odr-ban-bot-ips /home/odr/data-publisher/var/banned_bot_ips.txt
-45 3 * * 1   /usr/local/sbin/odr-gate-update-crawlers /home/odr/data-publisher/var/crawler_ips.json
-```
-
----
-
-## Adding a site
-
-Repeat for each site, **as root**. A site is a vhost (or several, for its hostnames) served by one
-ODR instance.
-
-```bash
-SITE=/home/rruff/data-publisher               # the site's ODR instance
-SITE_USER=$(stat -c %U $SITE/var)
-```
-
-### 1. Its branding
-
-```bash
-install -m 644 -o $SITE_USER -g www-data $SITE/app/config/gate_branding.ini.dist $SITE/app/config/gate_branding.ini
-```
-
-Edit `$SITE/app/config/gate_branding.ini`. Every setting is optional:
+Edit `<instance>/app/config/gate_branding.ini`. Every setting is optional, and changes show up
+immediately:
 
 | Setting | |
 | --- | --- |
 | `site_name` | page title, and the heading when there's no logo |
-| `logo_url` | the logo, by url, even one on this site (`https://www.rruff.net/wp-content/uploads/…/logo.png`). The gate downloads it and serves its own copy. |
-| `logo_file` | or: an image copied into `$SITE/app/config/gate/` (e.g. `logo.svg`). Wins over `logo_url`. |
+| `logo_url` | the logo, by url, even one on this site (`https://www.rruff.net/wp-content/uploads/…/logo.png`). The gate downloads it and serves its own copy, refreshed daily. |
+| `logo_file` | or: an image copied into `<instance>/app/config/gate/` (e.g. `logo.svg`). Wins over `logo_url`. |
 | `logo_alt`, `logo_height` | the logo's alt text and height in pixels |
 | `accent_color`, `background_color`, `text_color` | `#rgb` or `#rrggbb` |
 | `message` | the text under "Confirm you are human" |
 | `footer`, `footer_link` | a line at the bottom, optionally a link |
 
-The page is built when it's shown, so changes appear immediately. A changed `logo_url` is
-downloaded the next time the page is shown.
-
-### 2. Its vhost(s)
-
-In each `<VirtualHost>` that serves the site (the :443 one, and :80 too):
-
-1. Add, before `</VirtualHost>`:
-   ```apache
-   Use OdrGate /home/rruff/data-publisher rruff
-   ```
-   The second word is the rule set: `rruff` for the RRUFF site, `none` for every other site.
-   The site's own `CustomLog` stays as it is.
-2. Make sure the vhost has **no `ErrorDocument 404` or `ErrorDocument 410`** pointing into
-   WordPress.
+### 4. Verify
 
 ```bash
-apachectl configtest && systemctl reload apache2
+docs/server/bot-bans/bin/odr-gate verify
 ```
 
-### 3. Check it
+It ends with `OK` or `NOT READY` and lists every problem with its fix. Usually the fix is to
+re-run `install` or `add-site`. Warnings (`!`) are things to look at, not blockers.
 
-From the server (it has a free pass):
+Then open each site from a phone on cellular, not the office network. You should see its
+branded gate page, and after solving it you should be able to browse normally.
 
-```bash
-curl -s -o /dev/null -w '%{http_code}\n' https://www.rruff.net/       # 200, logged gate=trusted
-```
+### Upgrading
 
-From somewhere else (your own computer, or a phone on cellular):
-
-```bash
-curl -s -o /dev/null -w '%{http_code}\n' https://www.rruff.net/                          # 403 (the gate page)
-curl -s -o /dev/null -w '%{http_code}\n' https://www.rruff.net/odr-gate/challenge.php?logo # 200 if a logo is set
-curl -s -o /dev/null -w '%{http_code}\n' -A 'Amazonbot/0.1' https://www.rruff.net/       # 410
-```
-
-Then open the site in a browser. You should see its branded gate page. Solve it, and you should
-land on the page you asked for and be able to browse normally.
-`grep 'site=www.rruff.net' /var/log/apache2/odr-ban-monitor.log | tail` shows your `gate=challenge`
-and then `gate=solved`. After that, your requests are in the site's own log only. Also check that
-the static render daemon still works: its requests don't appear in the monitor log at all.
-
-Make sure every hostname the site answers on is registered on the reCAPTCHA key. Otherwise its
-gate page shows "Invalid domain for site key".
-
----
-
-## Upgrading from the single-site gate
-
-If a server runs the earlier version (one `Include …/odr-gate.conf` per vhost):
-
-1. Deploy the code (step 1).
-2. Replace `/etc/apache2/odr-gate-local.conf` with the new format (step 2.1). It now names the
-   main instance (`ODR_GATE_DIR`, `ODR_GATE_CONFIG`) rather than one site. Keep the same secret.
-3. Move the shared settings: the RRUFF instance's `app/config/gate.ini` becomes
-   `$MAIN/app/config/gate.ini` (step 2.2).
-4. Do step 4 (`a2enmod macro`, copy both files, `a2enconf odr-gate`).
-5. In each vhost, replace `Include /etc/apache2/conf-available/odr-gate.conf` with
-   `Use OdrGate <instance> <rules>`.
-6. Set `odr_logpath` in `/etc/fail2ban/jail.d/odr.local` to
-   `/var/log/apache2/odr-ban-monitor.log`, then run `fail2ban-client reload`.
-7. Optionally, switch the sites' `CustomLog` lines back to their usual format. They no longer need
-   `combined_gate`.
-
-The pass signature now covers the hostname, so existing passes stop working once. Everyone
-solves the reCAPTCHA again.
+Pull the new code and run `odr-gate install` again, then `odr-gate verify`. That's all. The
+installer converts anything from an earlier version it recognises: the single-site settings
+file, old filters and jails, crontab entries, and old `Include` lines (via `add-site`). Have the
+reCAPTCHA keys ready; it asks for them. When the pass format changes, as it did for the multi-site gate, everyone
+solves the reCAPTCHA once more.
 
 ---
 
@@ -453,8 +288,8 @@ solves the reCAPTCHA again.
 | Ban an address by hand (48 h) | `fail2ban-client set odr-410 banip 1.2.3.4` |
 | Recent bans | `grep -E ' (Ban\|Unban) ' /var/log/fail2ban.log \| tail -20` |
 
-**Sign everyone out of every site.** Put a new secret in both `/etc/apache2/odr-gate-local.conf`
-and the main instance's `app/config/gate.ini`, then `systemctl reload apache2`.
+**Sign everyone out of every site.** Run `odr-gate install` and give it a new cookie secret
+(`openssl rand -hex 32`). It writes the secret to both places it's needed and reloads Apache.
 
 **Turn the gate off for one site in an emergency.** Comment out its `Use OdrGate` line(s), then
 run `apachectl configtest && systemctl reload apache2`. That site goes back to how it was before
@@ -503,7 +338,7 @@ points at it, that it's group `www-data` and mode 640, and look in Apache's erro
 **The reCAPTCHA box says "Invalid domain for site key".** Register the hostname on the key in the
 reCAPTCHA admin console.
 
-**Nobody is ever banned.**
+**Nobody is ever banned.** Start with `odr-gate verify`, which checks all of this. By hand:
 1. Is the gate writing the monitor log? `tail /var/log/apache2/odr-ban-monitor.log` should show
    recent `gate=challenge` lines. If it's empty, check that the sites have their `Use OdrGate`
    line and that `odr-gate.conf` is enabled.
@@ -511,12 +346,12 @@ reCAPTCHA admin console.
    `/var/log/apache2/odr-ban-monitor.log` under **File list**.
 
 **Google is being challenged** (Googlebot requests logged `gate=challenge`). The crawler ranges
-aren't loaded. Check `/etc/apache2/odr-gate-crawlers.conf` exists and isn't empty, then re-run
-step 3.
+aren't loaded. Run `odr-gate verify`, then `odr-gate install --refresh`, which downloads the ranges
+again and reloads them.
 
 **The static render daemon or WordPress cron stopped working.** Their requests are being
-challenged: look for `gate=challenge` from the server's own address. Put the address on the
-free-pass line (step 2.1) and reload Apache.
+challenged: look for `gate=challenge` from the server's own address. Run
+`odr-gate install --server-ips "<all of this server's addresses>"`.
 
 **API calls get the gate page.** The route must look like `/api/v<n>…` or `/<prefix>/api/v<n>…`,
 where the prefix is letters, digits, `-` or `_`.
@@ -543,8 +378,7 @@ rm /etc/fail2ban/jail.d/odr.local /etc/fail2ban/fail2ban.d/odr.local /etc/fail2b
 rm /etc/apache2/odr-gate-local.conf /etc/apache2/odr-gate-crawlers.conf
 rm /etc/apache2/conf-available/odr-gate.conf /etc/apache2/conf-available/odr-gate-rules-*.conf
 rm /usr/local/sbin/odr-ban-bot-ips /usr/local/sbin/odr-gate-update-crawlers
-crontab -e                       # delete the two root lines
-crontab -u <main user> -e        # delete the two ODR lines
+rm /etc/cron.d/odr-gate
 ```
 
 The `gate.ini` and `gate_branding.ini` files in the instances can stay or go.
@@ -555,6 +389,7 @@ The `gate.ini` and `gate_branding.ini` files in the instances can stay or go.
 
 | In the repo | Installed to | Purpose |
 | --- | --- | --- |
+| `docs/server/bot-bans/bin/odr-gate` | (run from the repo, as root) | `verify`, `install`, `add-site`: everything below is put in place by it |
 | `docs/server/bot-bans/apache/odr-gate.conf` | `/etc/apache2/conf-available/`, `a2enconf` | the gate, as the `OdrGate` macro, plus the server-wide lists |
 | `docs/server/bot-bans/apache/odr-gate-rules-rruff.conf` | `/etc/apache2/conf-available/` (not enabled) | the RRUFF site's extra rules: the Bustamite flood, junk-url 404s |
 | `docs/server/bot-bans/apache/odr-gate-local.conf.example` | `/etc/apache2/odr-gate-local.conf` (root, 600) | the secret, the main instance, the free-pass addresses |
