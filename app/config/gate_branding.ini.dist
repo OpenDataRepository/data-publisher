@@ -1,0 +1,31 @@
+; ODR gate: how this site's "Confirm you are human" page looks.  Copy to
+; app/config/gate_branding.ini in the site's ODR instance and edit.  See BAN_SYSTEM.md.
+; Everything is optional: without this file the page is plain, titled with the site's hostname.
+; Never committed, like parameters.yml.
+
+; Shown as the page title and, when there's no logo, as the heading above the challenge.
+site_name = "RRUFF"
+
+; The logo, either:
+;   logo_url  -- any url, including one on this site (/wp-content/uploads/...).  The gate
+;                downloads it, keeps a copy in var/gate/, and serves that copy at /odr-gate/ so
+;                it shows before the visitor has passed.  Refreshed daily.
+;   logo_file -- an image already copied into app/config/gate/ (e.g. "logo.png").
+; logo_file wins when both are set.
+logo_url = ""
+logo_file = ""
+logo_alt = "RRUFF"
+; Displayed height in pixels
+logo_height = 60
+
+; Colours, as #rgb or #rrggbb
+accent_color = "#1f4e79"
+background_color = "#ffffff"
+text_color = "#333333"
+
+; The text under the heading.  Plain text.
+message = "Automated traffic has been overwhelming this site, so visitors are asked to confirm they're human. It only takes a moment, and you won't be asked again for a while."
+
+; A line at the bottom of the page, plain text, with an optional link
+footer = ""
+footer_link = ""

@@ -411,7 +411,15 @@ class DefaultController extends \Symfony\Bundle\FrameworkBundle\Controller\Abstr
             // NOTE: on wordpress-integrated instances, WPAutoLoginSubscriber has already stuffed
             //  the wordpress user into the token storage by this point
             $current_user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';   // <-- will return 'anon.' when nobody is logged in
-            if ( $current_user === 'anon.' ) {
+            // The Apache gate (docs/server/bot-bans/apache/odr-gate.conf) already showed this
+            //  visitor a reCAPTCHA before ODR started, or recognised them as an approved crawler or
+            //  this server...challenging again would be a second reCAPTCHA for the same person.
+            //  Apache sets this variable, not the visitor; after the internal re-dispatch to
+            //  app.php it's called REDIRECT_odr_gate_via.
+            $apache_gate = (string)$request->server->get('odr_gate_via', $request->server->get('REDIRECT_odr_gate_via', ''));
+            $cleared_by_apache = in_array($apache_gate, array('passed', 'crawler', 'trusted'), true);
+
+            if ( $current_user === 'anon.' && !$cleared_by_apache ) {
                 /** @var RecaptchaService $recaptcha_service */
                 $recaptcha_service = $this->container->get('odr.recaptcha_service');
 

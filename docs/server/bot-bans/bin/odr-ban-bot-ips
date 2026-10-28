@@ -1,0 +1,110 @@
+#!/usr/bin/env python3
+"""
+ODR bot bans: feeds the banned-bot address list to fail2ban's odr-bots jail.
+
+The list is written by `php app/console odr:banned_bot_ips:update` (as the ODR user); banning
+needs root, so this runs from root's cron right after it.  See BAN_SYSTEM.md.
+
+    odr-ban-bot-ips /home/rruff/data-publisher/var/banned_bot_ips.txt
+    odr-ban-bot-ips --dry-run /home/rruff/data-publisher/var/banned_bot_ips.txt
+
+NOTE: fail2ban's manual `banip` does NOT consult the jail's ignoreip -- only bans found in a log
+ do -- so this reads the jail's ignoreip itself and leaves those addresses out.
+NOTE: fail2ban's nftables sets hold single addresses, so a CIDR prefix is expanded when it's
+ /24 (IPv4) or narrower, and skipped with a warning otherwise.
+"""
+
+import ipaddress
+import os
+import subprocess
+import sys
+import time
+
+JAIL = 'odr-bots'
+BATCH = 500                    # addresses per fail2ban-client call
+MAX_EXPAND = 256               # largest prefix expanded into single addresses
+STALE_DAYS = 7                 # warn when the list hasn't been refreshed in this long
+FAIL2BAN_CLIENT = os.environ.get('ODR_FAIL2BAN_CLIENT', 'fail2ban-client')
+
+
+def client(*args):
+    result = subprocess.run([FAIL2BAN_CLIENT, *args], capture_output=True, text=True)
+    if result.returncode != 0:
+        sys.exit('fail2ban-client %s failed: %s' % (' '.join(args[:3]), (result.stderr or result.stdout).strip()))
+    return result.stdout
+
+
+def networks_in(text):
+    """Every address or network mentioned in fail2ban-client output."""
+    found = []
+    for token in text.replace('|-', ' ').replace('`-', ' ').replace(',', ' ').split():
+        try:
+            found.append(ipaddress.ip_network(token, strict=False))
+        except ValueError:
+            pass
+    return found
+
+
+def main():
+    args = [a for a in sys.argv[1:] if not a.startswith('--')]
+    dry_run = '--dry-run' in sys.argv
+    if len(args) != 1:
+        sys.exit(__doc__.strip().split('\n\n')[1])
+    path = args[0]
+
+    if not os.path.isfile(path):
+        sys.exit('no list at %s -- run `php app/console odr:banned_bot_ips:update` first' % path)
+    age_days = (time.time() - os.path.getmtime(path)) / 86400
+    if age_days > STALE_DAYS:
+        print('warning: %s is %.0f days old -- is odr:banned_bot_ips:update running?' % (path, age_days))
+
+    # ----------------------------------------
+    wanted, skipped = [], []
+    with open(path) as handle:
+        for line in handle:
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            token = line.split()[0]
+            try:
+                network = ipaddress.ip_network(token, strict=False)
+            except ValueError:
+                skipped.append(token + ' (not an address)')
+                continue
+            if network.num_addresses == 1:
+                wanted.append(network.network_address)
+            elif network.num_addresses <= MAX_EXPAND:
+                wanted.extend(network.hosts() if network.version == 4 else network)
+            else:
+                skipped.append(token + ' (prefix too broad for a single-address set)')
+
+    if not wanted:
+        sys.exit('the list at %s has no addresses -- refusing to do nothing silently' % path)
+
+    ignored = networks_in(client('get', JAIL, 'ignoreip'))
+    already = {a for n in networks_in(client('get', JAIL, 'banip')) for a in ([n.network_address] if n.num_addresses == 1 else [])}
+
+    to_ban, kept_out = [], []
+    for address in dict.fromkeys(wanted):          # de-duplicated, order kept
+        if any(address in network for network in ignored if network.version == address.version):
+            kept_out.append(str(address))
+        elif address not in already:
+            to_ban.append(str(address))
+
+    print('%s: %d addresses listed, %d already banned, %d to ban' % (JAIL, len(wanted), len(wanted) - len(to_ban) - len(kept_out), len(to_ban)))
+    for address in kept_out:
+        print('  not banning %s: it is in the jail\'s ignoreip' % address)
+    for token in skipped:
+        print('  skipped %s' % token)
+
+    if dry_run:
+        print('--dry-run given, nothing banned')
+        return
+
+    for start in range(0, len(to_ban), BATCH):
+        client('set', JAIL, 'banip', *to_ban[start:start + BATCH])
+    print('banned %d' % len(to_ban))
+
+
+if __name__ == '__main__':
+    main()

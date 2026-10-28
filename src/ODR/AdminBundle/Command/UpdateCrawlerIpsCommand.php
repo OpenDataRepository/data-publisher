@@ -7,7 +7,10 @@
  * Released under the GPLv2
  *
  * Downloads the IP ranges that Google, Bing, and DuckDuckGo publish for their crawlers, and
- * writes them into a generated php file for CrawlerVerificationService to read.
+ * writes them into one generated json file, var/crawler_ips.json.  Everything reads that file:
+ * CrawlerVerificationService, the WordPress theme's search gate, and (as root) the Apache gate's
+ * docs/server/bot-bans/bin/odr-gate-update-crawlers.  Json rather than php so root can read it
+ * without executing a file this user writes.
  *
  * Nothing is downloaded while serving a request...run this from cron (weekly is plenty, Google's
  * list is the only one that moves much) and commit the result.
@@ -22,7 +25,7 @@
  * Usage:
  *   php app/console odr:crawler_ips:update
  *   php app/console-all odr:crawler_ips:update                      # every linked instance
- *   php app/console odr:crawler_ips:update --out=/path/to/other/crawler_ips.php
+ *   php app/console odr:crawler_ips:update --out=/path/to/other/crawler_ips.json
  *   php app/console odr:crawler_ips:update --check=66.249.66.1
  */
 
@@ -141,8 +144,8 @@ class UpdateCrawlerIpsCommand extends ContainerAwareCommand
         // Load whatever is currently stored, so a source that fails to download keeps its
         //  previous prefixes instead of silently vanishing from the list
         $existing = array();
-        if ( file_exists($default_file) ) {
-            $tmp = @include $default_file;
+        if ( is_readable($default_file) ) {
+            $tmp = json_decode((string)file_get_contents($default_file), true);
             if ( is_array($tmp) && isset($tmp['sources']) )
                 $existing = $tmp;
         }
@@ -210,15 +213,17 @@ class UpdateCrawlerIpsCommand extends ContainerAwareCommand
             return 1;
         }
 
-        // Split by family so the service doesn't have to, and pre-reduce the IPv4 prefixes to a
-        //  network/mask pair of integers so matching them is just integer ops
+        // Split by family so the readers don't have to, and pre-reduce the IPv4 prefixes to a
+        //  network/mask pair of integers so matching them is just integer ops.  The cidr goes
+        //  along as the 4th item, for odr-gate-update-crawlers, which validates it rather than
+        //  trusting the integers
         $ipv4 = array();
         $ipv6 = array();
         foreach ($prefixes as $prefix) {
             if ( $prefix['family'] === 4 )
-                $ipv4[] = array($prefix['network'], $prefix['mask'], $prefix['source']);
+                $ipv4[] = array($prefix['network'], $prefix['mask'], $prefix['source'], $prefix['cidr']);
             else
-                $ipv6[] = array($prefix['network_hex'], $prefix['bits'], $prefix['source']);
+                $ipv6[] = array($prefix['network_hex'], $prefix['bits'], $prefix['source'], $prefix['cidr']);
         }
 
         $contents = self::generateFile($sources, $ipv4, $ipv6);
@@ -238,7 +243,6 @@ class UpdateCrawlerIpsCommand extends ContainerAwareCommand
                 $logger->error('UpdateCrawlerIpsCommand.php: could not write "'.$file.'": '.$written);
                 return 1;
             }
-
             $output->writeln('Wrote <info>'.$file.'</info>');
         }
 
@@ -342,6 +346,7 @@ class UpdateCrawlerIpsCommand extends ContainerAwareCommand
                     'family' => 4,
                     'network' => $entry[0],
                     'mask' => $entry[1],
+                    'cidr' => long2ip($entry[0]).'/'.substr_count(decbin($entry[1]), '1'),
                     'source' => $name,
                 );
             }
@@ -352,6 +357,7 @@ class UpdateCrawlerIpsCommand extends ContainerAwareCommand
                     'family' => 6,
                     'network_hex' => $entry[0],
                     'bits' => $entry[1],
+                    'cidr' => inet_ntop(hex2bin($entry[0])).'/'.$entry[1],
                     'source' => $name,
                 );
             }
@@ -399,6 +405,7 @@ class UpdateCrawlerIpsCommand extends ContainerAwareCommand
                 'family' => 4,
                 'network' => $network,
                 'mask' => $mask,
+                'cidr' => long2ip($network).'/'.$bits,
                 'source' => $source,
             );
         }
@@ -410,13 +417,19 @@ class UpdateCrawlerIpsCommand extends ContainerAwareCommand
             'family' => 6,
             'network_hex' => bin2hex($packed),
             'bits' => $bits,
+            'cidr' => inet_ntop($packed).'/'.$bits,
             'source' => $source,
         );
     }
 
 
     /**
-     * Renders the generated php file.
+     * Renders the generated json file.
+     *
+     *   generated  when this file was written
+     *   sources    per search engine: url, published, prefixes (a count)
+     *   ipv4       [network, mask, source, cidr] with network/mask as integers
+     *   ipv6       [packed network in hex, prefix length in bits, source, cidr]
      *
      * @param array $sources
      * @param array $ipv4
@@ -426,47 +439,13 @@ class UpdateCrawlerIpsCommand extends ContainerAwareCommand
      */
     private static function generateFile($sources, $ipv4, $ipv6)
     {
-        $lines = array();
-        $lines[] = '<?php';
-        $lines[] = '';
-        $lines[] = '/**';
-        $lines[] = ' * Search engine crawler IP ranges, read by CrawlerVerificationService.';
-        $lines[] = ' *';
-        $lines[] = ' * GENERATED FILE -- do not edit by hand.  Regenerate with:';
-        $lines[] = ' *     php app/console odr:crawler_ips:update';
-        $lines[] = ' *';
-        $lines[] = ' * ipv4 entries are [network, mask, source] with network/mask as integers.';
-        $lines[] = ' * ipv6 entries are [packed network in hex, prefix length in bits, source].';
-        $lines[] = ' */';
-        $lines[] = '';
-        $lines[] = 'return array(';
-        $lines[] = "    'generated' => '".date('c')."',";
-        $lines[] = "    'sources' => array(";
-        foreach ($sources as $name => $source) {
-            $published = ( $source['published'] === null ) ? 'null' : "'".addslashes($source['published'])."'";
-            $lines[] = "        '".$name."' => array(";
-            $lines[] = "            'url' => '".addslashes($source['url'])."',";
-            $lines[] = "            'published' => ".$published.",";
-            $lines[] = "            'prefixes' => ".$source['prefixes'].",";
-            $lines[] = '        ),';
-        }
-        $lines[] = '    ),';
-
-        $lines[] = "    'ipv4' => array(";
-        foreach ($ipv4 as $entry) {
-            $lines[] = '        array('.$entry[0].', '.$entry[1].", '".$entry[2]."'),";
-        }
-        $lines[] = '    ),';
-
-        $lines[] = "    'ipv6' => array(";
-        foreach ($ipv6 as $entry) {
-            $lines[] = "        array('".$entry[0]."', ".$entry[1].", '".$entry[2]."'),";
-        }
-        $lines[] = '    ),';
-        $lines[] = ');';
-        $lines[] = '';
-
-        return implode("\n", $lines);
+        return json_encode(array(
+            '_comment' => 'Search engine crawler IP ranges. GENERATED FILE -- do not edit by hand. Regenerate with: php app/console odr:crawler_ips:update',
+            'generated' => date('c'),
+            'sources' => $sources,
+            'ipv4' => $ipv4,
+            'ipv6' => $ipv6,
+        ), JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT)."\n";
     }
 
 
