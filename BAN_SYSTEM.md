@@ -77,8 +77,10 @@ site's hostname and a server secret. Apache checks the signature on every reques
 **Logos.** Everything on a site is behind its gate, so a logo at `/wp-content/uploads/…` would
 show as broken on the gate page. The gate therefore serves each site's logo itself, at
 `/odr-gate/challenge.php?logo`, which isn't gated:
-- **`logo_url`** — any url, including one on the site itself. The gate downloads it (the
-  server has a free pass), keeps a copy in that instance's `var/gate/`, and refreshes it daily.
+- **`logo_url`** — any url, including one on the site itself. `odr-gate refresh-logos`
+  downloads it into that instance's `var/gate/`. It runs at install, at add-site and daily from
+  cron, and connects through 127.0.0.1 for the server's own hostnames. The gate page only ever
+  *reads* that copy, and never downloads anything while a visitor waits.
 - **`logo_file`** — an image you copied into `app/config/gate/`.
 
 **Approved crawlers** are recognised by address, from the ranges Google, Bing and DuckDuckGo
@@ -169,6 +171,7 @@ instances are linked to. It has three commands:
 | `odr-gate verify` | Checks every part of the setup and lists what's wrong, with the fix for each. **Changes nothing.** Run it any time. |
 | `odr-gate install` | Sets up, or repairs, everything server-wide. Safe to re-run. |
 | `odr-gate add-site …` | Turns the gate on for one site. |
+| `odr-gate refresh-logos` | Downloads each site's `logo_url` for its gate page. Also runs daily from cron. |
 
 `install` and `add-site` back up every file they change to `/var/backups/odr-gate/<date-time>/`.
 `--dry-run` shows what they would do without doing it.
@@ -214,7 +217,8 @@ To run it without questions, pass the answers instead:
 7. loads the lists into Apache and fail2ban;
 8. writes the schedule, `/etc/cron.d/odr-gate`, and removes the old jobs from root's and the
    ODR user's own crontabs;
-9. checks Apache's configuration, then reloads Apache.
+9. checks Apache's configuration, then reloads Apache;
+10. downloads each site's `logo_url` (`refresh-logos`).
 
 ### 2. Add each site
 
@@ -246,7 +250,7 @@ immediately:
 | Setting | |
 | --- | --- |
 | `site_name` | page title, and the heading when there's no logo |
-| `logo_url` | the logo, by url, even one on this site (`https://www.rruff.net/wp-content/uploads/…/logo.png`). The gate downloads it and serves its own copy, refreshed daily. |
+| `logo_url` | the logo, by url, even one on this site (`https://www.rruff.net/wp-content/uploads/…/logo.png`). After changing it, run `odr-gate refresh-logos` to download it now; otherwise the daily cron job does. Until then the page shows the site name. |
 | `logo_file` | or: an image copied into `<instance>/app/config/gate/` (e.g. `logo.svg`). Wins over `logo_url`. |
 | `logo_alt`, `logo_height` | the logo's alt text and height in pixels |
 | `accent_color`, `background_color`, `text_color` | `#rgb` or `#rrggbb` |
@@ -332,8 +336,8 @@ points at it, that it's group `www-data` and mode 640, and look in Apache's erro
 
 **The gate page shows no logo.**
 - `logo_file`: the file must be in the instance's `app/config/gate/`.
-- `logo_url`: look in Apache's error log for `odr-gate: could not fetch the logo`. The
-  instance's `var/` must be writable by the web server, so it can keep the copy in `var/gate/`.
+- `logo_url`: run `odr-gate refresh-logos`. It downloads the logo, or says why it can't (an
+  address that doesn't answer, not an image, over 1 MB).
 
 **The reCAPTCHA box says "Invalid domain for site key".** Register the hostname on the key in the
 reCAPTCHA admin console.

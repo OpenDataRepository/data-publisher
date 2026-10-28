@@ -8,6 +8,8 @@ Run as root, from the ODR checkout the other instances are linked to:
     odr-gate install                     set up / repair the server-wide parts (safe to re-run)
     odr-gate add-site <hostname> --instance <ODR instance dir> --rules <rruff|none>
                                          turn the gate on for one site's vhost(s)
+    odr-gate refresh-logos               download each site's logo_url for its gate page
+                                         (install, add-site and a daily cron job run this)
 
 Options:
     --yes             don't ask; use what's already configured (or detected) for everything
@@ -70,7 +72,7 @@ JAIL = '/etc/fail2ban/jail.d/odr.local'
 CRON = '/etc/cron.d/odr-gate'
 JAILS = ['odr-410', 'odr-minimal404', 'odr-challenge', 'odr-bots']
 OBSOLETE_INCLUDES = ['odr-gate.conf', 'odr-bot-bans.conf', 'odr_minimal_404s.conf']
-CRON_MARKERS = ['odr:banned_bot_ips:update', 'odr:crawler_ips:update', 'odr-ban-bot-ips', 'odr-gate-update-crawlers']
+CRON_MARKERS = ['odr:banned_bot_ips:update', 'odr:crawler_ips:update', 'odr-ban-bot-ips', 'odr-gate-update-crawlers', 'refresh-logos']
 MIN_THEME = (1, 2, 21)
 STALE_DAYS = 8
 
@@ -485,7 +487,7 @@ def verify(args):
     report.section('Scheduled updates')
     cron = read(P(CRON)) or ''
     if all(marker in cron for marker in CRON_MARKERS):
-        report.ok('%s has all four jobs' % CRON)
+        report.ok('%s has all five jobs' % CRON)
     else:
         report.bad('%s missing or incomplete' % CRON, 'odr-gate install')
     for user in ('root', owner(os.path.join(main, 'var')) or ''):
@@ -507,6 +509,11 @@ def verify(args):
                 report.bad('  instance %s doesn\'t exist' % instance)
             elif not os.path.isfile(os.path.join(instance, 'app/config/gate_branding.ini')):
                 report.warn('  no branding (%s/app/config/gate_branding.ini): plain page' % instance, 'odr-gate add-site creates one')
+            else:
+                brand = parse_ini(os.path.join(instance, 'app/config/gate_branding.ini'))
+                if brand.get('logo_url') and not brand.get('logo_file') \
+                        and parse_json(os.path.join(instance, 'var/gate/logo.json')).get('url') is None:
+                    report.warn('  logo_url set but not downloaded yet: the page shows the site name', 'odr-gate refresh-logos')
             if rules not in ('none', '?') and not os.path.isfile(P('/etc/apache2/conf-available/odr-gate-rules-%s.conf' % rules)):
                 report.bad('  rule set "%s" has no odr-gate-rules-%s.conf' % (rules, rules))
         elif host.old_includes:
@@ -571,6 +578,7 @@ def render_cron(main, user):
             '10 */6 * * * root /usr/local/sbin/odr-ban-bot-ips {m}/var/banned_bot_ips.txt > /dev/null\n'
             '30 3 * * 1   {u}  cd {m} && php app/console odr:crawler_ips:update --env=prod > /dev/null\n'
             '45 3 * * 1   root /usr/local/sbin/odr-gate-update-crawlers {m}/var/crawler_ips.json > /dev/null\n'
+            '20 4 * * *   root {m}/docs/server/bot-bans/bin/odr-gate refresh-logos > /dev/null\n'
             ).format(u=user, m=main)
 
 
@@ -733,6 +741,9 @@ def install(args):
         die('apachectl configtest failed -- nothing reloaded:\n' + out)
     changes.command(['systemctl', 'reload', 'apache2'])
 
+    say('')
+    refresh_logos(args)
+
     if changes.backed_up and not args.dry_run:
         say('\nBackups of everything changed: ' + changes.backup_dir)
     say('\nDone.  Next: odr-gate add-site <hostname> --instance <dir> --rules <rruff|none> for each site,\nthen odr-gate verify.')
@@ -803,8 +814,112 @@ def add_site(args):
         text = re.sub(r'^logo_alt\s*=.*$', 'logo_alt = "%s"' % site_name, text, flags=re.M)
         changes.write(branding, text, user=owner(os.path.join(instance, 'var')), group='www-data',
                       why='default branding -- edit it to set the logo and colours')
+    say('')
+    refresh_logos(args)
     say('\nDone.  Check it with: odr-gate verify')
     return 0
+
+
+# ------------------------------------------------------------------------------- refresh-logos
+
+def gated_instances():
+    """instance dir -> the hostnames of the vhosts that use the gate with it"""
+    found = {}
+    for host in parse_vhosts():
+        for _, words in host.uses:
+            if words:
+                found.setdefault(words[0], []).extend(n for n in host.names if n not in found.get(words[0], []))
+    return found
+
+
+def refresh_logos(args, force=False):
+    """Downloads each gated site's logo_url into its instance's var/gate/, for the gate page to
+    serve.  Never done by the gate page itself: a visitor would wait for it."""
+    local_names = {n for h in parse_vhosts() for n in h.names}
+    say('Gate-page logos')
+    for instance, names in gated_instances().items():
+        brand = parse_ini(os.path.join(instance, 'app/config/gate_branding.ini'))
+        # the copy is labelled with logo_url as configured, which is what the gate page compares
+        configured = url = (brand.get('logo_url') or '').strip()
+        if not url or brand.get('logo_file'):
+            continue
+        if url.startswith('/') and not url.startswith('//'):
+            url = 'https://' + (names[0] if names else 'localhost') + url
+        gate_dir = os.path.join(instance, 'var/gate')
+        meta = parse_json(os.path.join(gate_dir, 'logo.json'))
+        if not force and meta.get('url') == configured and time.time() - int(meta.get('fetched', 0)) < 20 * 3600 \
+                and os.path.isfile(os.path.join(gate_dir, 'logo')):
+            say('  %s: current' % instance)
+            continue
+        if args.dry_run:
+            say('  %s: would download %s' % (instance, url))
+            continue
+        result = fetch_image(url, local_names)
+        if isinstance(result, str):
+            say('  %s: could not download %s -- %s (the page shows the site name meanwhile)' % (instance, url, result))
+            continue
+        body, content_type = result
+        user = owner(os.path.join(instance, 'var'))
+        os.makedirs(gate_dir, exist_ok=True)
+        for path, data in ((os.path.join(gate_dir, 'logo'), body),
+                           (os.path.join(gate_dir, 'logo.json'),
+                            ('{"url": %s, "type": %s, "fetched": %d}\n' % (json_quote(configured), json_quote(content_type), int(time.time()))).encode())):
+            temp = path + '.odr-gate-new'
+            with open(temp, 'wb') as handle:
+                handle.write(data)
+            os.chmod(temp, 0o644)
+            try:
+                os.chown(temp, pwd.getpwnam(user).pw_uid if user else -1, grp.getgrnam('www-data').gr_gid)
+            except (PermissionError, KeyError):
+                pass
+            os.replace(temp, path)
+        say('  %s: downloaded %s (%s, %d bytes)' % (instance, url, content_type, len(body)))
+    return 0
+
+
+def fetch_image(url, local_names):
+    """(bytes, content type), or a string saying why not.  A url on one of this server's own sites
+    is fetched through 127.0.0.1 (which has a free pass), not out and back in via the public
+    address."""
+    import tempfile
+    from urllib.parse import urlparse
+    parts = urlparse(url)
+    if parts.scheme not in ('http', 'https') or not parts.hostname:
+        return 'not an http(s) url'
+    cmd = ['curl', '-sS', '-L', '--max-redirs', '3', '--max-time', '15', '--max-filesize', '1048576',
+           '-A', 'ODR gate logo fetch', '-w', '%{http_code} %{content_type}']
+    if parts.hostname.lower() in local_names:
+        port = parts.port or (443 if parts.scheme == 'https' else 80)
+        cmd += ['--resolve', '%s:%d:127.0.0.1' % (parts.hostname, port)]
+    with tempfile.NamedTemporaryFile() as out:
+        code, info = run(cmd + ['-o', out.name, url])
+        if code != 0:
+            return info.splitlines()[-1] if info else 'curl exited %d' % code
+        status, _, content_type = info.rpartition('\n')[-1].partition(' ')
+        content_type = content_type.split(';')[0].strip().lower()
+        if status != '200':
+            return 'HTTP ' + status
+        if not content_type.startswith('image/'):
+            return 'not an image (%s)' % (content_type or 'no content type')
+        out.seek(0)
+        body = out.read()
+    if not body or len(body) > 1048576:
+        return 'empty or over 1 MB'
+    return body, content_type
+
+
+def parse_json(path):
+    import json
+    try:
+        value = json.loads(read(path) or '{}')
+        return value if isinstance(value, dict) else {}
+    except ValueError:
+        return {}
+
+
+def json_quote(text):
+    import json
+    return json.dumps(text)
 
 
 # --------------------------------------------------------------------------------------- main
@@ -812,7 +927,7 @@ def add_site(args):
 def main():
     parser = argparse.ArgumentParser(prog='odr-gate', description=__doc__.split('\n\n')[0].strip(),
                                      formatter_class=argparse.RawDescriptionHelpFormatter, epilog=__doc__.split('\n\n', 1)[1])
-    parser.add_argument('command', choices=['verify', 'install', 'add-site'])
+    parser.add_argument('command', choices=['verify', 'install', 'add-site', 'refresh-logos'])
     parser.add_argument('hostname', nargs='?')
     parser.add_argument('--main', default=REPO)
     parser.add_argument('--instance')
@@ -834,6 +949,8 @@ def main():
         return verify(args)
     if args.command == 'install':
         return install(args)
+    if args.command == 'refresh-logos':
+        return refresh_logos(args, force=args.refresh)
     if not args.hostname:
         parser.error('add-site needs the site\'s hostname, e.g. odr-gate add-site www.rruff.net --instance /home/rruff/data-publisher --rules rruff')
     return add_site(args)

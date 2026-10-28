@@ -17,7 +17,8 @@
  *   Google unreachable -> the challenge again, logged gate=challenge-google-unreachable, which
  *   fail2ban doesn't count: that's our outage, not the visitor's fault.
  * /odr-gate/challenge.php?logo: the site's logo (gate=gate-logo), which has to be served from
- *   here because everything else on the site is behind the gate.
+ *   here because everything else on the site is behind the gate.  Read from a local copy only:
+ *   nothing here makes a network request except the reCAPTCHA check on a POST.
  *
  * Settings come from two places, both named by Apache (the OdrGate macro):
  *   odr_gate_config  the shared gate.ini: reCAPTCHA keys, secret, pass length (every site)
@@ -174,7 +175,10 @@ function odr_gate_branding($site_dir, $host)
 
 /**
  * The logo, as stored locally: array(path, content type, version), or null when there isn't one.
- * Downloads and caches logo_url when the copy is missing, stale (a day) or for a different url.
+ *
+ * Only ever reads.  A logo_url is downloaded by odr-gate (install, add-site, and daily from cron)
+ * into the instance's var/gate/ -- never here, while a visitor waits.  Until it has been, the page
+ * shows the site name instead.
  *
  * @return array|null
  */
@@ -188,79 +192,20 @@ function odr_gate_logo($site_dir, $brand)
         $file = $site_dir.'/app/config/gate/'.basename($brand['logo_file']);
         if ( !is_readable($file) )
             return null;
-        $type = function_exists('mime_content_type') ? (string)@mime_content_type($file) : '';
-        if ( strpos($type, 'image/') !== 0 )
-            $type = ( substr(strtolower($file), -4) === '.svg' ) ? 'image/svg+xml' : 'image/png';
+        $type = ( substr(strtolower($file), -4) === '.svg' ) ? 'image/svg+xml'
+            : ( preg_match('/\.jpe?g$/i', $file) ? 'image/jpeg' : ( preg_match('/\.gif$/i', $file) ? 'image/gif'
+            : ( preg_match('/\.webp$/i', $file) ? 'image/webp' : 'image/png' ) ) );
         return array($file, $type, (string)filemtime($file));
     }
 
     if ( $brand['logo_url'] === '' )
         return null;
 
-    // A url, downloaded and kept in var/gate/.  On this site's own host it works too: the request
-    //  comes from this server, which has a free pass.
-    $url = $brand['logo_url'];
-    if ( $url[0] === '/' && substr($url, 0, 2) !== '//' )
-        $url = 'https://'.($_SERVER['HTTP_HOST'] ?? 'localhost').$url;
-    if ( !preg_match('#^https?://#i', $url) )
+    // The copy odr-gate downloaded, if it's for the url configured now
+    $meta = json_decode((string)@file_get_contents($site_dir.'/var/gate/logo.json'), true);
+    if ( !is_array($meta) || ($meta['url'] ?? '') !== $brand['logo_url'] || !is_readable($site_dir.'/var/gate/logo') )
         return null;
-
-    $dir = $site_dir.'/var/gate';
-    $data = $dir.'/logo';
-    $meta_file = $dir.'/logo.json';
-    $meta = is_readable($meta_file) ? json_decode((string)@file_get_contents($meta_file), true) : null;
-
-    $current = is_array($meta) && is_readable($data) && ($meta['url'] ?? '') === $url;
-    $fresh = $current && (time() - (int)($meta['fetched'] ?? 0)) < 86400;
-
-    // Only one request refreshes it at a time; the others keep using the copy (or no logo)
-    $lock = $dir.'/logo.lock';
-    if ( !$fresh && (!is_file($lock) || time() - (int)@filemtime($lock) > 60) ) {
-        if ( (is_dir($dir) || @mkdir($dir, 0775, true)) && @touch($lock) ) {
-            $fetched = odr_gate_fetch_image($url);
-            if ( $fetched !== null ) {
-                @file_put_contents($data.'.new', $fetched['body']);
-                @rename($data.'.new', $data);
-                @file_put_contents($meta_file, json_encode(array('url' => $url, 'type' => $fetched['type'], 'fetched' => time())));
-                $meta = array('url' => $url, 'type' => $fetched['type'], 'fetched' => time());
-                $current = true;
-            }
-        }
-    }
-
-    if ( !$current )
-        return null;
-    return array($data, (string)$meta['type'], (string)$meta['fetched']);
-}
-
-
-/**
- * Downloads an image: array(body, type), or null.  At most 1 MB, a few seconds.
- *
- * @return array|null
- */
-function odr_gate_fetch_image($url)
-{
-    $ch = curl_init($url);
-    curl_setopt_array($ch, array(
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_MAXREDIRS => 3,
-        CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
-        CURLOPT_TIMEOUT => 5,
-        CURLOPT_MAXFILESIZE => 1048576,
-        CURLOPT_USERAGENT => 'ODR gate logo fetch',
-    ));
-    $body = curl_exec($ch);
-    $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $type = strtolower(trim(explode(';', (string)curl_getinfo($ch, CURLINFO_CONTENT_TYPE))[0]));
-    curl_close($ch);
-
-    if ( $body === false || $status !== 200 || strlen($body) > 1048576 || strpos($type, 'image/') !== 0 ) {
-        error_log('odr-gate: could not fetch the logo from '.$url.' (HTTP '.$status.', '.$type.')');
-        return null;
-    }
-    return array('body' => $body, 'type' => $type);
+    return array($site_dir.'/var/gate/logo', (string)$meta['type'], (string)($meta['fetched'] ?? '0'));
 }
 
 
