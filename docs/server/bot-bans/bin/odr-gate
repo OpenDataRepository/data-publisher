@@ -835,6 +835,8 @@ def gated_instances():
 def refresh_logos(args, force=False):
     """Downloads each gated site's logo_url into its instance's var/gate/, for the gate page to
     serve.  Never done by the gate page itself: a visitor would wait for it."""
+    if os.geteuid() != 0 and not ROOT:
+        die('run as root')
     local_names = {n for h in parse_vhosts() for n in h.names}
     say('Gate-page logos')
     for instance, names in gated_instances().items():
@@ -861,6 +863,13 @@ def refresh_logos(args, force=False):
         body, content_type = result
         user = owner(os.path.join(instance, 'var'))
         os.makedirs(gate_dir, exist_ok=True)
+        # The gate page only reads this folder; an older version that downloaded from the page
+        #  itself left it owned by www-data.  The instance's user owns it now, www-data reads it.
+        try:
+            os.chown(gate_dir, pwd.getpwnam(user).pw_uid if user else -1, grp.getgrnam('www-data').gr_gid)
+            os.chmod(gate_dir, 0o755)
+        except (PermissionError, KeyError):
+            pass
         for path, data in ((os.path.join(gate_dir, 'logo'), body),
                            (os.path.join(gate_dir, 'logo.json'),
                             ('{"url": %s, "type": %s, "fetched": %d}\n' % (json_quote(configured), json_quote(content_type), int(time.time()))).encode())):

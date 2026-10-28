@@ -163,7 +163,7 @@ described in the theme's `odr_search_gate.php`.
 ## Installation
 
 Everything is done by one tool, **`odr-gate`**, in the ODR repository at
-`docs/server/bot-bans/bin/odr-gate`. Run it **as root**, from the ODR checkout the other
+`./docs/server/bot-bans/bin/odr-gate`. Run it **as root**, from the ODR checkout the other
 instances are linked to. It has three commands:
 
 | Command | What it does |
@@ -192,7 +192,7 @@ instances are linked to. It has three commands:
 
 ```bash
 cd /home/odr/data-publisher
-docs/server/bot-bans/bin/odr-gate install
+./docs/server/bot-bans/bin/odr-gate install
 ```
 
 It asks **all its questions first**:
@@ -223,8 +223,8 @@ To run it without questions, pass the answers instead:
 ### 2. Add each site
 
 ```bash
-docs/server/bot-bans/bin/odr-gate add-site www.rruff.net --instance /home/rruff/data-publisher --rules rruff
-docs/server/bot-bans/bin/odr-gate add-site odr.io --instance /home/odr/data-publisher --rules none --site-name "Open Data Repository"
+./docs/server/bot-bans/bin/odr-gate add-site www.rruff.net --instance /home/rruff/data-publisher --rules rruff
+./docs/server/bot-bans/bin/odr-gate add-site odr.io --instance /home/odr/data-publisher --rules none --site-name "Open Data Repository"
 ```
 
 - **The hostname** is any `ServerName` or `ServerAlias` of the site. Every vhost that has it,
@@ -260,7 +260,7 @@ immediately:
 ### 4. Verify
 
 ```bash
-docs/server/bot-bans/bin/odr-gate verify
+./docs/server/bot-bans/bin/odr-gate verify
 ```
 
 It ends with `OK` or `NOT READY` and lists every problem with its fix. Usually the fix is to
