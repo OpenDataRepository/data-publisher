@@ -1,19 +1,22 @@
-# ODR gate: this server's settings.  Install as /etc/apache2/odr-gate-local.conf, owned by root,
-# mode 600 -- it holds the secret that signs the pass cookie.  See BAN_SYSTEM.md.
+# ODR gate: this server's settings, shared by every site that uses the gate.  Install as
+# /etc/apache2/odr-gate-local.conf, owned by root, mode 600 -- it holds the secret that signs
+# the pass cookie.  See BAN_SYSTEM.md.
 
-# The ODR instance that serves this site.  The challenge script is served from its checkout, and
-# reads its settings from app/config/gate.ini there.
-Define ODR_DIR "/home/rruff/data-publisher"
-Define ODR_GATE_DIR "${ODR_DIR}/docs/server/bot-bans/gate"
-SetEnv odr_gate_config "${ODR_DIR}/app/config/gate.ini"
+# The ODR code every instance on this server is linked to.  The challenge script is served from
+# it, and the shared gate settings (reCAPTCHA keys, secret, pass length) are read from its
+# app/config/gate.ini.  Each site's branding comes from its own instance (the Use OdrGate line).
+Define ODR_GATE_DIR "/home/odr/data-publisher/docs/server/bot-bans/gate"
+Define ODR_GATE_CONFIG "/home/odr/data-publisher/app/config/gate.ini"
 
-# The secret that signs the pass cookie.  Must be the same as pass_secret in
-# ${ODR_DIR}/app/config/gate.ini.  Generate one with:  openssl rand -hex 32
-# Changing it (in both places) signs everyone out of the gate.
+# The secret that signs the pass cookie, for every site.  Must be the same as pass_secret in that
+# gate.ini.  Generate one with:  openssl rand -hex 32
+# A pass is still only good on the site that issued it: the signature covers the hostname.
+# Changing the secret (in both places) signs everyone out of every site.
 Define ODR_GATE_SECRET "REPLACE_WITH_THE_OUTPUT_OF_openssl_rand_-hex_32"
 
-# Free pass: requests from these addresses skip every rule in odr-gate.conf.  Localhost, and this
-# server's own public address(es) -- the static render daemon and WordPress's loopback requests
-# (wp-cron, site health) come from there.  Add a line per address; CIDR ranges are allowed.
+# Free pass, on every site: requests from these addresses skip every rule in the gate.
+# Localhost, and this server's own public address(es) -- the static render daemon and WordPress's
+# loopback requests (wp-cron, site health) come from there, and so does the gate fetching a
+# site's logo.  Add a line per address; CIDR ranges are allowed.
 SetEnvIfExpr "-R '127.0.0.0/8' || -R '::1/128'" odr_trusted=1
 SetEnvIfExpr "-R '144.217.146.145'" odr_trusted=1

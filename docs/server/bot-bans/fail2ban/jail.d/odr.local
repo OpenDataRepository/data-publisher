@@ -6,12 +6,14 @@
 
 [DEFAULT]
 # Addresses never banned by these jails: this server, and wherever the people testing the
-# search gate sit.  Five unsolved challenges in an hour bans the office otherwise.
+# search gate sit.  Ten unsolved challenges in 24 hours bans the office otherwise.
 # ADD YOUR OFFICE / VPN ADDRESSES HERE (space separated, CIDR allowed).
 odr_ignoreip = 127.0.0.1/8 ::1
 
-# The access log(s) written with the combined_gate LogFormat -- one per line
-odr_logpath = /var/log/apache2/rruff.net-ssl-access.log
+# The access logs written with the combined_gate LogFormat: every site using the gate.  A wildcard
+# picks up a new site's log on the next fail2ban reload; or list them, one per line, indented.
+# Bans are server-wide (they're at the firewall): abuse on one site blocks the address from all.
+odr_logpath = /var/log/apache2/*-access.log
 
 odr_banaction = nftables[type=multiport, blocktype=drop]
 odr_port = http,https
@@ -32,7 +34,7 @@ maxretry  = 1
 findtime  = 1h
 bantime   = 48h
 
-# 5 minimal 404s (urls that aren't a valid search) within an hour.  An approved crawler's are
+# 10 minimal 404s (urls that aren't a valid search) within 24 hours.  An approved crawler's are
 # logged gate=approved_404 instead, and aren't counted: it gets the 404 but isn't banned.
 [odr-minimal404]
 enabled   = true
@@ -42,11 +44,11 @@ backend   = auto
 ignoreip  = %(odr_ignoreip)s
 banaction = %(odr_banaction)s
 port      = %(odr_port)s
-maxretry  = 5
-findtime  = 1h
+maxretry  = 10
+findtime  = 24h
 bantime   = 48h
 
-# 5 reCAPTCHA challenges served within an hour, i.e. asking and never answering.  Every page
+# 10 reCAPTCHA challenges served within 24 hours, i.e. asking and never answering.  Every page
 # a visitor without a pass asks for is a challenge, until they solve one.
 [odr-challenge]
 enabled   = true
@@ -56,8 +58,8 @@ backend   = auto
 ignoreip  = %(odr_ignoreip)s
 banaction = %(odr_banaction)s
 port      = %(odr_port)s
-maxretry  = 5
-findtime  = 1h
+maxretry  = 10
+findtime  = 24h
 bantime   = 48h
 
 # Published ip lists of banned bots (Amazonbot, ...), loaded by odr-ban-bot-ips rather than

@@ -23,6 +23,8 @@
 /app/config/config.yml
 /app/config/parameters.yml
 /app/config/gate.ini
+/app/config/gate_branding.ini
+/app/config/gate/
 /app/config/parameters.ini
 /app/config/security.yml
 /app/config/jwt/*

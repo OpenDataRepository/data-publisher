@@ -1,19 +1,21 @@
-; ODR gate: settings for the reCAPTCHA challenge (docs/server/bot-bans/gate/challenge.php).
-; Copy to app/config/gate.ini in each instance and fill it in.  See BAN_SYSTEM.md.
-; gate.ini is per instance and never committed, like parameters.yml.  The web server has to be
-; able to read it; nobody else needs to.
+; ODR gate: settings shared by every site on this server that uses the gate.  See BAN_SYSTEM.md.
+; Copy to app/config/gate.ini in the ODR instance the others are linked to (the one named by
+; ODR_GATE_CONFIG in /etc/apache2/odr-gate-local.conf, normally /home/odr/data-publisher).
+; Each site's look is in its own instance's app/config/gate_branding.ini.
+; gate.ini is never committed, like parameters.yml.  The web server has to be able to read it;
+; nobody else needs to.
 
-; reCAPTCHA v2 "I'm not a robot" keys, from https://www.google.com/recaptcha/admin -- the same pair
-; the WordPress search gate uses is fine.  Every hostname the site answers on must be registered.
+; reCAPTCHA v2 "I'm not a robot" keys, from https://www.google.com/recaptcha/admin.  One pair for
+; every site: every hostname the sites answer on must be registered on it.
 recaptcha_site_key = "REPLACE"
 recaptcha_secret   = "REPLACE"
 
 ; The secret that signs the pass cookie.  Must be the same as ODR_GATE_SECRET in
 ; /etc/apache2/odr-gate-local.conf, which Apache uses to check it.  Generate with:
 ;   openssl rand -hex 32
-; Changing it (in both places) signs everyone out of the gate.
+; Changing it (in both places) signs everyone out of every site.
 pass_secret = "REPLACE"
 
-; How long a solved challenge lasts, in hours (at least 1).  The pass is tied to the visitor's
-; address, so a phone that changes networks is asked again.
-pass_hours = 24
+; How long a solved challenge lasts, in hours (at least 1).  The pass is tied to the site and the
+; visitor's address, so a phone that changes networks is asked again.
+pass_hours = 96
