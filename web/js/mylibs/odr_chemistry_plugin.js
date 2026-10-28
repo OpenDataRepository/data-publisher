@@ -313,15 +313,18 @@ function ODR_prettifyChemicalFormula(input, is_textarea, subscript_delimiter = '
  *
  * @param {HTMLElement} input_element
  * @param {HTMLElement} remove_whitespace_element
+ * @param {HTMLElement} to_lowercase_element
  * @param {HTMLElement} parsed_element
  * @param {string} [subscript_delimiter]
  * @param {string} [superscript_delimiter]
  */
-function ODR_runChemistryDialog(input_element, remove_whitespace_element, parsed_element, subscript_delimiter = '_', superscript_delimiter = '^') {
+function ODR_runChemistryDialog(input_element, remove_whitespace_element, to_lowercase_element, parsed_element, subscript_delimiter = '_', superscript_delimiter = '^') {
     // Regardless of whether it appears to be formatted, parse the formula
     let input_value = $(input_element).val();
     if ( $(remove_whitespace_element).is(':checked') )
         input_value = input_value.replaceAll(/\s|&nbsp;/g, '');
+    if ( $(to_lowercase_element).is(':checked') )
+        input_value = input_value.toLowerCase();
     let output = ODR_parseChemicalFormula(input_value, subscript_delimiter, superscript_delimiter);
 
     // Display the parsed formula
