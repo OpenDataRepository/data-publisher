@@ -3,11 +3,11 @@
 # Sets up, or repairs, a linked ODR instance: a directory whose code is symlinks into a shared
 # SOURCE checkout, with only its own settings and working files kept as real files.
 #
-# Run it from the instance directory (or name it), any number of times:
-#   ./setup_virtualhost.sh -n                    show what would change, change nothing
-#   ./setup_virtualhost.sh                       set up / repair the current directory
-#   ./setup_virtualhost.sh SOURCE DEST           a specific instance
-#   ./setup_virtualhost.sh --all                 every instance in SOURCE/app/config/instances.list
+# Nothing is changed unless --setup or --repair is given:
+#   ./setup_virtualhost.sh                       help, then what a repair would change here
+#   ./setup_virtualhost.sh --repair              repair the instance in the current directory
+#   ./setup_virtualhost.sh --setup [SOURCE] DEST create a new instance in DEST
+#   ./setup_virtualhost.sh --repair --all        repair every instance in SOURCE/app/config/instances.list
 #
 # What an instance looks like afterwards:
 #   real    var/ (with cache/, log/, tmp/), app/, and inside app/: config/, logs/, cache/, tmp/
@@ -30,11 +30,27 @@ shopt -s dotglob nullglob
 
 usage() {
   cat <<EOF
-Usage: $0 [-n] [--all] [SOURCE] [DEST]
-  SOURCE   the shared checkout (default: /home/odr/data-publisher)
-  DEST     the instance to set up or repair (default: the current directory)
-  -n       dry run: say what would change, change nothing
-  --all    repair every instance listed in SOURCE/app/config/instances.list
+Usage: $0 [--setup | --repair | -n] [--all] [SOURCE] [DEST]
+
+Sets up or repairs a linked ODR instance: real app/config, app/{logs,cache,tmp} and var/; everything
+else a symlink into SOURCE.  Nothing is changed unless --setup or --repair is given.
+
+  (nothing), -n, --dry-run
+              show what a repair would change, and change nothing (the default)
+  --repair    repair an existing instance: missing/wrong links, real copies where links belong,
+              files no longer in SOURCE, new or changed app/config/*.dist, missing var/
+  --setup     create a new instance in DEST (refuses if DEST already has one)
+  --all       every instance listed in SOURCE/app/config/instances.list (dry run, or --repair)
+  SOURCE      the shared checkout (default: /home/odr/data-publisher)
+  DEST        the instance (default: the current directory)
+
+Replaced or removed real files are moved to DEST/var/setup-backup/<date-time>/, never deleted.
+
+Examples:
+  $0                          preview a repair of the current directory
+  $0 --repair                 repair the current directory
+  $0 --repair --all           repair every listed instance
+  $0 --setup /home/odr/data-publisher /home/newsite/data-publisher
 EOF
 }
 
@@ -45,19 +61,32 @@ VAR_DIRS=(cache log tmp)
 # Never linked into an instance, and never removed from one
 LEAVE_ALONE=(.git .gitignore .idea .vscode .claude .agent .gemini .geminiignore .DS_Store)
 
-DRY_RUN=0
+MODE=dry-run
 ALL=0
 ARGS=()
 for arg in "$@"; do
   case "$arg" in
-    -n|--dry-run) DRY_RUN=1 ;;
+    -n|--dry-run) MODE=dry-run ;;
+    --repair) MODE=repair ;;
+    --setup) MODE=setup ;;
     --all) ALL=1 ;;
-    -f) echo "note: -f is no longer needed -- repairs are always made (see -n to preview)" ;;
     -h|--help) usage; exit 0 ;;
-    -*) usage; exit 1 ;;
+    -*) echo "Unknown option: $arg" >&2; echo >&2; usage >&2; exit 1 ;;
     *) ARGS+=("$arg") ;;
   esac
 done
+DRY_RUN=0
+[ "$MODE" = dry-run ] && DRY_RUN=1
+if [ "$MODE" = setup ] && [ "$ALL" -eq 1 ]; then
+  echo "--setup creates one new instance; --all is for --repair (or a dry run)" >&2
+  exit 1
+fi
+# With no arguments at all: the help first, then the preview
+if [ $# -eq 0 ]; then
+  usage
+  echo
+  echo "---- dry run: what --repair would change in $(pwd) ----"
+fi
 
 SRC="$(realpath "${ARGS[0]:-/home/odr/data-publisher}")"
 if [ ! -f "$SRC/app/AppKernel.php" ]; then
@@ -67,6 +96,7 @@ fi
 
 STAMP="$(date +%Y%m%d-%H%M%S)"
 CHANGES=0
+FAILED=0
 
 in_list() {   # in_list NAME LIST...
   local needle="$1"; shift
@@ -210,10 +240,19 @@ setup_instance() {
     echo "  refusing to set up an instance in $DEST" >&2
     return 1
   fi
-  [ -d "$DEST" ] || act "create $DEST" mkdir -p "$DEST"
-
   NEW_CONFIG=0
   [ -d "$DEST/app/config" ] || [ -L "$DEST/app/config" ] || NEW_CONFIG=1
+
+  # --setup is for a new instance, --repair (and the preview) for an existing one
+  if [ "$MODE" = setup ] && [ "$NEW_CONFIG" -eq 0 ]; then
+    echo "  $DEST already has an instance (app/config exists) -- use --repair" >&2
+    return 1
+  fi
+  if [ "$MODE" != setup ] && [ "$NEW_CONFIG" -eq 1 ]; then
+    echo "  $DEST isn't an ODR instance (no app/config) -- nothing to repair.  To create one there: --setup" >&2
+    return 1
+  fi
+  [ -d "$DEST" ] || act "create $DEST" mkdir -p "$DEST"
 
   # the real directories first, so a backup has somewhere to go
   local name
@@ -237,15 +276,16 @@ if [ "$ALL" -eq 1 ]; then
   [ -f "$list" ] || { echo "No $list" >&2; exit 2; }
   while IFS= read -r line; do
     line="${line%%#*}"; line="$(echo "$line" | xargs)"
-    [ -n "$line" ] && setup_instance "$line"
+    [ -n "$line" ] && { setup_instance "$line" || FAILED=1; }
   done < "$list"
 else
-  setup_instance "${ARGS[1]:-.}"
+  setup_instance "${ARGS[1]:-.}" || FAILED=1
 fi
 
 echo
 if [ "$DRY_RUN" -eq 1 ]; then
-  echo "Dry run: $CHANGES change(s) would be made.  Run without -n to make them."
+  echo "Dry run: $CHANGES change(s) would be made.  Nothing was changed; --repair makes them."
 else
   echo "Done: $CHANGES change(s)."
 fi
+exit "$FAILED"
