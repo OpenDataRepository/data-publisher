@@ -160,11 +160,13 @@
                     {% if intent != 'stored_search_keys' %}
                     <div class="ODRSearchSidebar_AdvancedOptions {% if not open_advanced_options %}ODRHidden{% endif %}">
                         <div class="ODRSearchSidebar_MergeOption">
-                            <input id="ODRSearchSidebar_Merge_AND" class="Pointer" type="radio" name="merge" value="AND" {% if search_params['merge'] is not defined or search_params['merge'] == 'AND' %}checked{% endif %} />
-                            <label for="ODRSearchSidebar_Merge_AND" class="Pointer">&nbsp;Results match all entered criteria</label>
+                            <label for="ODRSearchSidebar_Merge_AND" class="Pointer">
+                                <input id="ODRSearchSidebar_Merge_AND" class="Pointer" type="radio" name="merge" value="AND" {% if search_params['merge'] is not defined or search_params['merge'] == 'AND' %}checked{% endif %} />&nbsp;Results match all entered criteria
+                            </label>
                             <br>
-                            <input id="ODRSearchSidebar_Merge_OR" class="Pointer" type="radio" name="merge" value="OR" {% if search_params['merge'] is defined and search_params['merge'] == 'OR' %}checked{% endif %}/>
-                            <label for="ODRSearchSidebar_Merge_OR" class="Pointer">&nbsp;Results match at least one entered criteria</label>
+                            <label for="ODRSearchSidebar_Merge_OR" class="Pointer">
+                                <input id="ODRSearchSidebar_Merge_OR" class="Pointer" type="radio" name="merge" value="OR" {% if search_params['merge'] is defined and search_params['merge'] == 'OR' %}checked{% endif %}/>&nbsp;Results match at least one entered criteria
+                            </label>
                         </div>
                     </div>
                     {% endif %}
