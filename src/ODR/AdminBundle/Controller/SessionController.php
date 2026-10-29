@@ -449,7 +449,7 @@ class SessionController extends ODRCustomController
                     throw new ODRForbiddenException();
 
                 // Otherwise, set it as the session theme
-                $theme_info_service->setSessionThemeId($datatype->getId(), $page_type, $theme->getId());
+                $theme_info_service->setSessionThemeId($user, $datatype->getId(), $page_type, $theme->getId());
 
                 // Silently ignore attempts to save this preference to the database
             }
@@ -463,7 +463,7 @@ class SessionController extends ODRCustomController
                 }
 
                 // Otherwise, set it as the session theme
-                $theme_info_service->setSessionThemeId($datatype->getId(), $page_type, $theme->getId());
+                $theme_info_service->setSessionThemeId($user, $datatype->getId(), $page_type, $theme->getId());
 
                 // If the user indicated they wanted to save this as their default, do so
                 if ($persist == 1)
