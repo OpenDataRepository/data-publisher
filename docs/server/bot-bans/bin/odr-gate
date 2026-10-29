@@ -18,8 +18,8 @@ Options:
     --server-ips "a b"  this server's public addresses (default: detected)
     --office-ips "a b"  addresses that are never banned (default: kept from the current setup)
     --recaptcha-site-key KEY / --recaptcha-secret KEY / --pass-secret SECRET
-                      the shared reCAPTCHA pair and the cookie secret.  install asks for all three
-                      first, every time, unless given here -- never taken from an existing file
+                      the shared reCAPTCHA pair and the cookie secret.  install shows the ones this
+                      server's install already has and asks to keep them; otherwise it asks for them
     --pass-hours N    how long a solved reCAPTCHA lasts (default: the current setting, else 96)
 
 install and add-site back up every file they change to /var/backups/odr-gate/<time>/, and
@@ -627,13 +627,43 @@ def install(args):
     #  The three secrets are always typed in (or given on the command line), never read from an
     #  existing file.  pass_hours only from the current file -- an older version's default (24)
     #  isn't a choice anyone made.
-    say('Secrets (typed in; the secret ones aren\'t shown)')
-    site_key = args.recaptcha_site_key or ask_secret('  reCAPTCHA site key (v2 "I\'m not a robot")', '--recaptcha-site-key',
-                                                     args, hidden=False, minimum=20, what='the reCAPTCHA site key')
-    secret_key = args.recaptcha_secret or ask_secret('  reCAPTCHA secret key', '--recaptcha-secret',
-                                                     args, hidden=True, minimum=20, what='the reCAPTCHA secret key')
-    cookie_secret = args.pass_secret or ask_secret('  Cookie secret (the same one as before keeps everyone signed in)', '--pass-secret',
-                                                   args, hidden=True, minimum=32, what='the cookie secret')
+    # The current install's own secrets, if this server already has them: shown, and kept only
+    #  if confirmed.  Nothing is taken from other instances or older locations.
+    current_ini_path = local['gate_config'] if local['gate_config'] and not local['old_format'] \
+        else os.path.join(main, 'app/config/gate.ini')
+    current_values = parse_ini(current_ini_path)
+    found = {
+        'site_key': real_value(current_values.get('recaptcha_site_key')),
+        'secret_key': real_value(current_values.get('recaptcha_secret')),
+        'cookie_secret': local['secret'],
+    }
+    given = {'site_key': args.recaptcha_site_key, 'secret_key': args.recaptcha_secret, 'cookie_secret': args.pass_secret}
+
+    say('Secrets')
+    keep = False
+    if all(found.values()) and not all(given.values()):
+        say('  This server already has them:')
+        say('    reCAPTCHA site key     %s' % found['site_key'])
+        say('    reCAPTCHA secret key   %s' % mask(found['secret_key']))
+        say('    cookie secret          %s  (from %s)' % (mask(found['cookie_secret']), LOCAL_CONF))
+        if real_value(current_values.get('pass_secret')) and current_values.get('pass_secret') != found['cookie_secret']:
+            say('    note: gate.ini\'s copy of the cookie secret differs from Apache\'s; keeping Apache\'s fixes that')
+        keep = confirm('  Keep these?', args)
+        if not keep:
+            say('  Then type the new ones (the secret ones aren\'t shown):')
+    elif not all(given.values()):
+        say('  (typed in; the secret ones aren\'t shown)')
+
+    def secret(name, prompt, flag, hidden, minimum, what):
+        if given[name]:
+            return given[name]
+        if keep:
+            return found[name]
+        return ask_secret(prompt, flag, args, hidden=hidden, minimum=minimum, what=what)
+
+    site_key = secret('site_key', '  reCAPTCHA site key (v2 "I\'m not a robot")', '--recaptcha-site-key', False, 20, 'the reCAPTCHA site key')
+    secret_key = secret('secret_key', '  reCAPTCHA secret key', '--recaptcha-secret', True, 20, 'the reCAPTCHA secret key')
+    cookie_secret = secret('cookie_secret', '  Cookie secret (the same one as before keeps everyone signed in)', '--pass-secret', True, 32, 'the cookie secret')
     if local['secret'] and cookie_secret != local['secret']:
         say('  note: that\'s a different cookie secret from the current one -- everyone will solve the reCAPTCHA again')
 

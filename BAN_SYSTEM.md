@@ -180,8 +180,9 @@ instances are linked to. It has three commands:
 
 - **The ODR code** is up to date in the main instance (`git pull`, as its user).
 - **WordPress sites** run theme **odr-astra-child-theme 1.2.21 or later**.
-- **You have three secrets to hand.** `install` asks for them every time it runs, and never
-  reads them from an existing file:
+- **On a new server, you have three secrets to hand.** On a server that already has the gate,
+  `install` shows the current ones and asks whether to keep them, so you only need these if you
+  want to change them:
   - **the reCAPTCHA site key and secret key**, a v2 "I'm not a robot" pair with every hostname of
     every site registered on it;
   - **the cookie secret** that signs visitors' passes. To keep everyone signed in, use the current
@@ -196,7 +197,9 @@ cd /home/odr/data-publisher
 ```
 
 It asks **all its questions first**:
-1. the three secrets (the two secret ones aren't shown as you type);
+1. the three secrets. If this server's install already has them, it shows them (the two secret
+   ones masked) and asks whether to keep them; otherwise you type them, and the secret ones aren't
+   shown as you type;
 2. this server's public address(es) and the office / VPN addresses that must never be banned,
    suggesting what it detects or already has (press Enter to accept);
 3. whether to install fail2ban, if it isn't installed.
