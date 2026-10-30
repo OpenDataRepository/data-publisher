@@ -10,7 +10,8 @@
 #   ./setup_virtualhost.sh --repair --all        repair every instance in SOURCE/app/config/instances.list
 #
 # What an instance looks like afterwards:
-#   real    var/ (with cache/, log/, tmp/), app/, and inside app/: config/, logs/, cache/, tmp/
+#   real    var/ (with cache/, log/, tmp/), app/, and inside app/: config/, logs/, tmp/
+#   gone    app/cache (no longer used): moved to var/setup-backup/ if present
 #   links   everything else, top level and in app/, each pointing at the same name in SOURCE
 #   left    .git, .idea and other tool folders -- never linked, never removed
 #
@@ -22,6 +23,8 @@
 #     files (parameters.yml, config.yml, ...) are never touched; ones that have a .dist but are
 #     missing are reported.  A brand-new instance gets a full copy of SOURCE's app/config.
 #   - var/ and the real app/ directories are created if missing
+#   - the web server user gets write access to app/logs, app/tmp, var/cache, var/log, var/tmp
+#     (ACLs when the filesystem supports them, otherwise the group and g+rwX)
 # Nothing is deleted outright: real files and directories it replaces or removes are moved to
 # var/setup-backup/<date-time>/ in the instance.  Symlinks are simply removed.
 
@@ -32,7 +35,7 @@ usage() {
   cat <<EOF
 Usage: $0 [--setup | --repair | -n] [--all] [SOURCE] [DEST]
 
-Sets up or repairs a linked ODR instance: real app/config, app/{logs,cache,tmp} and var/; everything
+Sets up or repairs a linked ODR instance: real app/config, app/{logs,tmp} and var/; everything
 else a symlink into SOURCE.  Nothing is changed unless --setup or --repair is given.
 
   (nothing), -n, --dry-run
@@ -56,7 +59,9 @@ EOF
 
 # Real directories, kept per instance.  Everything else is linked.
 TOP_REAL=(app var)
-APP_REAL=(config logs cache tmp)
+APP_REAL=(config logs tmp)
+# No longer used: removed from an instance (into the backup), never linked
+APP_OBSOLETE=(cache)
 VAR_DIRS=(cache log tmp)
 # Never linked into an instance, and never removed from one
 LEAVE_ALONE=(.git .gitignore .idea .vscode .claude .agent .gemini .geminiignore .DS_Store)
@@ -161,23 +166,29 @@ ensure_real_dir() {   # ensure_real_dir PATH RELATIVE-NAME
   fi
 }
 
-sync_children() {   # sync_children SOURCE-DIR DEST-DIR PREFIX REAL-NAMES...
+sync_children() {   # sync_children SOURCE-DIR DEST-DIR PREFIX OBSOLETE-NAMES -- REAL-NAMES...
   local sdir="$1" ddir="$2" prefix="$3"; shift 3
+  local obsolete=()
+  while [ "$1" != "--" ]; do obsolete+=("$1"); shift; done
+  shift
   local real=("$@")
   local entry name
-  # everything in the source: linked, unless it's one of the real ones
+  # everything in the source: linked, unless it's one of the real or obsolete ones
   for entry in "$sdir"/*; do
     name="$(basename "$entry")"
     in_list "$name" "${LEAVE_ALONE[@]}" && continue
     in_list "$name" "${real[@]}" && continue
+    in_list "$name" "${obsolete[@]}" && continue
     ensure_link "$ddir/$name" "$entry" "$prefix$name"
   done
-  # anything here that the source no longer has
+  # anything here that the source no longer has, or that's no longer used
   for entry in "$ddir"/*; do
     name="$(basename "$entry")"
     in_list "$name" "${LEAVE_ALONE[@]}" && continue
     in_list "$name" "${real[@]}" && continue
-    if [ ! -e "$sdir/$name" ] && [ ! -L "$sdir/$name" ]; then
+    if in_list "$name" "${obsolete[@]}"; then
+      remove_entry "$entry" "$prefix$name" "no longer used"
+    elif [ ! -e "$sdir/$name" ] && [ ! -L "$sdir/$name" ]; then
       remove_entry "$entry" "$prefix$name" "no longer in the source"
     fi
   done
@@ -210,22 +221,51 @@ sync_config() {   # sync_config DEST
   done
 }
 
+as_root() {   # as_root COMMAND...   -- directly when already root, otherwise through sudo
+  if [ "$(id -u)" -eq 0 ]; then "$@"; else sudo "$@"; fi
+}
+
 set_permissions() {
-  local httpduser
+  # The web server writes logs, caches and temp files.  Only those directories are touched --
+  # never app/config, the links, or anything they point at.
+  local httpduser owner dir rel out
   httpduser="$(ps axo user,comm | grep -E '[a]pache|[h]ttpd|[_]www|[w]ww-data|[n]ginx' | grep -v root | head -1 | cut -d' ' -f1 || true)"
   httpduser="${httpduser:-www-data}"
-  if ! command -v setfacl > /dev/null; then
-    echo "  note: setfacl isn't installed; set var/ and app/ permissions for $httpduser by hand"
-    return 0
-  fi
-  local dirs=("$DEST/app" "$DEST/var/cache" "$DEST/var/log" "$DEST/app/tmp")
+  # the instance's owner (not whoever runs this: under sudo that's root)
+  owner="$(stat -c %U "$DEST")"
+  local dirs=(app/logs app/tmp var/cache var/log var/tmp)
   if [ "$DRY_RUN" -eq 1 ]; then
-    echo "  would give $httpduser and $(whoami) read/write on app/, var/cache, var/log, app/tmp"
+    echo "  would give $httpduser and $owner write access to ${dirs[*]}"
     return 0
   fi
-  sudo setfacl -R -m u:"$httpduser":rwX -m u:"$(whoami)":rwX "${dirs[@]}"
-  sudo setfacl -dR -m u:"$httpduser":rwX -m u:"$(whoami)":rwX "${dirs[@]}"
-  echo "  permissions: $httpduser and $(whoami) can read/write app/, var/cache, var/log, app/tmp"
+  local acl=1
+  command -v setfacl > /dev/null || { acl=0; echo "  note: setfacl isn't installed -- using the group instead"; }
+  for rel in "${dirs[@]}"; do
+    dir="$DEST/$rel"
+    [ -d "$dir" ] || { echo "  missing $rel/ -- skipped" >&2; FAILED=1; continue; }
+    if [ "$acl" -eq 1 ]; then
+      # access ACLs on everything in it; default ACLs (inherited by new files) on directories only
+      if out="$(as_root setfacl -R -m u:"$httpduser":rwX -m u:"$owner":rwX "$dir" 2>&1)" \
+         && out="$(as_root find "$dir" -type d -exec setfacl -m d:u:"$httpduser":rwX -m d:u:"$owner":rwX {} + 2>&1)"; then
+        echo "  permissions: $rel/ writable by $httpduser and $owner (ACL)"
+        continue
+      fi
+      echo "  setfacl failed on $rel/:" >&2
+      printf '    %s\n' "$out" >&2
+      echo "  falling back to the group" >&2
+    fi
+    # no ACLs: owner keeps the files, the web server's group can write, and setgid on the
+    # directories so new files stay in that group
+    if out="$(as_root chgrp -R "$httpduser" "$dir" 2>&1)" \
+       && out="$(as_root chmod -R g+rwX "$dir" 2>&1)" \
+       && out="$(as_root find "$dir" -type d -exec chmod g+s {} + 2>&1)"; then
+      echo "  permissions: $rel/ writable by group $httpduser (chgrp + g+rwX)"
+    else
+      echo "  couldn't set permissions on $rel/:" >&2
+      printf '    %s\n' "$out" >&2
+      FAILED=1
+    fi
+  done
 }
 
 setup_instance() {
@@ -261,8 +301,8 @@ setup_instance() {
   ensure_real_dir "$DEST/app" "app"
   for name in "${APP_REAL[@]}"; do ensure_real_dir "$DEST/app/$name" "app/$name"; done
 
-  sync_children "$SRC" "$DEST" "" "${TOP_REAL[@]}"
-  sync_children "$SRC/app" "$DEST/app" "app/" "${APP_REAL[@]}"
+  sync_children "$SRC" "$DEST" "" -- "${TOP_REAL[@]}"
+  sync_children "$SRC/app" "$DEST/app" "app/" "${APP_OBSOLETE[@]}" -- "${APP_REAL[@]}"
   sync_config
   set_permissions
 
@@ -288,4 +328,5 @@ if [ "$DRY_RUN" -eq 1 ]; then
 else
   echo "Done: $CHANGES change(s)."
 fi
+[ "$FAILED" -eq 0 ] || echo "Some steps failed -- see the messages above." >&2
 exit "$FAILED"
