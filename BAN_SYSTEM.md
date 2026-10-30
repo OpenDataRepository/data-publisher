@@ -84,7 +84,7 @@ show as broken on the gate page. The gate therefore serves each site's logo itse
 - **`logo_file`** — an image you copied into `app/config/gate/`.
 
 **Approved crawlers** are recognised by address, from the ranges Google, Bing and DuckDuckGo
-publish, **never by user agent**. ODR downloads those ranges, and a root script turns them into
+publish, plus the addresses of our Site24x7 uptime monitor, **never by user agent**. ODR downloads those ranges, and a root script turns them into
 Apache config.
 
 **The bans.** fail2ban is a background service that follows **`/var/log/apache2/odr-ban-monitor.log`**,
@@ -111,7 +111,7 @@ isn't in the access logs. Bans are recorded in `/var/log/fail2ban.log`.
 | This server or localhost (the static render daemon, WordPress cron and loopback) | Everything allowed. No rule applies. |
 | A visitor who solved this site's reCAPTCHA recently, from the same address | Allowed. Junk urls still get a 404, and banned bots a 410. |
 | A logged-in WordPress or ODR user | The same as any visitor: they solve the reCAPTCHA once per pass. |
-| Approved crawler (Google, Bing, DuckDuckGo) | Allowed, with no reCAPTCHA. Junk urls get the 404 / 410, logged `approved_404` / `approved_410`, and are **never banned** for it. |
+| Approved crawler (Google, Bing, DuckDuckGo, and the Site24x7 monitor) | Allowed, with no reCAPTCHA. Junk urls get the 404 / 410, logged `approved_404` / `approved_410`, and are **never banned** for it. |
 | API route (`/api/v1/…`, `/odr_rruff/api/v4/…`) | Allowed. Queries need an API token anyway. |
 | Anyone else | The site's gate page (403), for every url, until they solve it. |
 

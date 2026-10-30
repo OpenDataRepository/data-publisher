@@ -6,8 +6,9 @@
  * (C) 2026 by Nathan Stone (nate.stone@opendatarepository.org)
  * Released under the GPLv2
  *
- * Downloads the IP ranges that Google, Bing, and DuckDuckGo publish for their crawlers, and
- * writes them into one generated json file, var/crawler_ips.json.  Everything reads that file:
+ * Downloads the IP ranges that Google, Bing, and DuckDuckGo publish for their crawlers, plus the
+ * addresses of the Site24x7 uptime monitor, and writes them into one generated json file,
+ * var/crawler_ips.json.  Everything reads that file:
  * CrawlerVerificationService, the WordPress theme's search gate, and (as root) the Apache gate's
  * docs/server/bot-bans/bin/odr-gate-update-crawlers.  Json rather than php so root can read it
  * without executing a file this user writes.
@@ -15,8 +16,10 @@
  * Nothing is downloaded while serving a request...run this from cron (weekly is plenty, Google's
  * list is the only one that moves much) and commit the result.
  *
- * All three sources happen to publish the same schema:
+ * The search engines all publish the same schema:
  *   { "creationTime": "...", "prefixes": [ { "ipv4Prefix": "..." }, { "ipv6Prefix": "..." } ] }
+ * Site24x7 publishes plain text instead, one address or range per line (a .txt url is read that
+ * way).
  *
  * The generated file lands in this instance's var/ (see the odr_crawler_ip_file parameter).
  * That directory is per-instance even on linked installs, where src/ and vendor/ are shared, so
@@ -48,11 +51,53 @@ class UpdateCrawlerIpsCommand extends ContainerAwareCommand
      * redirects.  'common-crawlers' is the indexing crawlers...'special-crawlers' (AdsBot) and
      * 'user-triggered-fetchers' (Search Console tests, Translate) are deliberately not included,
      * since neither is indexing the site.
+     *
+     * 'site24x7' isn't a search engine: it's our uptime monitor, listed here so its checks get
+     * past the reCAPTCHA gate and are never banned.  Its list is the monitoring locations, linked
+     * from https://www.site24x7.com/multi-location-web-site-monitoring.html
      */
     const SOURCES = array(
         'google' => 'https://developers.google.com/static/crawling/ipranges/common-crawlers.json',
         'bing' => 'https://www.bing.com/toolbox/bingbot.json',
         'duckduckgo' => 'https://duckduckgo.com/duckduckbot.json',
+        'site24x7' => 'https://www.site24x7.com/tools/public/location-ips.txt',
+    );
+
+    /**
+     * Ranges a source doesn't publish in its downloadable list, added to it.
+     *
+     * site24x7: the data centers listed at
+     * https://support.site24x7.com/portal/en/kb/articles/which-ports-do-i-need-to-allow-access-in-my-firewall-to-use-site24x7-agent
+     * (October 2026) that its monitoring-location list leaves out.  That page has no machine
+     * readable version, so these are copied by hand...check it again now and then.
+     */
+    const EXTRA_PREFIXES = array(
+        'site24x7' => array(
+            // USA: Quincy, Dallas
+            '136.143.176.0/23', '136.143.186.0/23', '136.143.189.0/24', '136.143.190.0/23', '204.141.42.0/23',
+            '136.143.178.0/23', '136.143.180.0/23', '136.143.182.0/23', '136.143.185.0/24', '204.141.32.0/23',
+            // Europe: Amsterdam, Dublin
+            '31.186.243.0/24', '185.20.209.0/24', '185.230.212.0/23',
+            '87.252.213.0/24', '89.36.170.0/24', '217.163.72.0/24', '185.230.214.0/24',
+            // China: Shanghai, Beijing
+            '163.53.93.0/24', '163.53.94.0/27', '103.212.59.96/29', '124.251.121.0/24', '124.251.122.0/25',
+            // India: Mumbai, Chennai
+            '103.103.198.0/24', '103.117.159.0/24', '103.89.74.0/24', '169.148.148.0/23',
+            '103.103.196.0/24', '103.103.197.0/24', '103.117.158.0/24', '103.89.75.0/24', '169.148.146.0/24',
+            // Australia: Sydney, Melbourne
+            '101.97.36.0/24', '103.138.128.0/23', '103.91.166.0/24', '165.173.191.0/24',
+            // Saudi Arabia: Riyadh, Jeddah
+            '199.67.80.0/23', '199.67.82.0/23',
+            // Canada: Toronto, Montreal
+            '199.67.84.0/24', '199.67.85.0/24', '199.67.87.0/24', '199.67.86.0/24', '199.67.69.0/24',
+            // Japan: Osaka, Tokyo
+            '193.118.161.0/24', '193.118.160.0/24', '103.163.152.0/23',
+            // UK: London, Manchester
+            '144.89.64.0/23', '199.67.88.0/24', '144.89.66.0/23', '199.67.90.0/24',
+            // UAE: Dubai, Abu Dhabi
+            '160.32.184.0/24', '160.32.188.0/24', '160.32.185.128/25', '160.32.189.128/25',
+            '160.32.186.0/24', '160.32.187.128/25',
+        ),
     );
 
     /**
@@ -76,7 +121,7 @@ class UpdateCrawlerIpsCommand extends ContainerAwareCommand
 
         $this
             ->setName('odr:crawler_ips:update')
-            ->setDescription('Downloads the published crawler IP ranges for Google/Bing/DuckDuckGo into a generated php file')
+            ->setDescription('Downloads the published IP ranges for Google/Bing/DuckDuckGo crawlers and the Site24x7 monitor into a generated json file')
             ->addOption(
                 'out',
                 null,
@@ -167,6 +212,14 @@ class UpdateCrawlerIpsCommand extends ContainerAwareCommand
                 $carried = self::carryForward($existing, $name);
                 if ( $carried === null ) {
                     $output->writeln('  <comment>no previous data to keep for '.$name.'</comment>');
+
+                    // A previous run would have stored these, so they're only needed here
+                    $extras = self::extraPrefixes($name);
+                    if ( !empty($extras) ) {
+                        $output->writeln('  <comment>using its '.count($extras).' fixed ranges only</comment>');
+                        $prefixes = array_merge($prefixes, $extras);
+                        $sources[$name] = array('url' => $url, 'published' => null, 'prefixes' => count($extras));
+                    }
                 }
                 else {
                     $output->writeln('  <comment>keeping previously stored '.count($carried['prefixes']).' prefixes (published '.$carried['published'].')</comment>');
@@ -192,6 +245,7 @@ class UpdateCrawlerIpsCommand extends ContainerAwareCommand
                 if ( $converted !== null )
                     $source_prefixes[] = $converted;
             }
+            $source_prefixes = array_merge($source_prefixes, self::extraPrefixes($name));
 
             $prefixes = array_merge($prefixes, $source_prefixes);
             $sources[$name] = array(
@@ -202,7 +256,8 @@ class UpdateCrawlerIpsCommand extends ContainerAwareCommand
 
             $previous_count = isset($existing['sources'][$name]['prefixes']) ? $existing['sources'][$name]['prefixes'] : null;
             $delta = ( $previous_count === null ) ? '' : ' (was '.$previous_count.')';
-            $output->writeln('  <info>'.count($source_prefixes).'</info> prefixes, published '.$sources[$name]['published'].$delta);
+            $published = ( $sources[$name]['published'] === null ) ? 'date not given' : 'published '.$sources[$name]['published'];
+            $output->writeln('  <info>'.count($source_prefixes).'</info> prefixes, '.$published.$delta);
         }
 
 
@@ -313,7 +368,10 @@ class UpdateCrawlerIpsCommand extends ContainerAwareCommand
         if ( $http_code !== 200 )
             return 'HTTP '.$http_code;
 
-        $parsed = json_decode($body, true);
+        if ( substr(parse_url($url, PHP_URL_PATH), -4) === '.txt' )
+            $parsed = self::parseTextList($body);
+        else
+            $parsed = json_decode($body, true);
         if ( !is_array($parsed) )
             return 'response was not json';
         if ( !isset($parsed['prefixes']) || !is_array($parsed['prefixes']) )
@@ -322,6 +380,54 @@ class UpdateCrawlerIpsCommand extends ContainerAwareCommand
             return 'only '.count($parsed['prefixes']).' prefixes, expected at least '.self::MINIMUM_PREFIXES;
 
         return $parsed;
+    }
+
+
+    /**
+     * Turns a plain-text list (one address or range per line) into the same shape the json
+     * sources have.  A bare address becomes a /32 or /128.  Lines that aren't an address are
+     * skipped, so an html error page comes out with too few prefixes and is rejected.
+     *
+     * @param string $body
+     *
+     * @return array
+     */
+    private static function parseTextList($body)
+    {
+        $prefixes = array();
+        foreach (preg_split('/\s+/', $body, -1, PREG_SPLIT_NO_EMPTY) as $token) {
+            $address = explode('/', $token)[0];
+            if ( filter_var($address, FILTER_VALIDATE_IP) === false )
+                continue;
+
+            $is_v6 = ( strpos($address, ':') !== false );
+            if ( strpos($token, '/') === false )
+                $token .= $is_v6 ? '/128' : '/32';
+            $prefixes[] = array( ($is_v6 ? 'ipv6Prefix' : 'ipv4Prefix') => $token );
+        }
+
+        return array('creationTime' => null, 'prefixes' => $prefixes);
+    }
+
+
+    /**
+     * The fixed ranges added to a source, in stored form.
+     *
+     * @param string $name
+     *
+     * @return array
+     */
+    private static function extraPrefixes($name)
+    {
+        $prefixes = array();
+        if ( isset(self::EXTRA_PREFIXES[$name]) ) {
+            foreach (self::EXTRA_PREFIXES[$name] as $prefix) {
+                $converted = self::convertPrefix($prefix, $name);
+                if ( $converted !== null )
+                    $prefixes[] = $converted;
+            }
+        }
+        return $prefixes;
     }
 
 
@@ -427,7 +533,7 @@ class UpdateCrawlerIpsCommand extends ContainerAwareCommand
      * Renders the generated json file.
      *
      *   generated  when this file was written
-     *   sources    per search engine: url, published, prefixes (a count)
+     *   sources    per source: url, published (null when it doesn't say), prefixes (a count)
      *   ipv4       [network, mask, source, cidr] with network/mask as integers
      *   ipv6       [packed network in hex, prefix length in bits, source, cidr]
      *
@@ -440,7 +546,7 @@ class UpdateCrawlerIpsCommand extends ContainerAwareCommand
     private static function generateFile($sources, $ipv4, $ipv6)
     {
         return json_encode(array(
-            '_comment' => 'Search engine crawler IP ranges. GENERATED FILE -- do not edit by hand. Regenerate with: php app/console odr:crawler_ips:update',
+            '_comment' => 'Search engine crawler and uptime monitor IP ranges. GENERATED FILE -- do not edit by hand. Regenerate with: php app/console odr:crawler_ips:update',
             'generated' => date('c'),
             'sources' => $sources,
             'ipv4' => $ipv4,

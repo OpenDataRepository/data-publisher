@@ -7,7 +7,8 @@
  * Released under the GPLv2
  *
  * Determines whether a given IP address belongs to a search engine crawler, by matching it
- * against the IP ranges that Google, Bing, and DuckDuckGo publish for their crawlers.
+ * against the IP ranges that Google, Bing, and DuckDuckGo publish for their crawlers.  The
+ * Site24x7 uptime monitor's addresses are in the same list, as 'site24x7'.
  *
  * This exists so the parts of ODR that are closed to anonymous visitors (because bots were
  * triggering a database search for every url they felt like guessing at) can stay open to the
@@ -62,7 +63,7 @@ class CrawlerVerificationService
 
     /**
      * Returns the name of the search engine that the given IP address belongs to ('google',
-     * 'bing', or 'duckduckgo'), or null when the address doesn't belong to any of them.
+     * 'bing', or 'duckduckgo', or 'site24x7' for the uptime monitor), or null when the address doesn't belong to any of them.
      *
      * @param string|null $ip
      *
