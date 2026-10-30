@@ -403,7 +403,7 @@ def verify(args):
             report.bad('no challenge.php in ODR_GATE_DIR %s' % local['gate_dir'], 'odr-gate install')
         trusted = local_addresses(local['trusted'])
         if trusted:
-            report.ok('free pass: localhost + ' + ', '.join(trusted))
+            report.ok('free pass: localhost (127.0.0.0/8, ::1) + ' + ', '.join(trusted))
         else:
             report.bad('free pass has no server address -- the static renderer and wp-cron will be challenged', 'odr-gate install --server-ips "..."')
 
@@ -683,8 +683,8 @@ def install(args):
     say('  main ODR instance   %s (user %s)' % (main, user))
     say('  reCAPTCHA keys      site %s, secret %s' % (mask(site_key), mask(secret_key)))
     say('  cookie secret       %s%s' % (mask(cookie_secret), '' if not local['secret'] or cookie_secret == local['secret'] else '  (changed: everyone signs in again)'))
-    say('  free pass           localhost, ' + (', '.join(server_ips) or '(none!)'))
-    say('  never banned        localhost, ' + ', '.join(server_ips + office))
+    say('  free pass           localhost (127.0.0.0/8, ::1), ' + (', '.join(server_ips) or '(none!)'))
+    say('  never banned        localhost (127.0.0.0/8, ::1), ' + ', '.join(server_ips + office))
     say('  pass length         %s hours' % pass_hours)
     if need_fail2ban:
         say('  fail2ban            will be installed')
@@ -867,7 +867,12 @@ def refresh_logos(args, force=False):
         die('run as root')
     local_names = {n for h in parse_vhosts() for n in h.names}
     say('Gate-page logos')
-    for instance, names in gated_instances().items():
+    instances = gated_instances()
+    if not instances:
+        say('  no site uses the gate yet: no vhost in %s has a "Use OdrGate" line' % P('/etc/apache2/sites-enabled'))
+        say('      odr-gate add-site <hostname> --instance <dir> --rules <rruff|none>   (then run this again)')
+        return 1
+    for instance, names in instances.items():
         refresh_logo(args, force, instance, names, local_names)
         ok, text, fix = logo_status(instance, names)
         say('  %s %s%s' % ('\u2713' if ok else '!', text, '\n      ' + fix if fix else ''))
@@ -954,9 +959,11 @@ def logo_status(instance, names):
     served = None
     if names and not ROOT:
         for scheme, port in (('https', 443), ('http', 80)):
-            code, out = run(['curl', '-sk', '-o', '/dev/null', '--max-time', '10', '-w', '%{http_code} %{content_type}',
-                             '--resolve', '%s:%d:127.0.0.1' % (names[0], port),
-                             '%s://%s/odr-gate/challenge.php?logo' % (scheme, names[0])])
+            # -L: rruff.net -> www.rruff.net and the like are followed, still on 127.0.0.1
+            code, out = run(['curl', '-sk', '-L', '--max-redirs', '3', '-o', '/dev/null', '--max-time', '10',
+                             '-w', '%{http_code} %{content_type}']
+                            + local_resolve({n for h in parse_vhosts() for n in h.names})
+                            + ['%s://%s/odr-gate/challenge.php?logo' % (scheme, names[0])])
             if code == 0 and out[:3] != '000':
                 served = out
                 break
@@ -984,6 +991,10 @@ def logo_status(instance, names):
         return False, '%s: PHP can\'t parse gate_branding.ini, so the page ignores all of it: %s' % (label, detail), \
             'put any value with punctuation in double quotes, e.g. message = "..."'
     if kind == 'file-missing':
+        given = parse_ini(ini).get('logo_file', '')
+        if '/' in given:
+            return False, '%s: logo_file is "%s", but it only takes a file name, looked for in app/config/gate/' \
+                % (label, given), 'for an image elsewhere on the site, use logo_url = "/wp-content/uploads/..." instead'
         return False, '%s: logo_file not found: %s' % (label, detail), \
             'copy the image there, or fix logo_file in %s' % ini
     if kind == 'file-unreadable':
@@ -998,6 +1009,14 @@ def logo_status(instance, names):
     return False, '%s: logo check gave: %s' % (label, out), None
 
 
+def local_resolve(local_names, extra_port=None):
+    """curl options sending every one of this server's own site names to 127.0.0.1, so a redirect
+    between them (rruff.net -> www.rruff.net) stays on this server, under the free pass."""
+    ports = {80, 443} | ({extra_port} if extra_port else set())
+    return [option for name in sorted(local_names) if '*' not in name
+            for port in sorted(ports) for option in ('--resolve', '%s:%d:127.0.0.1' % (name, port))]
+
+
 def fetch_image(url, local_names):
     """(bytes, content type), or a string saying why not.  A url on one of this server's own sites
     is fetched through 127.0.0.1 (which has a free pass), not out and back in via the public
@@ -1009,9 +1028,7 @@ def fetch_image(url, local_names):
         return 'not an http(s) url'
     cmd = ['curl', '-sS', '-L', '--max-redirs', '3', '--max-time', '15', '--max-filesize', '1048576',
            '-A', 'ODR gate logo fetch', '-w', '%{http_code} %{content_type}']
-    if parts.hostname.lower() in local_names:
-        port = parts.port or (443 if parts.scheme == 'https' else 80)
-        cmd += ['--resolve', '%s:%d:127.0.0.1' % (parts.hostname, port)]
+    cmd += local_resolve(local_names, parts.port)
     with tempfile.NamedTemporaryFile() as out:
         code, info = run(cmd + ['-o', out.name, url])
         if code != 0:
