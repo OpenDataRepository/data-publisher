@@ -307,18 +307,15 @@ class ODRRenderService
         $datatype = $datarecord->getDataType();
         $datatype_id = $datatype->getId();
 
-        // Determine whether to display the "Currently Linked Records..." div (ported from develop
-        //  37e1d79f); 5ea9915f restricts it to logged-in users
-        if ( $user !== 'anon.' ) {
-            // ...the user must be logged in
-            $datatree_array = $this->datatree_info_service->getDatatreeArray();
-            $linked_ancestors = $this->datatree_info_service->getLinkedAncestors([$datatype_id], $datatree_array);
-            $linked_descendants = $this->datatree_info_service->getLinkedDescendants([$datatype_id], $datatree_array);
+        // Determine whether to display the "Currently Linked Records..." div
+        $datatree_array = $this->datatree_info_service->getDatatreeArray();
+        $linked_ancestors = $this->datatree_info_service->getLinkedAncestors([$datatype_id], $datatree_array);
+        $linked_descendants = $this->datatree_info_service->getLinkedDescendants([$datatype_id], $datatree_array);
 
-            // ...and there has to actually be at least one related datatype
-            if ( count($linked_ancestors) > 0 || count($linked_descendants) > 0 )
-                $extra_parameters['has_linked_datatypes'] = 1;
-        }
+        // ...and there has to actually be at least one related datatype
+        if ( count($linked_ancestors) > 0 || count($linked_descendants) > 0 )
+            $extra_parameters['has_linked_datatypes'] = 1;
+
 
         if ( !is_null($theme) ) {
             if ( $theme->getDataType()->getId() !== $datatype_id )

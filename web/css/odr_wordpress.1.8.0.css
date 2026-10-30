@@ -5721,7 +5721,7 @@ div.ODRRenderPlugin_CSVTable_wrapper div.dataTables_scrollBody {
     margin-top: 5px;
     margin-bottom: 5px;
 }
-.ODRRecordLinkInfo_toggle,.ODRRecordLinkInfo_modify {
+.ODRRecordLinkInfo_toggle, .ODRRecordLinkInfo_search, .ODRRecordLinkInfo_modify {
     padding: 0 3px;
 }
 .ODRRecordLinkInfo_list {

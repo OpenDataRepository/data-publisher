@@ -1880,6 +1880,9 @@ class LinkController extends ODRCustomController
             if ($local_datarecord == null)
                 throw new ODRNotFoundException('Datarecord');
 
+            // Easier to locate the datarecord's external id value this way
+            $dr_array = $this->datarecord_info_service->getDatarecordArray($local_datarecord_id, false);
+
             $local_datatype = $local_datarecord->getDataType();
             if ($local_datatype->getDeletedAt() !== null)
                 throw new ODRNotFoundException('Datatype');
@@ -1890,10 +1893,12 @@ class LinkController extends ODRCustomController
             // Determine user privileges
             /** @var ODRUser $user */
             $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
-            $is_super_admin = $user->hasRole('ROLE_SUPER_ADMIN');
+            $is_super_admin = false;
+            if ( $user !== 'anon.' && $user->hasRole('ROLE_SUPER_ADMIN') )
+                $is_super_admin = true;
             $datatype_permissions = $permissions_service->getDatatypePermissions($user);
 
-            if ( !$permissions_service->canEditDatarecord($user, $local_datarecord) )
+            if ( !$permissions_service->canViewDatarecord($user, $local_datarecord) )
                 throw new ODRForbiddenException();
             // --------------------
 
@@ -1980,6 +1985,7 @@ class LinkController extends ODRCustomController
                 }
             }
 
+            // TODO - should the next two queries get replaced with SearchService::getCachedDatarecordList() and SearchService::searchPublicStatus()?
 
             // ----------------------------------------
             // Next, need a query to get which (potentially multiple thousands of) records the local
@@ -2204,13 +2210,25 @@ class LinkController extends ODRCustomController
                 }
             }
 
+            // ----------------------------------------
+            // Attempt to generate search keys for each of the datatypes that are "related to" this
+            //  local datarecord
+            self::getSearchKeys($local_datatype, $local_datarecord, $dr_array, $linked_record_data);
 
             // ----------------------------------------
+            $baseurl = 'https:'.$this->getParameter('site_baseurl');
+            if ($is_wordpress_integrated)
+                $baseurl = 'https:'.$this->getParameter('wordpress_site_baseurl');
+            if ( $this->getParameter('kernel.environment') === 'dev' )
+                $baseurl .= '/app_dev.php';
+
             // Get Templating Object
             $return['d'] = [
                 'html' => $templating->render(
                     '@ODRAdmin/Link/datarecord_link_info.html.twig',
                     [
+                        'baseurl' => $baseurl,
+
                         'local_datarecord' => $local_datarecord,
                         'linked_record_data' => $linked_record_data,
                         'context' => $context,
@@ -2230,6 +2248,53 @@ class LinkController extends ODRCustomController
         $response = new Response(json_encode($return));
         $response->headers->set('Content-Type', 'application/json');
         return $response;
+    }
+
+
+    /**
+     * Generates a search key to pull up a search of the remote records that are linked to/by the
+     * local datarecord, when it makes sense to do so.
+     *
+     * @param DataType $local_datatype
+     * @param DataRecord $local_datarecord
+     * @param array $dr_array
+     * @param array $linked_record_data
+     * @return void
+     */
+    private function getSearchKeys($local_datatype, $local_datarecord, $dr_array, &$linked_record_data)
+    {
+        // Only going to create search keys when the local datarecord has an external id
+        $local_datarecord_id = $local_datarecord->getId();
+        if ( is_null($local_datatype->getExternalIdField()) )
+            return;
+
+        $external_id_df = $local_datatype->getExternalIdField();
+        $typeclass = lcfirst($external_id_df->getFieldType()->getTypeClass());
+        $external_id_value = null;
+        if ( isset($dr_array[$local_datarecord_id]['dataRecordFields'][$external_id_df->getId()][$typeclass][0]['value']))
+            $external_id_value = $dr_array[$local_datarecord_id]['dataRecordFields'][$external_id_df->getId()][$typeclass][0]['value'];
+
+        // ...if the record doesn't actually have an external id, then refuse to continue
+        // Creating search keys from other values is more problematic
+        if ( is_null($external_id_value) || $external_id_value === '' )
+            return;
+
+        // Take the array of linked record data...
+        foreach ($linked_record_data as $related_dt_id => $related_dt_data) {
+            // ...and if any of those datatypes actually link to this record...
+            if ( !empty($related_dt_data['records']) && $related_dt_data['gdt_id'] == $related_dt_id ) {
+                // ...then the search key will have at least these two parameters
+                $search_params = ['dt_id' => $related_dt_id, $external_id_df->getId() => '"'.$external_id_value.'"'];
+
+                // If the local datarecord is the ancestor, then need to add a third parameter
+                if ( $related_dt_data['direction'] === 'links to' )
+                    $search_params['inverse'] = $local_datatype->getId();
+
+                // Convert into a search key and store back in the array
+                $search_key = $this->search_key_service->encodeSearchKey($search_params);
+                $linked_record_data[$related_dt_id]['search_key'] = $search_key;
+            }
+        }
     }
 
 
