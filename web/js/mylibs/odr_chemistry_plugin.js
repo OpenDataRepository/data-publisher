@@ -4,11 +4,12 @@
  * will not return a sensible result.
  *
  * @param {string} input
+ * @param {boolean} [lowercase_is_active]
  * @param {string} [subscript_delimiter]
  * @param {string} [superscript_delimiter]
  * @returns {string}
  */
-function ODR_parseChemicalFormula(input, subscript_delimiter = '_', superscript_delimiter = '^') {
+function ODR_parseChemicalFormula(input, lowercase_is_active = false, subscript_delimiter = '_', superscript_delimiter = '^') {
     let output = '';
     let chars = [];
     let num_spaces = 0;
@@ -204,15 +205,14 @@ function ODR_parseChemicalFormula(input, subscript_delimiter = '_', superscript_
             // Isn't unicode the best thing ever?
         }
         else if ( char === ' ' ) {
-/*
-            // Chemical formulas aren't supposed to have a lot of "[box]" sequences, but this can
-            //  be run on data that contains a lot of spaces...need a way to disable this
-            if ( too_many_spaces ) {
+            // Chemical formulas aren't supposed to have a lot of "[box]" sequences, but this function
+            //  can be run on data that contains a lot of spaces...
+            // If the user is running it with the "Convert to Lowercase" option active, then always
+            //  disable the "[box]" sequence insertion
+            if ( /*too_many_spaces || */ lowercase_is_active ) {
                 output += ' ';
             }
             else {
-
- */
                 // Attempting to detect spaces to insert the "[box]" sequence causes some impressive
                 //  failures in a couple formulas, but works well enough on the rest of them...
                 let next_char = '';
@@ -245,9 +245,7 @@ function ODR_parseChemicalFormula(input, subscript_delimiter = '_', superscript_
                     }
                     while (i < len);
                 }
-/*
             }
- */
         }
         else {
             // Otherwise, just echo the character
@@ -321,11 +319,18 @@ function ODR_prettifyChemicalFormula(input, is_textarea, subscript_delimiter = '
 function ODR_runChemistryDialog(input_element, remove_whitespace_element, to_lowercase_element, parsed_element, subscript_delimiter = '_', superscript_delimiter = '^') {
     // Regardless of whether it appears to be formatted, parse the formula
     let input_value = $(input_element).val();
-    if ( $(remove_whitespace_element).is(':checked') )
+
+    let remove_whitespace_is_active = false;
+    if ( $(remove_whitespace_element).is(':checked') ) {
+        remove_whitespace_is_active = true;
         input_value = input_value.replaceAll(/\s|&nbsp;/g, '');
-    if ( $(to_lowercase_element).is(':checked') )
+    }
+    let lowercase_is_active = false;
+    if ( $(to_lowercase_element).is(':checked') ) {
+        lowercase_is_active = true;
         input_value = input_value.toLowerCase();
-    let output = ODR_parseChemicalFormula(input_value, subscript_delimiter, superscript_delimiter);
+    }
+    let output = ODR_parseChemicalFormula(input_value, lowercase_is_active, subscript_delimiter, superscript_delimiter);
 
     // Display the parsed formula
     $(parsed_element).val(output);
