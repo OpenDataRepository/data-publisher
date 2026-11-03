@@ -84,7 +84,7 @@ show as broken on the gate page. The gate therefore serves each site's logo itse
 - **`logo_file`** — an image you copied into `app/config/gate/`.
 
 **Approved crawlers** are recognised by address, from the ranges Google, Bing and DuckDuckGo
-publish, **never by user agent**. ODR downloads those ranges, and a root script turns them into
+publish, plus the addresses of our Site24x7 uptime monitor, **never by user agent**. ODR downloads those ranges, and a root script turns them into
 Apache config.
 
 **The bans.** fail2ban is a background service that follows **`/var/log/apache2/odr-ban-monitor.log`**,
@@ -111,7 +111,7 @@ isn't in the access logs. Bans are recorded in `/var/log/fail2ban.log`.
 | This server or localhost (the static render daemon, WordPress cron and loopback) | Everything allowed. No rule applies. |
 | A visitor who solved this site's reCAPTCHA recently, from the same address | Allowed. Junk urls still get a 404, and banned bots a 410. |
 | A logged-in WordPress or ODR user | The same as any visitor: they solve the reCAPTCHA once per pass. |
-| Approved crawler (Google, Bing, DuckDuckGo) | Allowed, with no reCAPTCHA. Junk urls get the 404 / 410, logged `approved_404` / `approved_410`, and are **never banned** for it. |
+| Approved crawler (Google, Bing, DuckDuckGo, and the Site24x7 monitor) | Allowed, with no reCAPTCHA. Junk urls get the 404 / 410, logged `approved_404` / `approved_410`, and are **never banned** for it. |
 | API route (`/api/v1/…`, `/odr_rruff/api/v4/…`) | Allowed. Queries need an API token anyway. |
 | Anyone else | The site's gate page (403), for every url, until they solve it. |
 
@@ -180,8 +180,9 @@ instances are linked to. It has three commands:
 
 - **The ODR code** is up to date in the main instance (`git pull`, as its user).
 - **WordPress sites** run theme **odr-astra-child-theme 1.2.21 or later**.
-- **You have three secrets to hand.** `install` asks for them every time it runs, and never
-  reads them from an existing file:
+- **On a new server, you have three secrets to hand.** On a server that already has the gate,
+  `install` shows the current ones and asks whether to keep them, so you only need these if you
+  want to change them:
   - **the reCAPTCHA site key and secret key**, a v2 "I'm not a robot" pair with every hostname of
     every site registered on it;
   - **the cookie secret** that signs visitors' passes. To keep everyone signed in, use the current
@@ -196,7 +197,9 @@ cd /home/odr/data-publisher
 ```
 
 It asks **all its questions first**:
-1. the three secrets (the two secret ones aren't shown as you type);
+1. the three secrets. If this server's install already has them, it shows them (the two secret
+   ones masked) and asks whether to keep them; otherwise you type them, and the secret ones aren't
+   shown as you type;
 2. this server's public address(es) and the office / VPN addresses that must never be banned,
    suggesting what it detects or already has (press Enter to accept);
 3. whether to install fail2ban, if it isn't installed.
