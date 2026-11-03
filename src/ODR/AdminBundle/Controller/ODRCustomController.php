@@ -176,7 +176,7 @@ class ODRCustomController extends AbstractController
         $page_type = 'search_results';
 //        if ( $intent === 'linking' )
 //            $page_type = 'linking';    // NOTE: apparently differentiating between 'search_results' and 'linking' is...'confusing'
-        $theme_info_service->setSessionThemeId($datatype->getId(), $page_type, $theme->getId());
+        $theme_info_service->setSessionThemeId($user, $datatype->getId(), $page_type, $theme->getId());
 
         // Determine whether the currently preferred theme needs to be synchronized with its source
         //  and the user notified of it

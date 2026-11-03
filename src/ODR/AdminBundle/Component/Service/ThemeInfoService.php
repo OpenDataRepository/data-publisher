@@ -201,7 +201,7 @@ class ThemeInfoService
             throw new ODRBadRequestException('"'.$page_type.'" is not a supported page type', 0x66034d60);
 
         // Look in the user's session first...
-        $theme_id = self::getSessionThemeId($datatype_id, $page_type);
+        $theme_id = self::getSessionThemeId($user, $datatype_id, $page_type);
         if ( !is_null($theme_id) ) {
             // Going to need a list of top-level themes...
             $top_level_themes = self::getTopLevelThemes();
@@ -224,7 +224,7 @@ class ThemeInfoService
             if ( !is_null($theme_preference) ) {
                 // ...set it as their current session theme to avoid database lookups
                 $theme = $theme_preference->getTheme();
-                self::setSessionThemeId($datatype_id, $page_type, $theme->getId());
+                self::setSessionThemeId($user, $datatype_id, $page_type, $theme->getId());
 
                 // ...return the id of the theme
                 return $theme->getId();
@@ -236,7 +236,7 @@ class ThemeInfoService
         $theme = self::getDatatypeDefaultTheme($datatype_id, $page_type);
         if ( !is_null($theme) ) {
             // ...set it as their current session theme to avoid database lookups
-            self::setSessionThemeId($datatype_id, $page_type, $theme->getId());
+            self::setSessionThemeId($user, $datatype_id, $page_type, $theme->getId());
 
             // ...return the id of the theme
             return $theme->getId();
@@ -256,17 +256,30 @@ class ThemeInfoService
      * Returns the id of the user's preferred theme for this current datatype/page_type combo for
      * their current session.
      *
+     * @param ODRUser|string $user
      * @param integer $datatype_id
      * @param string $page_type {@link ThemeInfoService::PAGE_TYPES}
      *
      * @return int|null
      */
-    public function getSessionThemeId($datatype_id, $page_type)
+    public function getSessionThemeId($user, $datatype_id, $page_type)
     {
         // Ensure the provided page_type is valid
         if ( !in_array($page_type, self::PAGE_TYPES) )
             throw new ODRBadRequestException('"'.$page_type.'" is not a supported page type', 0xd3fe0f6d);
 
+        // If the user has logged in/out since the last request, then ensure all session themes are
+        //  cleared...this doesn't really affect ODR, because it creates a new session upon login/logout
+        // Wordpress, however, seems to not create a new session upon login...which results in the
+        //  user's preferences never getting checked
+        if ( $this->request_stack->getSession()->has('current_user') ) {
+            $current_user = $this->request_stack->getSession()->get('current_user');
+            if ( ($current_user === 'anon.' && $user !== 'anon.')
+                || ($current_user !== 'anon.' && $user === 'anon.')
+            ) {
+                $this->request_stack->getSession()->set('session_themes', []);
+            }
+        }
 
         // If the user has changed any theme for their current session...
         if ( $this->request_stack->getSession()->has('session_themes') ) {
@@ -286,11 +299,12 @@ class ThemeInfoService
      * Stores a specific theme id as the user's preferred theme for this datatype/page_type combo
      * for this session.
      *
+     * @param ODRUser|string $user
      * @param integer $datatype_id
      * @param string $page_type {@link ThemeInfoService::PAGE_TYPES}
      * @param integer $theme_id
      */
-    public function setSessionThemeId($datatype_id, $page_type, $theme_id)
+    public function setSessionThemeId($user, $datatype_id, $page_type, $theme_id)
     {
         // Ensure the provided page_type is valid
         if ( !in_array($page_type, self::PAGE_TYPES) )
@@ -308,6 +322,12 @@ class ThemeInfoService
         // Save the theme choice in the session
         $session_themes[$datatype_id][$page_type] = $theme_id;
         $this->request_stack->getSession()->set('session_themes', $session_themes);
+
+        // Save the user id for this session
+        if ( $user === 'anon.' )
+            $this->request_stack->getSession()->set('current_user', 'anon.');
+        else
+            $this->request_stack->getSession()->set('current_user', $user->getId());
     }
 
 

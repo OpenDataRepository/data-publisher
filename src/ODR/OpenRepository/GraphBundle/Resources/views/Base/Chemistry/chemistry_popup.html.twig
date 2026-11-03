@@ -30,9 +30,14 @@
     <div class="pure-u-1 ODRChemistryPlugin_div">
         <button id="{{ input_id }}_reset" class="pure-button-primary ODRChemistryPlugin_button" title="Will reset any changes!">Reset Everything</button>
         <button id="{{ input_id }}_select_all" class="pure-button-primary ODRChemistryPlugin_button" title="Will reset any changes!">Select Everything</button>
+    </div>
 
+    <div class="pure-u-1 ODRChemistryPlugin_div">
         <label for="{{ input_id }}_remove_whitespace" class="ODRChemistryPlugin_checkbox" title="Will reset any changes!">
             <input type="checkbox" id="{{ input_id }}_remove_whitespace" />&nbsp;Remove Whitespace from Selection
+        </label>
+        <label for="{{ input_id }}_to_lowercase" class="ODRChemistryPlugin_checkbox" title="Will reset any changes!">
+            <input type="checkbox" id="{{ input_id }}_to_lowercase" />&nbsp;Convert Selection to lowercase
         </label>
     </div>
 
@@ -105,6 +110,7 @@
         $("#{{ input_id }}_chemistry_preview_trigger > span").html( prettified );
 
         $("#{{ input_id }}_remove_whitespace").prop('checked', true);
+        $("#{{ input_id }}_to_lowercase").prop('checked', false);
 
         $("#{{ input_id }}_chemistry_trigger").unbind('click').click(function(event) {
             // Don't submit the datafield's form
@@ -217,7 +223,14 @@
             // console.log('str', str);
             $(hidden_element).val(str);
 
-            ODR_runChemistryDialog( hidden_element, $("#{{ input_id }}_remove_whitespace"), $("#{{ input_id }}_parsed"), '{{ subscript_delimiter }}', '{{ superscript_delimiter }}' );
+            ODR_runChemistryDialog(
+                hidden_element,
+                $("#{{ input_id }}_remove_whitespace"),
+                $("#{{ input_id }}_to_lowercase"),
+                $("#{{ input_id }}_parsed"),
+                '{{ subscript_delimiter }}',
+                '{{ superscript_delimiter }}'
+            );
 
             // Once the chemsitry plugin js finishes...
             let parsed_value = $("#{{ input_id }}_parsed").val();
@@ -258,6 +271,15 @@
             $("#{{ input_id }}_original").trigger('select');
         });
         $("#{{ input_id }}_remove_whitespace").unbind('change').change(function(event) {
+            // Don't submit the datafield's form
+            event.preventDefault();
+
+            // Keep any selection in the original field visible
+            $("#{{ input_id }}_original").focus();
+            // Re-run the Chemistry Plugin on the selected text
+            $("#{{ input_id }}_original").trigger('select');
+        });
+        $("#{{ input_id }}_to_lowercase").unbind('change').change(function(event) {
             // Don't submit the datafield's form
             event.preventDefault();
 
