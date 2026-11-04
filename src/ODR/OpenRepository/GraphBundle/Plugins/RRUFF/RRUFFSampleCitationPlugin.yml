@@ -1,0 +1,25 @@
+odr_plugins.rruff.rruff_sample_citation:
+    name: RRUFF Sample Citation Plugin
+    category: RRUFF
+    plugin_type: array
+    render: false    # Due to being an "array" type plugin, the "render" and "override" parameters are ignored
+    version: 1.0.0
+    override_fields: false
+    override_field_reload: false
+    override_child: false
+    override_table_fields: false
+    override_export: false
+    override_search: false
+    override_sort: false
+    suppress_no_fields_note: false
+    description: Currently only works on the RRUFF Samples datatype, where it renames the directly-linked RRUFF Reference datatype to a plugin-defined value.
+    registered_events:
+
+    required_fields:
+
+    config_options:
+        header_value:
+            name: Header Value
+            type: string
+            default: Data Source Citation
+            description: TODO
