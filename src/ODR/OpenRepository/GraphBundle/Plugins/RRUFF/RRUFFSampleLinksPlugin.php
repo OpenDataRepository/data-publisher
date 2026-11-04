@@ -258,6 +258,7 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
                 // AMCSD's default search key is stored in its datatype array...
                 $amcsd_dt_array = $this->database_info_service->getDatatypeArray($amcsd_dt_id, false);
                 $amcsd_search_slug = $amcsd_dt_array[$amcsd_dt_id]['dataTypeMeta']['searchSlug'];
+                $amcsd_default_search_key = $amcsd_dt_array[$amcsd_dt_id]['default_search_key'];
                 if ( $this->environment === 'dev' )
                     $amcsd_search_slug = 'app_dev.php/'.$amcsd_search_slug;
 
@@ -271,8 +272,8 @@ class RRUFFSampleLinksPlugin implements ThemeElementPluginInterface
 //                if ( $this->odr_wordpress_integrated )
 //                    $amcsd_baseurl .= '/odr';
 
-                if ( $amcsd_dt_array[$amcsd_dt_id]['default_search_key'] !== '' )
-                    $params = $this->search_key_service->decodeSearchKey( $datatype['default_search_key'] );
+                if ( $amcsd_default_search_key !== '' )
+                    $params = $this->search_key_service->decodeSearchKey($amcsd_default_search_key);
 
                 // Replace whatever default criteria existed for the mineral name (though there really
                 //  shouldn't be anything there)
