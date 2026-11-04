@@ -428,7 +428,9 @@ class LinkedDescendantMergerPlugin implements ArrayPluginInterface, PluginSettin
             // ----------------------------------------
             // Otherwise, need to provide the modified datarecord array info to the templating so
             //  that it ends up displaying correctly
+            $datatype_id = $datatype['id'];
             $modifications = new ArrayPluginReturn(
+                $datatype_id,
                 $datatype,
                 $modified_datarecord_array,
                 $theme_array

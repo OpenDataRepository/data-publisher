@@ -1,5 +1,14 @@
 services:
     # ----------------------------------------
+    # Array plugins
+    odr_plugins.rruff.rruff_sample_citation:
+        public: true
+        class: '%odr_plugin_base_classpath%\RRUFF\RRUFFSampleCitationPlugin'
+        arguments:
+            $logger: "@logger"
+
+
+    # ----------------------------------------
     # Datatype plugins
     odr_plugins.rruff.amcsd:
         public: true

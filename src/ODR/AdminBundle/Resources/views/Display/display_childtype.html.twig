@@ -38,7 +38,8 @@
 
             {# If the plugin returned anything, then update the stacked arrays with the changes #}
             {% if array_plugin_return is not null %}
-                {% set datatype = array_plugin_return.getdatatypearray %}
+                {% set datatype_array = array_plugin_return.getdatatypearray %}
+                {% set datatype = datatype_array[datatype.id] %}
                 {% set datarecord_array = array_plugin_return.getdatarecordarray %}
                 {% set theme_array = array_plugin_return.getthemearray %}
             {% endif %}
