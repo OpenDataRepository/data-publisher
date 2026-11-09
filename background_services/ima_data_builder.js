@@ -1,7 +1,7 @@
 require('./dev_env');  // load .env + relax Node TLS for self-signed dev hosts
 /* jshint esversion: 8 */
 
-const https = require('https');
+const api = require('./api_client');
 const fs = require('fs');
 
 const bs = require('nodestalker');
@@ -33,9 +33,11 @@ async function app() {
             client.reserve().onSuccess(async function(job) {
                 // console.log('Reserved (' + Date.now() + '): ' , job);
 
+                // Declared out here so the catch block can see whether jobs were queued
+                let data;
                 try {
                     // console.log("THE JOB"  + job.data);
-                    let data = JSON.parse(job.data);
+                    data = JSON.parse(job.data);
 
                     console.log('Starting job: ' + job.id);
                     // console.log('Job Data: ', job);
@@ -312,6 +314,8 @@ async function app() {
 
                     let job_count = 0;
                     //
+                    // Re-running this job from here on would queue every record twice
+                    data._jobs_queued = true;
                     // Send jobs to IMA Tube
                     //
                     // let cell_params_headers = '';
@@ -637,7 +641,10 @@ async function app() {
 
                     // console.log('Updating Job:', data.api_create_job_url);
                     tracked_job.total = job_count;
-                    tracked_job = await apiCall(data.api_create_job_url, { 'job':  tracked_job}, 'PUT');
+                    // The records are queued: if this fails the run has no total and no finisher, so keep
+                    //  retrying for longer.  (PUT is safe to repeat.)
+                    tracked_job = await api.apiCall(data.api_create_job_url, { 'job':  tracked_job}, 'PUT',
+                        { token: token, retryDelays: api.PERSISTENT_RETRY_DELAYS, rejectHttpErrors: true });
                     // console.log('Tracked Job: ', tracked_job);
 
 
@@ -699,6 +706,8 @@ async function app() {
                 catch (e) {
                     // TODO need to put job as unfinished - maybe not due to errors
                     console.log('Error occurred: ', e);
+                    // A dropped connection before any jobs were queued: put the job back and run it again
+                    await api.requeueIfConnectionError(e, client, tube, job, data);
                     client.deleteJob(job.id).onSuccess(function() {
                         console.log('Deleted (' + Date.now() + '): ' , job);
                         resJob();
@@ -719,77 +728,9 @@ async function writeFile(file_name, content) {
     }
 }
 
+// Shared client (api_client.js) -- retries dropped connections where that is safe
 async function apiCall(api_url, post_data, method) {
-    console.log('API Call: ', api_url);
-
-    return new Promise((resolve, reject) => {
-        try {
-            // Parse the URL to extract hostname and path
-            const url = new URL('https://' + api_url);
-
-            const options = {
-                hostname: url.hostname,
-                port: 443,
-                path: url.pathname + url.search,
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            };
-
-            // Add bearer token if set
-            if(token !== '') {
-                options.headers['Authorization'] = 'Bearer ' + token;
-            }
-
-            // Add content-length for POST/PUT requests
-            if(post_data !== '' && (method === 'POST' || method === 'PUT')) {
-                const postDataString = JSON.stringify(post_data);
-                options.headers['Content-Length'] = Buffer.byteLength(postDataString);
-            }
-
-            const req = https.request(options, (res) => {
-                let data = '';
-
-                res.on('data', (chunk) => {
-                    data += chunk;
-                });
-
-                res.on('end', () => {
-                    // Surface HTTP errors directly instead of resolving an error
-                    // body that downstream code then crashes on (e.g. reading
-                    // `.records` off a {code,message} error object).
-                    if (res.statusCode < 200 || res.statusCode >= 300) {
-                        return reject(new Error('API ' + res.statusCode + ' from ' + api_url +
-                            ': ' + data.slice(0, 500)));
-                    }
-                    try {
-                        const responseBody = JSON.parse(data);
-                        resolve(responseBody);
-                    } catch (e) {
-                        reject(new Error('Failed to parse JSON response from ' + api_url +
-                            ': ' + e.message + ' — body starts: ' + data.slice(0, 200)));
-                    }
-                });
-            });
-
-            req.on('error', (err) => {
-                console.error('Error thrown');
-                reject(err);
-            });
-
-            // Write POST/PUT data if present
-            if(post_data !== '' && (method === 'POST' || method === 'PUT')) {
-                req.write(JSON.stringify(post_data));
-            }
-
-            req.end();
-
-        } catch (err) {
-            console.error('Error thrown');
-            reject(err);
-        }
-    });
+    return api.apiCall(api_url, post_data, method, { token: token, rejectHttpErrors: true });
 }
 
 async function loadPage(page_url) {

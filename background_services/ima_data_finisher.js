@@ -5,7 +5,7 @@ require('./dev_env');  // load .env + relax Node TLS for self-signed dev hosts
 
 /* jshint esversion: 8 */
 
-const https = require('https');
+const api = require('./api_client');
 const fs = require('fs');
 
 const bs = require('nodestalker');
@@ -27,9 +27,11 @@ async function app() {
             client.reserve().onSuccess(async function(job) {
                 // console.log('Reserved (' + Date.now() + '): ' , job);
 
+                // Declared out here so the catch block can re-queue it (with _files_done)
+                let data;
                 try {
                     // console.log('THE JOB' + job.data);
-                    let data = JSON.parse(job.data);
+                    data = JSON.parse(job.data);
 
                     // console.log('Starting job: ' + job.id);
                     // console.log('Job Data: ', job);
@@ -56,7 +58,13 @@ async function app() {
                         // If total = current - process files & mark complete
                         if(tracked_job.current === tracked_job.total) {
                             let output_path = data.base_path + '/web/uploads/IMA';
-                            if(data.ima_update_rebuild) {
+                            if(data._files_done) {
+                                // An earlier attempt already moved the files, then lost its
+                                //  connection before marking the job complete.  Moving or
+                                //  appending them again would lose or duplicate data.
+                                console.log('Files already processed; marking the job complete.');
+                            }
+                            else if(data.ima_update_rebuild) {
                                 // move files to be "updates" and update load file with timestamp
                                 // Mineral Data
                                 let file_data = await readFile(data.mineral_data_filename);
@@ -179,6 +187,8 @@ async function app() {
 
 
                             }
+                            // From here on a retry must only mark the job complete
+                            data._files_done = true;
 
                             // Mark complete using update job
                             // console.log('Updating Job:', data.api_create_job_url);
@@ -190,6 +200,8 @@ async function app() {
                             client.use(tube)
                                 .onSuccess(
                                     (tubeName) => {
+                                        // This check got through; connection retries start over
+                                        delete data._connection_retries;
                                         if(data.counter === undefined) {
                                             data.counter = 1;
                                         }
@@ -222,6 +234,9 @@ async function app() {
                 }
                 catch (e) {
                     console.log('Error occurred: ', e);
+                    // A dropped connection is not a reason to abandon the build: put the job
+                    //  back (with _files_done, if the files were already moved)
+                    await api.requeueIfConnectionError(e, client, tube, job, data);
                     client.deleteJob(job.id).onSuccess(function(del_msg) {
                         console.log('Deleted 1 (' + Date.now() + '): ' , job.id);
                         resJob();
@@ -300,69 +315,9 @@ async function writeFile(file_name, content) {
     }
 }
 
+// Shared client (api_client.js) -- retries dropped connections where that is safe
 async function apiCall(api_url, post_data, method) {
-    console.log('API Call: ', api_url);
-
-    return new Promise((resolve, reject) => {
-        try {
-            // Parse the URL to extract hostname and path
-            const url = new URL('https://' + api_url);
-
-            const options = {
-                hostname: url.hostname,
-                port: 443,
-                path: url.pathname + url.search,
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            };
-
-            // Add bearer token if set
-            if(token !== '') {
-                options.headers['Authorization'] = 'Bearer ' + token;
-            }
-
-            // Add content-length for POST/PUT requests
-            if(post_data !== '' && (method === 'POST' || method === 'PUT')) {
-                const postDataString = JSON.stringify(post_data);
-                options.headers['Content-Length'] = Buffer.byteLength(postDataString);
-            }
-
-            const req = https.request(options, (res) => {
-                let data = '';
-
-                res.on('data', (chunk) => {
-                    data += chunk;
-                });
-
-                res.on('end', () => {
-                    try {
-                        const responseBody = JSON.parse(data);
-                        resolve(responseBody);
-                    } catch (e) {
-                        reject(new Error('Failed to parse JSON response: ' + e.message));
-                    }
-                });
-            });
-
-            req.on('error', (err) => {
-                console.error('Error thrown');
-                reject(err);
-            });
-
-            // Write POST/PUT data if present
-            if(post_data !== '' && (method === 'POST' || method === 'PUT')) {
-                req.write(JSON.stringify(post_data));
-            }
-
-            req.end();
-
-        } catch (err) {
-            console.error('Error thrown');
-            reject(err);
-        }
-    });
+    return api.apiCall(api_url, post_data, method, { token: token });
 }
 
 app();

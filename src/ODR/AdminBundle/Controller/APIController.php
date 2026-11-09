@@ -8350,6 +8350,29 @@ class APIController extends ODRCustomController
 
 
     /**
+     * Returns how many units of work have been reported for a tracked job: the number of distinct
+     * random_keys in odr_tracked_csv_export.
+     *
+     * Distinct rather than rows: a background worker that loses its connection retries its
+     * worker/job POST with the same random_key, and that report must only count once.  Every other
+     * writer uses a unique key per row.
+     *
+     * @param EntityManager $em
+     * @param int $tracked_job_id
+     * @return int
+     */
+    private static function countTrackedJobProgress($em, $tracked_job_id)
+    {
+        $query = $em->createQuery(
+           'SELECT COUNT(DISTINCT tce.random_key)
+            FROM ODRAdminBundle:TrackedCSVExport AS tce
+            WHERE tce.trackedJob = :tracked_job_id'
+        )->setParameter('tracked_job_id', $tracked_job_id);
+
+        return intval($query->getSingleScalarResult());
+    }
+
+    /**
      * @param $version
      * @param Request $request
      * @return mixed
@@ -8388,14 +8411,7 @@ class APIController extends ODRCustomController
 
             if($tracked_job) {
                 // Update counts from TrackedCSVExport
-                /** @var TrackedCSVExport[] $tracked_csv_exports */
-                $tracked_csv_exports = $em
-                    ->getRepository('ODR\AdminBundle\Entity\TrackedCSVExport')
-                    ->findBy(
-                        ['trackedJob' => $tracked_job->getId()]
-                    );
-
-                $tracked_job->setCurrent(count($tracked_csv_exports));
+                $tracked_job->setCurrent( self::countTrackedJobProgress($em, $tracked_job->getId()) );
 
                 $em->persist($tracked_job);
                 $em->flush();
@@ -8416,19 +8432,14 @@ class APIController extends ODRCustomController
                     $worker_job->setTrackedJob($tracked_job);
                     $worker_job->setLineCount(1);
                     $worker_job->setJobOrder(0);
-                    $worker_job->setRandomKey('random_key_' . random_int(0,1000000));
+                    // Progress counts distinct random_keys, so each filler row needs its own
+                    $worker_job->setRandomKey('complete_' . bin2hex(random_bytes(11)));
                     $em->persist($worker_job);
                 }
                 $em->flush();
 
-                $tracked_csv_exports = $em
-                    ->getRepository('ODR\AdminBundle\Entity\TrackedCSVExport')
-                    ->findBy(
-                        ['trackedJob' => $tracked_job->getId()]
-                    );
-
                 // Update Count
-                $tracked_job->setCurrent(count($tracked_csv_exports));
+                $tracked_job->setCurrent( self::countTrackedJobProgress($em, $tracked_job->getId()) );
                 if($tracked_job->getCurrent() === $tracked_job->getTotal()) {
                     $tracked_job->setCompleted(new \DateTime());
                 }
@@ -8558,15 +8569,7 @@ class APIController extends ODRCustomController
 
             if($tracked_job && $full > 0) {
                 // Update counts from TrackedCSVExport
-                // Need to also load all the TrackedCSVExport entries of this job...
-                /** @var TrackedCSVExport[] $tracked_csv_exports */
-                $tracked_csv_exports = $em
-                    ->getRepository('ODR\AdminBundle\Entity\TrackedCSVExport')
-                    ->findBy(
-                    ['trackedJob' => $tracked_job->getId()]
-                );
-
-                $tracked_job->setCurrent(count($tracked_csv_exports));
+                $tracked_job->setCurrent( self::countTrackedJobProgress($em, $tracked_job->getId()) );
 
                 $em->persist($tracked_job);
                 $em->flush();
