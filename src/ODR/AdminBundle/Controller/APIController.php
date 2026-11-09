@@ -4733,6 +4733,10 @@ class APIController extends ODRCustomController
             else if ( $typeclass === 'Boolean' ) {
                 $new_storage_entity->setValue( $field['selected'] );
             }
+            else if ( $typeclass === 'IntegerValue' && $field['value'] === '' ) {
+                // Match behavior of EntityMetaModifyService::updateStorageEntity()
+                $new_storage_entity->setValue(null);
+            }
             else {
                 $new_storage_entity->setValue( mb_scrub((string) $field['value']) );
             }
