@@ -11,6 +11,8 @@
 #
 # What an instance looks like afterwards:
 #   real    var/ (with cache/, log/, tmp/), app/, and inside app/: config/, logs/, tmp/
+#   kept    app/amcsd_files, app/rruff_files (the data archives' working files, only on the
+#           RRUFF instance): left exactly as they are -- never linked, removed or created
 #   gone    app/cache (no longer used): moved to var/setup-backup/ if present
 #   links   everything else, top level and in app/, each pointing at the same name in SOURCE
 #   left    .git, .idea and other tool folders -- never linked, never removed
@@ -62,6 +64,9 @@ TOP_REAL=(app var)
 APP_REAL=(config logs tmp)
 # No longer used: removed from an instance (into the backup), never linked
 APP_OBSOLETE=(cache)
+# Per-instance data that only some instances have: kept if present, never linked or created.
+# amcsd_files, rruff_files: the background_services archive builders' downloads
+APP_KEEP=(amcsd_files rruff_files)
 VAR_DIRS=(cache log tmp)
 # Never linked into an instance, and never removed from one
 LEAVE_ALONE=(.git .gitignore .idea .vscode .claude .agent .gemini .geminiignore .DS_Store)
@@ -302,7 +307,7 @@ setup_instance() {
   for name in "${APP_REAL[@]}"; do ensure_real_dir "$DEST/app/$name" "app/$name"; done
 
   sync_children "$SRC" "$DEST" "" -- "${TOP_REAL[@]}"
-  sync_children "$SRC/app" "$DEST/app" "app/" "${APP_OBSOLETE[@]}" -- "${APP_REAL[@]}"
+  sync_children "$SRC/app" "$DEST/app" "app/" "${APP_OBSOLETE[@]}" -- "${APP_REAL[@]}" "${APP_KEEP[@]}"
   sync_config
   set_permissions
 
