@@ -261,10 +261,20 @@ async function app() {
                         // TODO Add RRUFF ID to "rruff_record_exists" and
                         // ensure all RRUFF records get that value even if they don't
                         // have a PD alpha value.
+
+                        // A RRUFF record is listed if it has a cell parameter (a or alpha) OR a
+                        // measured chemistry.  A chemistry-only entry has empty a..gamma; the IMA
+                        // list's "has Cell Parameters" tag ignores those (has_cell_params).
+                        let has_cell_params = await findValue(pd_map.a, record_data) !== ''
+                            || await findValue(pd_map.alpha, record_data) !== '';
+                        // If measured_chemistry is mapped to the same field as ima_chemistry (a
+                        // config mistake), every record would qualify -- don't count it then.
+                        let has_measured_chemistry = pd_map.measured_chemistry !== pd_map.ima_chemistry
+                            && (await findValue(pd_map.measured_chemistry, record_data)).trim() !== '';
                         if(
                             ima_record !== undefined
                             && ima_record.record_uuid !== undefined
-                            && await findValue(pd_map.a, record_data) !== ''
+                            && (has_cell_params || has_measured_chemistry)
                             && record_data._record_metadata._public_date !== undefined
                             && record_data._record_metadata._public_date !== "2200-01-01 00:00:00"
                         ) {
