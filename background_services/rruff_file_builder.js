@@ -194,8 +194,12 @@ async function app() {
                 } catch (e) {
                     // TODO need to put job as unfinished - maybe not due to errors
                     console.log('Error occurred: ', e);
-                    // A dropped connection: put the job back rather than lose this record
-                    await api.requeueIfConnectionError(e, client, tube, job, record);
+                    // A dropped connection: put the job back rather than lose this record.
+                    //  Anything else is a problem with the record: log it and count it as done,
+                    //  so the run still finishes.
+                    if(!await api.requeueIfConnectionError(e, client, tube, job, record)) {
+                        await api.skipInvalidRecord(e, job, record, 'RRUFF_FILE_', token, tube);
+                    }
                     // Depending on Error we might want to retry
                     // I.E. Expired token jobs should not be deleted
                     client.deleteJob(job.id).onSuccess(function (del_msg) {

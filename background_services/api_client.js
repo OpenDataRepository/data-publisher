@@ -260,10 +260,84 @@ async function requeueIfConnectionError(err, client, tube, job, state) {
     });
 }
 
+/**
+ * For a builder's catch block, when requeueIfConnectionError() didn't take the job: the record
+ *  itself couldn't be processed (bad or missing data, a bug), so retrying won't help.  Logs it
+ *  as invalid and reports it as done, so the tracked job still reaches its total and the run
+ *  finishes -- without this record's output.
+ *
+ * Each one is logged twice:
+ *  - one line in the worker's log, starting "INVALID RECORD" (grep for it);
+ *  - one JSON line in <instance>/app/logs/invalid_records.jsonl, for a future queue of
+ *    records for someone to fix.
+ *
+ * @param {*} err
+ * @param {object} job      the reserved job
+ * @param {object} [record] the job payload (undefined if it wasn't valid JSON)
+ * @param {string} prefix   postWorkerJob() random_key prefix
+ * @param {string} token
+ * @param {string} worker   e.g. the worker's tube name
+ */
+async function skipInvalidRecord(err, job, record, prefix, token, worker) {
+    const message = (err && err.message) ? err.message : String(err);
+    // Where it failed: the first stack frame in our own code
+    let where = '';
+    if(err && typeof err.stack === 'string') {
+        let frame = err.stack.split('\n').find((line) => line.includes('background_services/'));
+        if(frame) {
+            where = frame.trim().replace(/^at\s+/, '').replace(/.*background_services\//, '').replace(/\)$/, '');
+        }
+    }
+    if(!record || typeof record !== 'object') {
+        console.log('INVALID RECORD: job ' + job.id + ' on ' + worker + ' has an unreadable payload: '
+            + message + ' -- data starts: ' + String(job.data).slice(0, 200));
+        return;
+    }
+
+    const entry = {
+        time: new Date().toISOString(),
+        worker: worker,
+        tracked_job_id: record.tracked_job_id,
+        record_uuid: record.unique_id,
+        // the cell params builder handles records from three databases
+        record_type: record.cell_params_type,
+        record_url: record.base_url ? record.base_url + '/api/v5/dataset/record/' + record.unique_id : undefined,
+        error: message,
+        where: where || undefined,
+    };
+    console.log('INVALID RECORD: ' + record.unique_id
+        + (record.cell_params_type ? ' (' + record.cell_params_type + ')' : '')
+        + ' on ' + worker + ', tracked job ' + record.tracked_job_id + ': ' + message
+        + (where ? ' at ' + where : '') + ' -- skipped, counted as done');
+
+    if(record.base_path) {
+        try {
+            require('fs').appendFileSync(
+                record.base_path + '/app/logs/invalid_records.jsonl',
+                JSON.stringify(entry) + '\n'
+            );
+        }
+        catch (e) {
+            console.log('Could not write invalid_records.jsonl: ' + e.message);
+        }
+    }
+
+    // Count it, so the finisher isn't left waiting for it
+    if(record.api_worker_job_url && record.tracked_job_id !== undefined) {
+        try {
+            await postWorkerJob(record.api_worker_job_url, record.tracked_job_id, prefix, record, token);
+        }
+        catch (e) {
+            console.log('Could not report invalid record ' + record.unique_id + ' as done: ', e);
+        }
+    }
+}
+
 module.exports = {
     apiCall,
     postWorkerJob,
     requeueIfConnectionError,
+    skipInvalidRecord,
     isConnectionError,
     RETRY_DELAYS,
     PERSISTENT_RETRY_DELAYS,

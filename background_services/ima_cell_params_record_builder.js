@@ -172,11 +172,20 @@ async function app() {
                             record_data['records_' + cp_map.template_uuid],
                             cp_map.ima_template_uuid
                         );
+                        // Listed if it has a cell parameter (a or alpha) OR a measured chemistry,
+                        //  the same as RRUFF records below.  A chemistry-only entry has empty
+                        //  a..gamma; the IMA list's "has Cell Parameters" tag ignores those.
+                        let has_cell_params = await findValue(cp_map.a, record_data) !== ''
+                            || await findValue(cp_map.alpha, record_data) !== '';
+                        // If measured_chemistry is mapped to the same field as ima_chemistry (a
+                        //  config mistake), every record would qualify -- don't count it then.
+                        let has_measured_chemistry = cp_map.measured_chemistry !== cp_map.ima_chemistry
+                            && (await findValue(cp_map.measured_chemistry, record_data)).trim() !== '';
                         if(
                             ima_record !== undefined
                             && ima_record.record_uuid !== undefined
-                            && await findValue(cp_map.a, record_data) !== ''
-                    ) {
+                            && (has_cell_params || has_measured_chemistry)
+                        ) {
 
                             content += 'if(cellparams[\'' + ima_record.record_uuid + '\'] === undefined) { cellparams[\'' + ima_record.record_uuid + '\'] = {} };'
                             //content += 'if(cellparams[\'' + ima_record.record_uuid + '\'][\'' + record_data['record_uuid'] +'\'] === undefined) { cellparams[\'' +  ima_record.record_uuid + '\'][\'' + record_data['record_uuid'] +'\'] = new Array()};';
@@ -242,7 +251,8 @@ async function app() {
                             record_data['records_' + pd_map.template_uuid],
                             cp_map.ima_template_uuid
                         );
-                        console.log('IMA Record: ' + ima_record.record_uuid)
+                        // A RRUFF record need not be linked to an IMA mineral; it's skipped below
+                        console.log('IMA Record: ' + (ima_record ? ima_record.record_uuid : '(none -- skipped)'));
 
                         // "_record_metadata": {
                         // "_create_date": "2016-05-12 13:23:56",
@@ -502,8 +512,12 @@ async function app() {
                 catch (e) {
                     // TODO need to put job as unfinished - maybe not due to errors
                     console.log('Error occurred: ', e);
-                    // A dropped connection: put the job back rather than lose this record
-                    await api.requeueIfConnectionError(e, client, tube, job, record);
+                    // A dropped connection: put the job back rather than lose this record.
+                    //  Anything else is a problem with the record: log it and count it as done,
+                    //  so the run still finishes.
+                    if(!await api.requeueIfConnectionError(e, client, tube, job, record)) {
+                        await api.skipInvalidRecord(e, job, record, 'CellParams_', token, tube);
+                    }
                     client.deleteJob(job.id).onSuccess(function(del_msg) {
                         // console.log('Deleted (' + Date.now() + '): ' , job);
                         console.log('Deleted (' + Date.now() + '): ' , job.id);
