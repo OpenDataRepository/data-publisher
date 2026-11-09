@@ -37,7 +37,7 @@ interface DatafieldPluginInterface
      * @param array $render_plugin_instance
      * @param array $rendering_options
      *
-     * @return string
+     * @return string|array
      * @throws \Exception
      */
     public function execute($datafield, $datarecord, $render_plugin_instance, $rendering_options);

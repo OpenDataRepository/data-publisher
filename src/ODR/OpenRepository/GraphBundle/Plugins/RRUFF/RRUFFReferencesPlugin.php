@@ -39,6 +39,7 @@ use ODR\AdminBundle\Component\Service\EntityMetaModifyService;
 use ODR\AdminBundle\Component\Service\LockService;
 use ODR\AdminBundle\Component\Service\SortService;
 use ODR\AdminBundle\Component\Utility\ValidUtility;
+use ODR\OpenRepository\GraphBundle\Plugins\ODRReferencePlugins;
 use ODR\OpenRepository\SearchBundle\Component\Service\SearchQueryService;
 // ODR
 use ODR\OpenRepository\GraphBundle\Plugins\Base\FileRenamerPlugin;
@@ -54,7 +55,7 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 
-class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerEventInterface, SearchOverrideInterface, FileRenamerPluginInterface, DatafieldReloadOverrideInterface, TableResultsOverrideInterface
+class RRUFFReferencesPlugin extends ODRReferencePlugins implements DatatypePluginInterface, MassEditTriggerEventInterface, SearchOverrideInterface, FileRenamerPluginInterface, DatafieldReloadOverrideInterface, TableResultsOverrideInterface
 {
 
     /**
@@ -92,33 +93,31 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
 
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      */
     public function canExecutePlugin($render_plugin_instance, $datatype, $rendering_options)
     {
         if ( isset($rendering_options['context']) ) {
             $context = $rendering_options['context'];
 
-            if ($context === 'display' || $context === 'edit'
-                || $context === 'fake_edit' || $context === 'mass_edit'
-            ) {
-                // Needs to be executed in display, edit (for journal selection and previews),
-                //  fake_edit (for dois/autogeneration), and mass_edit (for switching to a specific journal)
-                return true;
+            switch ($context) {
+                case 'text':       // plain string
+                case 'html':       // formatted string
+                case 'text|html':  // both of the above
+                case 'display':
+                case 'edit':       // journal field dropdown and preview div for reference
+                case 'fake_edit':  // reference_id autogeneration and DOI lookups
+                case 'mass_edit':  // switching to a specific journal because of the overridden field
+                    return true;
             }
-
-            // Also need a "text" mode
-            if ( $context === 'text' || $context === 'html' )
-                return true;
         }
 
-        // Otherwise, don't execute the plugin
         return false;
     }
 
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      */
     public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = [], $datatype_permissions = [], $datafield_permissions = [], $token_list = [])
     {
@@ -134,37 +133,97 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
             // Need this to determine whether to throw an error or not
             $is_datatype_admin = $rendering_options['is_datatype_admin'];
 
-            // Going to need these...
-            $fields = $render_plugin_instance['renderPluginMap'];
-            $options = $render_plugin_instance['renderPluginOptionsMap'];
+            // Grab various properties from the render plugin array
+            $render_plugin_fields = $render_plugin_instance['renderPluginMap'];
+            $render_plugin_options = $render_plugin_instance['renderPluginOptionsMap'];
 
+
+            // ----------------------------------------
             // The datatype array shouldn't be wrapped with its ID number here...
             $initial_datatype_id = $datatype['id'];
+
+            // There *should* only be a single datarecord in $datarecords...
+            $datarecord = [];
+            foreach ($datarecords as $dr_id => $dr)
+                $datarecord = $dr;
+            $datarecord_id = $datarecord['id'];
+            $grandparent_datarecord_id = $datarecord['grandparent']['id'];
 
             // The theme array is stacked, so there should be only one entry to find here...
             $initial_theme_id = '';
             foreach ($theme_array as $t_id => $t)
                 $initial_theme_id = $t_id;
 
-            // There *should* only be a single datarecord in $datarecords...
-            $datarecord = [];
-            foreach ($datarecords as $dr_id => $dr)
-                $datarecord = $dr;
-
 
             // ----------------------------------------
             // Output depends on which context the plugin is being executed from
             $context = $rendering_options['context'];
             $output = '';
-            if ( $context === 'display' || $context === 'text' || $context === 'html' ) {
+            if ( $context === 'display' || $context === 'text' || $context === 'html' || $context === 'text|html' ) {
+                // The parts of the reference that aren't links might be cached
+                $format = 'rruff';
 
-                // Want to locate the values for most of the mapped datafields
-                $optional_fields = [
-                    'Reference ID' => 0
-                ];
+                $citations = null;
+                if ( isset($datarecord['cached_reference'][$format]) )
+                    $citations = $datarecord['cached_reference'][$format];
 
-                $datafield_mapping = [];
-                foreach ($fields as $rpf_name => $rpf_df) {
+                if ( is_null($citations) ) {
+                    // Doesn't exist...render it via twig
+                    $citations = parent::renderCitations($this->templating, $is_datatype_admin, $format, $datatype, $datarecord, $render_plugin_fields, ['Reference ID' => 0]);
+                    if ( is_null($citations) ) {
+                        // If the previous function returned null, then the plugin can't execute
+                        // Return the empty string so ODR's default rendering takes over
+                        return '';
+                    }
+
+                    // Store the citations back in the datarecord
+                    if ( !isset($datarecord['cached_reference']) )
+                        $datarecord['cached_reference'] = [];
+                    if ( !isset($datarecord['cached_reference'][$format]) )
+                        $datarecord['cached_reference'][$format] = [];
+
+                    $datarecord['cached_reference'][$format] = [
+                        'text' => $citations['text'],
+                        'html' => $citations['html'],
+                    ];
+
+                    // Store the datarecord back in the cache
+                    $formatted_datarecord_data = $this->cache_service->get('cached_datarecord_'.$grandparent_datarecord_id);
+                    $formatted_datarecord_data[$datarecord_id] = $datarecord;
+                    $this->cache_service->set('cached_datarecord_'.$grandparent_datarecord_id, $formatted_datarecord_data);
+                }
+
+                // The citations array should not be null now...
+                if ( $context === 'text' || $context === 'html' ) {
+                    // In either of these two situations, just return the value directly
+                    return $citations[$context];
+                }
+                else if ( $context === 'text|html' ) {
+                    // Could be useful in the future
+                    return $citations;
+                }
+                else {
+                    // ...otherwise, this is for Display mode
+                    // Don't need to recreate the citation string
+                    $citation = $citations['html'];
+
+                    // Going to render the reference differently if it's top-level...
+                    $is_top_level = $rendering_options['is_top_level'];
+                    $output = $this->templating->render(
+                        '@ODROpenRepositoryGraph/RRUFF/RRUFFReferences/rruffreferences_display.html.twig',
+                        [
+                            'is_top_level' => $is_top_level,
+                            'original_context' => $context,
+                            'citation' => $citation,
+                        ]
+                    );
+                }
+            }
+            else if ( $context === 'fake_edit') {
+                // Retrieve mapping between datafields and render plugin fields
+                $autogenerate_df_id = null;
+                $plugin_fields = [];
+                foreach ($render_plugin_fields as $rpf_name => $rpf_df) {
                     // Need to find the real datafield entry in the primary datatype array
                     $rpf_df_id = $rpf_df['id'];
 
@@ -172,163 +231,9 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
                     if ( isset($datatype['dataFields'][$rpf_df_id]) )
                         $df = $datatype['dataFields'][$rpf_df_id];
 
-                    if ($df == null) {
-                        // Optional fields don't have to exist for this plugin to work
-                        if ( isset($optional_fields[$rpf_name]) )
-                            continue;
-
-                        // If the datafield doesn't exist in the datatype_array, then either the datafield
-                        //  is non-public and the user doesn't have permissions to view it (most likely),
-                        //  or the plugin somehow isn't configured correctly
-
-                        // The plugin can't continue executing in either case...
-                        if ( !$is_datatype_admin )
-                            // ...regardless of what actually caused the issue, the plugin shouldn't execute
-                            return '';
-                        else
-                            // ...but if a datatype admin is seeing this, then they probably should fix it
-                            throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id.'...check plugin config.');
-                    }
-                    else {
-                        // The non-optional fields really should all be public...so actually throw an
-                        //  error if any of them aren't and the user can do something about it
-                        if ( isset($optional_fields[$rpf_name]) )
-                            continue;
-
-                        // If the datafield is non-public...
-                        $df_public_date = ($df['dataFieldMeta']['publicDate'])->format('Y-m-d H:i:s');
-                        if ( $df_public_date == '2200-01-01 00:00:00' ) {
-                            if ( !$is_datatype_admin )
-                                // ...but the user can't do anything about it, then just refuse to execute
-                                return '';
-                            else
-                                // ...the user can do something about it, so they need to fix it
-                                throw new \Exception('The field "'.$rpf_name.'" is not public...all fields except reference_id MUST be public.');
-                        }
-                    }
-
-                    $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
-
-                    // Grab the fieldname specified in the plugin's config file to use as an array key
-                    $key = strtolower(str_replace(' ', '_', $rpf_name));
-
-                    // The datafield may have a render plugin that should be executed, but only if
-                    //  it's not a file field...
-                    if ( !empty($df['renderPluginInstances']) && $typeclass !== 'File' ) {
-                        foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
-                            if ( $rpi['renderPlugin']['render'] !== false ) {
-                                // ...if it does, then create an array entry for it
-                                $datafield_mapping[$key] = [
-                                    'datafield' => $df,
-                                    'render_plugin_instance' => $rpi
-                                ];
-                            }
-                        }
-                    }
-
-                    // If it does have a render plugin, then don't bother looking in the datarecord array
-                    //  for the value
-                    if ( isset($datafield_mapping[$key]) )
-                        continue;
-
-
-                    // Otherwise, look for the value in the datarecord array
-                    if ( !isset($datarecord['dataRecordFields'][$rpf_df_id]) ) {
-                        // As far as the reference plugin is concerned, empty strings are acceptable
-                        //  values when datarecordfield entries don't exist
-                        $datafield_mapping[$key] = '';
-                    }
-                    else if ($typeclass === 'File') {
-                        $datafield_mapping[$key] = [
-                            'datarecordfield' => $datarecord['dataRecordFields'][$rpf_df_id]
-                        ];
-                    }
-                    else {
-                        // Don't need to execute a render plugin on this datafield's value...extract it
-                        //  directly from the datarecord array
-                        // $drf is guaranteed to exist at this point
-                        $drf = $datarecord['dataRecordFields'][$rpf_df_id];
-                        $value = '';
-
-                        switch ($typeclass) {
-                            case 'IntegerValue':
-                                $value = $drf['integerValue'][0]['value'];
-                                break;
-                            case 'DecimalValue':
-                                $value = $drf['decimalValue'][0]['original_value'];
-                                break;
-                            case 'ShortVarchar':
-                                $value = $drf['shortVarchar'][0]['value'];
-                                break;
-                            case 'MediumVarchar':
-                                $value = $drf['mediumVarchar'][0]['value'];
-                                break;
-                            case 'LongVarchar':
-                                $value = $drf['longVarchar'][0]['value'];
-                                break;
-                            case 'LongText':
-                                $value = $drf['longText'][0]['value'];
-                                break;
-                            case 'DateTimeValue':
-                                $value = $drf['dateTimeValue'][0]['value']->format('Y-m-d');
-                                if ($value == '9999-12-31')
-                                    $value = '';
-                                $datafield_mapping[$key] = $value;
-                                break;
-
-                            default:
-                                throw new \Exception('Invalid Fieldtype');
-                                break;
-                        }
-
-                        $datafield_mapping[$key] = trim((string) $value);
-                    }
-                }
-
-                // Need to try to ensure urls are valid...
-                if ( $datafield_mapping['url'] !== '' && !is_array($datafield_mapping['url']) ) {
-                    // Ensure that DOIs that aren't entirely links still are valid
-                    if ( stripos((string) $datafield_mapping['url'], 'doi:') === 0 )
-                        $datafield_mapping['url'] = 'https://doi.org/'.trim( substr((string) $datafield_mapping['url'], 4) );
-
-                    // Ensure that the values have an 'https://' prefix
-                    if ( !str_starts_with((string) $datafield_mapping['url'], 'http') )
-                        $datafield_mapping['url'] = 'https://'.$datafield_mapping['url'];
-                }
-
-                // Going to render the reference differently if it's top-level...
-                $is_top_level = $rendering_options['is_top_level'];
-
-                $output = $this->templating->render(
-                    '@ODROpenRepositoryGraph/RRUFF/RRUFFReferences/rruffreferences_display.html.twig',
-                    [
-                        'datarecord' => $datarecord,
-                        'mapping' => $datafield_mapping,
-
-                        'is_top_level' => $is_top_level,
-                        'original_context' => $rendering_options['context'],
-                    ]
-                );
-
-                // If meant for text output, then replace all whitespace sequences with a single space
-                if ( $rendering_options['context'] === 'text' )
-                    $output = preg_replace('/(\s+)/', ' ', $output);
-            }
-            else if ( $context === 'fake_edit') {
-                // Retrieve mapping between datafields and render plugin fields
-                $autogenerate_df_id = null;
-                $plugin_fields = [];
-                foreach ($fields as $rpf_name => $rpf_df) {
-                    // Need to find the real datafield entry in the primary datatype array
-                    $rpf_df_id = $rpf_df['id'];
-
-                    $df = null;
-                    if ( isset($datatype['dataFields']) && isset($datatype['dataFields'][$rpf_df_id]) )
-                        $df = $datatype['dataFields'][$rpf_df_id];
-
                     // Autogenerated fields will continue to work even if the user can't see them,
                     //  but probably should still complain about plugin mapping errors to datatype admins
-                    if ($df == null && $is_datatype_admin)
+                    if ( is_null($df) && $is_datatype_admin)
                         throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id);
 
                     // Need to tweak display parameters for several of the fields...
@@ -349,7 +254,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
                 // Also want to provide a sorted list of the existing journals to the user to reduce
                 //  input errors...
                 $journal_df_id = 0;
-                if ( !isset($fields['Journal']['id']) ) {
+                if ( !isset($render_plugin_fields['Journal']['id']) ) {
                     // If the Journal field doesn't exist, then the plugin can't continue executing
                     if ( !$is_datatype_admin )
                         // ...regardless of what actually caused the issue, the plugin shouldn't execute
@@ -359,13 +264,14 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
                         throw new \Exception('Unable to locate array entry for the field "Journal"...check plugin config.');
                 }
 
-                $journal_df_id = $fields['Journal']['id'];
+                $journal_df_id = $render_plugin_fields['Journal']['id'];
                 $sort_data = $this->sort_service->sortDatarecordsByDatafield($journal_df_id);
 
                 $journal_list = [];
                 foreach ($sort_data as $dr_id => $sort_value)
                     $journal_list[$sort_value] = 1;
 
+                // Need to generate a mapping between plugin field names and HTML element ids
                 $doi_fields = self::getDOIFields($datatype, $datarecord, $plugin_fields);
 
                 $output = $this->templating->render(
@@ -402,7 +308,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
                 // Want to provide a sorted list of the existing journals to the user to reduce
                 //  input errors...
                 $journal_df_id = 0;
-                if ( !isset($fields['Journal']['id']) ) {
+                if ( !isset($render_plugin_fields['Journal']['id']) ) {
                     // If the Journal field doesn't exist, then the plugin can't continue executing
                     if ( !$is_datatype_admin )
                         // ...regardless of what actually caused the issue, the plugin shouldn't execute
@@ -412,7 +318,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
                         throw new \Exception('Unable to locate array entry for the field "Journal"...check plugin config.');
                 }
 
-                $journal_df_id = $fields['Journal']['id'];
+                $journal_df_id = $render_plugin_fields['Journal']['id'];
                 $sort_data = $this->sort_service->sortDatarecordsByDatafield($journal_df_id);
 
                 $journal_list = [];
@@ -422,7 +328,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
                 if ( $context === 'edit' ) {
                     // Most of the fields need slightly modified saving javascript...
                     $reference_field_list = [];
-                    foreach ($fields as $rpf_name => $rpf) {
+                    foreach ($render_plugin_fields as $rpf_name => $rpf) {
                         switch ($rpf_name) {
                             case 'Authors':
                             case 'Article Title':
@@ -564,7 +470,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
     }
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      */
     public function canExecuteSearchPlugin($render_plugin_instance, $datatype, $datafield, $rendering_options)
     {
@@ -580,7 +486,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
 
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      */
     public function executeSearchPlugin($render_plugin_instance, $datatype, $datafield, $preset_value, $rendering_options)
     {
@@ -609,7 +515,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
 
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      */
     public function getSearchOverrideFields($df_list)
     {
@@ -623,7 +529,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
 
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      */
     public function searchOverriddenField($datafield, $search_term, $render_plugin_fields, $render_plugin_options, $use_set_logic)
     {
@@ -936,7 +842,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
 
 
         // ----------------------------------------
-        // The files should be named like "<journal, or book_title><volume>_<year>_<pages>.<file_extension>
+        // The files should be named like "<journal, or book_title><volume>_<year>_<pages>.<file_extension>"
         $journal = '';
 
         $pieces = ['journal' => '', 'volume' => '', 'year' => '', 'pages' => ''];
@@ -1190,7 +1096,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
 
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      */
     public function getMassEditOverrideFields($render_plugin_instance)
     {
@@ -1206,7 +1112,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
 
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      */
     public function getMassEditTriggerFields($render_plugin_instance)
     {
@@ -1222,7 +1128,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
     }
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      */
     public function getOverrideParameters($rendering_context, $render_plugin_instance, $datafield, $datarecord, $theme, $user, $is_datatype_admin)
     {
@@ -1275,7 +1181,7 @@ class RRUFFReferencesPlugin implements DatatypePluginInterface, MassEditTriggerE
 
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      */
     public function getTableResultsOverrideValues($render_plugin_instance, $datarecord, $datafield = null)
     {

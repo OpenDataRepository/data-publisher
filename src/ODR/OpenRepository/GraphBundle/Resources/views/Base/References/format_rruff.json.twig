@@ -1,0 +1,231 @@
+{# This special context instructs plugins to return both 'text' and 'html' contexts as an array, to prevent multiple calls #}
+{% set rendering_options = {'context': 'text|html'} %}
+
+{% set author_text = '' %}
+{% set author_html = '' %}
+{% if mapping.authors is defined %}
+    {% set author = mapping.authors %}
+
+    {% if mapping.authors.render_plugin_instance is defined %}
+        {# NOTE - these datafield_plugin calls work because ReferencesPlugin.php finds the renderPluginInstance that actually renders something...it's not the original cached datafield array #}
+        {% set author = mapping.authors.datafield|datafield_plugin(datarecord, mapping.authors.render_plugin_instance, rendering_options)|raw %}
+    {% endif %}
+
+    {% set author_text = author['text'] %}
+    {% set author_html = author['html'] %}
+{% endif %}
+
+{% set year_text = '' %}
+{% set year_html = '' %}
+{% if mapping.year is defined %}
+    {% set year = mapping.year %}
+
+    {% if mapping.year.render_plugin_instance is defined %}
+        {% set year = mapping.year.datafield|datafield_plugin(datarecord, mapping.year.render_plugin_instance, rendering_options)|raw %}
+    {% endif %}
+
+    {% set year_text = year['text'] %}
+    {% set year_html = year['html'] %}
+{% endif %}
+
+{% set article_title_text = '' %}
+{% set article_title_html = '' %}
+{% if mapping.article_title is defined %}
+    {% set article_title = mapping.article_title %}
+
+    {% if mapping.article_title.render_plugin_instance is defined %}
+        {% set article_title = mapping.article_title.datafield|datafield_plugin(datarecord, mapping.article_title.render_plugin_instance, rendering_options)|raw %}
+    {% endif %}
+
+    {% set article_title_text = article_title['text'] %}
+    {% set article_title_html = article_title['html'] %}
+
+    {% set needs_period = true %}
+    {% if article_title_text|last == '.' or article_title_text|last == '?' or article_title_text|last == '!' %}
+        {# do nothing #}
+    {% elseif article_title_text != '' %}
+        {% set article_title_text = article_title['text'] ~ '.' %}
+        {% set article_title_html = article_title['html'] ~ '.' %}
+    {% endif %}
+{% endif %}
+
+{% set journal_text = '' %}
+{% set journal_html = '' %}
+{% if mapping.journal is defined %}
+    {% set journal = mapping.journal %}
+
+    {% if mapping.journal.render_plugin_instance is defined %}
+        {% set journal = mapping.journal.datafield|datafield_plugin(datarecord, mapping.journal.render_plugin_instance, rendering_options)|raw %}
+    {% endif %}
+
+    {% set journal_text = journal['text'] %}
+    {% set journal_html = journal['html'] %}
+{% endif %}
+
+{% set volume_text = '' %}
+{% set volume_html = '' %}
+{% if mapping.volume is defined %}
+    {% set volume = mapping.volume %}
+
+    {% if mapping.volume.render_plugin_instance is defined %}
+        {% set volume = mapping.volume.datafield|datafield_plugin(datarecord, mapping.volume.render_plugin_instance, rendering_options)|raw %}
+    {% endif %}
+
+    {% set volume_text = volume['text'] %}
+    {% set volume_html = volume['html'] %}
+{% endif %}
+
+{% set issue_text = '' %}
+{% set issue_html = '' %}
+{% if mapping.issue is defined %}
+    {% set issue = mapping.issue %}
+
+    {% if mapping.issue.render_plugin_instance is defined %}
+        {% set issue = mapping.issue.datafield|datafield_plugin(datarecord, mapping.issue.render_plugin_instance, rendering_options)|raw %}
+    {% endif %}
+
+    {% set issue_text = issue['text'] %}
+    {% set issue_html = issue['html'] %}
+{% endif %}
+
+{% set book_title_text = '' %}
+{% set book_title_html = '' %}
+{% if mapping.book_title is defined %}
+    {% set book_title = mapping.book_title %}
+
+    {% if mapping.book_title.render_plugin_instance is defined %}
+        {% set book_title = mapping.book_title.datafield|datafield_plugin(datarecord, mapping.book_title.render_plugin_instance, rendering_options)|raw %}
+    {% endif %}
+
+    {% set book_title_text = book_title['text'] %}
+    {% set book_title_html = book_title['html'] %}
+{% endif %}
+
+{% set publisher_text = '' %}
+{% set publisher_html = '' %}
+{% if mapping.publisher is defined %}
+    {% set publisher = mapping.publisher %}
+
+    {% if mapping.publisher.render_plugin_instance is defined %}
+        {% set publisher = mapping.publisher.datafield|datafield_plugin(datarecord, mapping.publisher.render_plugin_instance, rendering_options)|raw %}
+    {% endif %}
+
+    {% set publisher_text = publisher['text'] %}
+    {% set publisher_html = publisher['html'] %}
+{% endif %}
+
+{% set publisher_location_text = '' %}
+{% set publisher_location_html = '' %}
+{% if mapping.publisher_location is defined %}
+    {% set publisher_location = mapping.publisher_location %}
+
+    {% if mapping.publisher_location.render_plugin_instance is defined %}
+        {% set publisher_location = mapping.publisher_location.datafield|datafield_plugin(datarecord, mapping.publisher_location.render_plugin_instance, rendering_options)|raw %}
+    {% endif %}
+
+    {% set publisher_location_text = publisher_location['text'] %}
+    {% set publisher_location_html = publisher_location['html'] %}
+{% endif %}
+
+{% set pages_text = '' %}
+{% set pages_html = '' %}
+{% if mapping.pages is defined %}
+    {% set pages = mapping.pages %}
+
+    {% if mapping.pages.render_plugin_instance is defined %}
+        {% set pages = mapping.pages.datafield|datafield_plugin(datarecord, mapping.pages.render_plugin_instance, rendering_options)|raw %}
+    {% endif %}
+
+    {% set pages_text = pages['text'] %}
+    {% set pages_html = pages['html'] %}
+{% endif %}
+
+{% set url = [] %}
+{% set url_using_render_plugin = false %}
+{% if mapping.url is defined %}
+    {% set url = mapping.url %}
+
+    {% if mapping.url.render_plugin_instance is defined %}
+        {% set url_using_render_plugin = true %}
+        {% set url = mapping.url.datafield|datafield_plugin(datarecord, mapping.url.render_plugin_instance, rendering_options)|raw %}
+    {% endif %}
+
+    {% set url_text = url['text'] %}
+    {% set url_html = url['html'] %}
+
+    {% if url_using_render_plugin %}
+        {# don't modify what the plugin did #}
+        {% set url_text = url['text'] %}
+        {% set url_html = url['html'] %}
+    {% elseif 'doi.org' in url_text %}
+        {# treat DOI urls different than other urls #}
+        {% set url_text = url['text'] %}
+        {% set initial_url = url['html'] %}
+        {% if initial_url != '' %}
+            {% set url_html = ';&nbsp;<a href="' ~ initial_url ~ '" title="Open URL" target="_blank">' ~ initial_url ~ '</a>' %}
+        {% endif %}
+    {% else %}
+        {% set url_text = '' %}  {# TODO - don't keep regular URLs? #}
+        {% set initial_url = url['html'] %}
+        {% if initial_url != '' %}
+            {% set url_html = '&nbsp;<a href="' ~ initial_url ~ '" title="Open URL" target="_blank">[<i class="fa fa-external-link"></i> URL]</a>' %}
+        {% endif %}
+    {% endif %}
+{% endif %}
+
+{% set file_html = '' %}
+{% if mapping.file is defined and mapping.file|length > 0 %}
+    {% for file_entry in mapping.file.datarecordfield.file %}    {# This plugin will only receive files the user is allowed to view #}
+        {% set file_html = file_html ~ '&nbsp;<a href="' ~ path('odr_file_download', { 'file_id': file_entry.id } ) ~ '" class="ODRFileDownload" rel="' ~ file_entry.id ~ '">[view file]</a>' %}
+
+        {# these spans are needed so the file downloading javascript doesn't crash...they aren't visible because they lack the classnames #}
+        {% set file_html = file_html ~ '<span id="ODRFileDecrypt_' ~ file_entry.id ~ '_overlay" style="visibility:hidden;"><span id="ODRFileDecrypt_' ~ file_entry.id ~ '_progress"></span></span>' %}
+    {% endfor %}
+{% endif %}
+
+{# "supporting files" is currently only used by chemin #}
+{% set supporting_file_html = '' %}
+{% if mapping.supporting_files is defined and mapping.supporting_files|length > 0 %}
+    {% set file_num = 1 %}
+    {% for file_entry in mapping.supporting_files.datarecordfield.file %}    {# This plugin will only receive files the user is allowed to view #}
+        {% set supporting_file_html = supporting_file_html ~ '&nbsp;<a href="' ~ path('odr_file_download', { 'file_id': file_entry.id } ) ~ '" class="ODRFileDownload" rel="' ~ file_entry.id ~ '">[supporting file ' ~ file_num ~ ']</a>' %}
+        {% set file_num = file_num + 1 %}
+
+        {# these spans are needed so the file downloading javascript doesn't crash...they aren't visible because they lack the classnames #}
+        {% set supporting_file_html = supporting_file_html ~ '<span id="ODRFileDecrypt_' ~ file_entry.id ~ '_overlay" style="visibility:hidden;"><span id="ODRFileDecrypt_' ~ file_entry.id ~ '_progress"></span></span>' %}
+    {% endfor %}
+{% endif %}
+
+{# year and publisher_location should have surrounding parenthesis if they have an actual value #}
+{% if year_text != '' %}
+    {% set year_text = '(' ~ year_text ~ ')' %}
+    {% set year_html = '(' ~ year_html ~ ')' %}
+{% endif %}
+{% if publisher_location_text != '' %}
+    {% set publisher_location_text = '(' ~ publisher_location_text ~ ')' %}
+    {% set publisher_location_html = '(' ~ publisher_location_html ~ ')' %}
+{% endif %}
+{# issue should only be displayed if it also has a volume...also, need a comma after volume/issue #}
+{% if volume_text != '' %}
+    {% if issue_text != '' %}
+        {% set volume_text = volume_text ~ '(' ~ issue_text ~ '),' %}
+        {% set volume_html = volume_html ~ '(' ~ issue_html ~ '),' %}
+    {% else %}
+        {% set volume_text = volume_text ~ ',' %}
+        {% set volume_html = volume_html ~ ',' %}
+    {% endif %}
+{% endif %}
+{# book title needs some extra stuff...also need a comma afterwards #}
+{% if book_title_text != '' %}
+    {% set book_title_text = 'in ' ~ book_title_text ~ ',' %}
+    {% set book_title_html = 'in <i>' ~ book_title_html ~ '</i>,' %}
+{% endif %}
+{# text urls should have a little more explicit separation #}
+{% if url_text != '' %}
+    {% set url_text = '; ' ~ url_text %}
+{% endif %}
+
+{
+    "text": "{{ author_text }} {{ year_text }} {{ article_title_text }} {{ journal_text }} {{ volume_text }} {{ book_title_text }} {{ publisher_text }} {{ publisher_location_text }} {{ pages_text }} {{ url_text }}",
+    "html": "{{ author_html }} {{ year_html }} {{ article_title_html }} {{ journal_html }} {{ volume_html }} {{ book_title_html }} {{ publisher_html }} {{ publisher_location_html }} {{ pages_html }} {{ url_html }} {{ file_html }} {{ supporting_file_html }}"
+}

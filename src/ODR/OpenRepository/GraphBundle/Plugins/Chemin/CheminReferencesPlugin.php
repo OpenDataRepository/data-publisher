@@ -8,8 +8,8 @@
  * Released under the GPLv2
  *
  * The Chemin References plugin renders data describing an academic reference in a single line,
- * instead of scattered across a number of datafields.  Separate from the default Render Plugin
- * because they require an additional file datafield for "Supporting Files".
+ * instead of scattered across a number of datafields.  This is separated from the default
+ * ReferencesPlugin because Chemin requires an additional file datafield for "Supporting Files".
  *
  */
 
@@ -21,10 +21,12 @@ use ODR\AdminBundle\Component\Event\PluginOptionsChangedEvent;
 use ODR\AdminBundle\Component\Service\CacheService;
 // ODR
 use ODR\OpenRepository\GraphBundle\Plugins\DatatypePluginInterface;
+use ODR\OpenRepository\GraphBundle\Plugins\ODRReferencePlugins;
 use ODR\OpenRepository\GraphBundle\Plugins\TableResultsOverrideInterface;
 // Symfony
 use Doctrine\ORM\EntityManager;
-class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOverrideInterface
+
+class CheminReferencesPlugin extends ODRReferencePlugins implements DatatypePluginInterface, TableResultsOverrideInterface
 {
 
     /**
@@ -44,30 +46,22 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
 
 
     /**
-     * Returns whether the plugin can be executed in the current context.
-     *
-     * @param array $render_plugin_instance
-     * @param array $datatype
-     * @param array $rendering_options
-     *
-     * @return bool
+     * {@inheritDoc}
      */
     public function canExecutePlugin($render_plugin_instance, $datatype, $rendering_options)
     {
         if ( isset($rendering_options['context']) ) {
             $context = $rendering_options['context'];
 
-            // This render plugin needs to be executed in the display or edit (for previews) modes
-            if ( $context === 'display' || $context === 'edit' )
-                return true;
-
-            // Also need to run in FakeEdit for DOI lookups
-            if ( $context === 'fake_edit')
-                return true;
-
-            // Also need a "text" mode
-            if ( $context === 'text' || $context === 'html' )
-                return true;
+            switch ($context) {
+                case 'text':       // plain string
+                case 'html':       // formatted string
+                case 'text|html':  // both of the above
+                case 'display':
+                case 'edit':       // Preview div for reference
+                case 'fake_edit':  // DOI lookups
+                    return true;
+            }
         }
 
         return false;
@@ -75,31 +69,26 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
 
 
     /**
-     * Executes the CheminReferences Plugin on the provided datarecord
-     *
-     * @param array $datarecords
-     * @param array $datatype
-     * @param array $render_plugin_instance
-     * @param array $theme_array
-     * @param array $rendering_options
-     * @param array $parent_datarecord
-     * @param array $datatype_permissions
-     * @param array $datafield_permissions
-     * @param array $token_list
-     *
-     * @return string
-     * @throws \Exception
+     * {@inheritDoc}
      */
     public function execute($datarecords, $datatype, $render_plugin_instance, $theme_array, $rendering_options, $parent_datarecord = [], $datatype_permissions = [], $datafield_permissions = [], $token_list = [])
     {
-
         try {
+            // ----------------------------------------
+            // If no rendering context set, then return nothing so ODR's default templating will
+            //  do its job
+            if ( !isset($rendering_options['context']) )
+                return '';
+
+
             // ----------------------------------------
             // Need this to determine whether to throw an error or not
             $is_datatype_admin = $rendering_options['is_datatype_admin'];
 
             // Grab various properties from the render plugin array
-            $fields = $render_plugin_instance['renderPluginMap'];
+            $render_plugin_fields = $render_plugin_instance['renderPluginMap'];
+            $render_plugin_options = $render_plugin_instance['renderPluginOptionsMap'];
+
 
             // ----------------------------------------
             // The datatype array shouldn't be wrapped with its ID number here...
@@ -109,6 +98,8 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
             $datarecord = [];
             foreach ($datarecords as $dr_id => $dr)
                 $datarecord = $dr;
+            $datarecord_id = $datarecord['id'];
+            $grandparent_datarecord_id = $datarecord['grandparent']['id'];
 
             // The theme array is stacked, so there should be only one entry to find here...
             $initial_theme_id = '';
@@ -120,166 +111,80 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
             // Output depends on which context the plugin is being executed from
             $context = $rendering_options['context'];
             $output = '';
-            if ( $context === 'display' || $context === 'text' || $context === 'html' ) {
-                $datafield_mapping = [];
-                foreach ($fields as $rpf_name => $rpf_df) {
-                    // Need to find the real datafield entry in the primary datatype array
-                    $rpf_df_id = $rpf_df['id'];
+            if ( $context === 'display' || $context === 'text' || $context === 'html' || $context === 'text|html' ) {
+                // The parts of the reference that aren't links might be cached
+                $format = 'rruff';
 
-                    $df = null;
-                    if ( isset($datatype['dataFields']) && isset($datatype['dataFields'][$rpf_df_id]) )
-                        $df = $datatype['dataFields'][$rpf_df_id];
+                $citations = null;
+                if ( isset($datarecord['cached_reference'][$format]) )
+                    $citations = $datarecord['cached_reference'][$format];
 
-                    if ($df == null) {
-                        // If the datafield doesn't exist in the datatype_array, then either the datafield
-                        //  is non-public and the user doesn't have permissions to view it (most likely),
-                        //  or the plugin somehow isn't configured correctly
-
-                        // The plugin can't continue executing in either case...
-                        if ( !$is_datatype_admin )
-                            // ...regardless of what actually caused the issue, the plugin shouldn't execute
-                            return '';
-                        else
-                            // ...but if a datatype admin is seeing this, then they probably should fix it
-                            throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id.'...check plugin config.');
-                    }
-                    else {
-                        // All of this plugin's fields really should be public...so actually throw an
-                        //  error if any of them aren't and the user can do something about it
-
-                        // If the datafield is non-public...
-                        $df_public_date = ($df['dataFieldMeta']['publicDate'])->format('Y-m-d H:i:s');
-                        if ( $df_public_date == '2200-01-01 00:00:00' ) {
-                            if ( !$is_datatype_admin )
-                                // ...but the user can't do anything about it, then just refuse to execute
-                                return '';
-                            else
-                                // ...the user can do something about it, so they need to fix it
-                                throw new \Exception('The field "'.$rpf_name.'" is not public...all fields which are part of a reference MUST be public.');
-                        }
+                if ( is_null($citations) ) {
+                    // Doesn't exist...render it via twig
+                    $citations = parent::renderCitations($this->templating, $is_datatype_admin, $format, $datatype, $datarecord, $render_plugin_fields);
+                    if ( is_null($citations) ) {
+                        // If the previous function returned null, then the plugin can't execute
+                        // Return the empty string so ODR's default rendering takes over
+                        return '';
                     }
 
-                    $typeclass = $df['dataFieldMeta']['fieldType']['typeClass'];
+                    // Store the citations back in the datarecord
+                    if ( !isset($datarecord['cached_reference']) )
+                        $datarecord['cached_reference'] = [];
+                    if ( !isset($datarecord['cached_reference'][$format]) )
+                        $datarecord['cached_reference'][$format] = [];
 
-                    // Grab the fieldname specified in the plugin's config file to use as an array key
-                    $key = strtolower( str_replace(' ', '_', $rpf_name) );
+                    $datarecord['cached_reference'][$format] = [
+                        'text' => $citations['text'],
+                        'html' => $citations['html'],
+                    ];
 
-                    // The datafield may have a render plugin that should be executed, but only if
-                    //  it's not a file field...
-                    if ( !empty($df['renderPluginInstances']) && $typeclass !== 'File' ) {
-                        foreach ($df['renderPluginInstances'] as $rpi_id => $rpi) {
-                            if ( $rpi['renderPlugin']['render'] !== false ) {
-                                // ...if it does, then create an array entry for it
-                                $datafield_mapping[$key] = [
-                                    'datafield' => $df,
-                                    'render_plugin_instance' => $rpi
-                                ];
-                            }
-                        }
-                    }
-
-                    // If it does have a render plugin, then don't bother looking in the datarecord array
-                    //  for the value
-                    if ( isset($datafield_mapping[$key]) )
-                        continue;
-
-
-                    // Otherwise, look for the value in the datarecord array
-                    if ( !isset($datarecord['dataRecordFields'][$rpf_df_id]) ) {
-                        // As far as the reference plugin is concerned, empty strings are acceptable
-                        //  values when datarecordfield entries don't exist
-                        $datafield_mapping[$key] = '';
-                    }
-                    elseif ($typeclass === 'File') {
-                        $datafield_mapping[$key] = [
-                            'datarecordfield' => $datarecord['dataRecordFields'][$rpf_df_id]
-                        ];
-                    }
-                    else {
-                        // Don't need to execute a render plugin on this datafield's value...extract it
-                        //  directly from the datarecord array
-                        // $drf is guaranteed to exist at this point
-                        $drf = $datarecord['dataRecordFields'][$rpf_df_id];
-                        $value = '';
-
-                        switch ($typeclass) {
-                            case 'IntegerValue':
-                                $value = $drf['integerValue'][0]['value'];
-                                break;
-                            case 'DecimalValue':
-                                $value = $drf['decimalValue'][0]['original_value'];
-                                break;
-                            case 'ShortVarchar':
-                                $value = $drf['shortVarchar'][0]['value'];
-                                break;
-                            case 'MediumVarchar':
-                                $value = $drf['mediumVarchar'][0]['value'];
-                                break;
-                            case 'LongVarchar':
-                                $value = $drf['longVarchar'][0]['value'];
-                                break;
-                            case 'LongText':
-                                $value = $drf['longText'][0]['value'];
-                                break;
-                            case 'DateTimeValue':
-                                $value = $drf['dateTimeValue'][0]['value']->format('Y-m-d');
-                                if ($value == '9999-12-31')
-                                    $value = '';
-                                $datafield_mapping[$key] = $value;
-                                break;
-
-                            default:
-                                throw new \Exception('Invalid Fieldtype');
-                                break;
-                        }
-
-                        $datafield_mapping[$key] = trim((string) $value);
-                    }
+                    // Store the datarecord back in the cache
+                    $formatted_datarecord_data = $this->cache_service->get('cached_datarecord_'.$grandparent_datarecord_id);
+                    $formatted_datarecord_data[$datarecord_id] = $datarecord;
+                    $this->cache_service->set('cached_datarecord_'.$grandparent_datarecord_id, $formatted_datarecord_data);
                 }
 
-                // Need to try to ensure urls are valid...
-                if ( $datafield_mapping['url'] !== '' && !is_array($datafield_mapping['url']) ) {
-                    // Ensure that DOIs that aren't entirely links still are valid
-                    if ( stripos((string) $datafield_mapping['url'], 'doi:') === 0 )
-                        $datafield_mapping['url'] = 'https://doi.org/'.trim( substr((string) $datafield_mapping['url'], 4) );
-
-                    // Ensure that the values have an 'https://' prefix
-                    if ( !str_starts_with((string) $datafield_mapping['url'], 'http') )
-                        $datafield_mapping['url'] = 'https://'.$datafield_mapping['url'];
+                // The citations array should not be null now...
+                if ( $context === 'text' || $context === 'html' ) {
+                    // In either of these two situations, just return the value directly
+                    return $citations[$context];
                 }
+                else if ( $context === 'text|html' ) {
+                    // Could be useful in the future
+                    return $citations;
+                }
+                else {
+                    // ...otherwise, this is for Display mode
+                    // Don't need to recreate the citation string
+                    $citation = $citations['html'];
 
-                // Going to render the reference differently if it's top-level...
-                $is_top_level = $rendering_options['is_top_level'];
-
-                $output = $this->templating->render(
-                    '@ODROpenRepositoryGraph/Chemin/CheminReferences/cheminreferences_display.html.twig',
-                    [
-                        'datarecord' => $datarecord,
-                        'mapping' => $datafield_mapping,
-
-                        'is_top_level' => $is_top_level,
-                        'original_context' => $context,
-                    ]
-                );
-
-                // If meant for text output, then replace all whitespace sequences with a single space
-                if ( $context === 'text' || $context === 'html' )
-                    $output = preg_replace('/(\s+)/', ' ', $output);
+                    // Going to render the reference differently if it's top-level...
+                    $is_top_level = $rendering_options['is_top_level'];
+                    $output = $this->templating->render(
+                        '@ODROpenRepositoryGraph/Chemin/CheminReferences/cheminreferences_display.html.twig',
+                        [
+                            'is_top_level' => $is_top_level,
+                            'original_context' => $context,
+                            'citation' => $citation,
+                        ]
+                    );
+                }
             }
             else if ( $context === 'fake_edit') {
                 // Retrieve mapping between datafields and render plugin fields
                 $plugin_fields = [];
-                foreach ($fields as $rpf_name => $rpf_df) {
+                foreach ($render_plugin_fields as $rpf_name => $rpf_df) {
                     // Need to find the real datafield entry in the primary datatype array
                     $rpf_df_id = $rpf_df['id'];
 
                     $df = null;
-                    if ( isset($datatype['dataFields']) && isset($datatype['dataFields'][$rpf_df_id]) )
+                    if ( isset($datatype['dataFields'][$rpf_df_id]) )
                         $df = $datatype['dataFields'][$rpf_df_id];
 
                     // Autogenerated fields will continue to work even if the user can't see them,
                     //  but probably should still complain about plugin mapping errors to datatype admins
-                    if ($df == null && $is_datatype_admin)
+                    if ( is_null($df) && $is_datatype_admin)
                         throw new \Exception('Unable to locate array entry for the field "'.$rpf_name.'", mapped to df_id '.$rpf_df_id);
 
                     // Need to tweak display parameters for several of the fields...
@@ -319,7 +224,7 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
             else if ( $context === 'edit' ) {
                 // Most of the fields need slightly modified saving javascript...
                 $reference_field_list = [];
-                foreach ($fields as $rpf_name => $rpf) {
+                foreach ($render_plugin_fields as $rpf_name => $rpf) {
                     switch ($rpf_name) {
                         case 'Authors':
                         case 'Article Title':
@@ -383,6 +288,7 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
                         'display_type' => $rendering_options['display_type'],
 
                         'token_list' => $token_list,
+
                         'reference_field_list' => $reference_field_list,
                         'chemistry_plugin_fields' => $chemistry_plugin_fields,
                     ]
@@ -437,7 +343,7 @@ class CheminReferencesPlugin implements DatatypePluginInterface, TableResultsOve
 
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      */
     public function getTableResultsOverrideValues($render_plugin_instance, $datarecord, $datafield = null)
     {

@@ -23,38 +23,40 @@ use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\TableResultsOverrideInterface;
 // Symfony
+
 class CurrencyPlugin implements DatafieldPluginInterface, TableResultsOverrideInterface
 {
 
     /**
      * CurrencyPlugin constructor.
      *
-     * @param DatarecordInfoService $dri_service
+     * @param DatarecordInfoService $datarecord_info_service
      * @param \Twig\Environment $templating
      */
-    public function __construct(private readonly DatarecordInfoService $dri_service, private readonly \Twig\Environment $templating)
-    {
+    public function __construct(
+        private readonly DatarecordInfoService $datarecord_info_service,
+        private readonly \Twig\Environment $templating
+    ) {
+
     }
 
 
     /**
-     * Returns whether the plugin can be executed in the current context.
-     *
-     * @param array $render_plugin_instance
-     * @param array $datafield
-     * @param array|null $datarecord
-     * @param array $rendering_options
-     *
-     * @return bool
+     * {@inheritDoc}
      */
     public function canExecutePlugin($render_plugin_instance, $datafield, $datarecord, $rendering_options)
     {
         if ( isset($rendering_options['context']) ) {
             $context = $rendering_options['context'];
 
-            // The Currency Plugin should work in the 'text' and 'display' contexts
-            if ( $context === 'text' || $context === 'display' )
-                return true;
+            // The Currency Plugin should work in these contexts
+            switch ($context) {
+                case 'text':       // plain string
+                case 'html':       // formatted string
+                case 'text|html':  // both of the above
+                case 'display':
+                    return true;
+            }
         }
 
         return false;
@@ -62,21 +64,15 @@ class CurrencyPlugin implements DatafieldPluginInterface, TableResultsOverrideIn
 
 
     /**
-     * Executes the Currency Plugin on the provided datafield
-     *
-     * @param array $datafield
-     * @param array|null $datarecord
-     * @param array $render_plugin_instance
-     * @param array $rendering_options
-     *
-     * @return string
-     * @throws \Exception
+     * {@inheritDoc}
      */
     public function execute($datafield, $datarecord, $render_plugin_instance, $rendering_options)
     {
 
         try {
             // ----------------------------------------
+            $context = $rendering_options['context'];
+
             // Extract various properties from the render plugin array
             $fields = $render_plugin_instance['renderPluginMap'];
             $options = $render_plugin_instance['renderPluginOptionsMap'];
@@ -111,10 +107,13 @@ class CurrencyPlugin implements DatafieldPluginInterface, TableResultsOverrideIn
 
 
             $output = "";
-            if ( $rendering_options['context'] === 'text' ) {
+            if ( $context === 'text' || $context === 'html' ) {
                 $output = $str;
             }
-            else if ( $rendering_options['context'] === 'display' ) {
+            else if ( $context === 'text|html' ) {
+                return ['text' => $str, 'html' => $str];
+            }
+            else if ( $context === 'display' ) {
                 $output = $this->templating->render(
                     '@ODROpenRepositoryGraph/Base/Currency/currency_display_datafield.html.twig',
                     [
@@ -168,19 +167,12 @@ class CurrencyPlugin implements DatafieldPluginInterface, TableResultsOverrideIn
     {
         // This is a datafield plugin, so getting the datatype via the datafield...
         $datatype_id = $rpi->getDataField()->getDataType()->getGrandparent()->getId();
-        $this->dri_service->deleteCachedTableData($datatype_id);
+        $this->datarecord_info_service->deleteCachedTableData($datatype_id);
     }
 
 
     /**
-     * Returns an array of datafield values that TableThemeHelperService should display, instead of
-     * using the values in the datarecord.
-     *
-     * @param array $render_plugin_instance
-     * @param array $datarecord
-     * @param array|null $datafield
-     *
-     * @return string[] An array where the keys are datafield ids, and the values are the strings to display
+     * {@inheritDoc}
      */
     public function getTableResultsOverrideValues($render_plugin_instance, $datarecord, $datafield = null)
     {
