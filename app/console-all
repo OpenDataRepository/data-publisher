@@ -16,6 +16,11 @@
 // exits non-zero if any instance failed.
 //
 // Copy app/config/instances.list.dist to app/config/instances.list and fill in your instance roots.
+//
+// Run with sudo, each instance's command runs as the user who owns that instance (the owner of its
+// root directory), so the cache and logs it writes belong to that site:
+//
+//   sudo php app/console-all cache:clear --env=prod
 
 $app_dir = __DIR__;                          // .../data-publisher/app
 $console = $app_dir . '/console';
@@ -42,6 +47,25 @@ foreach (file($list, FILE_IGNORE_NEW_LINES) ?: [] as $raw) {
         $roots[] = rtrim($line, '/');
 }
 
+// Who we are, and how to run a command as another user (only possible as root)
+$is_root = function_exists('posix_geteuid') && posix_geteuid() === 0;
+$me = function_exists('posix_geteuid') ? (posix_getpwuid(posix_geteuid())['name'] ?? null) : get_current_user();
+$as_user = function ($user) {
+    // runuser (util-linux) needs no password or sudoers entry; sudo elsewhere
+    return is_executable('/usr/sbin/runuser') || is_executable('/sbin/runuser')
+        ? ['runuser', '-u', $user, '--']
+        : ['sudo', '-n', '-u', $user, '--'];
+};
+function instance_owner($root) {
+    $uid = @fileowner($root);
+    if ($uid === false)
+        return null;
+    if (!function_exists('posix_getpwuid'))
+        return null;
+    $pw = posix_getpwuid($uid);
+    return $pw ? $pw['name'] : null;
+}
+
 $rc = 0;
 $count = 0;
 foreach ($roots as $root) {
@@ -61,8 +85,23 @@ foreach ($roots as $root) {
     $env['ODR_INSTANCE'] = $root;            // ...but pin the target instance
     unset($env['ODR_APP_DIR']);              // and drop any stray override that would win over it
 
+    // Run it as the user who owns the instance, so what it creates in var/cache and var/log is
+    //  theirs -- an instance only has to be writable by its owner and the web server.  That needs
+    //  root (sudo php app/console-all ...); otherwise it all runs as you.
+    $cmd = array_merge([PHP_BINARY, $console], $args);
+    $owner = instance_owner($root);
+    if ($is_root && $owner !== null && $owner !== 'root') {
+        fwrite(STDOUT, "  running as $owner\n");
+        // env pins ODR_INSTANCE whatever runuser/sudo do to the environment
+        $cmd = array_merge($as_user($owner), ['env', 'ODR_INSTANCE=' . $root], $cmd);
+    }
+    elseif (!$is_root && $owner !== null && $owner !== $me) {
+        fwrite(STDOUT, "  note: this instance belongs to $owner; you're $me -- if it can't write var/,"
+            . " run this with sudo\n");
+    }
+
     $proc = proc_open(
-        array_merge([PHP_BINARY, $console], $args),
+        $cmd,
         [0 => STDIN, 1 => STDOUT, 2 => STDERR],
         $pipes,
         $root,
