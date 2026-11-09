@@ -162,9 +162,9 @@ async function app() {
                     let basepath = '/home/rruff/data-publisher/';
                     let file_basepath = '/home/rruff/data-publisher/app/amcsd_files/';
                     let folder_array = [
-                        'cif',
-                        'dif',
-                        'amc'
+                        'cif/',
+                        'dif/',
+                        'amc/'
                     ];
 
                     // Get AMCSD Records

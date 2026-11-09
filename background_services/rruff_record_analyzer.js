@@ -165,6 +165,7 @@ async function app() {
                     let folder_array = [
                         'raman/excellent_oriented/',
                         'raman/fair_oriented/',
+                        'raman/ignore_oriented/',
                         'raman/ignore_unoriented/',
                         'raman/poor_oriented/',
                         'raman/unrated_oriented/',

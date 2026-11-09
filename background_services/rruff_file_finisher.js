@@ -70,6 +70,7 @@ async function app() {
                             file_objects['raman/unrated_oriented'] = 'raman/unrated_oriented.zip';
                             file_objects['raman/unrated_unoriented'] = 'raman/unrated_unoriented.zip';
                             file_objects['raman/ignore_oriented'] = 'raman/ignore_oriented.zip';
+                            file_objects['raman/ignore_unoriented'] = 'raman/ignore_unoriented.zip';
 
                             file_objects['rruff_good_images'] = 'rruff_good_images.zip';
                             file_objects['chemistry/microprobe_data'] = 'chemistry/Microprobe_Data.zip';
