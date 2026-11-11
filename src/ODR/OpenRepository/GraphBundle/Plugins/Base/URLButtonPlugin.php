@@ -19,6 +19,7 @@ namespace ODR\OpenRepository\GraphBundle\Plugins\Base;
 // Services
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 // Symfony
+
 class URLButtonPlugin implements DatafieldPluginInterface
 {
 
@@ -27,20 +28,15 @@ class URLButtonPlugin implements DatafieldPluginInterface
      *
      * @param \Twig\Environment $templating
      */
-    public function __construct(private readonly \Twig\Environment $templating)
-    {
+    public function __construct(
+        private readonly \Twig\Environment $templating
+    ) {
+
     }
 
 
     /**
-     * Returns whether the plugin can be executed in the current context.
-     *
-     * @param array $render_plugin_instance
-     * @param array $datafield
-     * @param array|null $datarecord
-     * @param array $rendering_options
-     *
-     * @return bool
+     * {@inheritDoc}
      */
     public function canExecutePlugin($render_plugin_instance, $datafield, $datarecord, $rendering_options)
     {
@@ -48,10 +44,12 @@ class URLButtonPlugin implements DatafieldPluginInterface
             $context = $rendering_options['context'];
 
             // The URLButton Plugin should work in the contexts that render something
-            if ( $context === 'display' || $context === 'edit'
-                || $context === 'mass_edit' || $context === 'fake_edit'
-            ) {
-                return true;
+            switch ($context) {
+                case 'display':
+                case 'edit':
+                case 'fake_edit':
+                case 'mass_edit':
+                    return true;
             }
         }
 
@@ -60,15 +58,7 @@ class URLButtonPlugin implements DatafieldPluginInterface
 
 
     /**
-     * Executes the URLButton Plugin on the provided datafield
-     *
-     * @param array $datafield
-     * @param array|null $datarecord
-     * @param array $render_plugin_instance
-     * @param array $rendering_options
-     *
-     * @return string
-     * @throws \Exception
+     * {@inheritDoc}
      */
     public function execute($datafield, $datarecord, $render_plugin_instance, $rendering_options)
     {
@@ -120,8 +110,7 @@ class URLButtonPlugin implements DatafieldPluginInterface
             if ( $problem_option !== '' ) {
                 // If there's a problem, then only actually display the error if the user wants
                 //  the plugin to work in that context
-                if (
-                    ($rendering_options['context'] === 'edit' && $render_in_edit)
+                if ( ($rendering_options['context'] === 'edit' && $render_in_edit)
                     || ($rendering_options['context'] === 'display' && $render_in_display)
                 ) {
                     $output = $this->templating->render(

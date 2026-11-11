@@ -17,6 +17,7 @@ namespace ODR\OpenRepository\GraphBundle\Plugins\Chemin;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 // Symfony
 use Psr\Log\LoggerInterface;
+
 class QanalyzePlugin implements DatafieldPluginInterface
 {
 
@@ -26,20 +27,16 @@ class QanalyzePlugin implements DatafieldPluginInterface
      * @param \Twig\Environment $templating
      * @param LoggerInterface $logger
      */
-    public function __construct(private readonly \Twig\Environment $templating, private readonly LoggerInterface $logger)
-    {
+    public function __construct(
+        private readonly \Twig\Environment $templating,
+        private readonly LoggerInterface $logger
+    ) {
+
     }
 
 
     /**
-     * Returns whether the plugin can be executed in the current context.
-     *
-     * @param array $render_plugin_instance
-     * @param array $datafield
-     * @param array|null $datarecord
-     * @param array $rendering_options
-     *
-     * @return bool
+     * {@inheritDoc}
      */
     public function canExecutePlugin($render_plugin_instance, $datafield, $datarecord, $rendering_options)
     {
@@ -59,15 +56,7 @@ class QanalyzePlugin implements DatafieldPluginInterface
 
 
     /**
-     * Executes the Qanalyze Plugin.
-     *
-     * @param array $datafield
-     * @param array|null $datarecord
-     * @param array $render_plugin_instance
-     * @param array $rendering_options
-     *
-     * @return string
-     * @throws \Exception
+     * {@inheritDoc}
      */
     public function execute($datafield, $datarecord, $render_plugin_instance, $rendering_options)
     {

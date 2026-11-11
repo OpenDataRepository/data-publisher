@@ -27,6 +27,7 @@ use ODR\AdminBundle\Component\Event\DatarecordDeletedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordPublicStatusChangedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordLinkStatusChangedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordUndeletedEvent;
 use ODR\AdminBundle\Component\Event\DatatypeCreatedEvent;
 use ODR\AdminBundle\Component\Event\DatatypeDeletedEvent;
 use ODR\AdminBundle\Component\Event\DatatypeImportedEvent;
@@ -41,7 +42,6 @@ use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManager;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
-
 
 class SearchCacheService implements EventSubscriberInterface
 {
@@ -93,6 +93,7 @@ class SearchCacheService implements EventSubscriberInterface
             DatarecordDeletedEvent::NAME => 'onDatarecordDelete',
             DatarecordPublicStatusChangedEvent::NAME => 'onDatarecordPublicStatusChange',
             DatarecordLinkStatusChangedEvent::NAME => 'onDatarecordLinkStatusChange',
+            DatarecordUndeletedEvent::NAME => 'onDatarecordUndelete',
             // Datafield
             DatafieldCreatedEvent::NAME => 'onDatafieldCreate',
             DatafieldModifiedEvent::NAME => 'onDatafieldModify',
@@ -441,6 +442,7 @@ class SearchCacheService implements EventSubscriberInterface
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_public_status');
 
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_dr_parents');
+            $this->cache_service->delete('cached_search_dt_'.$dt_id.'_dr_children');
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_linked_dr_parents');
             $this->cache_service->delete('cached_search_dt_'.$dt_id.'_linked_dr_children');
             $this->cache_service->delete('cached_dt_'.$dt_id.'_dr_uuid_list');
@@ -761,6 +763,7 @@ class SearchCacheService implements EventSubscriberInterface
             // ----------------------------------------
             // If a datarecord was created, then this needs to be rebuilt
             $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_dr_parents');
+            $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_dr_children');
             $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_linked_dr_parents');
             $this->cache_service->delete('cached_search_dt_'.$datatype->getId().'_linked_dr_children');
             $this->cache_service->delete('cached_dt_'.$datatype->getId().'_dr_uuid_list');
@@ -849,6 +852,7 @@ class SearchCacheService implements EventSubscriberInterface
                 // Would have to search through each of these entries to see whether they matched the
                 //  deleted datarecord...faster to just wipe all of them
                 $this->cache_service->delete('cached_search_dt_'.$dt_id.'_dr_parents');
+                $this->cache_service->delete('cached_search_dt_'.$dt_id.'_dr_children');
                 $this->cache_service->delete('cached_search_dt_'.$dt_id.'_linked_dr_parents');
                 $this->cache_service->delete('cached_search_dt_'.$dt_id.'_linked_dr_children');
                 $this->cache_service->delete('cached_dt_'.$dt_id.'_dr_uuid_list');
@@ -880,6 +884,61 @@ class SearchCacheService implements EventSubscriberInterface
             self::clearCachedRadioOptionsByDatatype($related_datatypes);
 
             // Same theory for tag datafields
+            self::clearCachedTagsByDatatype($related_datatypes);
+        }
+        catch (\Throwable $e) {
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = [self::class];
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
+        }
+    }
+
+
+    /**
+     * Deletes relevant search cache entries when a datarecord is undeleted.
+     *
+     * @param DatarecordUndeletedEvent $event
+     */
+    public function onDatarecordUndelete(DatarecordUndeletedEvent $event)
+    {
+        try {
+            if ( $this->debug )
+                $this->logger->debug('SearchCacheService::onDatarecordUndelete()', $event->getErrorInfo());
+
+            $datatype = $event->getDatarecord()->getGrandparent()->getDatatype();
+
+            // ----------------------------------------
+            // If a datarecord was deleted, then these need to be rebuilt
+            $related_datatypes = $this->datatree_info_service->getAssociatedDatatypes($datatype->getId(), true);
+
+            foreach ($related_datatypes as $num => $dt_id) {
+                // Would have to search through each of these entries to see whether they matched the
+                //  deleted datarecord...faster to just wipe all of them
+                $this->cache_service->delete('cached_search_dt_'.$dt_id.'_dr_parents');
+                $this->cache_service->delete('cached_search_dt_'.$dt_id.'_dr_children');
+                $this->cache_service->delete('cached_dt_'.$dt_id.'_dr_uuid_list');
+
+                $this->cache_service->delete('cached_search_dt_'.$dt_id.'_public_status');
+                $this->cache_service->delete('cached_search_dt_'.$dt_id.'_created');
+                $this->cache_service->delete('cached_search_dt_'.$dt_id.'_createdBy');
+                $this->cache_service->delete('cached_search_dt_'.$dt_id.'_modified');
+                $this->cache_service->delete('cached_search_dt_'.$dt_id.'_modifiedBy');
+            }
+
+            // Unlike onDatatypeDelete(), deleting a single datarecord only affects at most one of
+            //  these cache entries
+            if ( !is_null($datatype->getMasterDataType()) ) {
+                $master_dt_uuid = $datatype->getMasterDataType()->getUniqueId();
+                $this->cache_service->delete('cached_search_template_dt_'.$master_dt_uuid.'_dr_list');
+            }
+
+
+            // ----------------------------------------
+            // Should also delete all search cache entries for these datatypes
+            self::clearCachedDatafieldsByDatatype($related_datatypes);
+            self::clearCachedRadioOptionsByDatatype($related_datatypes);
             self::clearCachedTagsByDatatype($related_datatypes);
         }
         catch (\Throwable $e) {

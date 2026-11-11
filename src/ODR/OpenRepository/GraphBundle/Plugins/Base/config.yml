@@ -87,14 +87,14 @@ services:
         public: true
         class: '%odr_plugin_base_classpath%\Base\ChemistryPlugin'
         arguments:
-            $dri_service: '@odr.datarecord_info_service'
+            $datarecord_info_service: '@odr.datarecord_info_service'
             $templating: '@twig'
 
     odr_plugins.base.url:
         public: true
         class: '%odr_plugin_base_classpath%\Base\URLPlugin'
         arguments:
-            $dri_service: '@odr.datarecord_info_service'
+            $datarecord_info_service: '@odr.datarecord_info_service'
             $templating: '@twig'
 
     odr_plugins.base.url_button:
@@ -107,7 +107,7 @@ services:
         public: true
         class: '%odr_plugin_base_classpath%\Base\CurrencyPlugin'
         arguments:
-            $dri_service: '@odr.datarecord_info_service'
+            $datarecord_info_service: '@odr.datarecord_info_service'
             $templating: '@twig'
 
     odr_plugins.base.csvtable:

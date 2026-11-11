@@ -2424,6 +2424,8 @@ class EntityMetaModifyService
         // Don't need to check isset() at this point
         if ( $typeclass === 'DatetimeValue' )
             $new_entity->setValue( $properties['value'] );
+        else if ( is_null($properties['value']) )
+            $new_entity->setValue( null );
         else
             $new_entity->setValue( mb_scrub((string) $properties['value']) );
 

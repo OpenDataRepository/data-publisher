@@ -53,20 +53,22 @@ class ChildRRUFFIDPlugin implements DatafieldPluginInterface
      * @param \Twig\Environment $templating
      * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly DatabaseInfoService $database_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly EntityCreationService $entity_create_service, private readonly LockService $lock_service, private readonly EventDispatcherInterface $event_dispatcher, private readonly \Twig\Environment $templating, private readonly LoggerInterface $logger)
-    {
+    public function __construct(
+        private readonly EntityManager $em,
+        private readonly DatabaseInfoService $database_info_service,
+        private readonly DatarecordInfoService $datarecord_info_service,
+        private readonly EntityCreationService $entity_create_service,
+        private readonly LockService $lock_service,
+        private readonly EventDispatcherInterface $event_dispatcher,
+        private readonly \Twig\Environment $templating,
+        private readonly LoggerInterface $logger
+    ) {
+
     }
 
 
     /**
-     * Returns whether the plugin can be executed in the current context.
-     *
-     * @param array $render_plugin_instance
-     * @param array $datafield
-     * @param array|null $datarecord
-     * @param array $rendering_options
-     *
-     * @return bool
+     * {@inheritDoc}
      */
     public function canExecutePlugin($render_plugin_instance, $datafield, $datarecord, $rendering_options)
     {
@@ -83,15 +85,7 @@ class ChildRRUFFIDPlugin implements DatafieldPluginInterface
 
 
     /**
-     * Executes the plugin on the provided datafield
-     *
-     * @param array $datafield
-     * @param array|null $datarecord
-     * @param array $render_plugin_instance
-     * @param array $rendering_options
-     *
-     * @return string
-     * @throws \Exception
+     * {@inheritDoc}
      */
     public function execute($datafield, $datarecord, $render_plugin_instance, $rendering_options)
     {

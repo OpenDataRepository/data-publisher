@@ -337,7 +337,9 @@
                     {% if chemistry_plugin_fields[ datafield.id ] is defined %}
                     // Refresh the preview div
                     var text = $("#{{ input_id }}").val();
-                    $("#EditForm_{{ unique_id }}").find('.ODRFileInfo').html(text);
+                    $("#EditForm_{{ unique_id }}").find('.ODRChemistryPluginPreview').html(
+                        ODR_prettifyChemicalFormula(text, false)
+                    );
                     {% endif %}
                 }
             );

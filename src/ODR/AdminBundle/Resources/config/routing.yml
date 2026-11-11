@@ -794,6 +794,11 @@ odr_record_delete:
         datarecord_id:  \d+
         is_link: 0|1
         search_key: '[a-zA-Z0-9\-\_]*'
+odr_record_undelete:
+    path:  /edit/undeletedatarecord/{datarecord_id}
+    defaults: { _controller: ODR\AdminBundle\Controller\EditController::undeletedatarecordAction }
+    requirements:
+        datarecord_id:  \d+
 
 odr_record_addchild:
     path:  /edit/addchilddatarecord/{datatype_id}/{parent_id}

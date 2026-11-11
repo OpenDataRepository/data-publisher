@@ -4733,6 +4733,10 @@ class APIController extends ODRCustomController
             else if ( $typeclass === 'Boolean' ) {
                 $new_storage_entity->setValue( $field['selected'] );
             }
+            else if ( $typeclass === 'IntegerValue' && $field['value'] === '' ) {
+                // Match behavior of EntityMetaModifyService::updateStorageEntity()
+                $new_storage_entity->setValue(null);
+            }
             else {
                 $new_storage_entity->setValue( mb_scrub((string) $field['value']) );
             }
@@ -5320,6 +5324,49 @@ class APIController extends ODRCustomController
         }
         catch (\Exception $e) {
             $source = 0x517a7d01;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
+     * Undeletes a datarecord via the API.
+     *
+     * @param string      $version
+     * @param string|null $datarecord_uuid
+     * @param Request     $request
+     * @return Response
+     */
+    public function undeleteDatarecordByUUIDAction($version, $datarecord_uuid, Request $request)
+    {
+        try {
+            /** @var ODRUser $logged_in_user */
+            $logged_in_user = $this->container->get('security.token_storage')->getToken()?->getUser();
+
+            if ( is_null($logged_in_user) || $logged_in_user === 'anon.' )
+                throw new ODRForbiddenException();
+            if ( $logged_in_user->getId() !== 1 && $logged_in_user->getId() !== 2 )
+                throw new ODRForbiddenException();
+
+            // Proceed with undeletion
+            /** @var EntityDeletionService $entity_deletion_service */
+            $entity_deletion_service = $this->entity_deletion_service;
+            $entity_deletion_service->undeleteDatarecord($logged_in_user, null, $datarecord_uuid);
+
+            $response = new Response('OK', 200);
+            $url = $this->generateUrl('odr_api_get_dataset_record', [
+                'version' => $version,
+                'record_uuid' => $datarecord_uuid,
+            ], false);
+            $response->headers->set('Location', $url);
+
+            return $this->redirect($url);
+        }
+        catch (\Exception $e) {
+            $source = 0x714b0b41;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else

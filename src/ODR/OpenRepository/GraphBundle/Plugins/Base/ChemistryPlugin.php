@@ -29,38 +29,41 @@ use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\TableResultsOverrideInterface;
 // Symfony
+
 class ChemistryPlugin implements DatafieldPluginInterface, TableResultsOverrideInterface
 {
 
     /**
      * ChemistryPlugin constructor.
      *
-     * @param DatarecordInfoService $dri_service
+     * @param DatarecordInfoService $datarecord_info_service
      * @param \Twig\Environment $templating
      */
-    public function __construct(private readonly DatarecordInfoService $dri_service, private readonly \Twig\Environment $templating)
-    {
+    public function __construct(
+        private readonly DatarecordInfoService $datarecord_info_service,
+        private readonly \Twig\Environment $templating
+    ) {
+
     }
 
 
     /**
-     * Returns whether the plugin can be executed in the current context.
-     *
-     * @param array $render_plugin_instance
-     * @param array $datafield
-     * @param array|null $datarecord
-     * @param array $rendering_options
-     *
-     * @return bool
+     * {@inheritDoc}
      */
     public function canExecutePlugin($render_plugin_instance, $datafield, $datarecord, $rendering_options)
     {
         if ( isset($rendering_options['context']) ) {
             $context = $rendering_options['context'];
 
-            // The Chemistry Plugin should work in the 'text', 'display', and 'edit' contexts
-            if ($context === 'text' || $context === 'display' || $context === 'edit')
-                return true;
+            // The Chemistry Plugin should work in these contexts
+            switch ($context) {
+                case 'text':       // plain string
+                case 'html':       // formatted string
+                case 'text|html':  // both of the above
+                case 'display':
+                case 'edit':
+                    return true;
+            }
         }
 
         return false;
@@ -68,15 +71,7 @@ class ChemistryPlugin implements DatafieldPluginInterface, TableResultsOverrideI
 
 
     /**
-     * Executes the Chemistry Plugin on the provided datafield
-     *
-     * @param array $datafield
-     * @param array|null $datarecord
-     * @param array $render_plugin_instance
-     * @param array $rendering_options
-     *
-     * @return string
-     * @throws \Exception
+     * {@inheritDoc}
      */
     public function execute($datafield, $datarecord, $render_plugin_instance, $rendering_options)
     {
@@ -123,19 +118,32 @@ class ChemistryPlugin implements DatafieldPluginInterface, TableResultsOverrideI
             else
                 $super = "^";
 
+            // If the caller just wants text, then don't apply the chemistry formatting
+            if ( $context === 'text' )
+                return $str;
 
-            if ( $str !== '' )
-                $str = self::applyChemistryFormatting($super, $sub, $str);
+            $html_str = $str;
+            if ( $html_str !== '' )
+                $html_str = self::applyChemistryFormatting($super, $sub, $str);
 
-            $output = "";
-            if ( $context === 'text' ) {
-                $output = $str;
+            if ( $context === 'html' ) {
+                // If the caller just wants html, then return that
+                return $html_str;
             }
-            else if ( $context === 'display' ) {
+            else if ( $context === 'text|html' ) {
+                // The reference plugins need both formats...
+                return ['text' => $str, 'html' => $html_str];
+            }
+
+
+            // ----------------------------------------
+            // The other contexts require twig
+            $output = "";
+            if ( $context === 'display' ) {
                 if ( $datafield['dataFieldMeta']['fieldType']['typeName'] === "Paragraph Text" ) {
                     // Replace all newlines with the HTML '<br>' tag, since the output will be
                     //  displayed in a div instead of an <input> or <textarea>
-                    $str = str_replace(["\r\n", "\n\r", "\n", "\r"], '<br>', $str);
+                    $html_str = str_replace(["\r\n", "\n\r", "\n", "\r"], '<br>', $html_str);
                 }
 
                 $output = $this->templating->render(
@@ -144,7 +152,7 @@ class ChemistryPlugin implements DatafieldPluginInterface, TableResultsOverrideI
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,
 
-                        'value' => $str,
+                        'value' => $html_str,
                     ]
                 );
             }
@@ -334,19 +342,12 @@ class ChemistryPlugin implements DatafieldPluginInterface, TableResultsOverrideI
     {
         // This is a datafield plugin, so getting the datatype via the datafield...
         $datatype_id = $rpi->getDataField()->getDataType()->getGrandparent()->getId();
-        $this->dri_service->deleteCachedTableData($datatype_id);
+        $this->datarecord_info_service->deleteCachedTableData($datatype_id);
     }
 
 
     /**
-     * Returns an array of datafield values that TableThemeHelperService should display, instead of
-     * using the values in the datarecord.
-     *
-     * @param array $render_plugin_instance
-     * @param array $datarecord
-     * @param array|null $datafield
-     *
-     * @return string[] An array where the keys are datafield ids, and the values are the strings to display
+     * {@inheritDoc}
      */
     public function getTableResultsOverrideValues($render_plugin_instance, $datarecord, $datafield = null)
     {

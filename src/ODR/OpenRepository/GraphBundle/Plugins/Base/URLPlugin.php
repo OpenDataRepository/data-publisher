@@ -27,38 +27,40 @@ use ODR\AdminBundle\Component\Service\DatarecordInfoService;
 use ODR\OpenRepository\GraphBundle\Plugins\DatafieldPluginInterface;
 use ODR\OpenRepository\GraphBundle\Plugins\TableResultsOverrideInterface;
 // Symfony
+
 class URLPlugin implements DatafieldPluginInterface, TableResultsOverrideInterface
 {
 
     /**
      * URLPlugin constructor.
      *
-     * @param DatarecordInfoService $dri_service
+     * @param DatarecordInfoService $datarecord_info_service
      * @param \Twig\Environment $templating
      */
-    public function __construct(private readonly DatarecordInfoService $dri_service, private readonly \Twig\Environment $templating)
-    {
+    public function __construct(
+        private readonly DatarecordInfoService $datarecord_info_service,
+        private readonly \Twig\Environment $templating
+    ) {
+
     }
 
 
     /**
-     * Returns whether the plugin can be executed in the current context.
-     *
-     * @param array $render_plugin_instance
-     * @param array $datafield
-     * @param array|null $datarecord
-     * @param array $rendering_options
-     *
-     * @return bool
+     * {@inheritDoc}
      */
     public function canExecutePlugin($render_plugin_instance, $datafield, $datarecord, $rendering_options)
     {
         if ( isset($rendering_options['context']) ) {
             $context = $rendering_options['context'];
 
-            // The URL Plugin should work in the 'text' and 'display' contexts
-            if ( $context === 'text' || $context === 'display' )
-                return true;
+            // The URL Plugin should work in these contexts
+            switch ($context) {
+                case 'text':       // plain string
+                case 'html':       // formatted string
+                case 'text|html':  // both of the above
+                case 'display':
+                    return true;
+            }
         }
 
         return false;
@@ -66,21 +68,15 @@ class URLPlugin implements DatafieldPluginInterface, TableResultsOverrideInterfa
 
 
     /**
-     * Executes the URL Plugin on the provided datafield
-     *
-     * @param array $datafield
-     * @param array|null $datarecord
-     * @param array $render_plugin_instance
-     * @param array $rendering_options
-     *
-     * @return string
-     * @throws \Exception
+     * {@inheritDoc}
      */
     public function execute($datafield, $datarecord, $render_plugin_instance, $rendering_options)
     {
 
         try {
             // ----------------------------------------
+            $context = $rendering_options['context'];
+
             // Extract various properties from the render plugin array
             $fields = $render_plugin_instance['renderPluginMap'];
             $options = $render_plugin_instance['renderPluginOptionsMap'];
@@ -124,23 +120,28 @@ class URLPlugin implements DatafieldPluginInterface, TableResultsOverrideInterfa
 
 
             // Convert the datafield's value into a URL
-            $str = '';
+            $ret = ['text' => '', 'html' => ''];
             if ( $value !== '' )
-                $str = self::buildURL($prepend, $append, $encode_input, $value);
+                $ret = self::buildURL($prepend, $append, $encode_input, $value);
 
+            // If the caller doesn't want the actual field, then can return early
+            if ( $context === 'text' )
+                return $ret['text'];
+            else if ( $context === 'html' )
+                return $ret['html'];
+            else if ( $context === 'text|html' )
+                return $ret;
 
+            // ...otherwise, need to involve twig
             $output = "";
-            if ( $rendering_options['context'] === 'text' ) {
-                $output = $str;
-            }
-            else if ( $rendering_options['context'] === 'display' ) {
+            if ( $rendering_options['context'] === 'display' ) {
                 $output = $this->templating->render(
                     '@ODROpenRepositoryGraph/Base/URL/url_display_datafield.html.twig',
                     [
                         'datafield' => $datafield,
                         'datarecord' => $datarecord,
 
-                        'value' => $str,
+                        'value' => $ret['html'],
                     ]
                 );
             }
@@ -161,10 +162,13 @@ class URLPlugin implements DatafieldPluginInterface, TableResultsOverrideInterfa
      * @param string $append
      * @param boolean $encode_input
      * @param string $original_value
-     * @return string
+     * @return array
      */
     private function buildURL($prepend, $append, $encode_input, $original_value)
     {
+        // The text version should be simple
+        $text_str = $prepend.$original_value.$append;
+
         // https://tools.ietf.org/html/rfc3986#section-3  only the query and the fragment should
         //  be encoded (if at all), but without having a URL parser handy it's impossible to
         //  automatically and accurately encode a URL.
@@ -174,17 +178,19 @@ class URLPlugin implements DatafieldPluginInterface, TableResultsOverrideInterfa
         if ($encode_input)
             $href_value = urlencode($href_value);
 
-        $str = '<a target="_blank" href="'.$prepend.$href_value.$append.'" class="underline">';
-
+        // The HTML version should be an HTML link
+        $html_str = '<a target="_blank" href="'.$prepend.$href_value.$append.'" class="underline">';
         // Display the prepend/append strings in the datafield contents if configured that way
         if ( isset($options['display_full_url']) && $options['display_full_url'] === 'yes' )
-            $str .= $prepend.$original_value.$append;
+            $html_str .= $prepend.$original_value.$append;
         else
-            $str .= $original_value;
+            $html_str .= $original_value;
+        $html_str .= '</a>';
 
-        $str .= '</a>';
-
-        return $str;
+        return [
+            'text' => $text_str,
+            'html' => $html_str,
+        ];
     }
 
 
@@ -232,19 +238,12 @@ class URLPlugin implements DatafieldPluginInterface, TableResultsOverrideInterfa
     {
         // This is a datafield plugin, so getting the datatype via the datafield...
         $datatype_id = $rpi->getDataField()->getDataType()->getGrandparent()->getId();
-        $this->dri_service->deleteCachedTableData($datatype_id);
+        $this->datarecord_info_service->deleteCachedTableData($datatype_id);
     }
 
 
     /**
-     * Returns an array of datafield values that TableThemeHelperService should display, instead of
-     * using the values in the datarecord.
-     *
-     * @param array $render_plugin_instance
-     * @param array $datarecord
-     * @param array|null $datafield
-     *
-     * @return string[] An array where the keys are datafield ids, and the values are the strings to display
+     * {@inheritDoc}
      */
     public function getTableResultsOverrideValues($render_plugin_instance, $datarecord, $datafield = null)
     {
@@ -280,8 +279,11 @@ class URLPlugin implements DatafieldPluginInterface, TableResultsOverrideInterfa
 
             // The remaining entry will be the correct value
             foreach ($drf as $typeclass => $data) {
-                if ( isset($data[0]['value']) && $data[0]['value'] !== '' )
-                    $value[$df_id] = self::buildURL($prepend, $append, $encode_input, $data[0]['value']);
+                if ( isset($data[0]['value']) && $data[0]['value'] !== '' ) {
+                    $ret = self::buildURL($prepend, $append, $encode_input, $data[0]['value']);
+                    // Always want the 'html' value for this purpose
+                    $value[$df_id] = $ret['html'];
+                }
             }
         }
 

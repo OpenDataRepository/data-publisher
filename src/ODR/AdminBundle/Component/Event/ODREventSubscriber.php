@@ -33,7 +33,6 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
-
 class ODREventSubscriber implements EventSubscriberInterface
 {
 
@@ -89,6 +88,7 @@ class ODREventSubscriber implements EventSubscriberInterface
             DatarecordDeletedEvent::NAME => 'onDatarecordDeleted',
             DatarecordPublicStatusChangedEvent::NAME => 'onDatarecordPublicStatusChanged',
             DatarecordLinkStatusChangedEvent::NAME => 'onDatarecordLinkStatusChanged',
+            DatarecordUndeletedEvent::NAME => 'onDatarecordUndeleted',
             // Datafield
 //            DatafieldCreatedEvent::NAME => 'onDatafieldCreated',
             DatafieldModifiedEvent::NAME => 'onDatafieldModified',
@@ -1142,6 +1142,59 @@ class ODREventSubscriber implements EventSubscriberInterface
                 $this->cache_service->delete('datatype_'.$dt_id.'_record_names');
                 $this->cache_service->delete('datatype_'.$dt_id.'_record_order');
             }
+        }
+        catch (\Throwable $e) {
+            // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
+            //  intercept it before it interfered with anything, and it also wouldn't reach ODR
+            $base_info = [self::class];
+            $event_info = $event->getErrorInfo();
+            $this->logger->error($e->getMessage(), array_merge($base_info, $event_info));
+        }
+    }
+
+
+    /**
+     * Handles dispatched DatarecordUndeleted events
+     *
+     * @param DatarecordUndeletedEvent $event
+     *
+     * @throws \Throwable
+     */
+    public function onDatarecordUndeleted(DatarecordUndeletedEvent $event)
+    {
+        if ( $this->debug )
+            $this->logger->debug('ODREventSubscriber::onDatarecordUndeleted()', $event->getErrorInfo());
+
+        try {
+            // TODO
+            $datarecord = $event->getDatarecord();
+            $grandparent_datarecord = $datarecord->getGrandparent();
+            $datatype = $datarecord->getDatatype();
+            $grandparent_datatype = $datatype->getGrandparent();
+
+            $linked_ancestors = $event->getLinkedAncestors();
+            $linked_descendants = $event->getLinkedDescendants();
+
+            $is_top_level = true;
+            if ( $datarecord->getId() !== $grandparent_datarecord->getId() )
+                $is_top_level = false;
+
+            // This event currently isn't allowed to fire for render plugins
+//            $relevant_plugins = self::isEventRelevant(get_class($event), $datatype, null);
+//            if ( !empty($relevant_plugins) ) {
+//                // If so, then load each plugin and call their required function
+//                self::relayEvent($relevant_plugins, $event);
+//            }
+
+
+            // ----------------------------------------
+            // Delete the related dashboard entry
+            $this->cache_service->delete('dashboard_'.$grandparent_datatype->getId());
+
+            // Delete these two cache entries as well
+            $this->cache_service->delete('datatype_'.$datatype->getId().'_record_names');
+            $this->cache_service->delete('datatype_'.$datatype->getId().'_record_order');
+
         }
         catch (\Throwable $e) {
             // Rethrowing the error is pretty much pointless...symfony's event dispatcher would
