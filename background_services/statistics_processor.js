@@ -14,7 +14,7 @@ require('./dev_env');  // load .env + relax Node TLS for self-signed dev hosts
  * - Stores aggregated data via API
  * - Deletes processed Redis keys
  */
-const https = require('https');
+const api = require('./api_client');
 const geoip = require('geoip-lite');
 const Redis = require('ioredis');
 const zlib = require('zlib');
@@ -32,50 +32,10 @@ const redis = new Redis({
 /**
  * Make an authenticated API call
  */
+// Shared client (api_client.js) -- retries dropped connections where that is safe
 async function apiCall(path, data, method = 'POST') {
-    return new Promise((resolve, reject) => {
-        const postData = JSON.stringify(data);
-
-        const options = {
-            hostname: config.api.host,
-            port: 443,
-            path: path,
-            method: method,
-            headers: {
-                'Content-Type': 'application/json',
-                'Content-Length': Buffer.byteLength(postData)
-            }
-        };
-
-        // Add auth token if available
-        if (authToken) {
-            options.headers['Authorization'] = 'Bearer ' + authToken;
-        }
-
-        const req = https.request(options, (res) => {
-            let responseData = '';
-
-            res.on('data', (chunk) => {
-                responseData += chunk;
-            });
-
-            res.on('end', () => {
-                try {
-                    const parsed = JSON.parse(responseData);
-                    resolve(parsed);
-                } catch (e) {
-                    reject(new Error('Failed to parse API response: ' + e.message));
-                }
-            });
-        });
-
-        req.on('error', (e) => {
-            reject(e);
-        });
-
-        req.write(postData);
-        req.end();
-    });
+    return api.apiCall(config.api.host + path, data, method,
+        { token: authToken, log: false, alwaysSendBody: true });
 }
 
 /**

@@ -3,7 +3,7 @@ require('./dev_env');  // load .env + relax Node TLS for self-signed dev hosts
  * https://github.com/akeyboardlife/puppeteer-save-svg/blob/master/main.js
  */
 
-const https = require('https');
+const api = require('./api_client');
 const fs = require('fs');
 
 const bs = require('nodestalker');
@@ -44,8 +44,10 @@ async function app() {
             client.reserve().onSuccess(async function(job) {
                 // console.log('Reserved (' + Date.now() + '): ' , job);
 
+                // Declared out here so the catch block can re-queue it with its progress state
+                let record;
                 try {
-                    let record = JSON.parse(job.data);
+                    record = JSON.parse(job.data);
 
                     console.log('Starting job: ' + job.id);
 
@@ -75,6 +77,16 @@ async function app() {
                         // Set token
                         let token_obj = await getToken(record);
                         token = token_obj.token;
+                    }
+
+                    if(record._output_done) {
+                        // An earlier attempt wrote this record's output, then lost its connection before
+                        //  reporting progress.  Writing the output again would duplicate it.
+                        await api.postWorkerJob(record.api_worker_job_url, record.tracked_job_id, 'CellParams_', record, token);
+                        client.deleteJob(job.id).onSuccess(function(del_msg) {
+                            resJob();
+                        });
+                        return;
                     }
 
 
@@ -160,11 +172,20 @@ async function app() {
                             record_data['records_' + cp_map.template_uuid],
                             cp_map.ima_template_uuid
                         );
+                        // Listed if it has a cell parameter (a or alpha) OR a measured chemistry,
+                        //  the same as RRUFF records below.  A chemistry-only entry has empty
+                        //  a..gamma; the IMA list's "has Cell Parameters" tag ignores those.
+                        let has_cell_params = await findValue(cp_map.a, record_data) !== ''
+                            || await findValue(cp_map.alpha, record_data) !== '';
+                        // If measured_chemistry is mapped to the same field as ima_chemistry (a
+                        //  config mistake), every record would qualify -- don't count it then.
+                        let has_measured_chemistry = cp_map.measured_chemistry !== cp_map.ima_chemistry
+                            && (await findValue(cp_map.measured_chemistry, record_data)).trim() !== '';
                         if(
                             ima_record !== undefined
                             && ima_record.record_uuid !== undefined
-                            && await findValue(cp_map.a, record_data) !== ''
-                    ) {
+                            && (has_cell_params || has_measured_chemistry)
+                        ) {
 
                             content += 'if(cellparams[\'' + ima_record.record_uuid + '\'] === undefined) { cellparams[\'' + ima_record.record_uuid + '\'] = {} };'
                             //content += 'if(cellparams[\'' + ima_record.record_uuid + '\'][\'' + record_data['record_uuid'] +'\'] === undefined) { cellparams[\'' +  ima_record.record_uuid + '\'][\'' + record_data['record_uuid'] +'\'] = new Array()};';
@@ -230,7 +251,8 @@ async function app() {
                             record_data['records_' + pd_map.template_uuid],
                             cp_map.ima_template_uuid
                         );
-                        console.log('IMA Record: ' + ima_record.record_uuid)
+                        // A RRUFF record need not be linked to an IMA mineral; it's skipped below
+                        console.log('IMA Record: ' + (ima_record ? ima_record.record_uuid : '(none -- skipped)'));
 
                         // "_record_metadata": {
                         // "_create_date": "2016-05-12 13:23:56",
@@ -261,10 +283,20 @@ async function app() {
                         // TODO Add RRUFF ID to "rruff_record_exists" and
                         // ensure all RRUFF records get that value even if they don't
                         // have a PD alpha value.
+
+                        // A RRUFF record is listed if it has a cell parameter (a or alpha) OR a
+                        // measured chemistry.  A chemistry-only entry has empty a..gamma; the IMA
+                        // list's "has Cell Parameters" tag ignores those (has_cell_params).
+                        let has_cell_params = await findValue(pd_map.a, record_data) !== ''
+                            || await findValue(pd_map.alpha, record_data) !== '';
+                        // If measured_chemistry is mapped to the same field as ima_chemistry (a
+                        // config mistake), every record would qualify -- don't count it then.
+                        let has_measured_chemistry = pd_map.measured_chemistry !== pd_map.ima_chemistry
+                            && (await findValue(pd_map.measured_chemistry, record_data)).trim() !== '';
                         if(
                             ima_record !== undefined
                             && ima_record.record_uuid !== undefined
-                            && await findValue(pd_map.a, record_data) !== ''
+                            && (has_cell_params || has_measured_chemistry)
                             && record_data._record_metadata._public_date !== undefined
                             && record_data._record_metadata._public_date !== "2200-01-01 00:00:00"
                         ) {
@@ -467,15 +499,9 @@ async function app() {
                            }
                        }
                     */
-                    let worker_job = {
-                        'job': {
-                            'tracked_job_id': record.tracked_job_id,
-                            'random_key': 'CellParams_' + Math.floor(Math.random() * 99999999).toString(),
-                            'job_order': 0,
-                            'line_count': 1
-                        }
-                    };
-                    worker_job = await apiCall(record.api_worker_job_url, worker_job, 'POST');
+                    // Output written: from here on a retry only reports progress
+                    record._output_done = true;
+                    let worker_job = await api.postWorkerJob(record.api_worker_job_url, record.tracked_job_id, 'CellParams_', record, token);
                     // console.log('Worker Job: ', worker_job);
 
 
@@ -486,6 +512,12 @@ async function app() {
                 catch (e) {
                     // TODO need to put job as unfinished - maybe not due to errors
                     console.log('Error occurred: ', e);
+                    // A dropped connection: put the job back rather than lose this record.
+                    //  Anything else is a problem with the record: log it and count it as done,
+                    //  so the run still finishes.
+                    if(!await api.requeueIfConnectionError(e, client, tube, job, record)) {
+                        await api.skipInvalidRecord(e, job, record, 'CellParams_', token, tube);
+                    }
                     client.deleteJob(job.id).onSuccess(function(del_msg) {
                         // console.log('Deleted (' + Date.now() + '): ' , job);
                         console.log('Deleted (' + Date.now() + '): ' , job.id);
@@ -871,69 +903,9 @@ async function loadPage(page_url) {
     return await apiCall(page_url, '', 'GET');
 }
 
+// Shared client (api_client.js) -- retries dropped connections where that is safe
 async function apiCall(api_url, post_data, method) {
-    console.log('API Call: ', api_url);
-
-    return new Promise((resolve, reject) => {
-        try {
-            // Parse the URL to extract hostname and path
-            const url = new URL('https://' + api_url);
-
-            const options = {
-                hostname: url.hostname,
-                port: 443,
-                path: url.pathname + url.search,
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            };
-
-            // Add bearer token if set
-            if(token !== '') {
-                options.headers['Authorization'] = 'Bearer ' + token;
-            }
-
-            // Add content-length for POST/PUT requests
-            if(post_data !== '' && (method === 'POST' || method === 'PUT')) {
-                const postDataString = JSON.stringify(post_data);
-                options.headers['Content-Length'] = Buffer.byteLength(postDataString);
-            }
-
-            const req = https.request(options, (res) => {
-                let data = '';
-
-                res.on('data', (chunk) => {
-                    data += chunk;
-                });
-
-                res.on('end', () => {
-                    try {
-                        const responseBody = JSON.parse(data);
-                        resolve(responseBody);
-                    } catch (e) {
-                        reject(new Error('Failed to parse JSON response: ' + e.message));
-                    }
-                });
-            });
-
-            req.on('error', (err) => {
-                console.error('Error thrown');
-                reject(err);
-            });
-
-            // Write POST/PUT data if present
-            if(post_data !== '' && (method === 'POST' || method === 'PUT')) {
-                req.write(JSON.stringify(post_data));
-            }
-
-            req.end();
-
-        } catch (err) {
-            console.error('Error thrown');
-            reject(err);
-        }
-    });
+    return api.apiCall(api_url, post_data, method, { token: token });
 }
 
 

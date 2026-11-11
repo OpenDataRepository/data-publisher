@@ -717,12 +717,16 @@ def install(args):
     for source, target in SCRIPTS.items():
         changes.copy(os.path.join(BB, source), P(target), mode=0o755)
     console = ['runuser', '-u', user, '--', 'php', 'app/console']
+    failed = []   # what didn't work, repeated at the end so it can't scroll past unnoticed
     for command, path in (('odr:crawler_ips:update', 'var/crawler_ips.json'), ('odr:banned_bot_ips:update', 'var/banned_bot_ips.txt')):
         days = age_days(os.path.join(main, path))
         if days is None or days > 1 or args.refresh:
             code, out = changes.command(console + [command, '--env=prod'], why='as ' + user, cwd=main)
             if code != 0:
-                say('    warning: %s exited %d:\n    %s' % (command, code, out.replace('\n', '\n    ')))
+                say('    %s exited %d:\n    %s' % (command, code, out.replace('\n', '\n    ')))
+                if not args.dry_run and not os.path.isfile(os.path.join(main, path)):
+                    failed.append(('%s: %s wasn\'t created' % (command, path),
+                                   'cd %s && runuser -u %s -- php app/console %s --env=prod' % (main, user, command), out))
 
     # ---- fail2ban
     say('\nfail2ban')
@@ -744,8 +748,13 @@ def install(args):
 
     # ---- the first loads
     say('\nLoading the lists')
-    changes.command([P('/usr/local/sbin/odr-gate-update-crawlers'), os.path.join(main, 'var/crawler_ips.json')])
-    changes.command([P('/usr/local/sbin/odr-ban-bot-ips'), os.path.join(main, 'var/banned_bot_ips.txt')])
+    for script, path in (('odr-gate-update-crawlers', 'var/crawler_ips.json'), ('odr-ban-bot-ips', 'var/banned_bot_ips.txt')):
+        cmd = [P('/usr/local/sbin/' + script), os.path.join(main, path)]
+        code, out = changes.command(cmd)
+        if out:
+            say('    ' + out.replace('\n', '\n    '))
+        if code != 0:
+            failed.append(('%s failed: Apache / fail2ban don\'t have that list' % script, ' '.join(cmd), out))
 
     # ---- schedule
     say('\nScheduled updates')
@@ -774,6 +783,15 @@ def install(args):
 
     if changes.backed_up and not args.dry_run:
         say('\nBackups of everything changed: ' + changes.backup_dir)
+    if failed:
+        say('\nINSTALL INCOMPLETE -- %d step(s) failed:' % len(failed))
+        for what, fix, out in failed:
+            say('  \u2717 ' + what)
+            if out:
+                say('      ' + out.strip().splitlines()[-1])
+            say('      to retry: ' + fix)
+        say('Fix those, then run odr-gate install again.')
+        return 1
     say('\nDone.  Next: odr-gate add-site <hostname> --instance <dir> --rules <rruff|none> for each site,\nthen odr-gate verify.')
     return 0
 

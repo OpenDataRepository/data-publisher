@@ -11,6 +11,8 @@
 #
 # What an instance looks like afterwards:
 #   real    var/ (with cache/, log/, tmp/), app/, and inside app/: config/, logs/, tmp/
+#   kept    app/amcsd_files, app/rruff_files (the data archives' working files, only on the
+#           RRUFF instance): left exactly as they are -- never linked, removed or created
 #   gone    app/cache (no longer used): moved to var/setup-backup/ if present
 #   links   everything else, top level and in app/, each pointing at the same name in SOURCE
 #   left    .git, .idea and other tool folders -- never linked, never removed
@@ -24,7 +26,8 @@
 #     missing are reported.  A brand-new instance gets a full copy of SOURCE's app/config.
 #   - var/ and the real app/ directories are created if missing
 #   - the web server user gets write access to app/logs, app/tmp, var/cache, var/log, var/tmp
-#     (ACLs when the filesystem supports them, otherwise the group and g+rwX)
+#     (ACLs when the filesystem supports them; otherwise the instance's owner owns them and the
+#     web server's group can write -- then run the console as that owner: sudo app/console-all)
 # Nothing is deleted outright: real files and directories it replaces or removes are moved to
 # var/setup-backup/<date-time>/ in the instance.  Symlinks are simply removed.
 
@@ -62,6 +65,9 @@ TOP_REAL=(app var)
 APP_REAL=(config logs tmp)
 # No longer used: removed from an instance (into the backup), never linked
 APP_OBSOLETE=(cache)
+# Per-instance data that only some instances have: kept if present, never linked or created.
+# amcsd_files, rruff_files: the background_services archive builders' downloads
+APP_KEEP=(amcsd_files rruff_files)
 VAR_DIRS=(cache log tmp)
 # Never linked into an instance, and never removed from one
 LEAVE_ALONE=(.git .gitignore .idea .vscode .claude .agent .gemini .geminiignore .DS_Store)
@@ -102,6 +108,12 @@ fi
 STAMP="$(date +%Y%m%d-%H%M%S)"
 CHANGES=0
 FAILED=0
+
+# Setting permissions needs root: ask for sudo now, not part way through
+if [ "$DRY_RUN" -eq 0 ] && [ "$(id -u)" -ne 0 ]; then
+  echo "Setting the web server's permissions needs sudo."
+  sudo -v || { echo "Can't continue without sudo." >&2; exit 1; }
+fi
 
 in_list() {   # in_list NAME LIST...
   local needle="$1"; shift
@@ -238,8 +250,20 @@ set_permissions() {
     echo "  would give $httpduser and $owner write access to ${dirs[*]}"
     return 0
   fi
+  if [ "$owner" = root ]; then
+    echo "  warning: $DEST is owned by root -- the instance's files will be too.  chown it to the" >&2
+    echo "  site's user and run this again." >&2
+  fi
   local acl=1
-  command -v setfacl > /dev/null || { acl=0; echo "  note: setfacl isn't installed -- using the group instead"; }
+  if ! command -v setfacl > /dev/null; then
+    acl=0
+    echo "  note: setfacl isn't installed -- using the group instead"
+  elif ! acl_supported "$owner"; then
+    # Checked once, rather than letting setfacl -R fail on every file
+    acl=0
+    echo "  note: the $(stat -f -c %T "$DEST/var" 2>/dev/null || echo '?') filesystem under $DEST doesn't support ACLs" \
+      "-- using the group instead"
+  fi
   for rel in "${dirs[@]}"; do
     dir="$DEST/$rel"
     [ -d "$dir" ] || { echo "  missing $rel/ -- skipped" >&2; FAILED=1; continue; }
@@ -251,21 +275,42 @@ set_permissions() {
         continue
       fi
       echo "  setfacl failed on $rel/:" >&2
-      printf '    %s\n' "$out" >&2
+      show_output "$out"
       echo "  falling back to the group" >&2
     fi
-    # no ACLs: owner keeps the files, the web server's group can write, and setgid on the
-    # directories so new files stay in that group
-    if out="$(as_root chgrp -R "$httpduser" "$dir" 2>&1)" \
-       && out="$(as_root chmod -R g+rwX "$dir" 2>&1)" \
+    # No ACLs: the instance's owner owns everything in it (this script may have created it as
+    #  root), the web server's group can write, and setgid on the directories keeps new files in
+    #  that group.  (ODR runs with umask 0000, so what either of them creates stays writable.)
+    if out="$(as_root chown -R "$owner":"$httpduser" "$dir" 2>&1)" \
+       && out="$(as_root chmod -R u+rwX,g+rwX "$dir" 2>&1)" \
        && out="$(as_root find "$dir" -type d -exec chmod g+s {} + 2>&1)"; then
-      echo "  permissions: $rel/ writable by group $httpduser (chgrp + g+rwX)"
+      echo "  permissions: $rel/ owned by $owner, writable by group $httpduser (chown + g+rwX)"
     else
       echo "  couldn't set permissions on $rel/:" >&2
-      printf '    %s\n' "$out" >&2
+      show_output "$out"
       FAILED=1
     fi
   done
+  if [ "$acl" -eq 0 ]; then
+    # the real directories above them, which this script may have created as root
+    as_root chown "$owner" "$DEST/var" "$DEST/app" "$DEST/app/config" 2>/dev/null || true
+    echo "  note: run the console for this instance as $owner (sudo php app/console-all does that)"
+  fi
+}
+
+acl_supported() {   # acl_supported USER -- can the filesystem under $DEST/var hold POSIX ACLs?
+  local probe rc
+  probe="$(as_root mktemp "$DEST/var/.acl-probe.XXXXXX")" || return 1
+  as_root setfacl -m u:"$1":rw "$probe" 2> /dev/null && rc=0 || rc=$?
+  as_root rm -f "$probe"
+  return "$rc"
+}
+
+show_output() {   # show_output TEXT -- the first few lines of a failed command's output
+  local lines
+  lines="$(printf '%s\n' "$1" | wc -l)"
+  head -5 <<< "$1" | sed 's/^/    /' >&2
+  [ "$lines" -le 5 ] || echo "    ... and $((lines - 5)) more lines" >&2
 }
 
 setup_instance() {
@@ -302,7 +347,7 @@ setup_instance() {
   for name in "${APP_REAL[@]}"; do ensure_real_dir "$DEST/app/$name" "app/$name"; done
 
   sync_children "$SRC" "$DEST" "" -- "${TOP_REAL[@]}"
-  sync_children "$SRC/app" "$DEST/app" "app/" "${APP_OBSOLETE[@]}" -- "${APP_REAL[@]}"
+  sync_children "$SRC/app" "$DEST/app" "app/" "${APP_OBSOLETE[@]}" -- "${APP_REAL[@]}" "${APP_KEEP[@]}"
   sync_config
   set_permissions
 
