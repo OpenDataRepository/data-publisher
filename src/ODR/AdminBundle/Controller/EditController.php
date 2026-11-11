@@ -569,6 +569,55 @@ class EditController extends ODRCustomController
 
 
     /**
+     * Undeletes a Datarecord, also restoring its children and the links to/from it that it had
+     * at the time of deletion.
+     *
+     * @param integer $datarecord_id
+     * @param Request $request
+     *
+     * @return Response
+     */
+    public function undeletedatarecordAction($datarecord_id, Request $request)
+    {
+        $return = [];
+        $return['r'] = 0;
+        $return['t'] = '';
+        $return['d'] = '';
+
+        try {
+            /** @var EntityDeletionService $entity_deletion_service */
+            $entity_deletion_service = $this->entity_deletion_service;
+
+            // --------------------
+            // Determine user privileges
+            /** @var ODRUser $user */
+            $user = $this->container->get('security.token_storage')->getToken()?->getUser() ?? 'anon.';
+            if ( $user->getId() !== 1 && $user->getId() !== 2 )
+                throw new ODRForbiddenException();
+            // --------------------
+
+            // Delete the datarecord
+            $entity_deletion_service->undeleteDatarecord($user, $datarecord_id, null);
+
+            // Redirect to the newly undeleted record
+            $return['r'] = 2;
+            $return['d'] = ['url' => $this->generateUrl('odr_record_edit', ['datarecord_id' => $datarecord_id])];
+        }
+        catch (\Exception $e) {
+            $source = 0xdc010831;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+
+        $response = new Response(json_encode($return));
+        $response->headers->set('Content-Type', 'application/json');
+        return $response;
+    }
+
+
+    /**
      * Renames the given file.
      *
      * @param integer $file_id

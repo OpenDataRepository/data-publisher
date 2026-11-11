@@ -705,6 +705,7 @@ class PluginsController extends ODRCustomController
             'DatarecordDeletedEvent' => 0,
             'DatarecordPublicStatusChangedEvent' => 0,
             'DatarecordLinkStatusChangedEvent' => 0,
+            'DatarecordUndeletedEvent' => 0,
 
             'DatafieldCreatedEvent' => 0,
             'DatafieldModifiedEvent' => 0,

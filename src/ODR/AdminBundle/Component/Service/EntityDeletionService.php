@@ -8,6 +8,7 @@
  * Released under the GPLv2
  *
  * Stores the code for ODR entities that require multiple database queries to properly delete.
+ * Also stores the code to reverse the deletion.
  *
  */
 
@@ -28,6 +29,7 @@ use ODR\AdminBundle\Component\Event\DatafieldModifiedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordDeletedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordLinkStatusChangedEvent;
 use ODR\AdminBundle\Component\Event\DatarecordModifiedEvent;
+use ODR\AdminBundle\Component\Event\DatarecordUndeletedEvent;
 use ODR\AdminBundle\Component\Event\DatatypeDeletedEvent;
 use ODR\AdminBundle\Component\Event\DatatypeModifiedEvent;
 use ODR\AdminBundle\Component\Event\FileDeletedEvent;
@@ -40,6 +42,7 @@ use ODR\AdminBundle\Exception\ODRNotFoundException;
 // Services
 // Symfony
 use Doctrine\DBAL\ArrayParameterType;
+use Doctrine\DBAL\ParameterType;
 use Doctrine\ORM\EntityManager;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -1617,6 +1620,271 @@ class EntityDeletionService
         }
         catch (\Exception $e) {
             $source = 0x2d7604fa;
+            if ($e instanceof ODRException)
+                throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
+            else
+                throw new ODRException($e->getMessage(), 500, $source, $e);
+        }
+    }
+
+
+    /**
+     * Undeletes a datarecord, restoring it back to the most recent state.
+     *
+     * @param ODRUser $user
+     * @param int|null $datarecord_id
+     * @param string|null $datarecord_uuid
+     *
+     * @throws \Exception
+     */
+    public function undeleteDatarecord($user, $datarecord_id = null, $datarecord_uuid = null)
+    {
+        $conn = null;
+
+        try {
+            // Need exactly one method of identifying the datarecord
+            if ( (is_null($datarecord_id) && is_null($datarecord_uuid))
+                || (!is_null($datarecord_id) && !is_null($datarecord_uuid))
+            ) {
+                throw new ODRBadRequestException('EntityDeletionService::undeleteDatarecord(): must have either a datarecord_id or a datarecord_uuid');
+            }
+
+
+            // ----------------------------------------
+            // Just going to bypass doctrine entirely
+            $conn = $this->em->getConnection();
+
+            // First step is to locate the target datarecord and when it was deleted
+            $error_str = '';
+            $params = [];
+            $query =
+               'SELECT dr.data_type_id AS dt_id, dr.parent_id AS parent_id, dr.id AS dr_id, dr.deletedAt
+                FROM odr_data_record dr
+                WHERE ';
+            if ( !is_null($datarecord_id) ) {
+                $query .= ' dr.id = :dr_id';
+                $params = ['dr_id' => $datarecord_id];
+                $error_str = 'datarecord '.$datarecord_id;
+            }
+            else {
+                $query .= ' dr.unique_id = :dr_uuid';
+                $params = ['dr_uuid' => $datarecord_uuid];
+                $error_str = 'datarecord "'.$datarecord_uuid.'"';
+            }
+            $results = $conn->executeQuery($query, $params)->fetchAllAssociative();
+
+            if ( empty($results) )
+                throw new ODRBadRequestException('EntityDeletionService::undeleteDatarecord(): '.$error_str.' does not exist');
+
+            $target_datatype_id = $results[0]['dt_id'];
+            $parent_datarecord_id = $results[0]['parent_id'];
+            $target_datarecord_id = $results[0]['dr_id'];
+            $deletedAt = $results[0]['deletedAt'];
+
+            if ( is_null($deletedAt) )
+                throw new ODRBadRequestException('EntityDeletionService::undeleteDatarecord(): '.$error_str.' is not deleted');
+
+            $is_top_level = true;
+            if ( $target_datarecord_id !== $parent_datarecord_id )
+                $is_top_level = false;
+
+
+            // This undeletion only needs to modify the datarecord, datarecordMeta, and linkedDatatree
+            //  tables to do its job...but despite the use of a transaction during deletion, there's
+            //  the possibility that entities deleted during the "most recent deletion" don't have
+            //  the exact same deletedAt value.
+            $entities_to_undelete = [
+                'datarecord' => [],
+                'datarecordMeta' => [],
+                'linkedDatatree' => [],
+                'ancestor_records' => [],
+                'descendant_records' => []
+            ];
+            $entities_to_undelete['datarecord'][] = $target_datarecord_id;
+
+            // Therefore, going to use a datetime range to filter down the rest of the entities
+            $exact_date = new \DateTime($deletedAt);
+            $deleted_after = $exact_date->sub( new \DateInterval('PT10S') )->format('Y-m-d H:i:s');
+            // Have to add double the interval subtracted earlier
+            $deleted_before = $exact_date->add( new \DateInterval('PT20S') )->format('Y-m-d H:i:s');
+
+
+            // ----------------------------------------
+            // Second step is to locate all of the previously deleted record's children that were
+            //  also deleted at roughly the same time
+            $parent_ids = [];
+            $parent_ids[] = $target_datarecord_id;
+
+            $types = ['parent_ids' => ArrayParameterType::INTEGER, 'deleted_after' => ParameterType::STRING, 'deleted_before' => ParameterType::STRING];
+            while ( count($parent_ids) > 0 ) {
+                // Can't use the grandparent datarecord property, because this deletion request
+                //  could be for a datarecord that isn't top-level
+                $query =
+                   'SELECT dr.id AS dr_id
+                    FROM odr_data_record AS dr
+                    WHERE dr.id != dr.parent_id AND dr.parent_id IN (:parent_ids)
+                    AND dr.deletedAt IS NOT NULL
+                    AND dr.deletedAt >= :deleted_after AND dr.deletedAt <= :deleted_before';
+                $params = ['parent_ids' => $parent_ids, 'deleted_after' => $deleted_after, 'deleted_before' => $deleted_before];
+                $results = $conn->executeQuery($query, $params, $types)->fetchAllAssociative();
+
+                $parent_ids = [];
+                foreach ($results as $result) {
+                    $dr_id = $result['dr_id'];
+
+                    $parent_ids[] = $dr_id;
+                    $entities_to_undelete['datarecord'][] = $dr_id;
+                }
+            }
+
+            // Locate the most recent datarecordMeta entry for these datarecords...not going to use
+            //  the date range here in case that returns multiple entities
+            $tmp = [];
+            $query =
+               'SELECT drm.id AS drm_id, drm.data_record_id AS dr_id
+                FROM odr_data_record_meta drm
+                WHERE drm.data_record_id IN (:datarecord_ids)
+                ORDER BY drm.data_record_id ASC, drm.id DESC';
+            $params = ['datarecord_ids' => $entities_to_undelete['datarecord']];
+            $types = ['datarecord_ids' => ArrayParameterType::INTEGER];
+            $results = $conn->executeQuery($query, $params, $types)->fetchAllAssociative();
+
+            foreach ($results as $result) {
+                $drm_id = $result['drm_id'];
+                $dr_id = $result['dr_id'];
+
+                if ( !isset($tmp[$dr_id]) ) {
+                    // Could only be one datarecordMeta entry for the datarecord
+                    $tmp[$dr_id] = $drm_id;
+                }
+                else if ( $tmp[$dr_id] < $drm_id ) {
+                    // Otherwise, the most recent datarecordMeta entry is guaranteed to have the
+                    //  larger id
+                    $tmp[$dr_id] = $drm_id;
+                }
+            }
+
+            // Store the most recent datarecordMeta entries
+            $entities_to_undelete['datarecordMeta'] = array_values($tmp);
+
+            // Locate the remote records that linked to these deleted datarecords, if any
+            $query =
+               'SELECT ldt.id AS ldt_id, ancestor_dr.id AS dr_id, ancestor_dr.data_type_id AS dt_id
+                FROM odr_linked_data_tree ldt
+                JOIN odr_data_record ancestor_dr ON ldt.ancestor_id = ancestor_dr.id
+                WHERE ldt.descendant_id IN (:datarecord_ids)
+                AND ldt.deletedAt >= :deleted_after AND ldt.deletedAt <= :deleted_before
+                AND ancestor_dr.deletedAt IS NULL';
+            $params = ['datarecord_ids' => $entities_to_undelete['datarecord'], 'deleted_after' => $deleted_after, 'deleted_before' => $deleted_before];
+            $types = ['datarecord_ids' => ArrayParameterType::INTEGER, 'deleted_after' => ParameterType::STRING, 'deleted_before' => ParameterType::STRING];
+            $results = $conn->executeQuery($query, $params, $types)->fetchAllAssociative();
+
+            foreach ($results as $result) {
+                $ldt_id = $result['ldt_id'];
+                $dr_id = $result['dr_id'];
+                $dt_id = $result['dt_id'];
+
+                $entities_to_undelete['linkedDatatree'][] = $ldt_id;
+                $entities_to_undelete['ancestor_records'][] = $dr_id;
+            }
+
+            // Locate the remote records that these deleted datarecords linked to, if any
+            $query =
+               'SELECT ldt.id AS ldt_id, descendant_dr.id AS dr_id, descendant_dr.data_type_id AS dt_id
+                FROM odr_linked_data_tree ldt
+                JOIN odr_data_record descendant_dr ON ldt.descendant_id = descendant_dr.id
+                WHERE ldt.ancestor_id IN (:datarecord_ids)
+                AND ldt.deletedAt >= :deleted_after AND ldt.deletedAt <= :deleted_before
+                AND descendant_dr.deletedAt IS NULL';
+            $params = ['datarecord_ids' => $entities_to_undelete['datarecord'], 'deleted_after' => $deleted_after, 'deleted_before' => $deleted_before];
+            $types = ['datarecord_ids' => ArrayParameterType::INTEGER, 'deleted_after' => ParameterType::STRING, 'deleted_before' => ParameterType::STRING];
+            $results = $conn->executeQuery($query, $params, $types)->fetchAllAssociative();
+
+            foreach ($results as $result) {
+                $ldt_id = $result['ldt_id'];
+                $dr_id = $result['dr_id'];
+                $dt_id = $result['dt_id'];
+
+                $entities_to_undelete['linkedDatatree'][] = $ldt_id;
+                $entities_to_undelete['descendant_records'][] = $dr_id;
+            }
+
+
+            // ----------------------------------------
+            // Undelete all records, their meta entries, and their links
+            $conn->beginTransaction();
+
+            $query =
+               'UPDATE odr_data_record dr
+                SET dr.deletedAt = NULL, dr.deletedBy = NULL
+                WHERE dr.id IN (:datarecord_ids)';
+            $params = ['datarecord_ids' => $entities_to_undelete['datarecord']];
+            $types = ['datarecord_ids' => ArrayParameterType::INTEGER];
+            $conn->executeQuery($query, $params, $types);
+            $this->logger->debug('EntityDeletionService::undeleteDatarecord(): undeleted datarecords: ', $entities_to_undelete['datarecord']);
+
+            $query =
+               'UPDATE odr_data_record_meta drm
+                SET drm.deletedAt = NULL
+                WHERE drm.id IN (:datarecord_meta_ids)';
+            $params = ['datarecord_meta_ids' => $entities_to_undelete['datarecordMeta']];
+            $types = ['datarecord_meta_ids' => ArrayParameterType::INTEGER];
+            $conn->executeQuery($query, $params, $types);
+            $this->logger->debug('EntityDeletionService::undeleteDatarecord(): undeleted datarecordmetas: ', $entities_to_undelete['datarecordMeta']);
+
+            $query =
+               'UPDATE odr_linked_data_tree ldt
+                SET ldt.deletedAt = NULL, ldt.deletedBy = NULL
+                WHERE ldt.id IN (:linked_datatree_ids)';
+            $params = ['linked_datatree_ids' => $entities_to_undelete['linkedDatatree']];
+            $types = ['linked_datatree_ids' => ArrayParameterType::INTEGER];
+            $conn->executeQuery($query, $params, $types);
+            $this->logger->debug('EntityDeletionService::undeleteDatarecord(): undeleted linkedDatatrees', $entities_to_undelete['linkedDatatree']);
+
+//            $conn->rollBack();
+            $conn->commit();
+
+
+            // ----------------------------------------
+            // Can now reload the datarecord
+            /** @var DataRecord $datarecord */
+            $datarecord = $this->em->getRepository('ODR\AdminBundle\Entity\DataRecord')->find($target_datarecord_id);
+            $target_datatype = $datarecord->getDataType();
+
+            // Fire off events to ensure cache entries get cleared
+            try {
+                $event = new DatarecordUndeletedEvent($datarecord, $user, $entities_to_undelete['ancestor_records'], $entities_to_undelete['descendant_records']);
+                $this->event_dispatcher->dispatch($event, DatarecordUndeletedEvent::NAME);
+            }
+            catch (\Exception $e) {
+                // ...don't want to rethrow the error since it'll interrupt everything after this
+                //  event
+//                if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                    throw $e;
+            }
+
+            // If this was a top-level datarecord that just got undeleted...
+            if ( $is_top_level ) {
+                // ...then ensure the ancestor records that had their links restored realize they're
+                //  linked to it again
+                try {
+                    $event = new DatarecordLinkStatusChangedEvent($entities_to_undelete['ancestor_records'], $target_datatype, $user, false);
+                    $this->event_dispatcher->dispatch($event, DatarecordLinkStatusChangedEvent::NAME);
+                }
+                catch (\Exception) {
+                    // ...don't want to rethrow the error since it'll interrupt everything after this
+                    //  event
+//                    if ( $this->container->getParameter('kernel.environment') === 'dev' )
+//                        throw $e;
+                }
+            }
+        }
+        catch (\Exception $e) {
+            // Don't commit changes if any error was encountered...
+            if ( !is_null($conn) && $conn->isTransactionActive() )
+                $conn->rollBack();
+
+            $source = 0xb2cfd9b7;
             if ($e instanceof ODRException)
                 throw new ODRException($e->getMessage(), $e->getStatusCode(), $e->getSourceCode($source), $e);
             else

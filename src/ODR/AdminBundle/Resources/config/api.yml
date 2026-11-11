@@ -440,6 +440,14 @@ odr_api_delete_datarecord_single:
   requirements:
     version: 'v\d+'
     datarecord_uuid: '^[a-z0-9]+$'
+# Undelete a single datarecord
+odr_api_undelete_datarecord_single:
+  path:  /api/{version}/record/restore/{datarecord_uuid}
+  defaults: { _controller: ODR\AdminBundle\Controller\APIController::undeleteDatarecordByUUIDAction }
+  methods: [ POST ]
+  requirements:
+    version: 'v\d+'
+    datarecord_uuid: '^[a-z0-9]+$'
 
 # Delete a batch of datarecords. Body: { "user_email": "...", "record_uuids": ["uuid1", ...] }
 # Maximum 100 UUIDs per request; entire batch rejected if the caller lacks permission on any single
