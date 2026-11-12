@@ -10,15 +10,35 @@
 //   php app/console-all cache:clear --env=prod
 //   php app/console-all doctrine:migrations:migrate --no-interaction
 //
-// It reads instance roots from app/config/instances.list (one per line; '#' comments and blank lines
-// ignored) and runs THIS checkout's app/console against each, passing ODR_INSTANCE so the child
-// targets that instance's own app/config, var/cache and var/log. It continues past a failing site and
-// exits non-zero if any instance failed.
+// It reads the instances from app/config/instances.list and runs THIS checkout's app/console against
+// each, passing ODR_INSTANCE so the child targets that instance's own app/config, var/cache and
+// var/log. It continues past a failing site and exits non-zero if any instance failed.
 //
-// Copy app/config/instances.list.dist to app/config/instances.list and fill in your instance roots.
+// Copy app/config/instances.list.dist to app/config/instances.list and fill in your instances: one
+// per line, the instance root then its cache key (its memcached_key_prefix):
+//
+//   /home/odr/data-publisher     odr_master
+//   /home/rruff/data-publisher   odr_rruff
+//
+// Cache settings in each instance's parameters.yml
+//   The list is the record of which instances share this server.  From it, every instance with a
+//   cache key should have in its parameters.yml:
+//     memcached_key_prefix            its key
+//     session_memcached_prefix        its key + "_sess"
+//     related_memcached_key_prefixes  the keys of the other listed instances that use the same
+//                                     database (database_host, database_port, database_name)
+//   cache:clear first brings each instance's parameters.yml up to date (only those lines change;
+//   the old file is kept in var/setup-backup/<date-time>/), then clears its cache.  Any other
+//   command only warns about a mismatch.
+//
+// Options (before the command):
+//   --check-params   report what cache:clear would change in each parameters.yml; change nothing
+//                    and run no command
+//   --list FILE      use FILE instead of app/config/instances.list
 //
 // Run with sudo, each instance's command runs as the user who owns that instance (the owner of its
-// root directory), so the cache and logs it writes belong to that site:
+// root directory), so the cache and logs it writes belong to that site; sudo is also what lets it
+// update parameters.yml files that belong to other users:
 //
 //   sudo php app/console-all cache:clear --env=prod
 
@@ -26,27 +46,290 @@ $app_dir = __DIR__;                          // .../data-publisher/app
 $console = $app_dir . '/console';
 $list    = $app_dir . '/config/instances.list';
 
-$args = array_slice($argv, 1);               // everything after the script name = console command+args
+// ----------------------------------------
+// Options for console-all itself come before the command; everything from the command on is
+// passed through untouched
+$args = array_slice($argv, 1);
+$check_only = false;
+while ($args && str_starts_with($args[0], '--')) {
+    if ($args[0] === '--check-params') {
+        $check_only = true;
+        array_shift($args);
+    }
+    elseif ($args[0] === '--list' && isset($args[1])) {
+        $list = $args[1];
+        array_splice($args, 0, 2);
+    }
+    elseif (str_starts_with($args[0], '--list=')) {
+        $list = substr(array_shift($args), 7);
+    }
+    else {
+        break;                               // an option of the command (no command given yet)
+    }
+}
 
 if (!is_file($list)) {
     fwrite(STDERR, "console-all: no instance list at $list\n");
-    fwrite(STDERR, "  cp app/config/instances.list.dist app/config/instances.list  and add one instance root per line.\n");
+    fwrite(STDERR, "  cp app/config/instances.list.dist app/config/instances.list  and add one instance per line.\n");
     exit(1);
 }
-if (!$args) {
-    fwrite(STDERR, "usage: php app/console-all <console command and args...>\n");
+if (!$args && !$check_only) {
+    fwrite(STDERR, "usage: php app/console-all [--check-params] [--list FILE] <console command and args...>\n");
     fwrite(STDERR, "  e.g. php app/console-all cache:clear --env=prod\n");
     exit(2);
 }
+$is_cache_clear = $args && $args[0] === 'cache:clear';
 
-// parse the list: strip trailing '#' comments and surrounding whitespace, drop blank lines
-$roots = [];
-foreach (file($list, FILE_IGNORE_NEW_LINES) ?: [] as $raw) {
+require $app_dir . '/../vendor/autoload.php';
+use Symfony\Component\Yaml\Yaml;
+
+// ----------------------------------------
+// The instance list: "<root> [<cache key>]" per line; '#' comments and blank lines ignored
+$instances = [];
+$list_errors = [];
+foreach (file($list, FILE_IGNORE_NEW_LINES) ?: [] as $n => $raw) {
     $line = trim(preg_replace('/#.*$/', '', $raw));
-    if ($line !== '')
-        $roots[] = rtrim($line, '/');
+    if ($line === '')
+        continue;
+    $fields = preg_split('/\s+/', $line);
+    $where = basename($list) . ' line ' . ($n + 1);
+    if (count($fields) > 2) {
+        $list_errors[] = "$where: expected \"<instance root> <cache key>\", got \"$line\"";
+        continue;
+    }
+    $root = rtrim($fields[0], '/');
+    $key = $fields[1] ?? null;
+    if ($key !== null && !preg_match('/^[A-Za-z0-9_]+$/', $key))
+        $list_errors[] = "$where: cache key \"$key\" may only contain letters, digits and _";
+    foreach ($instances as $other) {
+        if ($other['root'] === $root)
+            $list_errors[] = "$where: $root is listed twice";
+        if ($key !== null && $other['key'] === $key)
+            $list_errors[] = "$where: cache key $key is also used by {$other['root']}";
+    }
+    $instances[] = ['root' => $root, 'key' => $key];
+}
+if ($list_errors) {
+    foreach ($list_errors as $e)
+        fwrite(STDERR, "console-all: $e\n");
+    exit(1);
 }
 
+// ----------------------------------------
+// What each instance's parameters.yml should say.  related_memcached_key_prefixes depends on which
+//  instances share a database, so it needs every keyed instance's parameters.yml.
+
+/** Identifies the database an instance uses (host aliases for this machine count as one). */
+function database_id(array $params) {
+    $host = strtolower((string) ($params['database_host'] ?? ''));
+    if (in_array($host, ['', 'localhost', '127.0.0.1', '::1'], true))
+        $host = 'localhost';
+    $port = (string) ($params['database_port'] ?? '');
+    if ($port === '' || $port === '~')
+        $port = '3306';
+    return $host . ':' . $port . '/' . ($params['database_name'] ?? '');
+}
+
+$params_errors = [];       // root => why its parameters.yml can't be checked
+foreach ($instances as $i => $inst) {
+    if ($inst['key'] === null || !is_dir($inst['root'] . '/app/config'))
+        continue;
+    $file = $inst['root'] . '/app/config/parameters.yml';
+    $text = @file_get_contents($file);
+    if ($text === false) {
+        $params_errors[$inst['root']] = is_file($file)
+            ? "can't read $file -- run this with sudo"
+            : "$file doesn't exist";
+        continue;
+    }
+    try {
+        $yaml = Yaml::parse($text, Yaml::PARSE_CUSTOM_TAGS);
+    }
+    catch (\Exception $e) {
+        $params_errors[$inst['root']] = "$file isn't valid YAML: " . $e->getMessage();
+        continue;
+    }
+    $params = $yaml['parameters'] ?? null;
+    if (!is_array($params) || !isset($params['database_name'])) {
+        $params_errors[$inst['root']] = "$file has no parameters.database_name";
+        continue;
+    }
+    $instances[$i]['file'] = $file;
+    $instances[$i]['text'] = $text;
+    $instances[$i]['yaml'] = $yaml;
+    $instances[$i]['db'] = database_id($params);
+}
+
+// If any keyed instance's database is unknown, no instance's related list can be trusted
+$can_sync = !$params_errors;
+if ($can_sync) {
+    foreach ($instances as $i => $inst) {
+        if (!isset($inst['db']))
+            continue;
+        $related = [];
+        foreach ($instances as $other) {
+            if ($other['root'] !== $inst['root'] && isset($other['db']) && $other['db'] === $inst['db'])
+                $related[] = $other['key'];
+        }
+        $instances[$i]['expected'] = [
+            'memcached_key_prefix' => $inst['key'],
+            'session_memcached_prefix' => $inst['key'] . '_sess',
+            'related_memcached_key_prefixes' => $related,
+        ];
+    }
+}
+
+// ----------------------------------------
+// Editing parameters.yml in place: only the managed keys' lines are rewritten, so comments,
+//  ordering and everything else stay exactly as they were.
+
+/** [start, end) line numbers of the "parameters:" block, and its children's indent. */
+function parameters_block(array $lines) {
+    $start = null;
+    foreach ($lines as $n => $line) {
+        if (preg_match('/^parameters:\s*(#.*)?$/', $line)) {
+            $start = $n + 1;
+            break;
+        }
+    }
+    if ($start === null)
+        return null;
+    $end = count($lines);
+    $indent = null;
+    for ($n = $start; $n < count($lines); $n++) {
+        $line = $lines[$n];
+        if (trim($line) === '' || preg_match('/^\s*#/', $line))
+            continue;
+        if (!preg_match('/^\s/', $line)) {   // the next top-level key
+            $end = $n;
+            break;
+        }
+        if ($indent === null)
+            $indent = strspn($line, ' ');
+    }
+    return [$start, $end, $indent ?? 4];
+}
+
+/** The rendered lines for a managed key. */
+function render_param($indent, $key, $value) {
+    $pad = str_repeat(' ', $indent);
+    if (!is_array($value))
+        return [$pad . $key . ': ' . $value];
+    if (!$value)
+        return [$pad . $key . ': []'];
+    $out = [$pad . $key . ':'];
+    foreach ($value as $item)
+        $out[] = $pad . '    - ' . $item;
+    return $out;
+}
+
+/** Sets $key to $value in the parameters block; returns the new text, or null if it can't. */
+function set_param($text, $key, $value) {
+    $eol = str_contains($text, "\r\n") ? "\r\n" : "\n";
+    $lines = explode($eol, $text);
+    $block = parameters_block($lines);
+    if ($block === null)
+        return null;
+    [$start, $end, $indent] = $block;
+
+    for ($n = $start; $n < $end; $n++) {
+        if (!preg_match('/^( *)' . preg_quote($key, '/') . ':(.*)$/', $lines[$n], $m) || strlen($m[1]) !== $indent)
+            continue;
+        // The value's own lines: a block list below the key, either indented further or "- " at
+        //  the key's indent.  An inline value ("x", "[]", "[a, b]") is on the key's line.
+        $last = $n;
+        if (trim(preg_replace('/\s#.*$/', '', $m[2])) === '') {
+            for ($k = $n + 1; $k < $end; $k++) {
+                $l = $lines[$k];
+                if (trim($l) === '')
+                    break;
+                $lead = strspn($l, ' ');
+                if ($lead > $indent || ($lead === $indent && str_starts_with(ltrim($l), '- ')))
+                    $last = $k;
+                else
+                    break;
+            }
+        }
+        array_splice($lines, $n, $last - $n + 1, render_param($indent, $key, $value));
+        return implode($eol, $lines);
+    }
+
+    // Not there: add it at the end of the parameters block, after its last line
+    $at = $end;
+    while ($at > $start && trim($lines[$at - 1]) === '')
+        $at--;
+    array_splice($lines, $at, 0, render_param($indent, $key, $value));
+    return implode($eol, $lines);
+}
+
+/** Short form of a value for messages. */
+function show($value) {
+    if ($value === null)
+        return '(missing)';
+    if (is_array($value))
+        return '[' . implode(', ', $value) . ']';
+    return (string) $value;
+}
+
+/**
+ * Brings one instance's parameters.yml up to date (or, with $write false, says what would change).
+ * Returns [ok, message lines].
+ */
+function sync_params(array $inst, $write, $owner, $is_root) {
+    $params = $inst['yaml']['parameters'];
+    $changes = [];
+    $text = $inst['text'];
+    foreach ($inst['expected'] as $key => $value) {
+        $current = $params[$key] ?? null;
+        if ($current === $value)
+            continue;
+        $changes[] = "$key " . show($current) . ' -> ' . show($value);
+        $text = set_param($text, $key, $value);
+        if ($text === null)
+            return [false, ["parameters.yml: can't find its \"parameters:\" section"]];
+    }
+    if (!$changes)
+        return [true, ['parameters.yml: up to date']];
+    if (!$write)
+        return [false, array_merge(['parameters.yml: would change'], $changes)];
+
+    // Check the edit before writing it: the managed keys hold exactly what they should, and
+    //  nothing else in the file means anything different
+    try {
+        $new = Yaml::parse($text, Yaml::PARSE_CUSTOM_TAGS);
+    }
+    catch (\Exception $e) {
+        return [false, ['parameters.yml: NOT changed -- the edit produced invalid YAML: ' . $e->getMessage()]];
+    }
+    $old = $inst['yaml'];
+    foreach ($inst['expected'] as $key => $value) {
+        if (($new['parameters'][$key] ?? null) !== $value)
+            return [false, ["parameters.yml: NOT changed -- after the edit $key would be " . show($new['parameters'][$key] ?? null)]];
+        unset($old['parameters'][$key], $new['parameters'][$key]);
+    }
+    if ($old !== $new)
+        return [false, ['parameters.yml: NOT changed -- the edit would have changed other settings too']];
+
+    // Keep the old file (it holds secrets: owner-only)
+    $backup_dir = $inst['root'] . '/var/setup-backup/' . date('Ymd-His');
+    if (!is_dir($backup_dir) && !@mkdir($backup_dir, 0700, true))
+        return [false, ["parameters.yml: NOT changed -- can't create $backup_dir" . ($is_root ? '' : ' (run with sudo)')]];
+    $backup = $backup_dir . '/parameters.yml';
+    if (@file_put_contents($backup, $inst['text']) === false)
+        return [false, ["parameters.yml: NOT changed -- can't write $backup"]];
+    @chmod($backup, 0600);
+    if ($is_root && $owner !== null) {
+        @chown($backup_dir, $owner);
+        @chown($backup, $owner);
+    }
+
+    // In place, so the file keeps its owner, mode and ACLs
+    if (@file_put_contents($inst['file'], $text, LOCK_EX) === false)
+        return [false, ["parameters.yml: NOT changed -- can't write {$inst['file']}" . ($is_root ? '' : ' (run with sudo)')]];
+    return [true, array_merge(['parameters.yml: updated (old copy in ' . $backup . ')'], $changes)];
+}
+
+// ----------------------------------------
 // Who we are, and how to run a command as another user (only possible as root)
 $is_root = function_exists('posix_geteuid') && posix_geteuid() === 0;
 $me = function_exists('posix_geteuid') ? (posix_getpwuid(posix_geteuid())['name'] ?? null) : get_current_user();
@@ -67,16 +350,55 @@ function instance_owner($root) {
 }
 
 $rc = 0;
+$pending = 0;              // --check-params: instances whose parameters.yml would change
+if ($params_errors) {
+    fwrite(STDERR, "\nconsole-all: can't work out which instances share a database, so no parameters.yml is checked:\n");
+    foreach ($params_errors as $root => $why)
+        fwrite(STDERR, "  $why\n");
+    if ($is_cache_clear || $check_only) {
+        fwrite(STDERR, "Nothing was run.\n");
+        exit(1);
+    }
+    $rc = 1;
+}
+
 $count = 0;
-foreach ($roots as $root) {
+foreach ($instances as $inst) {
+    $root = $inst['root'];
     $count++;
-    fwrite(STDOUT, sprintf("\n===== [%d] %s =====\n", $count, $root));
+    fwrite(STDOUT, sprintf("\n===== [%d] %s%s =====\n", $count, $root, $inst['key'] !== null ? ' (' . $inst['key'] . ')' : ''));
 
     if (!is_dir($root . '/app/config')) {
         fwrite(STDERR, "  SKIP: $root has no app/config (not an instance root?)\n");
         $rc = 1;
         continue;
     }
+    $owner = instance_owner($root);
+
+    // parameters.yml: brought up to date before cache:clear, otherwise only checked
+    if ($inst['key'] === null) {
+        fwrite(STDOUT, "  note: no cache key in " . basename($list) . " -- parameters.yml not checked\n");
+    }
+    elseif ($can_sync) {
+        [$ok, $msgs] = sync_params($inst, $is_cache_clear && !$check_only, $owner, $is_root);
+        $first = array_shift($msgs);
+        fwrite($ok ? STDOUT : STDERR, "  $first\n");
+        foreach ($msgs as $m)
+            fwrite($ok ? STDOUT : STDERR, "      $m\n");
+        if (!$ok) {
+            $rc = 1;
+            if ($check_only && $first === 'parameters.yml: would change')
+                $pending++;
+            if ($is_cache_clear && !$check_only) {
+                fwrite(STDERR, "  SKIP: cache not cleared for $root\n");
+                continue;
+            }
+            if (!$check_only)
+                fwrite(STDERR, "      (cache:clear through console-all would fix this)\n");
+        }
+    }
+    if ($check_only)
+        continue;
 
     // Run this checkout's console against the instance. ODR_INSTANCE makes the child target it
     // deterministically (see app/console resolution order); cwd is set to the instance too so any
@@ -89,7 +411,6 @@ foreach ($roots as $root) {
     //  theirs -- an instance only has to be writable by its owner and the web server.  That needs
     //  root (sudo php app/console-all ...); otherwise it all runs as you.
     $cmd = array_merge([PHP_BINARY, $console], $args);
-    $owner = instance_owner($root);
     if ($is_root && $owner !== null && $owner !== 'root') {
         fwrite(STDOUT, "  running as $owner\n");
         // env pins ODR_INSTANCE whatever runuser/sudo do to the environment
@@ -119,6 +440,9 @@ foreach ($roots as $root) {
     }
 }
 
-fwrite(STDOUT, sprintf("\n===== done: %d instance(s), overall %s =====\n",
-    $count, $rc === 0 ? 'OK' : 'ERRORS — see above'));
+if ($check_only && $pending > 0)
+    $summary = $pending . ' need parameters.yml changes (cache:clear through console-all makes them)';
+else
+    $summary = $rc === 0 ? 'OK' : 'ERRORS — see above';
+fwrite(STDOUT, sprintf("\n===== done: %d instance(s), overall %s =====\n", $count, $summary));
 exit($rc);

@@ -1,14 +1,26 @@
-# instances.list — linked / WordPress-integrated ODR instance roots, one per line.
+# instances.list — the linked / WordPress-integrated ODR instances on this server, one per line.
 #
-# Copy this to  app/config/instances.list  (which is gitignored — it's per-server) and list the
-# ROOT directory of each linked instance (the dir that contains app/config), NOT the app dir.
+# Copy this to  app/config/instances.list  (which is gitignored — it's per-server) and list each
+# instance: its ROOT directory (the dir that contains app/config, NOT the app dir), then its cache
+# key — the memcached_key_prefix its cache entries are stored under.  Keys must be unique, and may
+# only contain letters, digits and _.
 #
 # Used by  app/console-all  to fan a single console command out across every site:
-#     app/console-all cache:clear --env=prod
+#     sudo php app/console-all cache:clear --env=prod
+# Before clearing each site's cache, that brings the site's parameters.yml in line with this list:
+#     memcached_key_prefix            the site's key
+#     session_memcached_prefix        the site's key + "_sess"
+#     related_memcached_key_prefixes  the keys of the other sites listed here that use the same
+#                                     database
+# so this list must name every site on the server that shares a database with another.
+# Check without changing anything:  php app/console-all --check-params
 #
-# Blank lines and everything after a '#' are ignored.
+# Also used by  setup_virtualhost.sh --all  (which only needs the root).
+#
+# Blank lines and everything after a '#' are ignored.  A line with only a root still works, but
+# that site's parameters.yml isn't checked.
 #
 # Example:
-# /home/rruff/data-publisher
-# /home/amcsd/data-publisher
-# /home/ima/data-publisher
+# /home/odr/data-publisher     odr_master
+# /home/rruff/data-publisher   odr_rruff
+# /home/amcsd/data-publisher   odr_amcsd

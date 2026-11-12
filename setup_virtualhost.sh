@@ -360,7 +360,8 @@ if [ "$ALL" -eq 1 ]; then
   list="$SRC/app/config/instances.list"
   [ -f "$list" ] || { echo "No $list" >&2; exit 2; }
   while IFS= read -r line; do
-    line="${line%%#*}"; line="$(echo "$line" | xargs)"
+    # "<instance root> <cache key>": only the root is needed here
+    line="${line%%#*}"; read -r line _ <<< "$line" || true
     [ -n "$line" ] && { setup_instance "$line" || FAILED=1; }
   done < "$list"
 else

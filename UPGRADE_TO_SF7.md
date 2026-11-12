@@ -344,7 +344,9 @@ Running from the **source tree** (or anywhere with no instance above the CWD) le
 source tree as before — behaviour there is unchanged.
 
 **All linked sites at once** — `app/console-all` fans a single command across every instance listed in
-`app/config/instances.list` (copy `instances.list.dist`, one instance root per line). It `cd`s into
+`app/config/instances.list` (copy `instances.list.dist`; one instance root and its cache key per line,
+and `cache:clear` keeps each instance's cache prefixes in `parameters.yml` in line with it — see
+[CONSOLE.md](CONSOLE.md)). It `cd`s into
 each and reuses the auto-detection above, continues past a failing site, and exits non-zero if any
 failed:
 ```bash

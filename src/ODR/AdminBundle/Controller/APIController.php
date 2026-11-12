@@ -7400,10 +7400,11 @@ class APIController extends ODRCustomController
                 /** @var File $file */
                 $file = $obj;
 
-                // Only allow this action for files smaller than 5Mb?
+                // Only allow this action for files up to 125MB
+                $max_filesize_mb = 125;
                 $filesize = $file->getFilesize() / 1024 / 1024;
-                if ($filesize > 50)
-                    throw new ODRNotImplementedException('Currently not allowed to download files larger than 5Mb');
+                if ($filesize > $max_filesize_mb)
+                    throw new ODRNotImplementedException('Currently not allowed to download files larger than ' . $max_filesize_mb . 'MB');
 
                 // Ensure file exists on the server before attempting to serve it...
                 $filename = 'File_' . $file->getId() . '.' . $file->getExt();

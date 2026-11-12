@@ -37,14 +37,36 @@ See [UPGRADE_TO_SF7.md](UPGRADE_TO_SF7.md) §8 for the full explanation.
 ### Fan out to all instances at once
 
 ```bash
-cp app/config/instances.list.dist app/config/instances.list   # once; one instance root per line
-php app/console-all cache:clear --env=prod
+cp app/config/instances.list.dist app/config/instances.list   # once; "<instance root> <cache key>" per line
+sudo php app/console-all cache:clear --env=prod
 php app/console-all doctrine:migrations:migrate --no-interaction
+php app/console-all --check-params                             # what cache:clear would fix; changes nothing
 ```
 
 `app/console-all` runs a single console command against every instance in `app/config/instances.list`
 (gitignored; `#` comments and blank lines ignored), continues past a failing site, and exits non-zero
-if any failed.
+if any failed. Run with sudo, each instance's command runs as that instance's owner.
+
+Each line is an instance root and its cache key (`memcached_key_prefix`):
+
+```
+/home/odr/data-publisher     odr_master
+/home/rruff/data-publisher   odr_rruff
+```
+
+`cache:clear` first brings each instance's `parameters.yml` in line with the list, then clears its
+cache:
+
+| Parameter | Set to |
+|---|---|
+| `memcached_key_prefix` | the instance's key |
+| `session_memcached_prefix` | the key + `_sess` |
+| `related_memcached_key_prefixes` | the keys of the other listed instances using the same database (`database_host`, `database_port`, `database_name`) |
+
+Only those lines change; the old file is kept in the instance's `var/setup-backup/<date-time>/`. The
+edit is checked before it's written (the three keys must come out right and nothing else may change);
+if it isn't, the file is left alone and that instance's cache isn't cleared. If any keyed instance's
+`parameters.yml` can't be read, nothing is run. Other commands only warn about a mismatch.
 
 ---
 
