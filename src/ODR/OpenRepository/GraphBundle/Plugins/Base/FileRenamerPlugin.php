@@ -76,6 +76,7 @@ use ODR\OpenRepository\GraphBundle\Plugins\MassEditTriggerEventInterface;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Psr\Log\LoggerInterface;
+
 class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSettingsDialogOverrideInterface, MassEditTriggerEventInterface, FileRenamerPluginInterface
 {
 
@@ -90,20 +91,21 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
      * @param \Twig\Environment $templating
      * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly DatabaseInfoService $database_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly DatatreeInfoService $datatree_info_service, private readonly EntityMetaModifyService $entity_modify_service, private readonly \Twig\Environment $templating, private readonly LoggerInterface $logger)
-    {
+    public function __construct(
+        private readonly EntityManager $em,
+        private readonly DatabaseInfoService $database_info_service,
+        private readonly DatarecordInfoService $datarecord_info_service,
+        private readonly DatatreeInfoService $datatree_info_service,
+        private readonly EntityMetaModifyService $entity_modify_service,
+        private readonly \Twig\Environment $templating,
+        private readonly LoggerInterface $logger
+    ) {
+
     }
 
 
     /**
-     * Returns whether the plugin can be executed in the current context.
-     *
-     * @param array $render_plugin_instance
-     * @param array $datafield
-     * @param array|null $datarecord
-     * @param array $rendering_options
-     *
-     * @return bool
+     * {@inheritDoc}
      */
     public function canExecutePlugin($render_plugin_instance, $datafield, $datarecord, $rendering_options)
     {
@@ -122,15 +124,7 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
 
 
     /**
-     * Executes the FileRenamer Plugin on the provided datafield
-     *
-     * @param array $datafield
-     * @param array|null $datarecord
-     * @param array $render_plugin_instance
-     * @param array $rendering_options
-     *
-     * @return string
-     * @throws \Exception
+     * {@inheritDoc}
      */
     public function execute($datafield, $datarecord, $render_plugin_instance, $rendering_options)
     {
@@ -243,16 +237,21 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
      *       ),
      *       ...
      *   ),
+     *   'field_lengths' => array(
+     *       <field_uuid> => <integer>,
+     *       ...
+     *   ),
      *   'separator' => '<string>',
-     *   'period_substitute' => '<string>',
      *   'file_extension' => '<string>',
-     *   'append_file_uuid' => <boolean>,
+     *   'period_substitute' => '<string>',
+     *   'enforce_filename_length' => '<boolean>',
+     *   'remove_spaces' => '<boolean>',
      *   'delete_invalid_characters' => <boolean>,
+     *   'append_file_uuid' => <boolean>,
      * );
      * </pre>
      *
-     * The entries for 'separator', 'period_substitute', 'file_extension', 'append_file_uuid', and
-     * 'delete_invalid_characters are handled via the regular RenderPluginOptionsMap system...they're
+     * The string/boolean entries are handled via the regular RenderPluginOptionsMap system...they're
      * copied into this array for convenience.
      *
      * The 'prefix' entry is an underscore-separated string of datatype ids which indicate any linked
@@ -272,7 +271,8 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
      * value.  The second item is always the string "original", and the third item is the value for
      * the field '77bff846555653b1530001b25c23' (or just be the empty string if that doesn't exist).
      *
-     * The uuid of the file/image is always appended at the end, to ensure that filenames remain unique.
+     * The plugin would prefer to always append the uuid of the file/image to the end, but users hate
+     * that...so it's a plugin option instead.
      *
      * @param DataFields $datafield
      * @return array
@@ -306,15 +306,18 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
                     $period_substitute = '-';
                     if ( isset($rpi['renderPluginOptionsMap']['period_substitute']) )
                         $period_substitute = trim($rpi['renderPluginOptionsMap']['period_substitute']);
+                    $enforce_filename_length = 'yes';
+                    if ( isset($rpi['renderPluginOptionsMap']['enforce_filename_length']) )
+                        $enforce_filename_length = trim($rpi['renderPluginOptionsMap']['enforce_filename_length']);
                     $remove_spaces = 'yes';
                     if ( isset($rpi['renderPluginOptionsMap']['remove_spaces']) )
                         $remove_spaces = trim($rpi['renderPluginOptionsMap']['remove_spaces']);
-                    $append_file_uuid = 'yes';
-                    if ( isset($rpi['renderPluginOptionsMap']['append_file_uuid']) )
-                        $append_file_uuid = trim($rpi['renderPluginOptionsMap']['append_file_uuid']);
                     $delete_invalid_characters = 'yes';
                     if ( isset($rpi['renderPluginOptionsMap']['delete_invalid_characters']) )
                         $delete_invalid_characters = trim($rpi['renderPluginOptionsMap']['delete_invalid_characters']);
+                    $append_file_uuid = 'yes';
+                    if ( isset($rpi['renderPluginOptionsMap']['append_file_uuid']) )
+                        $append_file_uuid = trim($rpi['renderPluginOptionsMap']['append_file_uuid']);
 
                     // ...and the semi-encoded value for the list of fields.
                     $field_list_value = trim((string) $rpi['renderPluginOptionsMap']['field_list']);
@@ -343,16 +346,46 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
                         }
                     }
 
+                    // Both the regular and alternate field lists might have an optional "field length"
+                    //  value after the uuid
+                    $field_lengths = [];
+                    foreach ($field_list as $num => $df_uuid) {
+                        if ( str_contains($df_uuid, '/') ) {
+                            $pieces = explode('/', $df_uuid);
+                            $df_uuid = $pieces[0];
+                            $length = $pieces[1];
+
+                            $field_list[$num] = $df_uuid;
+                            // Slightly easier for me/twig if the length is stored by uuid
+                            $field_lengths[$df_uuid] = $length;
+                        }
+                    }
+                    foreach ($alt_field_list as $num => $alternates) {
+                        foreach ($alternates as $alt_num => $val) {
+                            if ( str_contains($val, '/') ) {
+                                $pieces = explode('/', $val);
+                                $df_uuid = $pieces[0];
+                                $length = $pieces[1];
+
+                                $alt_field_list[$num][$alt_num] = $df_uuid;
+                                // Slightly easier for me/twig if the length is stored by uuid
+                                $field_lengths[$df_uuid] = $length;
+                            }
+                        }
+                    }
+
                     $config = [
                         'prefix' => $lines[0],
                         'field_list' => $field_list,
                         'alt_field_list' => $alt_field_list,
+                        'field_lengths' => $field_lengths,
                         'separator' => $separator,
                         'file_extension' => $file_extension,
                         'period_substitute' => $period_substitute,
+                        'enforce_filename_length' => $enforce_filename_length,
                         'remove_spaces' => $remove_spaces,
-                        'append_file_uuid' => $append_file_uuid,
                         'delete_invalid_characters' => $delete_invalid_characters,
+                        'append_file_uuid' => $append_file_uuid,
                     ];
                 }
             }
@@ -540,12 +573,12 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
                 case 'DateTime':
                 case 'Single Radio':
                 case 'Single Select':
+                // These fields are allowed despite length concerns
+                case 'Long Text':
+                case 'Paragraph Text':
                     $valid_fieldtypes[] = $ft->getId();
                     break;
 
-                // These fields are excluded due to length concerns
-//                case 'Long Text':
-//                case 'Paragraph Text':
                 // These fields are impossible to convert into a filename
 //                case 'Boolean':
 //                case 'File':
@@ -584,10 +617,11 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
         // ...then use a second query to determine the ids/names of the relevant datafields
         // Non-public datafields are not allowed to be used
         $query = $this->em->createQuery(
-           'SELECT dt.id AS dt_id, df.id AS df_id, df.fieldUuid, dfm.fieldName
+           'SELECT dt.id AS dt_id, df.id AS df_id, df.fieldUuid, dfm.fieldName, ft.typeName
             FROM ODR\AdminBundle\Entity\DataType dt
             JOIN ODR\AdminBundle\Entity\DataFields df WITH df.dataType = dt
             JOIN ODR\AdminBundle\Entity\DataFieldsMeta dfm WITH dfm.dataField = df
+            JOIN ODR\AdminBundle\Entity\FieldType ft WITH dfm.fieldType = ft
             WHERE dt.id IN (:datatype_ids) AND dfm.fieldType IN (:fieldtype_ids)
             AND dfm.publicDate != :public_date
             AND dt.deletedAt IS NULL AND df.deletedAt IS NULL AND dfm.deletedAt IS NULL'
@@ -605,8 +639,9 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
             $df_id = $result['df_id'];
             $df_uuid = $result['fieldUuid'];
             $df_name = $result['fieldName'];
+            $df_typename = $result['typeName'];
 
-            $name_data[$dt_id]['fields'][$df_id] = ['uuid' => $df_uuid, 'name' => $df_name];
+            $name_data[$dt_id]['fields'][$df_id] = ['uuid' => $df_uuid, 'name' => $df_name, 'typeName' => $df_typename];
         }
 
 
@@ -969,10 +1004,14 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
                     $drf = $dr['dataRecordFields'][$df_id];
                     if ( isset($drf['shortVarchar']) )
                         $mapping[$df_id][$dr_id] = $drf['shortVarchar'][0]['value'];
-                    else if ( isset($drf['integerValue']) )
-                        $mapping[$df_id][$dr_id] = $drf['integerValue'][0]['value'];
                     else if ( isset($drf['mediumVarchar']) )
                         $mapping[$df_id][$dr_id] = $drf['mediumVarchar'][0]['value'];
+                    else if ( isset($drf['longVarchar']) )
+                        $mapping[$df_id][$dr_id] = $drf['longVarchar'][0]['value'];
+                    else if ( isset($drf['longText']) )
+                        $mapping[$df_id][$dr_id] = $drf['longText'][0]['value'];
+                    else if ( isset($drf['integerValue']) )
+                        $mapping[$df_id][$dr_id] = $drf['integerValue'][0]['value'];
                     else if ( isset($drf['decimalValue']) )
                         $mapping[$df_id][$dr_id] = $drf['decimalValue'][0]['original_value'];
                     else if ( isset($drf['datetimeValue']) )
@@ -1014,18 +1053,19 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
         // Need to run through the mapping array again...if any issues from the previous loop still
         //  persist, then the plugin can't create filenames from the data.  This could be a config
         //  issue, or could be missing data (field not filled out, or record not linked to)
+        $df_values = [];
         foreach ($mapping as $df_id => $data) {
             if ( empty($data) ) {
                 // If no datarecord had a value for this datafield, then the filename will be missing
                 //  a required part...since the data could legitimately be blank, provide the empty string
 //                return "Unable to find a value for the \"".$datafield_names[$df_id]."\" datafield to use for renaming purposes...most likely, the field has no value or an expected record hasn't been linked to.";
-                $mapping[$df_id] = '';
+                $df_values[$df_id] = '';
 
                 // This typically happens when the field hasn't been filled out, or when the config
                 //  tries to pull a value from a linked datarecord...that hasn't actually been linked
             }
             else if ( count($data) > 1 ) {
-                // If there are still multiple records with values for this datafield, then is a
+                // If there are still multiple records with values for this datafield, then it's a
                 //  problem with the plugin config...most likely, it's been told to try to find a
                 //  value in a linked descendant that permits more than one datarecord to link to it
                 return "Found multiple values for the \"".$datafield_names[$df_id]."\" datafield...unable to determine which value to use for renaming the field.  Most likely, the plugin shouldn't be used on this field.";
@@ -1034,19 +1074,21 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
                 // If there's just one piece of data, then it's slightly easier to flatten the array
                 //  at this point...
                 foreach ($data as $dr_id => $value)
-                    $mapping[$df_id] = $value;
+                    $df_values[$df_id] = $value;
 
                 // ...and also might as well apply one of the regexes to try to prevent illegal
                 //  characters in filenames at this point in time
                 if ( $config_info['delete_invalid_characters'] === 'yes' ) {
                     // Delete these invalid characters by default
-                    $mapping[$df_id] = preg_replace(ValidUtility::FILENAME_ILLEGAL_CHARACTERS_REGEX_A, '', (string) $mapping[$df_id]);
+                    $df_values[$df_id] = preg_replace(ValidUtility::FILENAME_ILLEGAL_CHARACTERS_REGEX_A, '', (string) $df_values[$df_id]);
                 }
             }
         }
 
         // Need to determine which values actually go into the filename now
         $values = [];
+        // Might need to enforce field lengths
+        $field_lengths = $config_info['field_lengths'];
         foreach ($config_info['field_list'] as $display_order => $key) {
             // Attempt to locate the value tied to this uuid
             $value = null;
@@ -1057,8 +1099,8 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
                 $value = $key;
             }
             else {
-                // ...otherwise, locate the value for this field in $mapping
-                $value = $mapping[$df_id];
+                // ...otherwise, locate the value for this field in $df_values
+                $value = $df_values[$df_id];
 
                 // The value could be blank because there's no data for it...but if that's the case,
                 //  then we should attempt to check if there are any alternate values...
@@ -1073,13 +1115,13 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
                         }
                         else {
                             // This is a field...
-                            if ( $mapping[$alt_df_id] === '' ) {
+                            if ( $df_values[$alt_df_id] === '' ) {
                                 // ...if it's blank, then continue looking
                                 continue;
                             }
                             else {
                                 // ...otherwise, use the value
-                                $value = $mapping[$alt_df_id];
+                                $value = $df_values[$alt_df_id];
                                 break;
                             }
                         }
@@ -1087,18 +1129,26 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
                 }
             }
 
-            // Store the correct value to use for the new filename
+            // In order to preserve as much information as possible if the filename is going to get
+            //  truncated later...replace periods now, in case the substitution sequence has more
+            //  than one character in it
+            $value = str_replace(".", $config_info['period_substitute'], $value);
+            // Also remove spaces here, if configured
+            if ( $config_info['remove_spaces'] === 'yes' )
+                $value = str_replace(" ", "", $value);
+
+            // Apply any length restrictions the field has
+            if ( isset($field_lengths[$key]) )
+                $value = substr($value, 0, $field_lengths[$key]);
+
+            // Store the value by display order
             $values[$display_order] = $value;
         }
 
         // The base of the new filename is found by imploding all the various pieces together...
         $separator = $config_info['separator'];
         $base_filename = implode($separator, $values);
-        // ...and then replacing any period characters with the substitute sequence
-        $base_filename = str_replace(".", $config_info['period_substitute'], $base_filename);
 
-        if ( $config_info['remove_spaces'] === 'yes' )
-            $base_filename = str_replace(" ", "", $base_filename);
 
         // ----------------------------------------
         // NOTE: this is mostly a duplicate of code in EntityMetaModifyService::updateFileMeta()
@@ -1143,18 +1193,39 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
                 'entity' => $entity,
             ];
 
-            // Append the file/image's uuid if requested
+            // Determine the latter part of the filename before checking length...
+            $filename_append = '';
             if ( $config_info['append_file_uuid'] === 'yes' )
-                $new_filenames[$id]['new_filename'] .= $separator.$uuid;
+                $filename_append .= $separator.$uuid;
+            if ( $config_info['file_extension'] === 'auto' )
+                $filename_append .= '.'.$entity->getExt();
+            else
+                $filename_append .= '.'.$config_info['file_extension'];
 
-            // Change the file's extension if requested
-            if ( $config_info['file_extension'] === 'auto' ) {
-                $new_filenames[$id]['new_filename'] .= '.'.$entity->getExt();
+            // If the plugin is configured to enforce filename length...
+            if ( $config_info['enforce_filename_length'] === 'yes' ) {
+                // ...then need to compute the length of the two parts of the new filename
+                $filename_len = strlen($new_filenames[$id]['new_filename']);
+                $append_len = strlen($filename_append);
+
+                // If the two parts would exceed 255 characters...
+                if ( ($filename_len + $append_len) > 255 ) {
+                    // ...then truncate the first part of the new filename
+                    $new_filenames[$id]['new_filename'] = substr($new_filenames[$id]['new_filename'], 0, (255-$append_len));
+                }
             }
-            else {
-                $new_filenames[$id]['new_filename'] .= '.'.$config_info['file_extension'];
+
+            // If the plugin is not configured to enforce filename length, then do nothing here
+            // The caller will typically throw an exception or silently refuse to save when the
+            //  filename is longer than 255 characters
+
+            // Concatenate the two parts together
+            $new_filenames[$id]['new_filename'] = $new_filenames[$id]['new_filename'].$filename_append;
+
+            // If the file's extension is getting overriden, then inform the caller it needs to save
+            //  that value too
+            if ( $config_info['file_extension'] !== 'auto' )
                 $new_filenames[$id]['new_ext'] = $config_info['file_extension'];
-            }
 
             // Actually saving the new names is done by whatever called this function
         }
@@ -1444,6 +1515,7 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
                 $alt_field_list = '';
                 if ( isset($current_plugin_config['alt_field_list']) )
                     $alt_field_list = $current_plugin_config['alt_field_list'];
+                $field_lengths = $current_plugin_config['field_lengths'];
 
                 // ...to create a mapping from "df_uuid" => "df_name"...
                 $uuid_mapping = self::getUUIDMapping($available_fields, $field_list, $alt_field_list);
@@ -1460,6 +1532,7 @@ class FileRenamerPlugin implements DatafieldHeaderPluginInterface, PluginSetting
 
                         'field_list' => $field_list,
                         'alt_field_list' => $alt_field_list,
+                        'field_lengths' => $field_lengths,
 
                         'allowed_datatypes' => $allowed_datatypes,
 

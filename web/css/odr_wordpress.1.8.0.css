@@ -5476,9 +5476,10 @@ span.ODRRenderPlugin_FileRenamer_config_item_name {
     cursor: default;
     padding-left: 5px;
 }
-input.ODRRenderPlugin_FileRenamer_config_item_name {
+input.ODRRenderPlugin_FileRenamer_config_item_name, input.ODRRenderPlugin_FileRenamer_length {
     background-color: #aaaaaa !important;
     color: white;
+    padding: 0.2em 0.3em !important;
 }
 
 /* CSVTable header should not wrap (ported from develop 20308a05, #271) */
@@ -5486,7 +5487,7 @@ table.ODRRenderPlugin_CSVTable thead th {
     text-wrap: nowrap;
 }
 
-.ODRRenderPlugin_FileRenamer_warn {
+.ODRRenderPlugin_FileRenamer_warn, .ODRRenderPlugin_FileRenamer_lengthwarn {
     color: red;
 }
 .ODRRenderPlugin_FileRenamer_hide_warn {

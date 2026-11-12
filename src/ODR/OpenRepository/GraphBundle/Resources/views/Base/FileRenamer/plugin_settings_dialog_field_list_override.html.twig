@@ -3,7 +3,7 @@
 {% set FILENAME_REGEX = constant('ODR\\AdminBundle\\Component\\Utility\\ValidUtility::FILENAME_ILLEGAL_CHARACTERS_REGEX_A') %}
 
 <div class="pure-u-1">
-    <textarea id="plugin_option_{{ rpo_id }}" class="ODRHidden" name="plugin_options[{{ rpo_id }}]"></textarea>
+    <textarea id="plugin_option_{{ rpo_id }}" class="pure-u-1 ODRHidden" name="plugin_options[{{ rpo_id }}]" style="height:150px;"></textarea>
 
     <div class="pure-u-1 ODRRenderPlugin_FileRenamer_header">
         <div class="pure-u-1">
@@ -23,16 +23,26 @@
 
     <div class="pure-u-1 ODRRenderPlugin_FileRenamer_header">
         <div class="pure-u-11-24">
-            The left side allows you to select which fields the plugin will attempt to find values from.
-            Clicking the "Add constant value" button will create an entry that doesn't depend on the value of a field, and will be the same for every file/image this plugin will affect.
+            <div>
+                The left side allows you to select which fields the plugin will attempt to find values from.  Hover over the field name to see the fieldtype.
+            </div>
+            <div>
+                Clicking the "Add constant value" button will create an entry that doesn't depend on the value of a field, and will be the same for every file/image this plugin will affect.
+            </div>
         </div>
         <div class="pure-u-1-24"></div>
         <div class="pure-u-11-24">
-            The right side shows the order the fields/constants will be applied in...the first is at the top.
-            The positions of the fields/constants can be changed with the up/down arrow icons.
-            The right arrow icon will turn a field/constant into an "alternate" for the item above it, and the left arrow icon will undo this.
-            Removing a field is done by deselecting it on the left side. The string constants can be removed via their trash icon.
-            <br>
+            <div>
+                The right side shows the order the fields/constants will be applied in...the first is at the top.
+                The positions of the fields/constants can be changed with the up/down arrow icons.
+                A field is removed by deselecting it from the left side. The string constants can be removed with their trash icon.
+            </div>
+            <div>
+                The right arrow icon will turn a field/constant into an "alternate" for the item above it, and the left arrow icon will undo this.
+            </div>
+            <div>
+                Entering a number in the "Limit:" field will create an upper limit on how many characters from that field can be in the filename.  The final filename can't be longer than 255 characters.
+            </div>
         </div>
     </div>
 
@@ -69,7 +79,7 @@
                                 <i class="fa"></i>
                             {% endif %}
                             </span>
-                            <span class="Cursor">{{ df_data['name'] }}</span>
+                            <span class="Cursor" title="{{ df_data['typeName'] }}">{{ df_data['name'] }}</span>
                         </li>
                     {% endfor %}
                     </ul>
@@ -92,11 +102,15 @@
                         <span class="ODRRenderPlugin_FileRenamer_up"><i class="fa fa-lg fa-caret-square-o-up"></i></span>
                         <span class="ODRRenderPlugin_FileRenamer_down"><i class="fa fa-lg fa-caret-square-o-down"></i></span>
                         <span class="ODRRenderPlugin_FileRenamer_right"><i class="fa fa-lg fa-caret-square-o-right"></i></span>
-                        {% if uuid_mapping[value] is defined %}
+                    {% if uuid_mapping[value] is defined %}
                         <span class="ODRRenderPlugin_FileRenamer_config_item_name">{{ uuid_mapping[value] }}</span>
-                        {% else %}
+                        <label class="FRight">
+                            <span class="ODRRenderPlugin_FileRenamer_lengthwarn ODRRenderPlugin_FileRenamer_hide_warn" title="Illegal characters in value"><i class="fa fa-lg fa-warning"></i></span>
+                            Limit: <input class="ODRRenderPlugin_FileRenamer_length" type="text" size="2" maxlength="3" {% if field_lengths[value] is defined %}value="{{ field_lengths[value] }}"{% endif %} />
+                        </label>
+                    {% else %}
                         <input class="ODRRenderPlugin_FileRenamer_config_item_name" value="{{ value }}" size="35" />
-                        {% endif %}
+                    {% endif %}
                     </div>
                     {% if uuid_mapping[value] is defined %}<ul>{% endif %}
                     {% if alt_field_list[num] is defined %}
@@ -108,11 +122,16 @@
                                 <span class="ODRRenderPlugin_FileRenamer_up"><i class="fa fa-lg fa-caret-square-o-up"></i></span>
                                 <span class="ODRRenderPlugin_FileRenamer_down"><i class="fa fa-lg fa-caret-square-o-down"></i></span>
                                 <span class="ODRRenderPlugin_FileRenamer_left"><i class="fa fa-lg fa-caret-square-o-left"></i></span>
-                                {% if uuid_mapping[value2] is defined %}
-                                    <span class="ODRRenderPlugin_FileRenamer_config_item_name">{{ uuid_mapping[value2] }}</span>
-                                {% else %}
-                                    <input class="ODRRenderPlugin_FileRenamer_config_item_name" value="{{ value2 }}" size="35" />
-                                {% endif %}
+                            {% if uuid_mapping[value2] is defined %}
+                                {% set df_uuid = uuid_mapping[value2] %}
+                                <span class="ODRRenderPlugin_FileRenamer_config_item_name">{{ uuid_mapping[value2] }}</span>
+                                <label class="FRight">
+                                    <span class="ODRRenderPlugin_FileRenamer_lengthwarn ODRRenderPlugin_FileRenamer_hide_warn" title="Illegal characters in value"><i class="fa fa-lg fa-warning"></i></span>
+                                    Limit: <input class="ODRRenderPlugin_FileRenamer_length" type="text" size="2" maxlength="3" {% if field_lengths[value2] is defined %}value="{{ field_lengths[value2] }}"{% endif %} />
+                                </label>
+                            {% else %}
+                                <input class="ODRRenderPlugin_FileRenamer_config_item_name" value="{{ value2 }}" size="35" />
+                            {% endif %}
                             </div>
                         </li>
                         {% endfor %}
@@ -126,8 +145,8 @@
 </div>
 
 <script>
-    var FileRenamer_timeout = null;
-    var FileRenamer_SaveTimeout = 500;
+    var ODRFileRenamerPlugin_timeout = null;
+    var ODRFileRenamerPlugin_SaveTimeout = 500;
 
     $(function() {
         // Since the resizing apparently refuses to pick up the actual height of the items inside
@@ -144,7 +163,7 @@
             });
 
             $(".ODRRenderPlugin_FileRenamer_addField").removeClass('ODRHidden');
-            FileRenamer_updateVisibleDatatypes();
+            ODRFileRenamerPlugin_updateVisibleDatatypes();
         });
 
         $(".ODRRenderPlugin_FileRenamer_dt_header").unbind('click').click(function() {
@@ -183,8 +202,8 @@
                         $(elem).remove();
 
                         // Since something got removed, need to keep the backend values up to date
-                        clearTimeout( FileRenamer_timeout );
-                        FileRenamer_timeout = setTimeout(FileRenamer_updateValue, FileRenamer_SaveTimeout);
+                        clearTimeout( ODRFileRenamerPlugin_timeout );
+                        ODRFileRenamerPlugin_timeout = setTimeout(ODRFileRenamerPlugin_updateValue, ODRFileRenamerPlugin_SaveTimeout);
                     }
                 });
             }
@@ -193,16 +212,16 @@
                 $(icon_div).addClass('fa-check');
 
                 // Add to the right side
-                FileRenamer_addDatafield(df_name, df_uuid);
+                ODRFileRenamerPlugin_addDatafield(df_name, df_uuid);
             }
         });
 
         $(".ODRRenderPlugin_FileRenamer_addField").unbind('click').click(function() {
-            FileRenamer_addStringConstant();
+            ODRFileRenamerPlugin_addStringConstant();
         });
 
         // Attach the handlers to any existing items
-        FileRenamer_attachHandlers();
+        ODRFileRenamerPlugin_attachHandlers();
 
         // Show the left/right sides if a prefix is already selected
         $(".ODRRenderPlugin_FileRenamer_prefix_list > .ODRRenderPlugin_FileRenamer_label").each(function(index,elem) {
@@ -214,7 +233,7 @@
     /**
      * Reattaches the jquery handlers to the list of datafields on the right side
      */
-    function FileRenamer_attachHandlers() {
+    function ODRFileRenamerPlugin_attachHandlers() {
         $(".ODRRenderPlugin_FileRenamer_up").unbind('click').click(function() {
             var parent = $(this).parents('li').first();
 
@@ -227,7 +246,7 @@
                 $(parent).remove();
 
                 // Need to attach handlers to the cloned block of HTML
-                FileRenamer_attachHandlers();
+                ODRFileRenamerPlugin_attachHandlers();
             }
         });
         $(".ODRRenderPlugin_FileRenamer_down").unbind('click').click(function() {
@@ -242,7 +261,7 @@
                 $(parent).remove();
 
                 // Need to attach handlers to the cloned block of HTML
-                FileRenamer_attachHandlers();
+                ODRFileRenamerPlugin_attachHandlers();
             }
         });
         $(".ODRRenderPlugin_FileRenamer_right").unbind('click').click(function() {
@@ -268,7 +287,7 @@
                     $(parent).remove();
 
                     // Need to attach handlers to the cloned block of HTML
-                    FileRenamer_attachHandlers();
+                    ODRFileRenamerPlugin_attachHandlers();
                 }
             }
         });
@@ -291,7 +310,7 @@
             $(parent).remove();
 
             // Need to attach handlers to the cloned block of HTML
-            FileRenamer_attachHandlers();
+            ODRFileRenamerPlugin_attachHandlers();
         });
 
         $(".ODRRenderPlugin_FileRenamer_trash").unbind('click').click(function() {
@@ -299,26 +318,30 @@
             $(parent).remove();
 
             // Don't need to add new handlers, but need to ensure stuff is up to date
-            clearTimeout( FileRenamer_timeout );
-            FileRenamer_timeout = setTimeout(FileRenamer_updateValue, FileRenamer_SaveTimeout);
+            clearTimeout( ODRFileRenamerPlugin_timeout );
+            ODRFileRenamerPlugin_timeout = setTimeout(ODRFileRenamerPlugin_updateValue, ODRFileRenamerPlugin_SaveTimeout);
         });
 
         $("input.ODRRenderPlugin_FileRenamer_config_item_name").unbind('change').unbind('keyup').unbind('paste').on('keyup paste', function() {
-            clearTimeout( FileRenamer_timeout );
-            FileRenamer_timeout = setTimeout(FileRenamer_updateValue, FileRenamer_SaveTimeout);
+            clearTimeout( ODRFileRenamerPlugin_timeout );
+            ODRFileRenamerPlugin_timeout = setTimeout(ODRFileRenamerPlugin_updateValue, ODRFileRenamerPlugin_SaveTimeout);
+        });
+        $("input.ODRRenderPlugin_FileRenamer_length").unbind('change').unbind('keyup').unbind('paste').on('keyup paste', function() {
+            clearTimeout( ODRFileRenamerPlugin_timeout );
+            ODRFileRenamerPlugin_timeout = setTimeout(ODRFileRenamerPlugin_updateValue, ODRFileRenamerPlugin_SaveTimeout);
         });
 
         // This function gets called when something is added, so might as well run these to keep
         //  stuff up to date
-        clearTimeout( FileRenamer_timeout );
-        FileRenamer_timeout = setTimeout(FileRenamer_updateValue, FileRenamer_SaveTimeout);
+        clearTimeout( ODRFileRenamerPlugin_timeout );
+        ODRFileRenamerPlugin_timeout = setTimeout(ODRFileRenamerPlugin_updateValue, ODRFileRenamerPlugin_SaveTimeout);
     }
 
     /**
      * Updates which datatypes on the left side are visible...this also flags fields on the right
      * side if they're coming from a datatype which is no longer visible
      */
-    function FileRenamer_updateVisibleDatatypes() {
+    function ODRFileRenamerPlugin_updateVisibleDatatypes() {
         var prefix = $(".ODRRenderPlugin_FileRenamer_prefix_list").find(".fa-check-square-o").first().parent().attr('rel');
         $(".ODRRenderPlugin_FileRenamer_dt_container").addClass('ODRHidden');
 
@@ -340,6 +363,7 @@
 
                 // Might as well hide the warnings for the moment, they'll be reactivated again shortly if needed
                 $(field).find('.ODRRenderPlugin_FileRenamer_warn').addClass('ODRRenderPlugin_FileRenamer_hide_warn');
+                $(field).find('.ODRRenderPlugin_FileRenamer_lengthwarn').addClass('ODRRenderPlugin_FileRenamer_hide_warn');
             }
         });
 
@@ -356,18 +380,19 @@
         });
 
         // Update the hidden textarea
-        clearTimeout( FileRenamer_timeout );
-        FileRenamer_timeout = setTimeout(FileRenamer_updateValue, FileRenamer_SaveTimeout);
+        clearTimeout( ODRFileRenamerPlugin_timeout );
+        ODRFileRenamerPlugin_timeout = setTimeout(ODRFileRenamerPlugin_updateValue, ODRFileRenamerPlugin_SaveTimeout);
     }
 
     /**
      * Updates the hidden textarea with the current value of the block on the right side
      */
-    function FileRenamer_updateValue() {
+    function ODRFileRenamerPlugin_updateValue() {
         var text = $(".ODRRenderPlugin_FileRenamer_prefix_list").find(".fa-check-square-o").first().parent().attr('rel');
 
         $(".ODRRenderPlugin_FileRenamer_config_container").each(function(index, elem) {
             var warning_span = $(elem).children('div').first().children('span.ODRRenderPlugin_FileRenamer_warn').first();
+            var length_warning_span = $(elem).children('div').first().find('span.ODRRenderPlugin_FileRenamer_lengthwarn').first();
 
             if ( $(elem).attr('rel') ) {
                 // This is a datafield...it won't have the 'ODRRenderPlugin_FileRenamer_hide_warn'
@@ -378,6 +403,24 @@
                         text += "\n" + $(elem).attr('rel');
                     else
                         text += "|" + $(elem).attr('rel');
+
+                    var length_elem = $(elem).find('.ODRRenderPlugin_FileRenamer_length');
+                    if ( $(length_elem).length > 0 ) {
+                        var length_val = $(length_elem).val().trim();
+                        if ( length_val.length == 0 ) {
+                            // Don't save empty values
+                            $(length_warning_span).addClass('ODRRenderPlugin_FileRenamer_hide_warn');
+                        }
+                        else if ( $(length_elem).val().match(/[^0-9]/g) ) {
+                            // Don't save illegal values, and activate the warning span
+                            $(length_warning_span).removeClass('ODRRenderPlugin_FileRenamer_hide_warn');
+                        }
+                        else {
+                            // Do save numeric values, and intentionally use an otherwise illegal character
+                            text += "/" + length_val;
+                            $(length_warning_span).addClass('ODRRenderPlugin_FileRenamer_hide_warn');
+                        }
+                    }
                 }
             }
             else {
@@ -407,7 +450,7 @@
      * @param {string} df_name
      * @param {string} df_uuid
      */
-    function FileRenamer_addDatafield(df_name, df_uuid) {
+    function ODRFileRenamerPlugin_addDatafield(df_name, df_uuid) {
         var str =
         '<li class="ODRRenderPlugin_FileRenamer_config_container" rel="' + df_uuid + '">' +
             '<div class="ODRRenderPlugin_FileRenamer_config_item">' +
@@ -417,19 +460,23 @@
                 '<span class="ODRRenderPlugin_FileRenamer_down"><i class="fa fa-lg fa-caret-square-o-down"></i></span>' +
                 '<span class="ODRRenderPlugin_FileRenamer_right"><i class="fa fa-lg fa-caret-square-o-right"></i></span>' +
                 '<span class="ODRRenderPlugin_FileRenamer_config_item_name">' + df_name + '</span>' +
+                '<label class="FRight">' +
+                    '<span class="ODRRenderPlugin_FileRenamer_lengthwarn ODRRenderPlugin_FileRenamer_hide_warn" title="Illegal characters in value"><i class="fa fa-lg fa-warning"></i></span>' +
+                    'Limit: <input class="ODRRenderPlugin_FileRenamer_length" type="text" size="2" maxlength="3" />' +
+                '</label>' +
             '</div>' +
             '<ul></ul>' +
         '</li>';
 
         // Append the block of HTML and attach handlers to it
         $(".ODRRenderPlugin_FileRenamer_config").append(str);
-        FileRenamer_attachHandlers();
+        ODRFileRenamerPlugin_attachHandlers();
     }
 
     /**
      * Adds a container for a string constant to the list of datafields on the right side
      */
-    function FileRenamer_addStringConstant() {
+    function ODRFileRenamerPlugin_addStringConstant() {
         var str =
         '<li class="ODRRenderPlugin_FileRenamer_config_container">' +
             '<div class="ODRRenderPlugin_FileRenamer_config_item">' +
@@ -444,7 +491,7 @@
 
         // Append the block of HTML and attach handlers to it
         $(".ODRRenderPlugin_FileRenamer_config").append(str);
-        FileRenamer_attachHandlers();
+        ODRFileRenamerPlugin_attachHandlers();
     }
 </script>
 {% endapply %}
