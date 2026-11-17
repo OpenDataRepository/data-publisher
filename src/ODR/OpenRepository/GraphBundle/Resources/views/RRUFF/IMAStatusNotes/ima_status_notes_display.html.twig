@@ -3,7 +3,7 @@
 {% set DATATYPE_PLUGIN = constant('ODR\\AdminBundle\\Entity\\RenderPlugin::DATATYPE_PLUGIN') %}
 {% set DATAFIELD_PLUGIN = constant('ODR\\AdminBundle\\Entity\\RenderPlugin::DATAFIELD_PLUGIN') %}
 
-{% set df_rendering_options = {'context': 'text', 'is_datatype_admin': is_datatype_admin, 'is_top_level': is_top_level, 'is_link': is_link} %}
+{% set df_rendering_options = {'context': 'html', 'is_datatype_admin': is_datatype_admin, 'is_top_level': is_top_level, 'is_link': is_link} %}
 {% set dt_rendering_options = {'context': 'html', 'is_datatype_admin': is_datatype_admin, 'is_top_level': is_top_level, 'is_link': is_link} %}
 
 {% set display_order_df_id = '' %}
