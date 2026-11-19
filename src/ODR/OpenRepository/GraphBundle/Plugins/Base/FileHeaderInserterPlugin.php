@@ -55,12 +55,9 @@ namespace ODR\OpenRepository\GraphBundle\Plugins\Base;
 // ODR
 use ODR\AdminBundle\Entity\DataFields;
 use ODR\AdminBundle\Entity\DataRecordFields;
-use ODR\AdminBundle\Entity\DataType;
 use ODR\AdminBundle\Entity\FieldType;
 use ODR\AdminBundle\Entity\File;
 use ODR\AdminBundle\Entity\Image;
-use ODR\AdminBundle\Entity\RenderPlugin;
-use ODR\AdminBundle\Entity\RenderPluginInstance;
 use ODR\AdminBundle\Entity\RenderPluginOptionsDef;
 use ODR\OpenRepository\UserBundle\Entity\User as ODRUser;
 // Events
@@ -82,6 +79,7 @@ use ODR\OpenRepository\GraphBundle\Plugins\MassEditTriggerEventInterface;
 // Symfony
 use Doctrine\ORM\EntityManager;
 use Psr\Log\LoggerInterface;
+
 class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, PluginSettingsDialogOverrideInterface, MassEditTriggerEventInterface
 {
 
@@ -99,20 +97,24 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
      * @param \Twig\Environment $templating
      * @param LoggerInterface $logger
      */
-    public function __construct(private readonly EntityManager $em, private readonly CryptoService $crypto_service, private readonly DatabaseInfoService $database_info_service, private readonly DatarecordInfoService $datarecord_info_service, private readonly DatatreeInfoService $datatree_info_service, private readonly EntityDeletionService $entity_deletion_service, private readonly ODRUploadService $upload_service, private readonly string $odr_tmp_directory, private readonly \Twig\Environment $templating, private readonly LoggerInterface $logger)
-    {
+    public function __construct(
+        private readonly EntityManager $em,
+        private readonly CryptoService $crypto_service,
+        private readonly DatabaseInfoService $database_info_service,
+        private readonly DatarecordInfoService $datarecord_info_service,
+        private readonly DatatreeInfoService $datatree_info_service,
+        private readonly EntityDeletionService $entity_deletion_service,
+        private readonly ODRUploadService $upload_service,
+        private readonly string $odr_tmp_directory,
+        private readonly \Twig\Environment $templating,
+        private readonly LoggerInterface $logger
+    ) {
+
     }
 
 
     /**
-     * Returns whether the plugin can be executed in the current context.
-     *
-     * @param array $render_plugin_instance
-     * @param array $datafield
-     * @param array|null $datarecord
-     * @param array $rendering_options
-     *
-     * @return bool
+     * {@inheritDoc}
      */
     public function canExecutePlugin($render_plugin_instance, $datafield, $datarecord, $rendering_options)
     {
@@ -131,15 +133,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
 
 
     /**
-     * Executes the FileRenamer Plugin on the provided datafield
-     *
-     * @param array $datafield
-     * @param array|null $datarecord
-     * @param array $render_plugin_instance
-     * @param array $rendering_options
-     *
-     * @return string
-     * @throws \Exception
+     * {@inheritDoc}
      */
     public function execute($datafield, $datarecord, $render_plugin_instance, $rendering_options)
     {
@@ -232,21 +226,21 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
 
     /**
      * Locates the configuration for the plugin if it exists, and converts it into a more useful
-     * array format for actual use.  For instance...
-     * <code>
+     * array format for actual use.
+     * <pre>
      * array(
-     *     'prefix' => '3_44_47',
-     *     'comment_prefix' => '##',
-     *     'allowed_extensions' => array('txt'),
-     *     'placeholder' => '?:',
-     *     'newline_separator' => "\r\n",
-     *     'fields' => array(17,34,182),
-     *     'header' =>
-     *         "NAME=?:17
-     *          RRUFFID=?:34
-     *          MEASURED CHEMISTRY=?:182"
+     *     'prefix' => '<prefix string>',
+     *     'comment_prefix' => '<string>',
+     *     'allowed_extensions' => array('<string>', ...),
+     *     'placeholder' => '<string>',
+     *     'newline_separator' => '<string>',
+     *     'replace_newlines_in_fields' => <boolean>,
+     *     'replace_existing_files' => <boolean>,
+     *     'fields' => array(<int>, ...),
+     *     'references' => array(<int>, ...),
+     *     'header' => '<string>'
      * );
-     * </code>
+     * </pre>
      *
      * The 'prefix' entry is a string of datatype ids which indicate the "ultimate ancestor" of a
      * record that is about to have one of its uploaded files modified.  It also assists with actually
@@ -258,17 +252,17 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
      * should be inserted in the 'header' entry, and the 'fields' array is a shortcut to the
      * datafield ids listed in the header.
      *
-     * NOTE: the fields are supposed to belong to the given prefix, but since the user is typing stuff
-     * into a textarea this isn't exactly guaranteed.  The field list needs to be verified before it
-     * actually gets used.  It may also be blank.
-     *
-     * The 'newline_separator' is going to be either "\r\n" or "\n", and determines what the plugin
-     * actually uses for the newlines when writing the header to a file.
-     *
      * The 'allowed_extensions' is an array of strings for which files the plugin is allowed to run
      * on.  This is an attempt to stop the plugin from wrecking files which aren't plain-text...
      * such as PDF or JPEG files...but there's nothing stopping the user from doing so if they really
      * want to.
+     *
+     * The 'newline_separator' is going to be either "\r\n" or "\n", and determines what the plugin
+     * actually uses for the newlines when writing the header to a file.
+     *
+     * NOTE: the fields and references are supposed to belong to the given prefix, but since the user
+     * is typing stuff into a textarea this isn't exactly guaranteed.  Both lists need to be verified
+     * before they actually gets used.  They may also be blank.
      *
      * @param DataFields $datafield
      * @return array
@@ -332,6 +326,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
 
                     // The placeholder needs to be converted into a regex for later
                     $datafield_id_regex = '/'.preg_quote($placeholder).'(\d+)/';  // The placeholder, followed by at least one digit
+                    $reference_regex = '/'.preg_quote($placeholder).'R([\d_]+)/';  // The placeholder, followed by an 'R', followed by at least one digit and/or underscores
 
 
                     // ----------------------------------------
@@ -362,6 +357,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
                         $header_text = '';
                     }
 
+                    // ----------------------------------------
                     // Need to get extract the datafield ids out of the header, and the easiest way
                     //  to do that is to regexp the header itself
                     $matches = [];
@@ -380,6 +376,19 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
                         $field_ids = array_keys($field_ids);
                     }
 
+                    // Need to do the same thing for any reference datatypes...
+                    $matches = [];
+                    $ret = preg_match_all($reference_regex, $header_text, $matches);
+
+                    // The header might not have any reference datatype prefixes...
+                    $reference_prefixes = [];
+                    if ( $ret !== false ) {
+                        // ...but if it does, then extract them from the regex results
+                        foreach ($matches[1] as $num => $match)
+                            $reference_prefixes[$match] = 1;
+                        $reference_prefixes = array_keys($reference_prefixes);
+                    }
+
                     $config = [
                         'prefix' => $prefix,
                         'comment_prefix' => $comment_prefix,
@@ -389,6 +398,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
                         'replace_newlines_in_fields' => $replace_newlines_in_fields,
                         'replace_existing_files' => $replace_existing_files,
                         'fields' => $field_ids,
+                        'references' => $reference_prefixes,
                         'header' => $header_text,
                     ];
                 }
@@ -676,8 +686,71 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
 
 
         // ----------------------------------------
+        // ...easier to determine the reference prefixes with a database query?
+        $query = $this->em->createQuery(
+           'SELECT dt.id AS dt_id
+            FROM ODR\AdminBundle\Entity\RenderPlugin rp
+            LEFT JOIN ODR\AdminBundle\Entity\RenderPluginInstance rpi WITH rpi.renderPlugin = rp
+            LEFT JOIN ODR\AdminBundle\Entity\DataType dt WITH rpi.dataType = dt
+            WHERE dt.id IN (:datatype_ids) AND rp.pluginClassName IN (:plugin_classnames)
+            AND rpi.active = 1 AND rp.active = 1
+            AND rpi.deletedAt IS NULL AND rp.deletedAt IS NULL AND dt.deletedAt IS NULL'
+        )->setParameters(
+            [
+                'datatype_ids' => $all_valid_datatypes,
+                'plugin_classnames' => [  // TODO - asdf
+                    'odr_plugins.base.references',
+                    'odr_plugins.chemin.chemin_references',
+                    'odr_plugins.rruff.rruff_references',
+                ],
+            ]
+        );
+        $results = $query->getArrayResult();
+
+        $reference_dt_ids = [];
+        foreach ($results as $result) {
+            $dt_id = $result['dt_id'];
+            $reference_dt_ids[$dt_id] = 1;
+        }
+        $reference_dt_ids = array_keys($reference_dt_ids);
+
+        // ...the existing prefix info is targeted towards the datafield that called this plugin,
+        //  but $descendants_by_prefix does contain when the reference datatypes are reachable
+        $needed_prefixes = [];
+        foreach ($reference_dt_ids as $num => $reference_dt_id) {
+            foreach ($descendants_by_prefix as $prefix => $dt_list) {
+                if ( isset($dt_list[$reference_dt_id]) ) {
+                    $pieces = explode('_', $prefix);
+                    $top_level_dt_id = $pieces[0];
+                    if ( !isset($needed_prefixes[$top_level_dt_id]) )
+                        $needed_prefixes[$top_level_dt_id] = [];
+                    $needed_prefixes[$top_level_dt_id][$reference_dt_id] = 1;
+                }
+            }
+        }
+
+        // Have the entire datatree table in $by_ancestors and $by_descendants here, so can fill in
+        //  the missing prefixes
+        $reference_prefixes = [];
+        foreach ($needed_prefixes as $top_level_dt_id => $reference_dt_list) {
+            foreach ($reference_dt_list as $reference_dt_id => $num) {
+                $ret = self::reconstructReferencePrefixes($by_descendants, $name_data, $top_level_dt_id, $reference_dt_id);
+                if ( is_null($ret) ) {
+                    // No path found...do nothing
+                }
+                else if ( is_array($ret) ) {
+                    // There could be multiple possible paths, so have to be a bit more abstract
+                    foreach ($ret as $ref_prefix => $prefix_name)
+                        $reference_prefixes[$ref_prefix] = $prefix_name;
+                }
+            }
+        }
+
+
+        // ----------------------------------------
         return [
             'prefixes' => $prefixes,
+            'reference_prefixes' => $reference_prefixes,
             'name_data' => $name_data,
             'allowed_datatypes' => $descendants_by_prefix,
         ];
@@ -708,6 +781,57 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
         }
 
         return $prefixes;
+    }
+
+
+    /**
+     * Attempts to recursively locate a prefix string describing a path from $target_dt_id to
+     * $current_dt_id.  Paths through multiple-allowed descendants are ignored.
+     *
+     * @param array $by_descendants
+     * @param array $name_data
+     * @param int $target_dt_id
+     * @param int $current_dt_id
+     * @return string[]|null
+     */
+    private function reconstructReferencePrefixes($by_descendants, $name_data, $target_dt_id, $current_dt_id)
+    {
+        if ( $current_dt_id === $target_dt_id ) {
+            // Managed to recursively locate the target datatype
+            $dt_name = $name_data[$current_dt_id]['name'];
+            return [ strval($current_dt_id) => $dt_name ];
+        }
+        else if ( !isset($by_descendants[$current_dt_id]) ) {
+            // Dead-end...most likely tried to check a path that ended up having no relation to the
+            //  target datatype
+            return null;
+        }
+        else {
+            // Otherwise, still able to keep looking...
+            $tmp = [];
+            foreach ($by_descendants[$current_dt_id] as $ancestor_id => $multiple_allowed) {
+                // Ignore paths that all multiple descendants
+                if ( $multiple_allowed )
+                    continue;
+
+                $ret = self::reconstructReferencePrefixes($by_descendants, $name_data, $target_dt_id, $ancestor_id);
+                if ( is_null($ret) ) {
+                    // Dead-end...check another path
+                }
+                else if ( is_array($ret) ) {
+                    // There could be multiple possible paths, so have to be a bit more abstract
+                    foreach ($ret as $prefix => $name_str) {
+                        $tmp_prefix = $prefix.'_'.strval($current_dt_id);
+                        $dt_name = $name_data[$current_dt_id]['name'];
+                        $tmp_name = $name_str.' >> '.$dt_name;
+
+                        $tmp[$tmp_prefix] = $tmp_name;
+                    }
+                }
+            }
+
+            return $tmp;
+        }
     }
 
 
@@ -745,6 +869,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
         $placeholder = $config_info['placeholder'];
         $newline_separator = $config_info['newline_separator'];
         $fields = $config_info['fields'];
+        $references = $config_info['references'];
         $header_text = $config_info['header'];
 
 
@@ -788,6 +913,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
         // Need to find the "ultimate ancestor" of this datarecord, as far as the config for this
         //  render plugin is concerned at least.
         $ancestor_dr_id = null;
+        $ancestor_dt_id = null;
         // Also will be useful to get all the intermediate ids
         $intermediate_dr_ids = [];
         // The "prefix" string...an underscore-separated list of datatype ids...indicates how far
@@ -802,6 +928,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
             //  somewhere...it just means that the values for the header only come from this record
             //  and its descendants (if any exist)
             $ancestor_dr_id = $dr->getId();
+            $ancestor_dt_id = $dr->getDataType()->getId();
             $intermediate_dr_ids[$ancestor_dr_id] = 0;
         }
         else {
@@ -912,6 +1039,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
             for ($i = 0; $i < $dr_num; $i++)
                 $intermediate_dr_ids[$i] = intval($results[0]['dr_'.$i.'_id']);
             $ancestor_dr_id = $intermediate_dr_ids[0];
+            $ancestor_dt_id = $params['dr_0_dt'];
 
             // ...but after this point, they're only useful if they're flipped
             $intermediate_dr_ids = array_flip($intermediate_dr_ids);
@@ -984,12 +1112,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
         //  a child/linked descendant of a particular datatype, then this array won't have the datatype
         //  id...but that also means that there's no possible value for datafields of that datatype,
         //  so it ends up meaning the same thing in the long run
-        $valid_datatypes = [];
-        foreach ($dr_array as $dr_id => $dr) {
-            $dt_id = $dr['dataType']['id'];
-            $valid_datatypes[$dt_id] = 1;
-        }
-        $valid_datatypes = array_keys($valid_datatypes);
+        $valid_datatypes = self::findValidDatatypes($dr_array, $ancestor_dr_id);
 
         // Verifying all of these requirements is easier to do with the query below...bonus points
         //  for keeping things looking similar to how the FileRenamer plugin works
@@ -1114,7 +1237,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
             $searches[] = $placeholder.$df_id;
 
             // Prefer to use values from the $filtered_mapping array first...
-            if ( isset($filtered_mapping[$df_id]) && !empty($filtered_mapping[$df_id]) ) {
+            if ( !empty($filtered_mapping[$df_id]) ) {
                 foreach ($filtered_mapping[$df_id] as $dr_id => $value) {
                     // While there should only be one value in here, there's no way to know the
                     //  $dr_id beforehand
@@ -1125,7 +1248,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
                     break;
                 }
             }
-            else if ( isset($original_mapping[$df_id]) && !empty($original_mapping[$df_id]) ) {
+            else if ( !empty($original_mapping[$df_id]) ) {
                 // ...but fall back to the $original_mapping array if a filtered value doesn't exist
                 foreach ($original_mapping[$df_id] as $dr_id => $value) {
                     if ( $config_info['replace_newlines_in_fields'] )
@@ -1147,6 +1270,81 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
             }
         }
 
+        // Need to also deal with any reference plugin substitutions...
+        foreach ($references as $num => $reference_prefix) {
+            // Setup the placeholder replacement for this reference...as with the datafields, going
+            //  to replace the reference placeholders even if the reference citations can't be found
+            $searches[] = $placeholder.'R'.$reference_prefix;
+
+            // Extract the reference datatype id from the prefix
+            $reference_dt_id = (int) $reference_prefix;
+            if ( str_contains($reference_prefix, '_') )
+                $reference_dt_id = (int) substr($reference_prefix, strrpos($reference_prefix, '_')+1);
+            // ...only continue if the datatype is one of the valid ones for this plugin
+            if ( !in_array($reference_dt_id, $valid_datatypes) )
+                continue;
+
+            // If it is valid, then check whether the datatype is using a reference plugin
+            $reference_rpi = null;
+            $dt_array = $this->database_info_service->getDatatypeArray($ancestor_dt_id);  // do need links...
+            if ( isset($dt_array[$reference_dt_id]['renderPluginInstances']) ) {
+                foreach ($dt_array[$reference_dt_id]['renderPluginInstances'] as $rpi_num => $rpi) {
+                    $plugin_classname = $rpi['renderPlugin']['pluginClassName'];
+                    switch ($plugin_classname) {
+                        case 'odr_plugins.base.references':
+                        case 'odr_plugins.chemin.chemin_references':
+                        case 'odr_plugins.rruff.rruff_references':
+                            $reference_rpi = $rpi;
+                            break 2;
+                    }
+                }
+            }
+
+            $reference_text = '';
+            if ( !is_null($reference_rpi) ) {
+                // Hopefully the reference exists and is cached...
+                $dr_array = $this->datarecord_info_service->getDatarecordArray($ancestor_dr_id);  // do want links
+                $reference_dr = self::findReferenceDatarecord($dr_array, $ancestor_dr_id, $reference_prefix);
+
+                if ( is_null($reference_dr) ) {
+                    // No reference record exists
+                }
+                else if ( isset($reference_dr['cached_reference']['rruff']['text']) ) {
+                    // The reference exists, and the citation is already cached
+                    $reference_text = $reference_dr['cached_reference']['rruff']['text'];
+                }
+                else {
+                    // The reference exists, but the citation hasn't been cached...provide minimal
+                    //  information to twig so the related reference plugin can be run to recache it
+                    $dt = $dt_array[$reference_dt_id];
+                    $reference_dr_id = $reference_dr['id'];
+
+                    $ret = $this->templating->render(
+                        '@ODROpenRepositoryGraph/Base/FileHeaderInserter/file_header_referencepluginexecute.html.twig',
+                        [
+                            'render_plugin_instance' => $reference_rpi,
+                            'rendering_options' => ['context' => 'text', 'is_datatype_admin' => false],
+
+                            'datatype' => $dt,
+                            'datarecord_array' => [$reference_dr_id => $reference_dr],
+
+                            // Believe the rest of these can be empty without causing issues
+                            'theme_array' => [],
+                            'parent_datarecord' => [],
+                            'datatype_permissions' => [],
+                            'datafield_permissions' => [],
+                        ]
+                    );
+
+                    $reference_text = trim($ret);
+                }
+            }
+
+            $replacements[] = $reference_text;
+        }
+
+
+        // ----------------------------------------
         // Replace all the placeholders in the header text with their actual values
         $header_text = str_replace($searches, $replacements, $header_text);
 
@@ -1159,6 +1357,107 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
         $new_header_text = implode($newline_separator, $header_lines).$newline_separator;    // Seems to work better if there's an additional newline after the header text
         // Need to return this as an array though, to distinguish between valid headers and soft-errors
         return $new_header_text;
+    }
+
+
+    /**
+     * Locates all descendant datatypes from the given unstacked datarecord array, starting from
+     * the given $ancestor_dr_id
+     *
+     * @param array $dr_array {@link DatarecordInfoService::getDatarecordArray()}  MUST be unstacked
+     * @param int $ancestor_dr_id
+     * @return array
+     */
+    private function findValidDatatypes($dr_array, $ancestor_dr_id)
+    {
+        $valid_datatypes = [];
+
+        // Starting from the given ancestor...
+        $datarecords_to_check = [$ancestor_dr_id => 1];
+        while ( !empty($datarecords_to_check) ) {
+            $tmp = [];
+            foreach ($datarecords_to_check as $dr_id => $num) {
+                // ...store that this particular datarecord is "valid"
+                $dr = $dr_array[$dr_id];
+                $dt_id = $dr['dataType']['id'];
+                $valid_datatypes[$dt_id] = 1;
+
+                // If the datarecord has any children...
+                if ( !empty($dr['children']) ) {
+                    foreach ($dr['children'] as $child_dt_id => $child_dr_list) {
+                        // ...then check each of them as well
+                        foreach ($child_dr_list as $num => $child_dr_id)
+                            $tmp[$child_dr_id] = 1;
+                    }
+                }
+            }
+            $datarecords_to_check = $tmp;
+        }
+
+        // Want the datatype ids as values in the array
+        $valid_datatypes = array_keys($valid_datatypes);
+        return $valid_datatypes;
+    }
+
+
+    /**
+     * In order to acquire the citation for a reference, we need to dig through a datarecord array...
+     *
+     * @param array $dr_array {@link DatarecordInfoService::getDatarecordArray()} MUST be unstacked
+     * @param int $grandparent_dr_id
+     * @param string $reference_prefix
+     * @return array|null
+     */
+    private function findReferenceDatarecord($dr_array, $grandparent_dr_id, $reference_prefix)
+    {
+        // Explode the prefix into individual datatypes...
+        $dt_chain = explode('_', $reference_prefix);
+        foreach ($dt_chain as $num => $dt_id)
+            $dt_chain[$num] = intval($dt_id);
+
+        // If the prefix only has one datatype, then no need to go digging
+        if ( count($dt_chain) === 1 )
+            return $dr_array[$grandparent_dr_id];
+
+        // Otherwise, need to attempt to locate some (distant) descendant of the grandparent record...
+        $current_dr = $dr_array[$grandparent_dr_id];
+        for ($i = 1; $i < count($dt_chain)-1; $i++) {
+            $child_dt_id = $dt_chain[$i];
+
+            if ( !isset($current_dr['children'][$child_dt_id][0]) ) {
+                // The current datarecord has no descendants belonging to the prefix...so it can't
+                //  have a reference record
+                return null;
+            }
+            else {
+                // ...otherwise, going to check the first descendant record of this descendant
+                //  datatype.  Hopefully there's only one record in this datatype, but just use the
+                //  first one if there's multiple *shrug*
+                $child_dr_id = $current_dr['children'][$child_dt_id][0];
+                // ...it still might not be in the datarecord array though for some reason
+                if ( isset($dr_array[$child_dr_id]) )
+                    $current_dr = $dr_array[$child_dr_id];
+                else
+                    return null;
+            }
+        }
+
+        // At this point, $current_dr is guaranteed to be the targeted reference datarecord's parent
+        $reference_dt_id = $dt_chain[ count($dt_chain)-1 ];
+        if ( !isset($current_dr['children'][$reference_dt_id][0]) ) {
+            // The current datarecord has no descendants belonging to the prefix...so it can't
+            //  have a reference record
+            return null;
+        }
+        else {
+            // The current datarecord should have a descendant...just use the first one
+            $reference_dr_id = $current_dr['children'][$reference_dt_id][0];
+            // ...it still might not be in the datarecord array though for some reason
+            if ( isset($dr_array[$reference_dr_id]) )
+                return $dr_array[$reference_dr_id];
+            else
+                return null;
+        }
     }
 
 
@@ -1578,16 +1877,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
 
 
     /**
-     * Returns an array of HTML strings for each RenderPluginOption in this RenderPlugin that needs
-     * to use custom HTML in the RenderPlugin settings dialog.
-     *
-     * @param ODRUser $user                                     The user opening the dialog
-     * @param boolean $is_datatype_admin                        Whether the user is able to make changes to this RenderPlugin's config
-     * @param RenderPlugin $render_plugin                       The RenderPlugin in question
-     * @param DataType $datatype                                The relevant datatype if this is a Datatype Plugin, otherwise the Datatype of the given Datafield
-     * @param DataFields|null $datafield                        Will be null unless this is a Datafield Plugin
-     * @param RenderPluginInstance|null $render_plugin_instance Will be null if the RenderPlugin isn't in use
-     * @return string[]
+     * {@inheritDoc}
      */
     public function getRenderPluginOptionsOverride($user, $is_datatype_admin, $render_plugin, $datatype, $datafield = null, $render_plugin_instance = null)
     {
@@ -1598,6 +1888,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
             if ( $rpo->getUsesCustomRender() ) {
                 $available_configurations = self::getAvailableConfigurations($datafield);
                 $available_prefixes = $available_configurations['prefixes'];
+                $available_references = $available_configurations['reference_prefixes'];
                 $available_fields = $available_configurations['name_data'];
                 $allowed_datatypes = $available_configurations['allowed_datatypes'];
 
@@ -1612,6 +1903,9 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
                 $current_fields = '';
                 if ( isset($current_plugin_config['fields']) )
                     $current_fields = array_flip($current_plugin_config['fields']);    // want this flipped to more easily determine $field_mapping
+                $current_references = '';
+                if ( isset($current_plugin_config['references']) )
+                    $current_references = array_flip($current_plugin_config['references']);
                 $current_header = '';
                 if ( isset($current_plugin_config['header']) )
                     $current_header = $current_plugin_config['header'];
@@ -1625,20 +1919,45 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
                     }
                 }
 
+                // ...also need a mapping just for references
+                $reference_mapping = [];
+                foreach ($available_references as $reference_prefix => $prefix_label) {
+                    if ( isset($current_references[$reference_prefix]) )
+                        $reference_mapping[$reference_prefix] = $prefix_label;
+                }
+
+                // ...and to make twig's life easier, something for when to enable available references
+                $allowed_references = [];
+                foreach ($allowed_datatypes as $prefix => $dt_data) {
+                    $allowed_references[$prefix] = [];
+                    $pieces = explode('_', $prefix);
+                    $prefix_start = $pieces[0];
+
+                    foreach ($available_references as $reference_prefix => $prefix_label) {
+                        if ( str_starts_with($reference_prefix, $prefix_start) )
+                            $allowed_references[$prefix][$reference_prefix] = 1;
+                    }
+                }
+
+
                 // ...which allows a template to be rendered
                 $custom_rpo_html[$rpo->getId()] = $this->templating->render(
                     '@ODROpenRepositoryGraph/Base/FileHeaderInserter/plugin_settings_dialog_field_list_override.html.twig',
                     [
                         'rpo_id' => $rpo->getId(),
 
-                        'available_prefixes' => $available_prefixes,
-                        'available_fields' => $available_fields,
                         'current_prefix' => $current_prefix,
                         'current_placeholder' => $current_placeholder,
                         'current_header' => $current_header,
 
                         'allowed_datatypes' => $allowed_datatypes,
+                        'available_prefixes' => $available_prefixes,
                         'field_mapping' => $field_mapping,
+                        'available_fields' => $available_fields,
+
+                        'allowed_references' => $allowed_references,
+                        'available_references' => $available_references,
+                        'reference_mapping' => $reference_mapping,
                     ]
                 );
             }
@@ -1652,7 +1971,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
 
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      */
     public function getMassEditOverrideFields($render_plugin_instance)
     {
@@ -1672,7 +1991,7 @@ class FileHeaderInserterPlugin implements DatafieldHeaderPluginInterface, Plugin
 
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      */
     public function getMassEditTriggerFields($render_plugin_instance)
     {

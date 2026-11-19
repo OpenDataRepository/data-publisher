@@ -3,7 +3,7 @@ odr_plugins.base.file_header_inserter:
     category: Base
     plugin_type: datafield_header
     render: odr_plugins.base.file_header_inserter  # TODO - block cohabitation with RRUFFFileHeaderInserter plugin?
-    version: 2.0.0
+    version: 2.1.0
     override_fields: false
     override_field_reload: false
     override_child: false
