@@ -1,0 +1,9 @@
+{% set can_execute_current_plugin = render_plugin_instance|can_execute_datatype_plugin(datatype, rendering_options) %}
+
+{# Only want to save the render_plugin_instance if it's render-able #}
+{% if can_execute_current_plugin %}
+    {% set content = datarecord_array|datatype_plugin(datatype, render_plugin_instance, theme_array, rendering_options, parent_datarecord, datatype_permissions, datafield_permissions) %}
+    {% if content|length > 0 %}
+        {{ content|raw }}
+    {% endif %}
+{% endif %}
