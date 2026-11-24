@@ -1,6 +1,6 @@
 {% apply spaceless %}
 <div class="pure-u-1">
-    <textarea id="plugin_option_{{ rpo_id }}" class="ODRHidden" name="plugin_options[{{ rpo_id }}]"></textarea>
+    <textarea id="plugin_option_{{ rpo_id }}" class="pure-u-1 ODRHidden" name="plugin_options[{{ rpo_id }}]" style="height:150px;"></textarea>
 
     <div class="pure-u-1 ODRRenderPlugin_FileHeaderInserter_header">
         <div class="pure-u-1">
@@ -62,6 +62,37 @@
                     </ul>
                 </li>
             {% endfor %}
+            {% if available_references|length > 0 %}
+                <li id="ODRRenderPlugin_FileHeaderInserter_citations" class="ODRRenderPlugin_FileHeaderInserter_dt_container ODRHidden">
+                    <div class="ODRRenderPlugin_FileHeaderInserter_dt_header">
+                        <span class="ODRRenderPlugin_FileHeaderInserter_dt_name">Reference Citations</span>
+                        <span class="FRight"><i class="fa fa-caret-down"></i></span>
+                    </div>
+                    <ul class="{# ODRHidden #} ODRRenderPlugin_FileHeaderInserter_df_list">
+                    {% for prefix,ref_list in allowed_references %}
+                        {% if ref_list|length > 0 %}
+                            {% for reference_prefix,num in ref_list %}
+                                {% set matches_id = false %}
+                                {% if reference_mapping[reference_prefix] is defined %}
+                                    {% set matches_id = true %}
+                                {% endif %}
+
+                                <li id="ODRRenderPlugin_FileHeaderInserter_ref_{{ reference_prefix }}" class="ODRRenderPlugin_FileHeaderInserter_ref_entry">
+                                    <span class="ODRRenderPlugin_FileHeaderInserter ODRTristateCheckbox binary" rel="R{{ reference_prefix }}">
+                                    {% if matches_id %}
+                                        <i class="fa fa-check"></i>
+                                    {% else %}
+                                        <i class="fa"></i>
+                                    {% endif %}
+                                    </span>
+                                    <span class="Cursor">{{ available_references[reference_prefix] }}</span>
+                                </li>
+                            {% endfor %}
+                        {% endif %}
+                    {% endfor %}
+                    </ul>
+                </li>
+            {% endif %}
             </ul>
         </div>
     </div>
@@ -76,10 +107,24 @@
                 <li class="ODRRenderPlugin_FileHeaderInserter_fields_container" rel="{{ df_id }}">
                     <div class="ODRRenderPlugin_FileHeaderInserter_fields_item">
                         <span class="ODRRenderPlugin_FileHeaderInserter_warn ODRRenderPlugin_FileHeaderInserter_hide_warn" title="This field isn't available for the chosen prefix"><i class="fa fa-lg fa-warning"></i></span>
-                        <span class="ODRRenderPlugin_FileHeaderInserter_fields_item_name">{{ df_name }}</span>
-                        <span class="ODRRenderPlugin_FileHeaderInserter_fields_item_info">
+                        <span class="ODRRenderPlugin_FileHeaderInserter_fields_item_name pure-u-14-24">{{ df_name }}</span>
+                        <span class="ODRRenderPlugin_FileHeaderInserter_fields_item_info pure-u-8-24">
                             <span class="ODRRenderPlugin_FileHeaderInserter_placeholder">{{ current_placeholder }}</span>
                             <span class="ODRRenderPlugin_FileHeaderInserter_df_id">{{ df_id }}</span>
+                            used
+                            <span class="ODRRenderPlugin_FileHeaderInserter_fields_item_count">0 times</span>
+                        </span>
+                    </div>
+                </li>
+            {% endfor %}
+            {% for reference_prefix,prefix_label in reference_mapping %}
+                <li class="ODRRenderPlugin_FileHeaderInserter_fields_container" rel="R{{ reference_prefix }}">
+                    <div class="ODRRenderPlugin_FileHeaderInserter_fields_item">
+                        <span class="ODRRenderPlugin_FileHeaderInserter_warn ODRRenderPlugin_FileHeaderInserter_hide_warn" title="This field isn't available for the chosen prefix"><i class="fa fa-lg fa-warning"></i></span>
+                        <span class="ODRRenderPlugin_FileHeaderInserter_fields_item_name pure-u-14-24">{{ prefix_label }}</span>
+                        <span class="ODRRenderPlugin_FileHeaderInserter_fields_item_info pure-u-8-24">
+                            <span class="ODRRenderPlugin_FileHeaderInserter_placeholder">{{ current_placeholder }}</span>
+                            <span class="ODRRenderPlugin_FileHeaderInserter_df_id">R{{ reference_prefix }}</span>
                             used
                             <span class="ODRRenderPlugin_FileHeaderInserter_fields_item_count">0 times</span>
                         </span>
@@ -96,8 +141,8 @@
 </div>
 
 <script>
-    var FileHeaderInserter_timeout = null;
-    var FileHeaderInserter_SaveTimeout = 500;
+    var ODRFileHeaderInserterPlugin_timeout = null;
+    var ODRFileHeaderInserterPlugin_SaveTimeout = 500;
 
     $(function() {
         // Since the resizing apparently refuses to pick up the actual height of the items inside
@@ -113,13 +158,15 @@
                     $(elem).children('i').first().removeClass('fa-check-square-o').addClass('fa-square-o');
             });
 
-            FileHeaderInserter_updateVisibleDatatypes();
+            ODRFileHeaderInserterPlugin_updateVisibleDatatypes();
         });
 
         $(".ODRRenderPlugin_FileHeaderInserter_dt_header").unbind('click').click(function() {
             var show = true;
             if ( $(this).children('span.FRight').children('i').hasClass('fa-caret-down') )
                 show = false;
+
+            // console.log(show, $(this).next().children('li'));
 
             if ( show ) {
                 $(this).next().children('li').each(function(index,elem) {
@@ -152,8 +199,8 @@
                         $(elem).remove();
 
                         // Since something got removed, need to keep the backend values up to date
-                        clearTimeout( FileHeaderInserter_timeout );
-                        FileHeaderInserter_timeout = setTimeout(FileHeaderInserter_updateValue, FileHeaderInserter_SaveTimeout);
+                        clearTimeout( ODRFileHeaderInserterPlugin_timeout );
+                        ODRFileHeaderInserterPlugin_timeout = setTimeout(ODRFileHeaderInserterPlugin_updateValue, ODRFileHeaderInserterPlugin_SaveTimeout);
                     }
                 });
             }
@@ -162,22 +209,22 @@
                 $(icon_div).addClass('fa-check');
 
                 // Add to the right side
-                FileHeaderInserter_addDatafield(df_name, df_id);
+                ODRFileHeaderInserterPlugin_addDatafield(df_name, df_id);
 
                 // Since something got added, need to keep the backend values up to date
-                clearTimeout( FileHeaderInserter_timeout );
-                FileHeaderInserter_timeout = setTimeout(FileHeaderInserter_updateValue, FileHeaderInserter_SaveTimeout);
+                clearTimeout( ODRFileHeaderInserterPlugin_timeout );
+                ODRFileHeaderInserterPlugin_timeout = setTimeout(ODRFileHeaderInserterPlugin_updateValue, ODRFileHeaderInserterPlugin_SaveTimeout);
             }
         });
 
         $("#ODRRenderPlugin_FileHeaderInserter_textarea").unbind('change keyup paste').on('change keyup paste', function() {
             // Since something got changed, need to keep the backend values up to date
-            clearTimeout( FileHeaderInserter_timeout );
-            FileHeaderInserter_timeout = setTimeout(FileHeaderInserter_updateValue, FileHeaderInserter_SaveTimeout);
+            clearTimeout( ODRFileHeaderInserterPlugin_timeout );
+            ODRFileHeaderInserterPlugin_timeout = setTimeout(ODRFileHeaderInserterPlugin_updateValue, ODRFileHeaderInserterPlugin_SaveTimeout);
         });
 
         // Ensure the parsing of the textarea is up to date
-        FileHeaderInserter_updateValue();
+        ODRFileHeaderInserterPlugin_updateValue();
 
         // Show the left/right sides if a prefix is already selected
         $(".ODRRenderPlugin_FileHeaderInserter_prefix_list > .ODRRenderPlugin_FileHeaderInserter_label").each(function(index,elem) {
@@ -185,18 +232,18 @@
                 $(elem).trigger('click');
         });
 
-        FileHeaderInserter_attachPlaceholderEvent();
+        ODRFileHeaderInserterPlugin_attachPlaceholderEvent();
     });
 
     /**
      * It's useful to update the header area automatically when the placeholder is changed.
      */
-    function FileHeaderInserter_attachPlaceholderEvent() {
+    function ODRFileHeaderInserterPlugin_attachPlaceholderEvent() {
         $(".ODRRenderPluginOptionsMap").each(function() {
             var label = $(this).prev().text().trim();
             if ( label.indexOf('Placeholder') !== -1 ) {
                 $(this).unbind('change paste keyup').on('change paste keyup', function() {
-                    FileHeaderInserter_updateValue();
+                    ODRFileHeaderInserterPlugin_updateValue();
                 });
             }
         });
@@ -205,7 +252,7 @@
     /**
      * Returns the currently entered placeholder.
      */
-    function FileHeaderInserter_getPlaceholder() {
+    function ODRFileHeaderInserterPlugin_getPlaceholder() {
         var placeholder = '';
         $(".ODRRenderPluginOptionsMap").each(function() {
             var label = $(this).prev().text().trim();
@@ -219,11 +266,13 @@
      * Updates which datatypes on the left side are visible...this also flags fields on the right
      * side if they're coming from a datatype which is no longer visible.
      */
-    function FileHeaderInserter_updateVisibleDatatypes() {
+    function ODRFileHeaderInserterPlugin_updateVisibleDatatypes() {
         var prefix = $(".ODRRenderPlugin_FileHeaderInserter_prefix_list").find(".fa-check-square-o").first().parent().attr('rel');
         $(".ODRRenderPlugin_FileHeaderInserter_dt_container").addClass('ODRHidden');
+        // The above also hides $("ODRRenderPlugin_FileHeaderInserter_citations")
+        $(".ODRRenderPlugin_FileHeaderInserter_ref_entry").addClass('ODRHidden');
 
-        // Locate which datatypes should be visible as a result of the selected prefix
+        // Locate which datatypes/references should be visible as a result of the selected prefix
     {% for prefix,data in allowed_datatypes %}
         if ( prefix === '{{ prefix }}' ) {
         {% for dt_id,num in data %}
@@ -231,22 +280,37 @@
         {% endfor %}
         }
     {% endfor %}
+    {% for prefix,data in allowed_references %}
+        if ( prefix === '{{ prefix }}' ) {
+        {% if data|length > 0 %}
+            $("#ODRRenderPlugin_FileHeaderInserter_citations").removeClass('ODRHidden');
+        {% endif %}
+        {% for ref_prefix,num in data %}
+            $("#ODRRenderPlugin_FileHeaderInserter_ref_{{ ref_prefix }}").removeClass('ODRHidden');
+        {% endfor %}
+        }
+    {% endfor %}
 
-        // Want a list of the fields already on the right side
+        // Want a list of the fields/references already on the right side
         var selected_fields = [];
+        var selected_references = [];
         $(".ODRRenderPlugin_FileHeaderInserter_fields_container").each(function(index,field) {
             if ( $(field).attr('rel') ) {
                 var uuid = $(field).attr('rel');
-                selected_fields[uuid] = $(field);
+                if ( uuid.indexOf('R') === 0 )
+                    selected_references[uuid] = $(field);
+                else
+                    selected_fields[uuid] = $(field);
 
                 // Might as well hide the warnings for the moment, they'll be reactivated again shortly if needed
                 $(field).find('.ODRRenderPlugin_FileHeaderInserter_warn').addClass('ODRRenderPlugin_FileHeaderInserter_hide_warn');
             }
         });
 
-        // For each of the invisible datatypes...
+        // Activate warnings for each field/reference that is no longer accessible through the
+        // selected prefix
         $(".ODRRenderPlugin_FileHeaderInserter_dt_container.ODRHidden").each(function(index,container) {
-            // ...for each of their selected fields...
+            // Foreach field in this datatype...
             $(container).find('i.fa-check').each(function(index,icon_div) {
                 var uuid = $(icon_div).parent().attr('rel');
 
@@ -255,18 +319,28 @@
                 $(field).find('.ODRRenderPlugin_FileHeaderInserter_warn').removeClass('ODRRenderPlugin_FileHeaderInserter_hide_warn');
             });
         });
+        $(".ODRRenderPlugin_FileHeaderInserter_ref_entry.ODRHidden").each(function(index,container) {
+            // Foreach reference for this prefix...
+            $(container).find('i.fa-check').each(function(index,icon_div) {
+                var uuid = $(icon_div).parent().attr('rel');
+
+                // ...activate the warning icon for this field
+                var field = selected_references[uuid];
+                $(field).find('.ODRRenderPlugin_FileHeaderInserter_warn').removeClass('ODRRenderPlugin_FileHeaderInserter_hide_warn');
+            });
+        });
 
         // Update the hidden textarea
-        clearTimeout( FileHeaderInserter_timeout );
-        FileHeaderInserter_timeout = setTimeout(FileHeaderInserter_updateValue, FileHeaderInserter_SaveTimeout);
+        clearTimeout( ODRFileHeaderInserterPlugin_timeout );
+        ODRFileHeaderInserterPlugin_timeout = setTimeout(ODRFileHeaderInserterPlugin_updateValue, ODRFileHeaderInserterPlugin_SaveTimeout);
     }
 
     /**
      * Attempts to extract and count placeholders from the textarea.
      */
-    function FileHeaderInserter_updateValue() {
+    function ODRFileHeaderInserterPlugin_updateValue() {
         // Need to locate the current placeholder
-        var placeholder = FileHeaderInserter_getPlaceholder();
+        var placeholder = ODRFileHeaderInserterPlugin_getPlaceholder();
         var placeholder_length = placeholder.length;
         // console.log('placeholder', placeholder);
         // console.log('placeholder length', placeholder_length);
@@ -276,14 +350,16 @@
 
         // Need to convert into a regex to determine whether the current header is using it at all
         placeholder = placeholder.replace(/[-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
-        var search = new RegExp(placeholder + '(\\d+)', 'g');
-        // console.log('search', search);
+        var field_search = new RegExp(placeholder + '(\\d+)', 'g');
+        var reference_search = new RegExp(placeholder + '(R[\\d_]+)', 'g');
+        // console.log('regexes', field_search, reference_search);
 
         var prefix = $(".ODRRenderPlugin_FileHeaderInserter_prefix_list").find(".fa-check-square-o").first().parent().attr('rel');
         var text = $("#ODRRenderPlugin_FileHeaderInserter_textarea").val();
 
-        var matches = text.match(search);
-        // console.log(matches);
+        // Count how many times each field is used
+        var matches = text.match(field_search);
+        // console.log('df_matches', matches);
         var df_ids = {};
         $.each(matches, function(index, elem) {
             var df_id = elem.substring(placeholder_length);
@@ -291,6 +367,16 @@
                 df_ids[df_id] = 1;
             else
                 df_ids[df_id] += 1;
+        });
+        // Count how many times eaech reference is used
+        matches = text.match(reference_search);
+        // console.log('ref_matches', matches);
+        $.each(matches, function(index, elem) {
+            var ref_id = elem.substring(placeholder_length);
+            if ( df_ids[ref_id] === undefined )
+                df_ids[ref_id] = 1;
+            else
+                df_ids[ref_id] += 1;
         });
 
         $(".ODRRenderPlugin_FileHeaderInserter_fields_container").each(function(index, elem) {
@@ -315,16 +401,16 @@
      * @param {string} df_name
      * @param {string} df_id
      */
-    function FileHeaderInserter_addDatafield(df_name, df_id) {
+    function ODRFileHeaderInserterPlugin_addDatafield(df_name, df_id) {
         // Need to locate the current placeholder
-        var placeholder = FileHeaderInserter_getPlaceholder();
+        var placeholder = ODRFileHeaderInserterPlugin_getPlaceholder();
 
         var str =
         '<li class="ODRRenderPlugin_FileHeaderInserter_fields_container" rel="' + df_id + '">' +
             '<div class="ODRRenderPlugin_FileHeaderInserter_fields_item">' +
-                '<span class="ODRRenderPlugin_FileHeaderInserter_warn ODRRenderPlugin_FileHeaderInserter_hide_warn" title="This field is not available for the chosen prefix"><i class="fa fa-lg fa-warning"></i></span>' +
-                '<span class="ODRRenderPlugin_FileHeaderInserter_fields_item_name">' + df_name + '</span>' +
-                '<span class="ODRRenderPlugin_FileHeaderInserter_fields_item_info">' +
+                '<span class="ODRRenderPlugin_FileHeaderInserter_warn ODRRenderPlugin_FileHeaderInserter_hide_warn" title="This object is not available for the chosen prefix"><i class="fa fa-lg fa-warning"></i></span>' +
+                '<span class="ODRRenderPlugin_FileHeaderInserter_fields_item_name pure-u-14-24">' + df_name + '</span>' +
+                '<span class="ODRRenderPlugin_FileHeaderInserter_fields_item_info pure-u-8-24">' +
                     '<span class="ODRRenderPlugin_FileHeaderInserter_placeholder">' + placeholder + '</span>' +
                     '<span class="ODRRenderPlugin_FileHeaderInserter_df_id">' + df_id + '</span>' +
                     ' used ' +
@@ -337,8 +423,8 @@
         $(".ODRRenderPlugin_FileHeaderInserter_fields").append(str);
 
         // Since something got added, need to keep the backend values up to date
-        clearTimeout( FileHeaderInserter_timeout );
-        FileHeaderInserter_timeout = setTimeout(FileHeaderInserter_updateValue, FileHeaderInserter_SaveTimeout);
+        clearTimeout( ODRFileHeaderInserterPlugin_timeout );
+        ODRFileHeaderInserterPlugin_timeout = setTimeout(ODRFileHeaderInserterPlugin_updateValue, ODRFileHeaderInserterPlugin_SaveTimeout);
     }
 </script>
 {% endapply %}

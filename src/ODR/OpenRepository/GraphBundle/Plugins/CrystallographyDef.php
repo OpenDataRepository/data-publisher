@@ -936,18 +936,36 @@ class CrystallographyDef
      * there's another option to just skip attempting to parse them.  If this used, then the resulting
      * loop nodes will have data for 'keys' and 'text', but will not have data for 'values'.
      *
-     * @param string $file_contents
+     * @param string $original_file_contents
      * @param bool $apply_blacklist
      * @param bool $skip_loop_processing
      * @return array
      */
-    public static function readCIFFile($file_contents, $apply_blacklist = false, $skip_loop_processing = false)
+    public static function readCIFFile($original_file_contents, $apply_blacklist = false, $skip_loop_processing = false)
     {
         $structure = [];
 
         // Ensure carriage returns aren't in the file to make my life easier...
-        $file_contents = str_replace("\r", '', $file_contents);
+        $file_contents = str_replace("\r", '', $original_file_contents);
         $lines = explode("\n", $file_contents);
+
+        // The smallest legitimate CIFs appear to have around 45-50ish lines...
+        if ( count($lines) < 25 ) {
+            // ...so if this CIF has less than that then it's most likely either that the file is
+            //  malformed, or that it came from a pre-2000s mac (or some similar system) that used
+            //  "\r" instead of "\r\n" (DOS-derived) or "\n" (UNIX-derived) line endings.
+
+            // In the interest of being helpful, attempt the mac encoding first...
+            $alt_file_contents = str_replace("\n", '', $original_file_contents);
+            $lines = explode("\r", $alt_file_contents);
+            if ( count($lines) < 25 ) {
+                // ...but if this doesn't work, then there's really not much point in continuing
+                throw new ODRException('CIF file appears to have fewer than 25 lines, and is likely malformed.');
+            }
+
+            // As a side note, AMCSD doesn't do a similar check on AMC/DIF files because those are
+            //  progamatically generated
+        }
 
         for ($i = 0; $i < count($lines); $i++) {
             $line = trim($lines[$i]);
