@@ -16,6 +16,7 @@ recaptcha_secret   = "REPLACE"
 ; Changing it (in both places) signs everyone out of every site.
 pass_secret = "REPLACE"
 
-; How long a solved challenge lasts, in hours (at least 1).  The pass is tied to the site and the
-; visitor's address, so a phone that changes networks is asked again.
+; How long a solved challenge lasts, in hours (at least 1).  The pass is tied to the site (or, for
+; *.odr.io and any other shared domain in odr-gate.conf, to the whole domain) and the visitor's
+; address, so a phone that changes networks is asked again.
 pass_hours = 96

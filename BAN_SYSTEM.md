@@ -71,6 +71,9 @@ The cookie contains its expiry and a signature made from the expiry, the visitor
 site's hostname and a server secret. Apache checks the signature on every request. That means:
 
 - a pass only works on the site that issued it, from the address that solved it;
+- except under a **shared domain** (`*.odr.io`): there the cookie is `odr_shared_pass`, signed
+  with the domain instead of the hostname and set for the whole domain, so one solved reCAPTCHA
+  covers every `odr.io` site, on this server or any other with the same secret;
 - it can't be forged or extended without the secret;
 - it expires after `pass_hours` (96 hours by default).
 
@@ -309,6 +312,7 @@ the gate. Its rule set (the RRUFF 404 and 410 rules) goes too.
 | A site's gate page | `app/config/gate_branding.ini` in its instance | immediately |
 | How long a solved reCAPTCHA lasts | `pass_hours` in the main instance's `app/config/gate.ini` (default 96, minimum 1) | passes solved from then on |
 | Free-pass addresses | `/etc/apache2/odr-gate-local.conf` | `systemctl reload apache2` |
+| Shared domains (one pass for every site under it) | the `odr_pass_scope` lines in `/etc/apache2/conf-available/odr-gate.conf` | `systemctl reload apache2` |
 | Never-ban addresses | `odr_ignoreip` in `/etc/fail2ban/jail.d/odr.local` | `fail2ban-client reload` |
 | Ban limits (`maxretry`, `findtime`, `bantime`) | `/etc/fail2ban/jail.d/odr.local` | `fail2ban-client reload` |
 | Ban a bot by user agent, on every site | the `(Amazonbot)` list in `/etc/apache2/conf-available/odr-gate.conf`, e.g. `(Amazonbot\|Bytespider)` | `systemctl reload apache2` |
@@ -328,7 +332,10 @@ contains the *visitor's* address, which would ban the server that ran the update
 accepted. Check:
 - Do the secrets match? Compare `ODR_GATE_SECRET` in `/etc/apache2/odr-gate-local.conf` with
   `pass_secret` in the main instance's `app/config/gate.ini`.
-- Is the browser keeping the cookie? Look for `odr_pass` in its cookies for the site.
+- Is the browser keeping the cookie? Look for `odr_pass` in its cookies for the site
+  (`odr_shared_pass`, for the parent domain, on an `odr.io` site).
+- Asked again on a second `odr.io` site? That site's server needs the same secret and the same
+  shared-domain line in `odr-gate.conf`.
 - Did the visitor's address change? Phones moving between networks do, and the pass is per
   address.
 

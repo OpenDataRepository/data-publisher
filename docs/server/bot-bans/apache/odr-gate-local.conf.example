@@ -11,6 +11,8 @@ Define ODR_GATE_CONFIG "/home/odr/data-publisher/app/config/gate.ini"
 # The secret that signs the pass cookie, for every site.  Must be the same as pass_secret in that
 # gate.ini.  Generate one with:  openssl rand -hex 32
 # A pass is still only good on the site that issued it: the signature covers the hostname.
+# Except under a shared domain (odr-gate.conf, e.g. *.odr.io): servers sharing one need the
+# same secret.
 # Changing the secret (in both places) signs everyone out of every site.
 Define ODR_GATE_SECRET "REPLACE_WITH_THE_OUTPUT_OF_openssl_rand_-hex_32"
 

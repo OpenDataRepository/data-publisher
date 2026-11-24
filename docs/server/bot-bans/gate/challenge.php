@@ -28,6 +28,9 @@
  *
  * The pass cookie is odr_pass=<expiry YYYYMMDDHHMMSS>-<sha1("expiry-address-host-secret")>,
  * which Apache checks against its own clock, the visitor's address and the site on every request.
+ * On a site under a shared domain (odr_pass_scope, set by odr-gate.conf for e.g. *.odr.io) it is
+ * odr_shared_pass instead: signed with the domain rather than the host, and set for the whole
+ * domain, so the browser shows it to every site under it.
  */
 
 $site_dir = (string)($_SERVER['odr_gate_site'] ?? $_SERVER['REDIRECT_odr_gate_site'] ?? '');
@@ -60,6 +63,14 @@ if ( !preg_match('#^/(?![/\\\\])#', $uri) )
 
 $ip = isset($_SERVER['REMOTE_ADDR']) ? (string)$_SERVER['REMOTE_ADDR'] : '';
 
+// The shared domain this site is under, if any (odr-gate.conf).  Signed exactly as Apache has it.
+// Ignored unless the host really is under it: a browser drops a cookie for any other domain.
+$scope = (string)($_SERVER['odr_pass_scope'] ?? $_SERVER['REDIRECT_odr_pass_scope'] ?? '');
+$bare_host = strtolower((string)preg_replace('/:[0-9]+$/', '', $host));
+if ( $scope !== '' && $bare_host !== strtolower($scope)
+    && substr($bare_host, -(strlen($scope) + 1)) !== '.'.strtolower($scope) )
+    $scope = '';
+
 // ----------------------------------------
 if ( ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && isset($_POST['odr_gate']) ) {
     $token = isset($_POST['g-recaptcha-response']) ? (string)$_POST['g-recaptcha-response'] : '';
@@ -73,16 +84,20 @@ if ( ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && isset($_POST['odr_gate'
         if ( $clock === false )
             $clock = new DateTime('now', new DateTimeZone('UTC'));
         $expiry = $clock->modify('+'.$pass_hours.' hours')->format('YmdHis');
-        // NOTE: the same string, in the same order, as the sha1() in odr-gate.conf
-        $signature = sha1($expiry.'-'.$ip.'-'.$host.'-'.$config['pass_secret']);
+        // NOTE: the same string, in the same order, as the sha1() in odr-gate.conf.  Under a shared
+        //  domain: signed with the domain, and set for all of it.
+        $signature = sha1($expiry.'-'.$ip.'-'.( $scope !== '' ? $scope : $host ).'-'.$config['pass_secret']);
 
-        setcookie('odr_pass', $expiry.'-'.$signature, array(
+        $cookie = array(
             'expires' => time() + $pass_hours * 3600,
             'path' => '/',
             'secure' => ( ($_SERVER['HTTPS'] ?? '') === 'on' ),
             'httponly' => true,
             'samesite' => 'Lax',
-        ));
+        );
+        if ( $scope !== '' )
+            $cookie['domain'] = $scope;
+        setcookie(( $scope !== '' ? 'odr_shared_pass' : 'odr_pass' ), $expiry.'-'.$signature, $cookie);
         header('X-ODR-Gate: solved');
         header('Cache-Control: no-store');
         header('Location: '.$uri, true, 303);
