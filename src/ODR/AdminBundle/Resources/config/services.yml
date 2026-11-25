@@ -671,6 +671,16 @@ services:
         tags:
             - { name: "kernel.event_subscriber" }
 
+    # Sets the Apache gate's member pass for logged-in users, so the reCAPTCHA gate lets them
+    #  through from any address (docs/server/bot-bans/gate/member_pass.php)
+    odr.gate_member_pass_subscriber:
+        class: ODR\AdminBundle\Component\Event\GateMemberPassSubscriber
+        arguments:
+            $token_storage: "@security.token_storage"
+            $logger: "@logger"
+        tags:
+            - { name: "kernel.event_subscriber" }
+
     # Returns clean JSON error responses for ODRJsonException (ported from develop 2be0b76f,
     #  replaces the old JsonExceptionListener)
     odr.json_exception_subscriber:

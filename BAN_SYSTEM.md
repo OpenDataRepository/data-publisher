@@ -3,8 +3,8 @@
 Protects the sites on an ODR server from automated traffic in two layers:
 
 - **The gate** (Apache). Every visitor must solve a reCAPTCHA before any page is served.
-  Exceptions: API routes, approved search crawlers, and the server itself. One setup serves every
-  site on the server, and each site shows its own branded gate page.
+  Exceptions: API routes, approved search crawlers, logged-in users, and the server itself. One
+  setup serves every site on the server, and each site shows its own branded gate page.
 - **Bans** (fail2ban and nftables). Clients that misbehave are dropped at the kernel firewall,
   so their requests never reach Apache at all.
 
@@ -34,6 +34,7 @@ Protects the sites on an ODR server from automated traffic in two layers:
    3. /api/v<n>, /<word>/api/v<n>              ──► straight through        gate=api
       approved crawler (Google, Bing, DDG)     ──► straight through        gate=crawler
    4. valid pass cookie for this site          ──► straight through        gate=passed
+      valid member pass (logged in), any address ──► straight through      gate=member
    5. anything else                            ──► the site's gate page    gate=challenge
                   │
                   ▼
@@ -77,6 +78,25 @@ site's hostname and a server secret. Apache checks the signature on every reques
 - it can't be forged or extended without the secret;
 - it expires after `pass_hours` (96 hours by default).
 
+**The member pass (logged-in users).** Because the pass above is tied to the address, anyone
+whose address keeps changing (iCloud Private Relay, a phone moving between networks) gets the
+reCAPTCHA again and again. Apache can't check WordPress's or ODR's own login cookies (that needs
+their databases), so while someone is logged in, WordPress or ODR also sets a cookie Apache *can*
+check: `odr_member` (`odr_shared_member` under a shared domain).
+
+- It is signed like the pass, but with the word `member` where the address would be, so it works
+  from **any address**. It's still tied to the site (or shared domain) and the secret.
+- Logging in sets it. Any page a logged-in user loads renews it once less than half its life is
+  left, so an active user is never asked. Logging out deletes it.
+- It lasts `member_pass_hours` (336 hours, two weeks, by default). If it lapses, the user solves the
+  reCAPTCHA once, and the next page they load renews it.
+- The signing code is `docs/server/bot-bans/gate/member_pass.php`. WordPress loads it from the
+  theme (`odr_gate_member.php`), ODR from `GateMemberPassSubscriber`. Both find it, and the
+  settings, through what Apache passes to the request (`odr_gate_dir`, `odr_gate_config`), so a
+  site without the gate never gets one.
+- Because it isn't tied to an address, a copied cookie works anywhere until it expires. Only a
+  logged-in session gets one; to cancel every member pass at once, change the secret.
+
 **Logos.** Everything on a site is behind its gate, so a logo at `/wp-content/uploads/…` would
 show as broken on the gate page. The gate therefore serves each site's logo itself, at
 `/odr-gate/challenge.php?logo`, which isn't gated:
@@ -113,7 +133,7 @@ isn't in the access logs. Bans are recorded in `/var/log/fail2ban.log`.
 | --- | --- |
 | This server or localhost (the static render daemon, WordPress cron and loopback) | Everything allowed. No rule applies. |
 | A visitor who solved this site's reCAPTCHA recently, from the same address | Allowed. Junk urls still get a 404, and banned bots a 410. |
-| A logged-in WordPress or ODR user | The same as any visitor: they solve the reCAPTCHA once per pass. |
+| A logged-in WordPress or ODR user | Allowed, from any address, by the member pass. The first visit before logging in still gets the reCAPTCHA. |
 | Approved crawler (Google, Bing, DuckDuckGo, and the Site24x7 monitor) | Allowed, with no reCAPTCHA. Junk urls get the 404 / 410, logged `approved_404` / `approved_410`, and are **never banned** for it. |
 | API route (`/api/v1/…`, `/odr_rruff/api/v4/…`) | Allowed. Queries need an API token anyway. |
 | Anyone else | The site's gate page (403), for every url, until they solve it. |
@@ -147,6 +167,8 @@ add them to its own log with `%{X-ODR-Gate}o` if wanted.
 | `api` | an API route: allowed |
 | `crawler` | an approved crawler: allowed |
 | `passed` | a visitor with a valid pass cookie: allowed |
+| `passed_shared` | the same, with a shared-domain pass (`*.odr.io`) |
+| `member` / `member_shared` | a logged-in user's member pass (site / shared domain): allowed |
 | `challenge` ● | shown the gate page (403). **Counted by fail2ban** (10 in 24 h bans). |
 | `solved` ● | solved it: pass cookie set, sent back to their page (303) |
 | `challenge-google-unreachable` ● | Google couldn't be asked, so the challenge was shown again. Not counted. |
@@ -311,6 +333,7 @@ the gate. Its rule set (the RRUFF 404 and 410 rules) goes too.
 | --- | --- | --- |
 | A site's gate page | `app/config/gate_branding.ini` in its instance | immediately |
 | How long a solved reCAPTCHA lasts | `pass_hours` in the main instance's `app/config/gate.ini` (default 96, minimum 1) | passes solved from then on |
+| How long a logged-in user's member pass lasts | `member_pass_hours` in the same `gate.ini` (default 336, minimum 1) | member passes set or renewed from then on |
 | Free-pass addresses | `/etc/apache2/odr-gate-local.conf` | `systemctl reload apache2` |
 | Shared domains (one pass for every site under it) | the `odr_pass_scope` lines in `/etc/apache2/conf-available/odr-gate.conf` | `systemctl reload apache2` |
 | Never-ban addresses | `odr_ignoreip` in `/etc/fail2ban/jail.d/odr.local` | `fail2ban-client reload` |
@@ -336,8 +359,18 @@ accepted. Check:
   (`odr_shared_pass`, for the parent domain, on an `odr.io` site).
 - Asked again on a second `odr.io` site? That site's server needs the same secret and the same
   shared-domain line in `odr-gate.conf`.
-- Did the visitor's address change? Phones moving between networks do, and the pass is per
-  address.
+- Did the visitor's address change? Phones moving between networks do, and so does iCloud
+  Private Relay, and the pass is per address. Logging in fixes this (the member pass).
+
+**A logged-in user still gets the gate page.** Their member pass isn't being set or accepted.
+Check:
+- Is there an `odr_member` cookie (`odr_shared_member` on an `odr.io` site)? If not, the site's
+  vhost needs the current `odr-gate.conf` (it passes `odr_gate_dir` and `odr_gate_now` to
+  WordPress and ODR). On a WordPress site, the theme needs `odr_gate_member.php`.
+- Is the web server allowed to read `gate.ini`? WordPress and ODR need the secret from it to sign
+  the cookie.
+- Was it set before the last secret change? It's replaced on the next page they load after
+  solving the reCAPTCHA once.
 
 **"Temporarily unavailable" (503, `gate=gate-misconfigured`).** The gate can't read the shared
 `gate.ini`, or a value is missing. Check `ODR_GATE_CONFIG` in `/etc/apache2/odr-gate-local.conf`
@@ -408,7 +441,10 @@ The `gate.ini` and `gate_branding.ini` files in the instances can stay or go.
 | `docs/server/bot-bans/apache/odr-gate-rules-rruff.conf` | `/etc/apache2/conf-available/` (not enabled) | the RRUFF site's extra rules: the Bustamite flood, junk-url 404s |
 | `docs/server/bot-bans/apache/odr-gate-local.conf.example` | `/etc/apache2/odr-gate-local.conf` (root, 600) | the secret, the main instance, the free-pass addresses |
 | `docs/server/bot-bans/gate/challenge.php` | (served from the shared code) | the gate page and logo; sets the pass cookie |
-| `app/config/gate.ini.dist` | the main instance's `app/config/gate.ini` (640, group www-data) | reCAPTCHA keys, secret, pass length, for every site |
+| `docs/server/bot-bans/gate/member_pass.php` | (loaded from the shared code, never served) | signs the member pass for WordPress and ODR |
+| `src/ODR/AdminBundle/Component/Event/GateMemberPassSubscriber.php` | (ODR code) | sets, renews and clears the member pass for logged-in ODR users |
+| theme `odr-astra-child-theme/odr_gate_member.php` | (WordPress theme) | the same, for logged-in WordPress users |
+| `app/config/gate.ini.dist` | the main instance's `app/config/gate.ini` (640, group www-data) | reCAPTCHA keys, secret, pass lengths, for every site |
 | `app/config/gate_branding.ini.dist` | each site's instance `app/config/gate_branding.ini` | that site's gate page |
 | `docs/server/bot-bans/bin/odr-gate-update-crawlers` | `/usr/local/sbin/` | crawler list → `/etc/apache2/odr-gate-crawlers.conf` |
 | `docs/server/bot-bans/bin/odr-ban-bot-ips` | `/usr/local/sbin/` | banned-bot list → fail2ban `odr-bots` |

@@ -20,3 +20,9 @@ pass_secret = "REPLACE"
 ; *.odr.io and any other shared domain in odr-gate.conf, to the whole domain) and the visitor's
 ; address, so a phone that changes networks is asked again.
 pass_hours = 96
+
+; How long a logged-in user's member pass lasts, in hours (at least 1).  WordPress or ODR sets it
+; when someone logs in and renews it on any page they load once less than half is left, so an
+; active user is never asked; logging out deletes it.  Unlike the pass above it isn't tied to the
+; address, so iCloud Private Relay and phones changing networks don't matter.
+member_pass_hours = 336

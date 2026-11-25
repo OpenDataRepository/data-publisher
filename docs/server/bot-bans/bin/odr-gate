@@ -420,6 +420,7 @@ def verify(args):
         else:
             report.bad('gate.ini pass_secret doesn\'t match ODR_GATE_SECRET -- nobody\'s pass will be accepted', 'odr-gate install')
         report.info('a solved reCAPTCHA lasts %s hours (pass_hours)' % ini.get('pass_hours', '96'))
+        report.info('a logged-in user\'s member pass lasts %s hours (member_pass_hours)' % ini.get('member_pass_hours', '336'))
         try:
             group = grp.getgrgid(os.stat(ini_path).st_gid).gr_name
             mode = os.stat(ini_path).st_mode & 0o777
@@ -557,7 +558,7 @@ def render_local_conf(main, secret, server_ips):
 def render_gate_ini(values):
     text = read(os.path.join(REPO, 'app/config/gate.ini.dist'))
     for key, value in values.items():
-        text = re.sub(r'^%s\s*=.*$' % key, lambda m: '%s = "%s"' % (key, value) if key != 'pass_hours' else 'pass_hours = %s' % value, text, flags=re.M)
+        text = re.sub(r'^%s\s*=.*$' % key, lambda m: '%s = "%s"' % (key, value) if key not in ('pass_hours', 'member_pass_hours') else '%s = %s' % (key, value), text, flags=re.M)
     return text
 
 
@@ -678,6 +679,7 @@ def install(args):
 
     current_ini = os.path.join(main, 'app/config/gate.ini')
     pass_hours = args.pass_hours or parse_ini(current_ini).get('pass_hours') or '96'
+    member_pass_hours = parse_ini(current_ini).get('member_pass_hours') or '336'
 
     say('\nAbout to set up the gate with:')
     say('  main ODR instance   %s (user %s)' % (main, user))
@@ -709,7 +711,8 @@ def install(args):
     say('\nGate settings')
     ini_path = os.path.join(main, 'app/config/gate.ini')
     changes.write(ini_path, render_gate_ini({'recaptcha_site_key': site_key, 'recaptcha_secret': secret_key,
-                                             'pass_secret': cookie_secret, 'pass_hours': pass_hours}),
+                                             'pass_secret': cookie_secret, 'pass_hours': pass_hours,
+                                             'member_pass_hours': member_pass_hours}),
                   mode=0o640, user=user, group='www-data')
 
     # ---- lists and their root scripts
