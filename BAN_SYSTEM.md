@@ -68,6 +68,15 @@ reCAPTCHA in the site's branding. When the visitor solves it:
 2. It sets the `odr_pass` cookie.
 3. It sends the visitor back to the page they asked for.
 
+**A form the gate stops.** If a visitor's pass stops working between loading a form and
+submitting it (their address changed, e.g. iCloud Private Relay), the gate stops the POST. What
+the form contained (a password, say) is never kept, passed on, or written into the gate page. The
+gate page says the form wasn't sent. Once the visitor solves the reCAPTCHA, it sends them back to
+the page the form was on, taken from the browser's `Referer` header and only if that's on the same
+site, so they can send it again. Without a usable `Referer` they go to the url the form posted to,
+as for any other request. For ODR's login that's `/login_check`, which then redirects to the login
+form with a message saying the login was interrupted.
+
 The cookie contains its expiry and a signature made from the expiry, the visitor's address, the
 site's hostname and a server secret. Apache checks the signature on every request. That means:
 

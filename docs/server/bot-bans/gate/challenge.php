@@ -16,6 +16,10 @@
  *   back to their url (303, gate=solved).  Wrong -> the challenge again (gate=challenge).
  *   Google unreachable -> the challenge again, logged gate=challenge-google-unreachable, which
  *   fail2ban doesn't count: that's our outage, not the visitor's fault.
+ * A form of the visitor's (any other POST, e.g. a login whose pass stopped working because their
+ *   address changed): the challenge, saying the form wasn't sent.  Nothing in it is kept or shown.
+ *   Once solved, back to the page the form was on (from the Referer, this site only), to send it
+ *   again; without one, to the url as above.
  * /odr-gate/challenge.php?logo: the site's logo (gate=gate-logo), which has to be served from
  *   here because everything else on the site is behind the gate.  Read from a local copy only:
  *   nothing here makes a network request except the reCAPTCHA check on a POST.
@@ -61,6 +65,24 @@ $uri = isset($_SERVER['REQUEST_URI']) ? (string)$_SERVER['REQUEST_URI'] : '/';
 if ( !preg_match('#^/(?![/\\\\])#', $uri) )
     $uri = '/';
 
+// A form the gate stopped: a POST that isn't this page's own.  What was in it -- a password, say --
+//  is never carried forward, not even into this page, so the visitor has to send it again.  Once
+//  they've solved the reCAPTCHA they're sent back to the page the form was on (the browser's
+//  Referer, when that's on this site), rather than to the url the form posted to: a GET of that
+//  is usually an error (ODR's /login_check only takes a POST).  The two hidden fields carry this
+//  through a wrong answer or two.
+$method = (string)($_SERVER['REQUEST_METHOD'] ?? 'GET');
+$form = array('interrupted' => false, 'return' => '');
+if ( $method === 'POST' && !isset($_POST['odr_gate']) ) {
+    $form['interrupted'] = true;
+    $form['return'] = odr_gate_same_site_path((string)($_SERVER['HTTP_REFERER'] ?? ''), $host);
+}
+else if ( $method === 'POST' && !empty($_POST['odr_gate_form']) ) {
+    $form['interrupted'] = true;
+    // Came back from the browser, so checked again: only ever a path on this site
+    $form['return'] = odr_gate_local_path((string)($_POST['odr_gate_return'] ?? ''));
+}
+
 $ip = isset($_SERVER['REMOTE_ADDR']) ? (string)$_SERVER['REMOTE_ADDR'] : '';
 
 // The shared domain this site is under, if any (odr-gate.conf).  Signed exactly as Apache has it.
@@ -100,18 +122,18 @@ if ( ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && isset($_POST['odr_gate'
         setcookie(( $scope !== '' ? 'odr_shared_pass' : 'odr_pass' ), $expiry.'-'.$signature, $cookie);
         header('X-ODR-Gate: solved');
         header('Cache-Control: no-store');
-        header('Location: '.$uri, true, 303);
+        header('Location: '.( $form['return'] !== '' ? $form['return'] : $uri ), true, 303);
         exit;
     }
 
     if ( $verdict === null )
         odr_gate_challenge($config['recaptcha_site_key'], $uri, $brand, 'challenge-google-unreachable',
-            'We couldn&rsquo;t reach the verification service. Please try again.');
+            'We couldn&rsquo;t reach the verification service. Please try again.', $form);
 
-    odr_gate_challenge($config['recaptcha_site_key'], $uri, $brand, 'challenge', 'That didn&rsquo;t work. Please try again.');
+    odr_gate_challenge($config['recaptcha_site_key'], $uri, $brand, 'challenge', 'That didn&rsquo;t work. Please try again.', $form);
 }
 
-odr_gate_challenge($config['recaptcha_site_key'], $uri, $brand, 'challenge', null);
+odr_gate_challenge($config['recaptcha_site_key'], $uri, $brand, 'challenge', null, $form);
 
 
 // ------------------------------------------------------------------------------------------------
@@ -247,16 +269,35 @@ function odr_gate_serve_logo($site_dir, $brand)
 
 /**
  * Shows the challenge and stops.
+ *
+ * @param array $form  interrupted: a form of the visitor's was stopped here; return: the page it
+ *                     was on, to go back to (or '')
  */
-function odr_gate_challenge($site_key, $uri, $brand, $outcome, $message)
+function odr_gate_challenge($site_key, $uri, $brand, $outcome, $message, $form)
 {
     $note = ( $message === null ) ? '' : '<p class="note">'.$message.'</p>';
+
+    // Never anything the visitor's form contained: only that there was one, and where it was
+    $interrupted = '';
+    $carried = '';
+    if ( $form['interrupted'] ) {
+        $interrupted = '<p class="interrupted">'.( $form['return'] !== ''
+            ? 'What you just submitted wasn&rsquo;t sent, because of this check. After you continue '
+                .'you&rsquo;ll be taken back to the form, so you can send it again.'
+            : 'What you just submitted wasn&rsquo;t sent, because of this check. After you continue, '
+                .'please send it again.' ).'</p>';
+        $carried = '<input type="hidden" name="odr_gate_form" value="1">'
+            .'<input type="hidden" name="odr_gate_return" value="'.odr_gate_h($form['return']).'">';
+    }
+
     odr_gate_respond(403, $outcome, $brand,
         '<h1>Confirm you are human</h1>'
         .'<p>'.odr_gate_h($brand['message']).'</p>'
+        .$interrupted
         .$note
         .'<form method="post" action="'.odr_gate_h($uri).'">'
         .'<input type="hidden" name="odr_gate" value="1">'
+        .$carried
         .'<div class="g-recaptcha" data-sitekey="'.odr_gate_h($site_key).'"></div>'
         .'<button type="submit">Continue</button>'
         .'</form>',
@@ -305,12 +346,46 @@ function odr_gate_respond($status, $outcome, $brand, $body, $head = '')
        .'background:'.$brand['background_color'].';color:'.$brand['text_color'].';display:flex;justify-content:center}'
        .'main{max-width:30rem;width:100%}.logo{display:block;max-width:100%;margin:0 0 1.5rem}'
        .'.site{font-size:1.5rem;font-weight:600;color:'.$brand['accent_color'].';margin:0 0 1.5rem}'
-       .'h1{font-size:1.3rem;margin:0 0 .75rem}p{line-height:1.5;margin:0 0 1rem}.note{color:#b32d2e}'
+       .'h1{font-size:1.3rem;margin:0 0 .75rem}p{line-height:1.5;margin:0 0 1rem}.note{color:#b32d2e}.interrupted{font-weight:600}'
        .'button{font:inherit;padding:.5rem 1.25rem;margin-top:1rem;cursor:pointer;border:0;border-radius:4px;'
        .'background:'.$brand['accent_color'].';color:#fff}'
        .'footer{margin-top:2rem;font-size:.9rem;opacity:.8}footer a{color:'.$brand['accent_color'].'}</style></head>'
        .'<body><main>'.$masthead.$body.$footer.'</main></body></html>';
     exit;
+}
+
+
+/**
+ * $url as a path on this site (path and query string), or '' when it's anywhere else or not a url.
+ * For the Referer: only the scheme, host and port the visitor is on now count as this site.
+ */
+function odr_gate_same_site_path($url, $host)
+{
+    $parts = parse_url($url);
+    if ( !is_array($parts) || !isset($parts['host']) || !in_array(strtolower($parts['scheme'] ?? ''), array('http', 'https'), true) )
+        return '';
+
+    $current_scheme = ( ($_SERVER['HTTPS'] ?? '') === 'on' ) ? 'https' : 'http';
+    $default_port = ( $current_scheme === 'https' ) ? 443 : 80;
+    $current_host = strtolower((string)preg_replace('/:[0-9]+$/', '', $host));
+    $current_port = preg_match('/:([0-9]+)$/', $host, $match) ? (int)$match[1] : $default_port;
+    if ( strtolower($parts['scheme']) !== $current_scheme || strtolower($parts['host']) !== $current_host
+        || (int)($parts['port'] ?? $default_port) !== $current_port )
+        return '';
+
+    return odr_gate_local_path(( $parts['path'] ?? '/' ).( isset($parts['query']) ? '?'.$parts['query'] : '' ));
+}
+
+
+/**
+ * $path when it's a path on this site, else ''.  "//evil.example" or "/\evil.example" would be a
+ * redirect to someone else's; control characters don't belong in a Location header.
+ */
+function odr_gate_local_path($path)
+{
+    if ( !preg_match('#^/(?![/\\\\])#', $path) || preg_match('/[\x00-\x1f\x7f]/', $path) || strlen($path) > 2048 )
+        return '';
+    return $path;
 }
 
 

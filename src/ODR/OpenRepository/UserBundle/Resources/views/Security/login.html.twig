@@ -8,6 +8,9 @@
 
 {% if error %}
     <div class="ODRInputError">{{ error.messageKey|trans(error.messageData, 'security') }}</div>
+{% elseif login_interrupted is defined and login_interrupted %}
+    <div class="ODRInputError">Your login was interrupted by a security check, usually because your
+        network address changed (for example with iCloud Private Relay). Please sign in again.</div>
 {% endif %}
 
 {% set form_path = path("fos_user_security_check") %}

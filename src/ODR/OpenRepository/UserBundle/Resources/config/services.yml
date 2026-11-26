@@ -61,6 +61,7 @@ services:
             $twig: '@twig'
             $authenticationUtils: '@security.authentication_utils'
             $csrfTokenManager: '@security.csrf.token_manager'
+            $router: '@router'
         tags: ['controller.service_arguments']
 
     # Password-reset flow controller

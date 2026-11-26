@@ -14,7 +14,10 @@
 
 namespace ODR\OpenRepository\UserBundle\Controller;
 
+use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Core\Exception\InvalidCsrfTokenException;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
@@ -26,22 +29,46 @@ class SecurityController
     public function __construct(
         private readonly Environment $twig,
         private readonly AuthenticationUtils $authenticationUtils,
-        private readonly CsrfTokenManagerInterface $csrfTokenManager
+        private readonly CsrfTokenManagerInterface $csrfTokenManager,
+        private readonly UrlGeneratorInterface $router
     ) {
     }
 
     /**
      * Renders the login form (route: fos_user_security_login).
      *
+     * @param Request $request
      * @return Response
      */
-    public function loginAction()
+    public function loginAction(Request $request)
     {
         return new Response($this->twig->render('@ODROpenRepositoryUser/Security/login.html.twig', [
             'error' => $this->authenticationUtils->getLastAuthenticationError(),
             // matches the form_login default csrf_token_id of "authenticate"
             'csrf_token' => $this->csrfTokenManager->getToken('authenticate')->getValue(),
+            // set by checkInterruptedAction(): the last attempt never reached ODR
+            'login_interrupted' => $request->query->has('interrupted'),
         ]));
+    }
+
+    /**
+     * A GET of login_check (route: odr_security_check_interrupted).  A login form only ever POSTs
+     * there, so this means the POST never reached ODR: the Apache gate stopped it for a reCAPTCHA
+     * (the visitor's address changed since they loaded the form, e.g. iCloud Private Relay) and,
+     * once solved, sent the browser back to this url.  Their password went nowhere -- the gate never
+     * passes a form on -- so all that's left is to send them back to the form, saying why.
+     *
+     * The gate normally sends them back to the form page itself (challenge.php); this is for when
+     * the browser didn't say which page that was.
+     *
+     * @return RedirectResponse
+     */
+    public function checkInterruptedAction()
+    {
+        return new RedirectResponse(
+            $this->router->generate('fos_user_security_login', ['interrupted' => 1]),
+            303
+        );
     }
 
     /**

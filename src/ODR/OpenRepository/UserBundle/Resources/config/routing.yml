@@ -9,6 +9,14 @@ fos_user_security_check:
     defaults: { _controller: ODR\OpenRepository\UserBundle\Controller\SecurityController::checkAction }
     methods: [POST]
 
+# A GET of login_check only happens when the login POST never reached ODR -- the Apache gate stopped
+#  it for a reCAPTCHA (the visitor's address changed, e.g. iCloud Private Relay) and, once solved,
+#  sent the browser back here.  Back to the login form, saying why.  See BAN_SYSTEM.md.
+odr_security_check_interrupted:
+    path: /login_check
+    defaults: { _controller: ODR\OpenRepository\UserBundle\Controller\SecurityController::checkInterruptedAction }
+    methods: [GET]
+
 fos_user_security_logout:
     path: /logout
     defaults: { _controller: ODR\OpenRepository\UserBundle\Controller\SecurityController::logoutAction }
