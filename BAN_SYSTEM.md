@@ -35,7 +35,8 @@ Protects the sites on an ODR server from automated traffic in two layers:
       approved crawler (Google, Bing, DDG)     ──► straight through        gate=crawler
    4. valid pass cookie for this site          ──► straight through        gate=passed
       valid member pass (logged in), any address ──► straight through      gate=member
-   5. anything else                            ──► the site's gate page    gate=challenge
+   5. an image (.png, .svg, .ico …)            ──► plain 404               gate=image_404
+      anything else                            ──► the site's gate page    gate=challenge
                   │
                   ▼
  WordPress / ODR  (refuse any remaining junk urls themselves: gate=minimal_404)
@@ -67,6 +68,17 @@ reCAPTCHA in the site's branding. When the visitor solves it:
 1. The script asks Google to confirm the answer.
 2. It sets the `odr_pass` cookie.
 3. It sends the visitor back to the page they asked for.
+
+reCAPTCHA is loaded and checked through **`www.recaptcha.net`**, not `www.google.com`. It's the
+same service, at the address Google provides for places where google.com is blocked. From
+google.com, visitors in mainland China (where we have researchers) never see the box, and every
+press of Continue sends an empty answer. ODR's and WordPress's own search challenges use it too.
+
+**Images aren't challenged.** A visitor without a pass who asks for an image gets a plain 404
+(`gate=image_404`, never counted). Browsers ask for some on their own: the site icon they remember
+from an earlier visit, Safari's `apple-touch-icon*.png`, the rest of a page after the address
+changed. As challenges (or, for the root touch icons, as junk urls) these counted towards banning
+real visitors. A 404 gives nothing away.
 
 **A form the gate stops.** If a visitor's pass stops working between loading a form and
 submitting it (their address changed, e.g. iCloud Private Relay), the gate stops the POST. What
@@ -156,12 +168,12 @@ solves two reCAPTCHAs.
 | --- | --- | --- |
 | `odr-410` | any 410: banned bots by user agent, the `Bustamite?sample_child_id=` flood | immediately, 48 hours |
 | `odr-minimal404` | 10 × `gate=minimal_404` within 24 hours | 48 hours |
-| `odr-challenge` | 40 × `gate=challenge` within 24 hours: forty page requests without solving the reCAPTCHA | 48 hours |
+| `odr-challenge` | 40 × `gate=challenge`, `challenge-failed`, `challenge-empty` or `challenge-form` within 24 hours: forty requests without solving the reCAPTCHA | 48 hours |
 | `odr-bots` | on a banned bot's published address list (Amazonbot) | 3 days, re-applied every 6 hours |
 
 - Bans cover ports 80 and 443 only, so a mistaken ban can't lock anyone out of ssh.
 - Addresses in fail2ban's `odr_ignoreip` (the server, the office) are never banned.
-- `approved_404`, `approved_410`, `challenge-google-unreachable`, `gate-logo` and ordinary 404s
+- `approved_404`, `approved_410`, `challenge-google-unreachable`, `gate-logo`, `image_404` and ordinary 404s
   (a missing image on a real page) are never counted.
 
 ## Log values
@@ -179,9 +191,13 @@ add them to its own log with `%{X-ODR-Gate}o` if wanted.
 | `passed_shared` | the same, with a shared-domain pass (`*.odr.io`) |
 | `member` / `member_shared` | a logged-in user's member pass (site / shared domain): allowed |
 | `challenge` ● | shown the gate page (403). **Counted by fail2ban** (40 in 24 h bans). |
+| `challenge-failed` ● | answered the reCAPTCHA wrongly; shown it again. **Counted** with `challenge`. |
+| `challenge-empty` ● | pressed Continue with no answer: didn't tick the box, or the box never loaded. **Counted** with `challenge`. |
+| `challenge-form` ● | one of the site's own forms (a login, say), stopped by the gate; shown the gate page. **Counted** with `challenge`. |
 | `solved` ● | solved it: pass cookie set, sent back to their page (303) |
 | `challenge-google-unreachable` ● | Google couldn't be asked, so the challenge was shown again. Not counted. |
-| `gate-logo` | the gate page's logo |
+| `gate-logo` ● | the gate page's logo: a browser drew the page. Not counted. |
+| `image_404` ● | an image asked for without a pass: a plain 404 instead of the challenge. Not counted. |
 | `gate-misconfigured` ● | the gate couldn't read its settings (503). See Troubleshooting. |
 | `minimal_404` ● | a url no real page can match (404). **Counted by fail2ban** (10 in 24 h bans). |
 | `approved_404` ● | the same, for an approved crawler. Not counted. |

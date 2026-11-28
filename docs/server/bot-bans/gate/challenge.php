@@ -13,11 +13,19 @@
  *
  * GET (or anything without an answer): show the challenge, 403, logged gate=challenge.
  * POST with an answer: check it with Google.  Right -> set the pass cookie and send the visitor
- *   back to their url (303, gate=solved).  Wrong -> the challenge again (gate=challenge).
- *   Google unreachable -> the challenge again, logged gate=challenge-google-unreachable, which
- *   fail2ban doesn't count: that's our outage, not the visitor's fault.
+ *   back to their url (303, gate=solved).  Wrong -> the challenge again (gate=challenge-failed).
+ *   No answer at all -> the challenge again (gate=challenge-empty): Continue pressed without
+ *   ticking the box, or the box never loaded.  Google unreachable -> the challenge again, logged
+ *   gate=challenge-google-unreachable, which fail2ban doesn't count: that's our outage, not the
+ *   visitor's fault.
  * A form of the visitor's (any other POST, e.g. a login whose pass stopped working because their
- *   address changed): the challenge, saying the form wasn't sent.  Nothing in it is kept or shown.
+ *   address changed): the challenge, saying the form wasn't sent (gate=challenge-form).  Nothing in
+ *   it is kept or shown.
+ * The separate values are so the log shows who answers and who never does (BAN_SYSTEM.md); the
+ *   odr-challenge jail counts all four alike.
+ * reCAPTCHA is loaded and checked through www.recaptcha.net, not www.google.com: the same service,
+ *   at the address Google provides for where google.com is blocked (mainland China, where we have
+ *   researchers).  From google.com the box never appears there, and Continue sends nothing.
  *   Once solved, back to the page the form was on (from the Referer, this site only), to send it
  *   again; without one, to the url as above.
  * /odr-gate/challenge.php?logo: the site's logo (gate=gate-logo), which has to be served from
@@ -96,7 +104,11 @@ if ( $scope !== '' && $bare_host !== strtolower($scope)
 // ----------------------------------------
 if ( ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && isset($_POST['odr_gate']) ) {
     $token = isset($_POST['g-recaptcha-response']) ? (string)$_POST['g-recaptcha-response'] : '';
-    $verdict = ( $token === '' ) ? false : odr_gate_verify($config['recaptcha_secret'], $token, $ip);
+    if ( $token === '' )
+        odr_gate_challenge($config['recaptcha_site_key'], $uri, $brand, 'challenge-empty',
+            'Please tick the &ldquo;I&rsquo;m not a robot&rdquo; box, then press Continue. If no box '
+            .'appears, reload this page.', $form);
+    $verdict = odr_gate_verify($config['recaptcha_secret'], $token, $ip);
 
     if ( $verdict === true ) {
         // Expiry on Apache's clock (odr_gate_now is %{TIME}, handed over by the rewrite), so the
@@ -130,10 +142,12 @@ if ( ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && isset($_POST['odr_gate'
         odr_gate_challenge($config['recaptcha_site_key'], $uri, $brand, 'challenge-google-unreachable',
             'We couldn&rsquo;t reach the verification service. Please try again.', $form);
 
-    odr_gate_challenge($config['recaptcha_site_key'], $uri, $brand, 'challenge', 'That didn&rsquo;t work. Please try again.', $form);
+    odr_gate_challenge($config['recaptcha_site_key'], $uri, $brand, 'challenge-failed', 'That didn&rsquo;t work. Please try again.', $form);
 }
 
-odr_gate_challenge($config['recaptcha_site_key'], $uri, $brand, 'challenge', null, $form);
+// Shown the challenge: just asked for a page, or sent one of the site's forms
+odr_gate_challenge($config['recaptcha_site_key'], $uri, $brand,
+    ( $method === 'POST' ? 'challenge-form' : 'challenge' ), null, $form);
 
 
 // ------------------------------------------------------------------------------------------------
@@ -145,7 +159,8 @@ odr_gate_challenge($config['recaptcha_site_key'], $uri, $brand, 'challenge', nul
  */
 function odr_gate_verify($secret, $token, $ip)
 {
-    $ch = curl_init('https://www.google.com/recaptcha/api/siteverify');
+    // recaptcha.net rather than google.com: see the top of this file
+    $ch = curl_init('https://www.recaptcha.net/recaptcha/api/siteverify');
     curl_setopt_array($ch, array(
         CURLOPT_POST => true,
         CURLOPT_POSTFIELDS => http_build_query(array('secret' => $secret, 'response' => $token, 'remoteip' => $ip)),
@@ -301,7 +316,7 @@ function odr_gate_challenge($site_key, $uri, $brand, $outcome, $message, $form)
         .'<div class="g-recaptcha" data-sitekey="'.odr_gate_h($site_key).'"></div>'
         .'<button type="submit">Continue</button>'
         .'</form>',
-        '<script src="https://www.google.com/recaptcha/api.js" async defer></script>'
+        '<script src="https://www.recaptcha.net/recaptcha/api.js" async defer></script>'
     );
 }
 

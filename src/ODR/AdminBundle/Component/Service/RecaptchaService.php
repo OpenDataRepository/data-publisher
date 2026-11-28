@@ -49,9 +49,11 @@ class RecaptchaService
 {
 
     /**
-     * reCAPTCHA v2 verification endpoint.
+     * reCAPTCHA v2 verification endpoint.  www.recaptcha.net is the same service as
+     * www.google.com/recaptcha, at the address Google provides for where google.com is blocked
+     * (mainland China); used for the widget too (recaptcha_challenge.html.twig).
      */
-    const SITEVERIFY_URL = 'https://www.google.com/recaptcha/api/siteverify';
+    const SITEVERIFY_URL = 'https://www.recaptcha.net/recaptcha/api/siteverify';
 
     /**
      * Hosts this is active for when the .env doesn't say otherwise.  Everything else -- notably

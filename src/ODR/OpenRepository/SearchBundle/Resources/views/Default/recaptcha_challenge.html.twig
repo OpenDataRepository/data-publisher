@@ -12,7 +12,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
     <title>Confirm you are human</title>
-    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    {# recaptcha.net, not google.com: it loads in mainland China too (RecaptchaService) #}
+    <script src="https://www.recaptcha.net/recaptcha/api.js" async defer></script>
     <style>
         body {
             font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
