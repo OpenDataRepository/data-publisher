@@ -21,6 +21,8 @@ Options:
                       the shared reCAPTCHA pair and the cookie secret.  install shows the ones this
                       server's install already has and asks to keep them; otherwise it asks for them
     --pass-hours N    how long a solved reCAPTCHA lasts (default: the current setting, else 96)
+    --reset-limits    install: use the repository's ban limits (maxretry, findtime, bantime).
+                      Without it, a server's own limits in its jail file are kept.
 
 install and add-site back up every file they change to /var/backups/odr-gate/<time>/, and
 add-site puts the vhost files back if Apache's config check fails afterwards.
@@ -239,6 +241,85 @@ def parse_local_conf():
 def parse_jail_ignoreip():
     match = re.search(r'^odr_ignoreip\s*=\s*(.*)$', read(P(JAIL)) or '', re.M)
     return match.group(1).split() if match else []
+
+
+# The ban limits.  Each server keeps its own: install writes the repository's jail file but puts
+#  back whatever limits the server's copy had (unless --reset-limits), so a limit changed on a
+#  server by hand isn't lost on the next install.
+JAIL_LIMITS = ('maxretry', 'findtime', 'bantime')
+JAIL_HEADER = re.compile(r'^\s*\[([^\]]+)\]\s*$')
+JAIL_SETTING = re.compile(r'^(\s*)(%s)(\s*=\s*)(.*?)\s*$' % '|'.join(JAIL_LIMITS))
+
+
+def jail_limits(text):
+    """{jail: {setting: value}} for the ban limits in a jail file, in the file's order."""
+    limits = {}
+    section = None
+    for line in (text or '').splitlines():
+        header = JAIL_HEADER.match(line)
+        if header:
+            section = header.group(1).strip()
+            continue
+        match = JAIL_SETTING.match(line)
+        # [DEFAULT] is left alone: every jail sets its own, which beats it anyway
+        if match and section and section != 'DEFAULT':
+            limits.setdefault(section, {})[match.group(2)] = match.group(4)
+    return limits
+
+
+def parse_jail_limits():
+    return jail_limits(read(P(JAIL)))
+
+
+def repo_jail_limits():
+    return jail_limits(read(os.path.join(BB, 'fail2ban/jail.d/odr.local')))
+
+
+def apply_jail_limits(text, limits):
+    """The jail file text with these limits in place of its own.  One the text doesn't have for that
+    jail (findtime on odr-bots, say) goes after the jail's last setting; a jail it doesn't have at
+    all is dropped, since it would no longer be installed."""
+    lines = text.splitlines(keepends=True)
+    section = None
+    last_setting = {}
+    replaced = set()
+    for number, line in enumerate(lines):
+        header = JAIL_HEADER.match(line)
+        if header:
+            section = header.group(1).strip()
+            continue
+        if section and re.match(r'^\s*[A-Za-z_][\w.-]*\s*=', line):
+            last_setting[section] = number
+        match = JAIL_SETTING.match(line)
+        if match and match.group(2) in limits.get(section, {}):
+            ending = line[len(line.rstrip('\r\n')):] or '\n'
+            lines[number] = match.group(1) + match.group(2) + match.group(3) + limits[section][match.group(2)] + ending
+            replaced.add((section, match.group(2)))
+    extra = {}
+    for jail, values in limits.items():
+        if jail not in last_setting:
+            continue
+        for key, value in values.items():
+            if (jail, key) not in replaced:
+                extra.setdefault(last_setting[jail], []).append('%-9s = %s\n' % (key, value))
+    out = []
+    for number, line in enumerate(lines):
+        out.append(line)
+        out.extend(extra.get(number, []))
+    return ''.join(out)
+
+
+def describe_limits(kept, repo):
+    """One line per jail: its limits, and the repository's where this server's differ."""
+    described = []
+    for jail in JAILS:
+        values = dict(repo.get(jail, {}))
+        values.update(kept.get(jail, {}))
+        differ = ['%s %s' % (key, repo[jail][key]) for key in values
+                  if key in repo.get(jail, {}) and values[key] != repo[jail][key]]
+        described.append('%-15s %s%s' % (jail, ', '.join('%s %s' % item for item in values.items()),
+                                         '   (this server\'s; the repository has %s)' % ', '.join(differ) if differ else ''))
+    return described
 
 
 def apache_log_dir():
@@ -461,10 +542,13 @@ def verify(args):
         if not jail:
             report.bad('%s missing' % JAIL, 'odr-gate install')
         else:
-            expected = render_jail(parse_jail_ignoreip(), log_dir)
+            # This server's own limits and never-ban addresses don't count as differences
+            expected = render_jail(parse_jail_ignoreip(), log_dir, parse_jail_limits())
             (report.ok if jail == expected else report.bad)(
-                '%s %s' % (JAIL, 'is current' if jail == expected else 'differs from the repository (old limits or log path)'),
-                None if jail == expected else 'odr-gate install (keeps your never-ban addresses)')
+                '%s %s' % (JAIL, 'is current' if jail == expected else 'differs from the repository (an old log path or a hand edit -- not the ban limits)'),
+                None if jail == expected else 'odr-gate install (keeps your ban limits and never-ban addresses)')
+            for line in describe_limits(parse_jail_limits(), repo_jail_limits()):
+                report.info('ban limits: ' + line)
             office = [a for a in local_addresses(parse_jail_ignoreip()) if a not in local['trusted']]
             report.info('never banned: ' + ', '.join(parse_jail_ignoreip()))
             if not office:
@@ -562,11 +646,13 @@ def render_gate_ini(values):
     return text
 
 
-def render_jail(ignoreip, log_dir):
+def render_jail(ignoreip, log_dir, limits=None):
+    """The repository's jail file, with this server's never-ban addresses, log path and (unless
+    limits is empty) ban limits."""
     text = read(os.path.join(BB, 'fail2ban/jail.d/odr.local'))
     text = re.sub(r'^odr_ignoreip\s*=.*$', 'odr_ignoreip = ' + ' '.join(ignoreip), text, flags=re.M)
     text = re.sub(r'^odr_logpath\s*=.*$', 'odr_logpath = %s/odr-ban-monitor.log' % log_dir, text, flags=re.M)
-    return text
+    return apply_jail_limits(text, limits) if limits else text
 
 
 def render_cron(main, user):
@@ -680,6 +766,8 @@ def install(args):
     current_ini = os.path.join(main, 'app/config/gate.ini')
     pass_hours = args.pass_hours or parse_ini(current_ini).get('pass_hours') or '96'
     member_pass_hours = parse_ini(current_ini).get('member_pass_hours') or '336'
+    # This server's ban limits, kept unless asked not to (see JAIL_LIMITS)
+    current_limits = {} if args.reset_limits else parse_jail_limits()
 
     say('\nAbout to set up the gate with:')
     say('  main ODR instance   %s (user %s)' % (main, user))
@@ -688,6 +776,10 @@ def install(args):
     say('  free pass           localhost (127.0.0.0/8, ::1), ' + (', '.join(server_ips) or '(none!)'))
     say('  never banned        localhost (127.0.0.0/8, ::1), ' + ', '.join(server_ips + office))
     say('  pass length         %s hours' % pass_hours)
+    say('  ban limits          %s' % ('the repository\'s (--reset-limits)' if args.reset_limits
+                                     else 'kept from this server' if current_limits else 'the repository\'s (none set here yet)'))
+    for line in describe_limits(current_limits, repo_jail_limits()):
+        say('    ' + line)
     if need_fail2ban:
         say('  fail2ban            will be installed')
     if args.dry_run:
@@ -738,7 +830,7 @@ def install(args):
     for source, target in FAIL2BAN_FILES.items():
         changes.copy(os.path.join(BB, source), P(target))
     ignore = ['127.0.0.1/8', '::1'] + [a for a in server_ips + office if a not in ('127.0.0.1/8', '::1')]
-    changes.write(P(JAIL), render_jail(list(dict.fromkeys(ignore)), log_dir))
+    changes.write(P(JAIL), render_jail(list(dict.fromkeys(ignore)), log_dir, current_limits))
     monitor = P(log_dir + '/odr-ban-monitor.log')
     if not os.path.exists(monitor):
         # fail2ban won't start a jail whose log doesn't exist yet
@@ -1099,6 +1191,7 @@ def main():
     parser.add_argument('--pass-secret', help='the secret that signs the pass cookie (keep it the same to keep everyone signed in)')
     parser.add_argument('--pass-hours', help='how long a solved reCAPTCHA lasts (default: keep the current setting, else 96)')
     parser.add_argument('--refresh', action='store_true', help='re-download the crawler and banned-bot lists')
+    parser.add_argument('--reset-limits', action='store_true', help='install: use the repository\'s ban limits instead of keeping this server\'s')
     parser.add_argument('--yes', action='store_true')
     parser.add_argument('--dry-run', action='store_true')
     args = parser.parse_args()

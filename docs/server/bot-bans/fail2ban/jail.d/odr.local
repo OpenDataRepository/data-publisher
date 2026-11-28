@@ -3,10 +3,14 @@
 # Every jail drops the banned address at the firewall (nftables) for web traffic only --
 # ports 80 and 443 -- so a mistaken ban can never lock anyone out of ssh.  Drop rather than
 # reject: under a flood, answering every refused packet is work we don't need to do.
+#
+# The limits below (maxretry, findtime, bantime) are what a new server starts with.  On a server
+# that already has this file, odr-gate install keeps that server's own limits -- change them
+# there and reload fail2ban -- unless it's run with --reset-limits.
 
 [DEFAULT]
 # Addresses never banned by these jails: this server, and wherever the people testing the
-# search gate sit.  Ten unsolved challenges in 24 hours bans the office otherwise.
+# search gate sit.  Forty unsolved challenges in 24 hours bans the office otherwise.
 # ADD YOUR OFFICE / VPN ADDRESSES HERE (space separated, CIDR allowed).
 odr_ignoreip = 127.0.0.1/8 ::1
 
@@ -48,8 +52,9 @@ maxretry  = 10
 findtime  = 24h
 bantime   = 48h
 
-# 10 reCAPTCHA challenges served within 24 hours, i.e. asking and never answering.  Every page
-# a visitor without a pass asks for is a challenge, until they solve one.
+# 40 reCAPTCHA challenges served within 24 hours, i.e. asking and never answering.  Every page
+# a visitor without a pass asks for is a challenge, until they solve one -- and a visitor whose
+# address keeps changing (iCloud Private Relay) can rack up a few honestly, so this is generous.
 [odr-challenge]
 enabled   = true
 filter    = odr-challenge
@@ -58,7 +63,7 @@ backend   = auto
 ignoreip  = %(odr_ignoreip)s
 banaction = %(odr_banaction)s
 port      = %(odr_port)s
-maxretry  = 10
+maxretry  = 40
 findtime  = 24h
 bantime   = 48h
 

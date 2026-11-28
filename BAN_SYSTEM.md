@@ -156,7 +156,7 @@ solves two reCAPTCHAs.
 | --- | --- | --- |
 | `odr-410` | any 410: banned bots by user agent, the `Bustamite?sample_child_id=` flood | immediately, 48 hours |
 | `odr-minimal404` | 10 × `gate=minimal_404` within 24 hours | 48 hours |
-| `odr-challenge` | 10 × `gate=challenge` within 24 hours: ten page requests without solving the reCAPTCHA | 48 hours |
+| `odr-challenge` | 40 × `gate=challenge` within 24 hours: forty page requests without solving the reCAPTCHA | 48 hours |
 | `odr-bots` | on a banned bot's published address list (Amazonbot) | 3 days, re-applied every 6 hours |
 
 - Bans cover ports 80 and 443 only, so a mistaken ban can't lock anyone out of ssh.
@@ -178,7 +178,7 @@ add them to its own log with `%{X-ODR-Gate}o` if wanted.
 | `passed` | a visitor with a valid pass cookie: allowed |
 | `passed_shared` | the same, with a shared-domain pass (`*.odr.io`) |
 | `member` / `member_shared` | a logged-in user's member pass (site / shared domain): allowed |
-| `challenge` ● | shown the gate page (403). **Counted by fail2ban** (10 in 24 h bans). |
+| `challenge` ● | shown the gate page (403). **Counted by fail2ban** (40 in 24 h bans). |
 | `solved` ● | solved it: pass cookie set, sent back to their page (303) |
 | `challenge-google-unreachable` ● | Google couldn't be asked, so the challenge was shown again. Not counted. |
 | `gate-logo` | the gate page's logo |
@@ -346,13 +346,16 @@ the gate. Its rule set (the RRUFF 404 and 410 rules) goes too.
 | Free-pass addresses | `/etc/apache2/odr-gate-local.conf` | `systemctl reload apache2` |
 | Shared domains (one pass for every site under it) | the `odr_pass_scope` lines in `/etc/apache2/conf-available/odr-gate.conf` | `systemctl reload apache2` |
 | Never-ban addresses | `odr_ignoreip` in `/etc/fail2ban/jail.d/odr.local` | `fail2ban-client reload` |
-| Ban limits (`maxretry`, `findtime`, `bantime`) | `/etc/fail2ban/jail.d/odr.local` | `fail2ban-client reload` |
+| Ban limits (`maxretry`, `findtime`, `bantime`) | `/etc/fail2ban/jail.d/odr.local`. `odr-gate install` keeps them; `odr-gate install --reset-limits` puts back the repository's | `fail2ban-client reload` |
 | Ban a bot by user agent, on every site | the `(Amazonbot)` list in `/etc/apache2/conf-available/odr-gate.conf`, e.g. `(Amazonbot\|Bytespider)` | `systemctl reload apache2` |
 | Ban a bot by its published addresses | `SOURCES` in `src/ODR/AdminBundle/Command/UpdateBannedBotIpsCommand.php` | next cron run |
 | A new rule set for a site | a new `/etc/apache2/conf-available/odr-gate-rules-<name>.conf`, then `Use OdrGate <instance> <name>` | `systemctl reload apache2` |
 
 Copy changes to the Apache and fail2ban files back into `docs/server/bot-bans/` in the repo, so
-the next server gets them too.
+the next server gets them too. `odr-gate install` replaces the installed copies with the repo's,
+keeping only the never-ban addresses and the ban limits (it shows the limits it's keeping, and
+the repo's where they differ). Any other change made only on the server is lost on the next
+install; the old file is in `/var/backups/odr-gate/<time>/`.
 
 A bot's published-address source must publish `"ipv4Prefix"` / `"ipv6Prefix"` entries. The
 command deliberately never takes "any address-looking text" from a page: Amazon's page also
